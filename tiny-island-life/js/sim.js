@@ -6,7 +6,7 @@
 // こうしておけば「画面では空いていたのに、日記では混んでいた」が起きない。
 
 import { CONFIG } from './config.js';
-import { HOUSE_SLOTS, PARK, SEATS, QUEUE, STROLL_POINTS, ARRIVAL, houseDoor } from './world.js';
+import { HOUSE_SLOTS, PARK, SEATS, QUEUE, STROLL_POINTS, ARRIVAL, CAFE_GATE, houseDoor } from './world.js';
 
 const DAY = 1440;
 
@@ -25,7 +25,6 @@ const RESIDENT_POOL = [
 ];
 
 export const WEATHER_LABEL = { sunny: '晴れ', cloudy: 'くもり', rain: '雨' };
-export const WEATHER_ICON = { sunny: '☀️', cloudy: '☁️', rain: '🌧️' };
 
 // ---------------------------------------------------------------- 乱数（state に持つので再現できる）
 
@@ -220,11 +219,17 @@ function moveToward(state, r, h) {
 }
 
 function goTo(state, r, dest, point) {
+  // 席や列から出るときは、建物を突っ切らないよう出入り口を通る
+  if ((r.state === 'SEATED' || r.state === 'QUEUE') && dest !== 'cafe') {
+    r.after = { dest, x: point.x, y: point.y };
+    dest = 'gate';
+    point = CAFE_GATE;
+  }
   r.state = 'WALK';
   r.dest = dest;
   r.visible = true;
   // 目的地はすこしずらす（全員が同じ点に向かわない）
-  const jitter = dest === 'home' ? 0 : 6;
+  const jitter = dest === 'home' || dest === 'gate' ? 0 : 6;
   r.tx = point.x + between(state, -jitter, jitter);
   r.ty = point.y + between(state, -jitter, jitter);
 }
@@ -270,6 +275,12 @@ function decideNext(state, r, { noCafe = false } = {}) {
 
 function arrive(state, r, events) {
   switch (r.dest) {
+    case 'gate': {
+      const next = r.after;
+      r.after = null;
+      if (next.dest === 'home') return goHome(state, r);
+      return goTo(state, r, next.dest, next);
+    }
     case 'cafe':
       return enterCafe(state, r, events);
     case 'park': {
@@ -304,7 +315,7 @@ function updateResident(state, r, h, events) {
         r.x = ARRIVAL.x;
         r.y = ARRIVAL.y;
         r.visible = true;
-        r.bubble = '🧳';
+        r.bubble = 'arrive';
         r.bubbleUntil = t + 60;
         goHome(state, r);
         events.push({ type: 'arrived', name: r.name });
@@ -394,7 +405,7 @@ function sit(state, r, seatIdx) {
 function enterCafe(state, r, events) {
   if (!cafeOpen(state)) {
     // 閉まっていた。売り損ではないので数えない
-    r.bubble = '🔒';
+    r.bubble = 'closed';
     r.bubbleUntil = state.t + 15;
     return afterActivity(state, r, 0.8, { noCafe: true });
   }
@@ -422,7 +433,7 @@ function leaveCafe(state, r, events) {
 
 function loseCustomer(state, r, waited, events) {
   state.today.lost.push({ clock: clockOf(state.t), waited: Math.round(waited), name: r.name });
-  r.bubble = '😞';
+  r.bubble = 'lost';
   r.bubbleUntil = state.t + 25;
   events.push({ type: 'lost', name: r.name, waited });
   // 帰った人が、すぐまたカフェに並び直すことはしない
@@ -435,7 +446,7 @@ function updateCafe(state, events) {
   if (!cafeOpen(state) && cafe.queue.length > 0) {
     for (const id of cafe.queue.splice(0)) {
       const r = state.residents.find((x) => x.id === id);
-      r.bubble = '🔒';
+      r.bubble = 'closed';
       r.bubbleUntil = state.t + 15;
       afterActivity(state, r, 0.9, { noCafe: true });
     }
@@ -470,12 +481,12 @@ function rolloverDay(state, events) {
 
   // 良かったこと（1〜2個）
   if (today.served > 0) {
-    lines.push({ kind: 'good', text: `☕ カフェに ${today.served}人 が来ました（+${today.income} Coin）` });
+    lines.push({ kind: 'good', text: `カフェに ${today.served}人 が来ました（+${today.income} Coin）` });
   }
   const parkFan = Object.entries(today.parkMinutes).sort((a, b) => b[1] - a[1])[0];
   if (parkFan && parkFan[1] >= 60) {
     const r = state.residents.find((x) => x.id === parkFan[0]);
-    lines.push({ kind: 'good', text: `🌳 ${r.name}は公園で長いこと過ごしていました` });
+    lines.push({ kind: 'good', text: `${r.name}は公園で長いこと過ごしていました` });
   }
 
   // 困ったこと（答えは書かない。起きたことと損だけ・D281）
@@ -502,7 +513,7 @@ function rolloverDay(state, events) {
   const upkeep = CONFIG.cafe.levels[state.cafe.level - 1].upkeep;
   if (upkeep > 0) {
     state.coin -= upkeep;
-    lines.push({ kind: 'info', text: `🧾 カフェの維持費 −${upkeep} Coin` });
+    lines.push({ kind: 'info', text: `カフェの維持費 −${upkeep} Coin` });
   }
 
   // 人口：空き家があって、昨日のカフェで座れた人が多ければ、1人やってくる
@@ -511,13 +522,13 @@ function rolloverDay(state, events) {
   const hasCandidate = state.poolIndex < RESIDENT_POOL.length;
   if (hasCandidate) {
     if (vacancy(state) <= 0) {
-      lines.push({ kind: 'problem', text: '🏠 島に住みたい人がいたようですが、空いている家がありませんでした' });
+      lines.push({ kind: 'problem', text: '島に住みたい人がいたようですが、空いている家がありませんでした' });
     } else if (satisfaction < CONFIG.growth.minSatisfaction) {
-      lines.push({ kind: 'problem', text: '🧳 島を見に来た人がいましたが、住むのはやめたようです' });
+      lines.push({ kind: 'problem', text: '島を見に来た人がいましたが、住むのはやめたようです' });
     } else {
       const r = addResident(state, { arriving: true });
       r.arriveAt = Math.floor(state.t / DAY) * DAY + clockToInDay(8 * 60) + between(state, 0, 90);
-      lines.push({ kind: 'good', text: `🧳 今日、${r.name}が島に引っ越してくるそうです` });
+      lines.push({ kind: 'good', text: `今日、${r.name}が島に引っ越してくるそうです` });
     }
   }
 
@@ -548,17 +559,16 @@ export function actionsFor(state) {
   if (next) {
     list.push({
       id: 'cafe_upgrade',
-      icon: '☕',
       title: `カフェを広げる（Lv${next.level}）`,
       detail: `席 ${seatCount(state)} → ${next.seats}　維持費 1日 ${next.upkeep} Coin`,
       cost: next.cost,
     });
   }
   if (!state.park.roof) {
-    list.push({ id: 'park_roof', icon: '🛖', title: '公園に東屋をつくる', detail: '屋根の下なら、雨でも過ごせる', cost: CONFIG.park.roofCost });
+    list.push({ id: 'park_roof', title: '公園に東屋をつくる', detail: '屋根の下なら、雨でも過ごせる', cost: CONFIG.park.roofCost });
   }
   if (state.houses.length < HOUSE_SLOTS.length) {
-    list.push({ id: 'house_build', icon: '🏠', title: '家を建てる', detail: `${CONFIG.houseCapacity}人まで住める`, cost: CONFIG.house.cost });
+    list.push({ id: 'house_build', title: '家を建てる', detail: `${CONFIG.houseCapacity}人まで住める`, cost: CONFIG.house.cost });
   }
   return list;
 }
@@ -586,7 +596,7 @@ export function applyAction(state, id) {
 export function describeResident(state, r) {
   switch (r.state) {
     case 'WALK':
-      return { cafe: 'カフェへ向かっている', park: '公園へ向かっている', stroll: 'ぶらぶら歩いている', home: '家へ帰るところ' }[r.dest] || '歩いている';
+      return { cafe: 'カフェへ向かっている', park: '公園へ向かっている', stroll: 'ぶらぶら歩いている', home: '家へ帰るところ', gate: 'カフェを出たところ' }[r.dest] || '歩いている';
     case 'QUEUE':
       return `カフェの前で待っている（${Math.round(state.t - r.queuedAt)}分）`;
     case 'SEATED':

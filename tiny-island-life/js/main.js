@@ -4,9 +4,10 @@ import { CONFIG } from './config.js';
 import { PARK, CAFE, SEATS } from './world.js';
 import {
   createGame, step, catchUp, isNight, dayOf, formatClock, actionsFor, applyAction,
-  describeResident, favoriteText, seatCount, WEATHER_ICON, WEATHER_LABEL,
+  describeResident, favoriteText, seatCount, WEATHER_LABEL,
 } from './sim.js';
-import { createRenderer } from './render.js';
+import { createRenderer, lookOf } from './render.js';
+import { ICONS } from './icons.js';
 
 const SAVE_KEY = 'til.save.v1';
 const OPENS_KEY = 'til.opens.v1';
@@ -73,10 +74,10 @@ function frame(now) {
   const events = step(state, realDt * rate);
   for (const e of events) {
     if (e.type === 'newday') {
-      toast(`📖 Day ${e.entry.day} の日記が届きました`);
+      toast(`Day ${e.entry.day} の日記が届きました`);
       $('diary-dot').hidden = false;
     } else if (e.type === 'arrived') {
-      toast(`🧳 ${e.name}が島にやってきました`);
+      toast(`${e.name}が島に引っ越してきました`);
     }
   }
   renderer.draw(state, now / 1000, selected?.kind === 'resident' ? selected.id : null);
@@ -85,8 +86,12 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
+let shownWeather = null;
 function updateHud() {
-  $('weather').textContent = WEATHER_ICON[state.weather];
+  if (shownWeather !== state.weather) {
+    $('weather').innerHTML = ICONS[state.weather];
+    shownWeather = state.weather;
+  }
   $('day').textContent = `Day ${dayOf(state.t)}`;
   $('clock').textContent = formatClock(state.t);
   $('coin').textContent = state.coin.toLocaleString();
@@ -120,8 +125,14 @@ function select(s) {
   if (s) renderCard();
 }
 
-function faces(ids) {
-  return ids.map((id) => state.residents.find((r) => r.id === id)?.emoji || '').join('');
+function dot(r) {
+  return `<i class="dot" style="background:${lookOf(r).shirt}"></i>`;
+}
+
+function who(ids) {
+  const list = ids.map((id) => state.residents.find((r) => r.id === id)).filter(Boolean);
+  if (list.length === 0) return 'だれもいない';
+  return `<span class="who">${list.map((r) => `<span>${dot(r)}${r.name}</span>`).join('')}</span>`;
 }
 
 function renderCard() {
@@ -130,22 +141,21 @@ function renderCard() {
   if (selected.kind === 'resident') {
     const r = state.residents.find((x) => x.id === selected.id);
     if (!r || !r.visible) return select(null);
-    html = `<h3>${r.emoji} ${r.name}</h3><div class="row">${favoriteText(r)}</div><div>いま：${describeResident(state, r)}</div>`;
+    html = `<h3>${dot(r)}${r.name}</h3><div class="sub">${favoriteText(r)}</div><div class="now">いまは、${describeResident(state, r)}</div>`;
   } else if (selected.kind === 'cafe') {
     const seated = state.cafe.seats.filter(Boolean);
-    const open = `営業 ${fmt(CONFIG.cafe.open)}〜${fmt(CONFIG.cafe.close)}`;
-    html = `<h3>☕ カフェ Lv${state.cafe.level}</h3><div class="row">席 ${seatCount(state)}　${open}</div>`;
-    html += `<div>座っている：<span class="people">${faces(seated) || '—'}</span></div>`;
-    html += `<div>外で待っている：<span class="people">${faces(state.cafe.queue) || '—'}</span></div>`;
+    html = `<h3>カフェ Lv${state.cafe.level}</h3><div class="sub">席は ${seatCount(state)} つ。${fmt(CONFIG.cafe.open)}から${fmt(CONFIG.cafe.close)}まで</div>`;
+    html += `<div class="now">座っている：${who(seated)}</div>`;
+    html += `<div>外で待っている：${who(state.cafe.queue)}</div>`;
   } else if (selected.kind === 'park') {
     const here = state.residents.filter((r) => r.state === 'PARK').map((r) => r.id);
-    html = `<h3>🌳 公園</h3><div class="row">${state.park.roof ? '東屋あり' : '屋根なし'}</div>`;
-    html += `<div>いま：<span class="people">${faces(here) || '—'}</span></div>`;
+    html = `<h3>公園</h3><div class="sub">${state.park.roof ? '東屋がある' : '屋根はない'}</div>`;
+    html += `<div class="now">いま：${who(here)}</div>`;
   } else if (selected.kind === 'house') {
-    const living = state.residents.filter((r) => r.homeId === selected.id && r.state !== 'PENDING');
+    const living = state.residents.filter((r) => r.homeId === selected.id && r.state !== 'PENDING').map((r) => r.id);
     const free = CONFIG.houseCapacity - state.residents.filter((r) => r.homeId === selected.id).length;
-    html = `<h3>🏠 家</h3><div>住んでいる：${living.map((r) => r.emoji + r.name).join('、') || '—'}</div>`;
-    html += `<div class="row">空き ${free}人分</div>`;
+    html = `<h3>家</h3><div class="sub">${free > 0 ? `あと ${free}人 住める` : '満室'}</div>`;
+    html += `<div class="now">住んでいる：${who(living)}</div>`;
   }
   if (card.innerHTML !== html) card.innerHTML = html;
 }
@@ -181,33 +191,34 @@ $('sheet').addEventListener('click', (ev) => {
 
 $('btn-build').addEventListener('click', () => {
   const items = actionsFor(state)
-    .map(
-      (a) => `<button class="action" type="button" data-action="${a.id}" ${state.coin < a.cost ? 'disabled' : ''}>
-        <span class="icon">${a.icon}</span>
+    .map((a) => {
+      const short = a.cost - state.coin;
+      return `<button class="action" type="button" data-action="${a.id}" ${short > 0 ? 'disabled' : ''}>
+        ${ICONS[a.id]}
         <span class="text">${a.title}<span class="detail">${a.detail}</span></span>
-        <span class="cost">💰 ${a.cost.toLocaleString()}</span>
-      </button>`,
-    )
+        <span><span class="cost">${ICONS.coin}${a.cost.toLocaleString()}</span>${short > 0 ? `<span class="need">あと ${short.toLocaleString()}</span>` : ''}</span>
+      </button>`;
+    })
     .join('');
-  openSheet(`<h2>🏗 つくる</h2>${items || '<p>いまつくれるものはありません</p>'}`);
+  openSheet(`<h2>つくる</h2>${items || '<p class="lead">いまつくれるものはありません</p>'}`);
 });
 
 function entryHtml(e) {
   const lines = e.lines.map((l) => `<p class="${l.kind}">${l.text}</p>`).join('');
-  return `<div class="entry"><h3>📖 Day ${e.day}　${WEATHER_ICON[e.weather]} ${WEATHER_LABEL[e.weather]}</h3>${lines}</div>`;
+  return `<div class="entry"><h3>Day ${e.day}${ICONS[e.weather]}${WEATHER_LABEL[e.weather]}</h3>${lines}</div>`;
 }
 
 $('btn-diary').addEventListener('click', () => {
   $('diary-dot').hidden = true;
   for (const e of state.diary) e.read = true;
   const entries = [...state.diary].reverse().map(entryHtml).join('');
-  openSheet(`<h2>📖 島の日記</h2>${entries || '<p>まだ日記はありません。1日が終わると届きます。</p>'}`);
+  openSheet(`<h2>島の日記</h2>${entries ? `<div class="notebook">${entries}</div>` : '<p class="lead">まだ日記はありません。1日が終わると、ここに届きます。</p>'}`);
 });
 
 function showMorning(entries) {
   for (const e of entries) e.read = true;
   $('diary-dot').hidden = true;
-  openSheet(`<div class="morning">🌅 おはよう！</div><p>昨日の島では……</p>${entries.map(entryHtml).join('')}`);
+  openSheet(`<div class="morning">${ICONS.sunrise}<h2>おはようございます</h2><p class="lead">昨日の島では、こんなことがありました</p></div><div class="notebook">${entries.map(entryHtml).join('')}</div>`);
 }
 
 // ---------------------------------------------------------------- お知らせ
@@ -284,7 +295,11 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('pagehide', save);
 setInterval(save, 5000);
 
+$('coin-icon').innerHTML = ICONS.coin;
+document.querySelector('#btn-build .i').innerHTML = ICONS.build;
+document.querySelector('#btn-diary .i').innerHTML = ICONS.diary;
 renderer.resize();
+if (document.fonts?.ready) document.fonts.ready.then(() => renderer.resize());
 recordOpen();
 if (state.savedAt) {
   returnAfter((Date.now() - state.savedAt) / 1000);

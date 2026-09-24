@@ -32,6 +32,12 @@ export const QUEUE = [
   { x: 142, y: 492 }, { x: 118, y: 480 }, { x: 96, y: 466 }, { x: 78, y: 450 }, { x: 64, y: 432 },
 ];
 
+// カフェの出入り口（席や列から出るときは、ここを通ってから行き先へ向かう）
+export const CAFE_GATE = { x: 132, y: 476 };
+
+// 列の先頭の看板
+export const MENU_BOARD = { x: 156, y: 474 };
+
 // 散歩で立ち寄る場所
 export const STROLL_POINTS = [
   { x: 192, y: 300 }, { x: 214, y: 330 }, { x: 170, y: 336 },
