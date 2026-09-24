@@ -10,6 +10,16 @@ const svg = (body, size = 24) =>
 
 const cloudPath = 'M7 18h10a4 4 0 0 0 .6-7.96A5.5 5.5 0 0 0 7.1 9.5 4.3 4.3 0 0 0 7 18z';
 
+function expandIcon(ax, ay, mx, my) {
+  return svg(
+    `<ellipse cx="${mx + 1}" cy="${my + 1}" rx="6.5" ry="7.5" fill="${SHADOW}"/>` +
+      `<ellipse cx="${ax + 1}" cy="${ay + 1}" rx="5" ry="4.5" fill="${SHADOW}"/>` +
+      `<ellipse cx="${ax}" cy="${ay}" rx="5" ry="4.5" fill="${MUSTARD}" stroke="${INK}" stroke-width="1.3" stroke-dasharray="2 1.6"/>` +
+      `<ellipse cx="${mx}" cy="${my}" rx="6.5" ry="7.5" fill="#8cc084" stroke="${INK}" stroke-width="1.4"/>`,
+    28,
+  );
+}
+
 export const ICONS = {
   close: svg(`<path d="M7 7l10 10M17 7L7 17" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>`, 22),
   sunny: svg(
@@ -91,6 +101,18 @@ export const ICONS = {
       `<path d="M3 11l3-5h12l3 5z" fill="#f7a8b8"/>` +
       `<circle cx="8.5" cy="14" r="1.8" fill="#cfe6ee"/><circle cx="15.5" cy="14" r="1.8" fill="#cfe6ee"/>` +
       `<rect x="10.5" y="15" width="3" height="5" rx="1.5" fill="#8ecae6"/>`,
+    28,
+  ),
+  // 島を広げる：本島（緑）と、ひらく土地（黄）の位置
+  expand_north: expandIcon(12, 6.5, 12, 14.5),
+  expand_east: expandIcon(17.5, 10, 10, 13),
+  expand_west: expandIcon(6.5, 14, 14, 11),
+  harbor: svg(
+    `<path d="M4 15h16l-2.5 4h-11z" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<path d="M4 15h16l-2.5 4h-11z" fill="#fff" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"/>` +
+      `<rect x="8" y="10" width="7" height="5" rx="1" fill="${MUSTARD}"/>` +
+      `<path d="M16.5 15V5.5M16.5 5.5l3.5 1.5-3.5 1.5" stroke="${INK}" stroke-width="1.3" fill="#c8553d" stroke-linejoin="round"/>` +
+      `<path d="M2 21.5c2 0 2-1 4-1s2 1 4 1 2-1 4-1 2 1 4 1 2-1 4-1" stroke="${SKY}" stroke-width="1.4" fill="none" stroke-linecap="round"/>`,
     28,
   ),
   bar: svg(

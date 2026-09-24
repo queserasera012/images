@@ -1,7 +1,9 @@
 // 描画。state を読んで絵を置くだけ。state は書き換えない。
 // 見た目の方針は docs/DESIGN.md（切り絵のジオラマ・絵文字は使わない）。格子版（D289）。
 
-import { T, COLS, ROWS, WORLD, ISLAND, SIZES, MAP, PIER, islandRadius, idx, center, neighbors, isRoad, occupied } from './grid.js';
+import {
+  T, COLS, ROWS, WORLD, SIZES, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, landBounds, shapesOf, islandRadius, idx, center, neighbors, isRoad, occupied,
+} from './grid.js';
 import { clockOf, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf } from './sim.js';
 
 export const FONT = '"Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif';
@@ -69,20 +71,36 @@ const hash = (i) => {
   return ((x * 1274126177) >>> 0) / 4294967296;
 };
 
-// 交差点（道が3方向以上につながるマス）の一部に街灯を立てる
-const LAMPS = MAP.map((k, i) => (k === 'road' && neighbors(i).filter(isRoad).length >= 3 && hash(i) < 0.5 ? i : -1)).filter((i) => i >= 0);
+// 交差点（道が3方向以上につながるマス）の一部に街灯を立てる。地図が変わったら（島を広げたら）作り直す
+let lampsKey = null;
+let lampsList = [];
+function lamps() {
+  if (lampsKey !== MAP_KEY) {
+    lampsKey = MAP_KEY;
+    lampsList = MAP.map((k, i) => (k === 'road' && neighbors(i).filter(isRoad).length >= 3 && hash(i) < 0.5 ? i : -1)).filter((i) => i >= 0);
+  }
+  return lampsList;
+}
 
-function islandPath(ctx, k = 1, grow = 0, dx = 0, dy = 0) {
+// 島の土地（楕円をすこし揺らした形）。広げた土地は、本島に重ねて描く
+function islandPath(ctx, area, k = 1, grow = 0, dx = 0, dy = 0) {
   ctx.beginPath();
   for (let i = 0; i <= 120; i++) {
     const a = (i / 120) * Math.PI * 2;
-    const f = islandRadius(a) * k;
-    const x = ISLAND.cx + dx + Math.cos(a) * (ISLAND.rx * f + grow);
-    const y = ISLAND.cy + dy + Math.sin(a) * (ISLAND.ry * f + grow);
+    const f = islandRadius(a, area.ph) * k;
+    const x = area.cx + dx + Math.cos(a) * (area.rx * f + grow);
+    const y = area.cy + dy + Math.sin(a) * (area.ry * f + grow);
     if (i === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   }
   ctx.closePath();
+}
+
+// 桟橋の向き。船は桟橋の先の、少し横に着く
+function pierGeom(id) {
+  const [dx, dy] = areaById(id).pier.dir;
+  const [px, py] = dx ? [0, 1] : [1, 0];
+  return { dx, dy, px, py };
 }
 
 function roundRect(ctx, x, y, w, h, r) {
@@ -93,17 +111,34 @@ function roundRect(ctx, x, y, w, h, r) {
 export function createRenderer(canvas) {
   const ctx = canvas.getContext('2d');
   const view = { w: 0, h: 0, dpr: 1 };
-  const cam = { x: 6.5 * T, y: 11 * T, zoom: 1 };
+  const cam = { x: (OX + 6.5) * T, y: (OY + 11) * T, zoom: 1 };
   const drops = Array.from({ length: 70 }, () => ({ x: Math.random(), y: Math.random(), s: 0.7 + Math.random() * 0.6 }));
   let ground = null;
+  let groundKey = null;
+  let groundRect = null;
   let pokes = null; // タップされた住民（id → タップした時刻）。ぴょんと跳ねて ハートを出す
   const GROUND_RES = 3; // 地面は一度だけ高い解像度で描いておく
 
-  const minZoom = () => Math.min(1, (view.w / WORLD.w) * 1.02);
   const maxZoom = 1.7;
 
-  // カメラが動ける範囲。南は桟橋の先の船が見えるところまで（下のボタンに隠れないよう広めに）
+  // カメラが動ける範囲：ひらいた土地のまわり。桟橋の先の船が見えるところまで（下のボタンに隠れないよう広めに）
   const BOUNDS = { left: -20, right: WORLD.w + 20, top: -20, bottom: WORLD.h + 210 };
+  let boundsKey = null;
+  function setBounds(state) {
+    const key = `${(state.areas || ['main']).join('+')}|${(state.harbors || []).map((h) => h.id).join('+')}`;
+    if (key === boundsKey) return;
+    boundsKey = key;
+    const b = landBounds(state.areas || ['main']);
+    const has = (id) => (state.harbors || []).some((h) => h.id === id);
+    Object.assign(BOUNDS, {
+      left: b.left - 20 - (has('west') ? 170 : 0),
+      right: b.right + 20 + (has('east') ? 170 : 0),
+      top: b.top - 20 - (has('north') ? 190 : 0),
+      bottom: b.bottom + 210,
+    });
+    clampCam();
+  }
+  const minZoom = () => Math.min(1, (view.w / (BOUNDS.right - BOUNDS.left - 40)) * 1.02);
   function clampCam() {
     cam.zoom = Math.max(minZoom(), Math.min(maxZoom, cam.zoom));
     const hw = view.w / 2 / cam.zoom;
@@ -126,7 +161,6 @@ export function createRenderer(canvas) {
       view.started = true;
     }
     clampCam();
-    if (!ground) ground = buildGround();
   }
 
   const ox = () => view.w / 2 - cam.x * cam.zoom;
@@ -166,43 +200,62 @@ export function createRenderer(canvas) {
 
   // ---------------------------------------------------------------- 動かない地面（島・道・桟橋）
 
-  function buildGround() {
+  function buildGround(state) {
+    const ids = state.areas || ['main'];
+    const areas = AREAS.filter((a) => a.id === 'main' || ids.includes(a.id));
+    const harbors = (state.harbors || []).map((h) => h.id);
+    // 地面の絵は、ひらいた土地のまわりだけ（広い海まで高解像度で持たない）
+    const lb = landBounds(ids);
+    const m = 80;
+    const rect = { x: Math.floor(lb.left - m), y: Math.floor(lb.top - m), w: 0, h: 0 };
+    rect.w = Math.ceil(lb.right + m) - rect.x;
+    rect.h = Math.ceil(lb.bottom + m) - rect.y;
     const off = document.createElement('canvas');
-    off.width = WORLD.w * GROUND_RES;
-    off.height = WORLD.h * GROUND_RES;
+    off.width = rect.w * GROUND_RES;
+    off.height = rect.h * GROUND_RES;
     const g = off.getContext('2d');
     g.scale(GROUND_RES, GROUND_RES);
+    g.translate(-rect.x, -rect.y);
 
-    // 島の影（ずらした紙）→ 浅瀬 → 砂 → 芝
-    g.fillStyle = PALETTE.seaDeep;
-    islandPath(g, 1, 10, 6, 8);
-    g.fill();
-    g.fillStyle = 'rgba(255,255,255,0.22)';
-    islandPath(g, 1, 12);
-    g.fill();
-    g.fillStyle = PALETTE.sand;
-    islandPath(g, 1, 4);
-    g.fill();
-    g.fillStyle = PALETTE.grassDark;
-    islandPath(g, 0.885, 0, 3, 4);
-    g.fill();
-    g.fillStyle = PALETTE.grass;
-    islandPath(g, 0.885);
-    g.fill();
+    // 島の影（ずらした紙）→ 浅瀬 → 砂 → 芝。どの層も、土地ぜんぶを描いてから次の層へ
+    const layer = (color, k, grow, dx = 0, dy = 0) => {
+      g.fillStyle = color;
+      for (const a of areas.flatMap(shapesOf)) {
+        islandPath(g, a, k, grow, dx, dy);
+        g.fill();
+      }
+    };
+    layer(PALETTE.seaDeep, 1, 10, 6, 8);
+    layer('rgba(255,255,255,0.22)', 1, 12);
+    layer(PALETTE.sand, 1, 4);
+    layer(PALETTE.grassDark, 0.885, 0, 3, 4);
+    layer(PALETTE.grass, 0.885);
 
-    // 桟橋
-    const pier = center(PIER);
-    g.fillStyle = PALETTE.shadow;
-    g.fillRect(pier.x - 9 + 3, pier.y + 3, 18, 56);
-    g.fillStyle = '#b98b5e';
-    g.fillRect(pier.x - 9, pier.y, 18, 56);
-    g.strokeStyle = 'rgba(80,50,30,0.25)';
-    g.lineWidth = 1;
-    for (let y = pier.y + 6; y < pier.y + 56; y += 7) {
-      g.beginPath();
-      g.moveTo(pier.x - 9, y);
-      g.lineTo(pier.x + 9, y);
-      g.stroke();
+    // 桟橋：本島の桟橋はいつも。広げた土地の桟橋は、港をつくったら
+    for (const id of ['main', ...harbors]) {
+      const pier = center(PIERS[id]);
+      const { dx, dy } = pierGeom(id);
+      const L = 56;
+      const r = dx ? { x: dx > 0 ? pier.x : pier.x - L, y: pier.y - 9, w: L, h: 18 } : { x: pier.x - 9, y: dy > 0 ? pier.y : pier.y - L, w: 18, h: L };
+      g.fillStyle = PALETTE.shadow;
+      g.fillRect(r.x + 3, r.y + 3, r.w, r.h);
+      g.fillStyle = '#b98b5e';
+      g.fillRect(r.x, r.y, r.w, r.h);
+      g.strokeStyle = 'rgba(80,50,30,0.25)';
+      g.lineWidth = 1;
+      for (let k = 6; k < L; k += 7) {
+        g.beginPath();
+        if (dx) {
+          const x = dx > 0 ? pier.x + k : pier.x - k;
+          g.moveTo(x, r.y);
+          g.lineTo(x, r.y + r.h);
+        } else {
+          const y = dy > 0 ? pier.y + k : pier.y - k;
+          g.moveTo(r.x, y);
+          g.lineTo(r.x + r.w, y);
+        }
+        g.stroke();
+      }
     }
 
     // 道：マスをつないだ帯。先に濃い砂で影、上に明るい砂
@@ -220,6 +273,7 @@ export function createRenderer(canvas) {
     };
     band(PALETTE.sandDark, 2);
     band(PALETTE.sand, 0);
+    groundRect = rect;
     return off;
   }
 
@@ -835,12 +889,13 @@ export function createRenderer(canvas) {
   }
 
   // 船：南の桟橋の横に着く
-  function boat(state, time) {
-    const b = boatNow(state);
+  function boat(state, port, time) {
+    const b = boatNow(state, port);
     if (!b) return;
-    const pier = center(PIER);
-    const dock = { x: pier.x + 34, y: pier.y + 46 };
-    const from = { x: dock.x + 90, y: dock.y + 150 };
+    const pier = center(PIERS[port.id]);
+    const { dx, dy, px, py } = pierGeom(port.id);
+    const dock = { x: pier.x + dx * 46 + px * 34, y: pier.y + dy * 46 + py * 34 };
+    const from = { x: dock.x + dx * 150 + px * 90, y: dock.y + dy * 150 + py * 90 };
     const e = 1 - Math.pow(1 - b.k, 2); // 着く前にゆっくりになる
     const x = from.x + (dock.x - from.x) * e;
     const y = from.y + (dock.y - from.y) * e + (b.phase === 'docked' ? Math.sin(time * 1.6) * 0.8 : 0);
@@ -1505,6 +1560,7 @@ export function createRenderer(canvas) {
 
   function draw(state, time, ui = {}) {
     pokes = ui.pokes || null;
+    setBounds(state);
     ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
     ctx.fillStyle = PALETTE.sea;
     ctx.fillRect(0, 0, view.w, view.h);
@@ -1519,13 +1575,18 @@ export function createRenderer(canvas) {
     ctx.lineWidth = 1.6;
     ctx.lineCap = 'round';
     for (let i = 0; i < 40; i++) {
-      const x = ((i * 97 + time * 5) % (WORLD.w + 200)) - 100;
-      const y = ((i * 151) % (WORLD.h + 200)) - 100;
+      const x = ((i * 97 + time * 5) % (WORLD.w + 400)) - 200;
+      const y = ((i * 151) % (WORLD.h + 400)) - 200;
       ctx.beginPath();
       ctx.arc(x, y, 7, Math.PI * 1.15, Math.PI * 1.85);
       ctx.stroke();
     }
-    if (ground) ctx.drawImage(ground, 0, 0, WORLD.w, WORLD.h);
+    const gk = `${MAP_KEY}|${(state.harbors || []).map((h) => h.id).join('+')}`;
+    if (gk !== groundKey) {
+      ground = buildGround(state);
+      groundKey = gk;
+    }
+    ctx.drawImage(ground, groundRect.x, groundRect.y, groundRect.w, groundRect.h);
 
     const clock = clockOf(state.t);
     const night = clock >= 19 * 60 || clock < 6 * 60;
@@ -1545,9 +1606,9 @@ export function createRenderer(canvas) {
       else if (b.type === 'petshop') petshop(state, b);
       else if (b.type === 'kinder') kinder(state, b, time);
     }
-    for (const i of LAMPS) lamp(i, false);
+    for (const i of lamps()) lamp(i, false);
     for (const b of state.buildings) if (b.type === 'cafe' && b.bar && !night) barLights(b, false, time);
-    boat(state, time);
+    for (const port of [state.port, ...(state.harbors || [])]) boat(state, port, time);
     if (ui.placing) drawPlacing(state, ui.placing, time);
 
     // 天気と時間帯の色は住民より下にかける（主役を色あせさせない）
@@ -1565,7 +1626,7 @@ export function createRenderer(canvas) {
       const home = state.residents.some((r) => r.homeId === b.id && !r.visible && r.state !== 'PENDING');
       houseWindow(b, night && home);
     }
-    if (night) for (const i of LAMPS) lamp(i, true);
+    if (night) for (const i of lamps()) lamp(i, true);
     if (night) for (const b of state.buildings) if (b.type === 'planetarium') planetariumGlow(b, time);
     if (night) for (const b of state.buildings) if (b.type === 'cafe' && b.bar) barLights(b, true, time);
     // 住民・観光客・ペットを、奥（上）から順に

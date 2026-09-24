@@ -1,12 +1,12 @@
 // 画面の組み立て：時間を流す・保存する・タップと指の操作を受ける。ゲームのルールは sim.js にしか書かない。
 
 import { CONFIG } from './config.js';
-import { T, SIZES, PIER, center, placements, footprint, canPlace } from './grid.js';
+import { T, SIZES, PIER, PIERS, OX, OY, AREAS, areaById, center, placements, footprint, canPlace, landBounds } from './grid.js';
 import {
   createGame, step, catchUp, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
   migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
-  labelOf, nextGoal, unlockNow, nameBaby, parentsOf,
+  labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById,
 } from './sim.js';
 import { createRenderer, lookOf } from './render.js';
 import { ICONS } from './icons.js';
@@ -92,7 +92,8 @@ function frame(now) {
     } else if (e.type === 'stray') {
       toast(`${e.near}のあたりに、${e.label}が迷い込んできたようです`);
     } else if (e.type === 'boat') {
-      toast(`船が着きました。観光客が ${e.n}人 降りてきました`);
+      const where = e.port && e.port !== 'main' ? `${areaById(e.port).name}の港に` : '';
+      toast(`${where}船が着きました。観光客が ${e.n}人 降りてきました`);
     } else if (e.type === 'portOpen') {
       setTimeout(() => toast('港がひらきました。船が来るようになります'), 3000);
       renderQuest();
@@ -209,8 +210,14 @@ function tap(clientX, clientY) {
     tutorial('tap_resident');
     return select({ kind: 'resident', id: hit.r.id });
   }
-  const pier = center(PIER);
-  if (Math.abs(p.x - (pier.x + 16)) < 40 && p.y > pier.y - 14 && p.y < pier.y + 80) return select({ kind: 'port' });
+  // 港（桟橋と、その先に着く船のあたり）
+  for (const port of portsOf(state)) {
+    const pier = center(PIERS[port.id]);
+    const [dx, dy] = areaById(port.id).pier.dir;
+    const along = (p.x - pier.x) * dx + (p.y - pier.y) * dy;
+    const side = dx ? p.y - pier.y - 16 : p.x - pier.x - 16;
+    if (along > -14 && along < 80 && Math.abs(side) < 40) return select({ kind: 'port', id: port.id });
+  }
   const b = buildingAt(p);
   if (b) {
     if (b.type === 'cafe') tutorial('tap_cafe');
@@ -307,6 +314,14 @@ function renderCard() {
         ? `${parents[0].name}と${parents[1].name}の子ども`
         : favoriteText(r) + (spouse ? `。${spouse.name}と結婚している` : '');
     html = `<h3>${dot(r)}${r.name}</h3><div class="sub">${sub}</div><div class="now">いまは、${describeResident(state, r)}</div>`;
+  } else if (selected.kind === 'port' && selected.id && selected.id !== 'main') {
+    const port = portById(state, selected.id);
+    const b = boatNow(state, port);
+    const next = nextBoat(state, port);
+    const sub = b?.phase === 'docked' ? `船が来ています。${at(b.depart)}に出航` : next ? `次の船は ${at(next.arrive)}ごろ` : '今日の船は、もう来ません';
+    const pier = PIERS[port.id];
+    const onIsland = state.visitors.filter((v) => v.visible && v.pier === pier).length;
+    html = `<h3>${areaById(port.id).name}の港</h3><div class="sub">${sub}</div><div class="now">この港から来た観光客：${onIsland}人</div>`;
   } else if (selected.kind === 'port') {
     const N = CONFIG.port.unlockPopulation;
     if (!state.port.open) {
@@ -412,6 +427,9 @@ $('sheet').addEventListener('click', (ev) => {
   toast(res.message);
   if (res.ok) {
     $('sheet').hidden = true;
+    // 広げた土地・つくった港を見せる
+    const area = action.id.startsWith('expand:') || action.id.startsWith('harbor:') ? areaById(action.id.split(':')[1]) : null;
+    if (area) renderer.focus(area.cx, area.cy);
     save();
   }
 });
@@ -420,16 +438,17 @@ $('btn-build').addEventListener('click', () => openBuild());
 
 // つくる：「新しく建てる」と「広げる」のタブ（D296）。新しく建てるものは ほぼ一定、広げるものは建物の数だけ増える
 let buildTab = 'new';
-const isNewAction = (a) => !!a.place;
+// 「新しく建てる」「広げる」「島」（島を広げる・港を増やす・D298）
+const tabOf = (a) => a.tab || (a.place ? 'new' : 'grow');
 
 function openBuild(focusId) {
   if (placing) return;
   const all = actionsFor(state);
   if (focusId) {
     const target = all.find((a) => a.id.startsWith(focusId));
-    if (target) buildTab = isNewAction(target) ? 'new' : 'grow';
+    if (target) buildTab = tabOf(target);
   }
-  const list = all.filter((a) => (buildTab === 'new' ? isNewAction(a) : !isNewAction(a)));
+  const list = all.filter((a) => tabOf(a) === buildTab);
   // 建てられるものを上に、まだひらいていないものは下に
   list.sort((a, b) => Number(!!a.locked) - Number(!!b.locked));
   const items = list
@@ -442,12 +461,14 @@ function openBuild(focusId) {
       </button>`;
     })
     .join('');
-  const count = (tab) => all.filter((a) => (tab === 'new' ? isNewAction(a) : !isNewAction(a))).length;
+  const count = (tab) => all.filter((a) => tabOf(a) === tab && !a.locked).length;
+  const badge = (tab) => (count(tab) ? `<span class="n">${count(tab)}</span>` : '');
   const tabs = `<div class="tabs" role="tablist">
     <button type="button" role="tab" data-tab="new" aria-selected="${buildTab === 'new'}">新しく建てる</button>
-    <button type="button" role="tab" data-tab="grow" aria-selected="${buildTab === 'grow'}">広げる<span class="n">${count('grow')}</span></button>
+    <button type="button" role="tab" data-tab="grow" aria-selected="${buildTab === 'grow'}">広げる${badge('grow')}</button>
+    <button type="button" role="tab" data-tab="island" aria-selected="${buildTab === 'island'}">島${badge('island')}</button>
   </div>`;
-  const empty = buildTab === 'new' ? 'いま建てられるものはありません' : 'まだ広げられるものはありません';
+  const empty = { new: 'いま建てられるものはありません', grow: 'まだ広げられるものはありません', island: '島は これ以上 広げられません' }[buildTab];
   openSheet(`<h2>つくる</h2>${tabs}${items || `<p class="lead">${empty}</p>`}`);
   if (focusId) {
     const el = [...document.querySelectorAll('.action')].find((x) => x.dataset.action.startsWith(focusId));
@@ -622,6 +643,7 @@ function renderDebug() {
     <button data-dbg="port">港をひらく</button>
     <button data-dbg="unlock">スーパーとプラネタリウムをひらく</button>
     <button data-dbg="pets">ペットを全部 迷い込ませる</button>
+    <button data-dbg="expand">島を広げられるようにする</button>
     <button data-dbg="family">結婚と出産を早める（留守2回で子ども）</button>
     <button data-dbg="reset">最初からやり直す</button>
     <pre>画面をつけたまま：${{ on: 'オン', off: 'オフ', unsupported: 'この端末では使えない' }[awakeStatus()]}</pre>
@@ -637,9 +659,12 @@ if (DEBUG) {
     clock: () => clockOf(state.t),
     shops: () => state.buildings.filter((b) => b.type === 'shop').map((b) => ({ id: b.id, stock: b.stock, ...renderer.toClient((b.c + 1) * T, (b.r + 1) * T) })),
     adoptAll: () => state.pets.filter((p) => !p.adopted).forEach((p) => adoptPet(state, p.id, '')),
-    wakePets: () => state.pets.forEach((p, i) => { p.state = 'SIT'; p.until = state.t + 999; p.tx = p.x = 8 * T + 20 + i * 26; p.ty = p.y = 11 * T + 12; p.facing = i % 2 ? -1 : 1; }),
+    wakePets: () => state.pets.forEach((p, i) => { p.state = 'SIT'; p.until = state.t + 999; p.tx = p.x = (OX + 8) * T + 20 + i * 26; p.ty = p.y = (OY + 11) * T + 12; p.facing = i % 2 ? -1 : 1; }),
     kids: () => state.residents.filter((r) => r.age).map((r) => ({ name: r.name, age: r.age, state: r.state, visible: r.visible, ...renderer.toClient(r.x, r.y - 10) })),
     building: (type) => state.buildings.filter((b) => b.type === type).map((b) => renderer.toClient((b.c + SIZES[b.type].w / 2) * T, (b.r + SIZES[b.type].h / 2) * T)),
+    pier: (id) => renderer.toClient(center(PIERS[id]).x, center(PIERS[id]).y),
+    focusPier: (id) => renderer.focus(center(PIERS[id]).x + 40, center(PIERS[id]).y),
+    zoom: (f) => renderer.zoomAt(f, innerWidth / 2, innerHeight / 2),
     dogState: () => state.pets.find((p) => p.kind === 'dog')?.state,
     setStock: (n) => state.buildings.filter((b) => b.type === 'shop').forEach((b) => (b.stock = n)),
     setTutorial: (n) => {
@@ -663,6 +688,10 @@ if (DEBUG) {
     if (k === 'pets') {
       // 迷い込む日時を今日の今にして、まだ来ていない子を全部 呼ぶ
       for (const kind of Object.keys(CONFIG.pets)) CONFIG.pets[kind] = { ...CONFIG.pets[kind], day: 1, clock: 0 };
+    }
+    if (k === 'expand') {
+      unlockNow(state, 'expand');
+      renderQuest();
     }
     if (k === 'family') {
       // 名前のある独身の2人を仲良しにして、結婚・出産・成長の日数を0にする

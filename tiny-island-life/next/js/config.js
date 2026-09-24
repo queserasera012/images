@@ -109,6 +109,7 @@ export const CONFIG = {
     { id: 'petshop', pets: 2, goal: 'ペットショップをひらく', done: 'ペットショップを建てられるようになりました', note: 'ペットショップを建てられるようになります' },
     { id: 'kinder', kids: 1, goal: '幼稚園をひらく', done: '幼稚園を建てられるようになりました', note: '幼稚園を建てられるようになります' },
     { id: 'planetarium', pop: 14, goal: 'プラネタリウムをひらく', done: 'プラネタリウムを建てられるようになりました', note: 'プラネタリウムを建てられるようになります' },
+    { id: 'expand', pop: 16, goal: '島を広げる', done: '島を広げられるようになりました', note: '島を広げられるようになります' },
   ],
   maxPopulation: 40,
 
@@ -120,7 +121,7 @@ export const CONFIG = {
   },
 
   // ---- 家 ----
-  house: { cost: 450, max: 8 },
+  house: { cost: 450, max: 8, perArea: 4 }, // 島を広げると 1か所につき4軒ふえる（D298）
 
   // ---- 天気（Day 1 は晴れ・Day 2 は雨で固定。以後は抽選） ----
   weatherOdds: { sunny: 0.5, cloudy: 0.25, rain: 0.25 },
@@ -140,6 +141,18 @@ export const CONFIG = {
     sail: 20,                   // 来るとき・帰るときに海の上にいる時間
     tourists: { sunny: [3, 5], cloudy: [2, 4], rain: [1, 2] }, // 1便あたりの人数
     leaveBefore: 25,            // 出航の何分前に港へ戻りはじめるか
+  },
+
+  // ---- 島を広げる（D298） ----
+  // 北の丘・東の岬・西の森。どこからでも ひらける。ひらくたびに高くなる
+  expand: {
+    costs: [2500, 3500, 5000],
+  },
+  // 広げた土地の港。本島の港とは別の時刻に船が来る
+  harbor: {
+    cost: 1800,
+    upkeep: 20,
+    boats: [11 * 60 + 30, 16 * 60 + 30],
   },
 
   // ---- お土産屋（D294） ----

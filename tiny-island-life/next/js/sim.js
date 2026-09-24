@@ -9,7 +9,10 @@
 // 遠いカフェには行きにくい → 「どこに建てるか」が判断になる（v0.3 の Location Problem）。
 
 import { CONFIG } from './config.js';
-import { T, SIZES, MAP, PIER, center, roadPath, roadDistance, accessTile, canPlace, isRoad, idx } from './grid.js';
+import {
+  T, SIZES, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, center, roadPath, roadDistance, accessTile, canPlace, isRoad, idx,
+  useAreas, landTilesOf,
+} from './grid.js';
 
 const DAY = 1440;
 
@@ -27,15 +30,29 @@ const RESIDENT_POOL = [
   { name: 'ノゾミ', prefs: { cafe: 8, park: 36, stroll: 20 }, coffee: 0.3 },
 ];
 
-// 最初の島（左上のマス）
+// 最初の島（左上のマス。本島の左上 OX, OY からの位置）
 const START = [
   { type: 'house', c: 3, r: 7 },
   { type: 'house', c: 3, r: 9 },
   { type: 'park', c: 9, r: 7 },
   { type: 'cafe', c: 5, r: 8 },
-];
+].map((b) => ({ ...b, c: b.c + OX, r: b.r + OY }));
 
-const ROAD_TILES = MAP.map((k, i) => (k === 'road' ? i : -1)).filter((i) => i >= 0);
+// 道のマスの一覧（地図が変わったら作り直す）
+let roadTilesKey = null;
+let roadTilesList = [];
+function roadTiles() {
+  if (roadTilesKey !== MAP_KEY) {
+    roadTilesKey = MAP_KEY;
+    roadTilesList = MAP.map((k, i) => (k === 'road' ? i : -1)).filter((i) => i >= 0);
+  }
+  return roadTilesList;
+}
+
+// このセーブの島の形に、地図を合わせる（D298）。ルールを動かす入口で必ず呼ぶ
+export function syncMap(state) {
+  useAreas(state.areas || ['main']);
+}
 
 export const WEATHER_LABEL = { sunny: '晴れ', cloudy: 'くもり', rain: '雨' };
 
@@ -185,7 +202,10 @@ export function createGame(seed = Date.now()) {
     buildings: [],
     residents: [],
     visitors: [],
-    port: { open: false, today: [] },
+    port: { id: 'main', open: false, today: [] },
+    harbors: [], // 広げた土地の港（D298）
+    areas: ['main'], // ひらいた土地（D298）
+    grid: 2, // 地図の版（2＝島を広げられる版。1＝本島だけの 17×25）
     pets: [],
     petsSpawned: { cat: false, dog: false },
     unlocked: {},
@@ -198,6 +218,7 @@ export function createGame(seed = Date.now()) {
     history: [],
     nextId: 1,
   };
+  syncMap(state);
   for (const s of START) state.buildings.push(makeBuilding(state, s.type, s.c, s.r));
   for (let i = 0; i < CONFIG.startResidents; i++) addResident(state, { arriving: false });
   for (const r of state.residents) planDay(state, r);
@@ -217,6 +238,11 @@ function freshToday() {
 export function migrate(state) {
   state.visitors ||= [];
   state.port ||= { open: false, today: [] };
+  state.port.id = 'main';
+  state.harbors ||= [];
+  state.areas ||= ['main'];
+  if (!state.grid) shiftOldGrid(state);
+  syncMap(state);
   state.today.boats ||= 0;
   state.today.tourists ||= 0;
   state.pets ||= [];
@@ -235,6 +261,38 @@ export function migrate(state) {
   if (state.port.open) state.unlocked.port = true;
   for (const b of state.buildings) if (isVenue(b) && !b.queue) Object.assign(b, { seats: [], queue: [] });
   return state;
+}
+
+// 本島だけの地図（17×25）のセーブを、広げられる地図に移す。本島の位置が OX, OY ずれるだけ
+function shiftOldGrid(state) {
+  const OLD_COLS = 17;
+  const dx = OX * T;
+  const dy = OY * T;
+  const shiftIdx = (i) => (typeof i === 'number' && i >= 0 ? idx((i % OLD_COLS) + OX, Math.floor(i / OLD_COLS) + OY) : i);
+  const walk = (o) => {
+    if (Array.isArray(o)) return o.forEach(walk);
+    if (!o || typeof o !== 'object') return;
+    if (typeof o.x === 'number' && typeof o.y === 'number') {
+      o.x += dx;
+      o.y += dy;
+    }
+    if (typeof o.tx === 'number' && typeof o.ty === 'number') {
+      o.tx += dx;
+      o.ty += dy;
+    }
+    for (const k of ['at', 'nextAt', 'pier']) if (k in o) o[k] = shiftIdx(o[k]);
+    for (const v of Object.values(o)) if (v && typeof v === 'object') walk(v);
+  };
+  useAreas(['main']);
+  for (const b of state.buildings) {
+    b.c += OX;
+    b.r += OY;
+    b.access = accessTile(b.type, b.c, b.r);
+  }
+  walk(state.residents);
+  walk(state.visitors);
+  walk(state.pets);
+  state.grid = 2;
 }
 
 // 夫婦の住む家の空きは、生まれてくる子どもの分。新しい住民には貸さない（D297）
@@ -339,6 +397,7 @@ function planDay(state, r) {
 
 // dt（ゲーム内の分）だけ進める。起きた出来事を返す。
 export function step(state, dt) {
+  syncMap(state);
   const events = [];
   let remaining = dt;
   while (remaining > 1e-9) {
@@ -351,6 +410,7 @@ export function step(state, dt) {
 
 // 留守のあいだの分を進める。上限は「次の日の 07:00」まで（D281）
 export function catchUp(state, gameMinutes) {
+  syncMap(state);
   const target = Math.min(state.t + gameMinutes, nextMorning(state.t));
   if (target <= state.t) return [];
   return step(state, target - state.t);
@@ -520,8 +580,8 @@ function decideNext(state, r, { noCafe = false, avoid = null } = {}) {
   if ((x -= parkW) < 0) return goTo(state, r, 'park', park.id, park.access, parkPoint(state, park));
   if ((x -= strollW) < 0) {
     // 近くの道をぶらぶら（遠くには行かない）
-    const nearby = ROAD_TILES.filter((i) => roadDistance(r.at, i) <= 6);
-    const target = pick(state, nearby.length ? nearby : ROAD_TILES);
+    const nearby = roadTiles().filter((i) => roadDistance(r.at, i) <= 6);
+    const target = pick(state, nearby.length ? nearby : roadTiles());
     const p = center(target);
     return goTo(state, r, 'stroll', null, target, { x: p.x + between(state, -9, 9), y: p.y + between(state, -9, 9) });
   }
@@ -904,6 +964,11 @@ function rolloverDay(state, events) {
   const shopUpkeep =
     shops(state).reduce((s, b) => s + CONFIG.shop.levels[b.level - 1].upkeep, 0) +
     ofType(state, 'kinder').reduce((s, b) => s + CONFIG.kinder.levels[b.level - 1].upkeep, 0);
+  const harborUpkeep = (state.harbors || []).length * CONFIG.harbor.upkeep;
+  if (harborUpkeep > 0) {
+    state.coin -= harborUpkeep;
+    lines.push({ kind: 'info', text: `港の維持費 −${harborUpkeep} Coin` });
+  }
   if (upkeep + shopUpkeep > 0) {
     state.coin -= upkeep + shopUpkeep;
     lines.push({ kind: 'info', text: shopUpkeep || !onlyCafes ? `お店の維持費 −${upkeep + shopUpkeep} Coin` : `カフェの維持費 −${upkeep} Coin` });
@@ -959,15 +1024,27 @@ function rolloverDay(state, events) {
 
 // ---------------------------------------------------------------- 港と観光客（D292）
 
-function planBoats(state, { onlyFuture = false } = {}) {
+export const houseMax = (state) => CONFIG.house.max + (state.areas.length - 1) * CONFIG.house.perArea;
+
+// 港の一覧。本島の港（state.port）と、広げた土地の港（state.harbors・D298）
+export const portsOf = (state) => [state.port, ...(state.harbors || [])];
+export const portById = (state, id) => portsOf(state).find((p) => p.id === id);
+const portClocks = (port) => (port.id === 'main' ? CONFIG.port.boats : CONFIG.harbor.boats);
+export const pierOf = (port) => (port.id === 'main' ? PIER : PIERS[port.id]);
+// 観光客が乗ってきた船の名前（本島の港は前の版と同じ番号のまま）
+const boatKey = (port, i) => (port.id === 'main' ? i : `${port.id}:${i}`);
+
+function planBoats(state, { onlyFuture = false, only = null } = {}) {
   const P = CONFIG.port;
-  state.port.today = [];
-  if (!state.port.open) return;
-  const base = Math.floor(state.t / DAY) * DAY;
-  for (const clock of P.boats) {
-    const arrive = base + clockToInDay(clock) + Math.round(between(state, 0, 25));
-    if (onlyFuture && arrive - P.sail <= state.t) continue;
-    state.port.today.push({ arrive, depart: arrive + P.stay, spawned: false, left: false });
+  for (const port of only ? [only] : portsOf(state)) {
+    port.today = [];
+    if (!port.open) continue;
+    const base = Math.floor(state.t / DAY) * DAY;
+    for (const clock of portClocks(port)) {
+      const arrive = base + clockToInDay(clock) + Math.round(between(state, 0, 25));
+      if (onlyFuture && arrive - P.sail <= state.t) continue;
+      port.today.push({ arrive, depart: arrive + P.stay, spawned: false, left: false });
+    }
   }
 }
 
@@ -977,7 +1054,7 @@ export function openPort(state) {
   state.unlocked ||= {};
   state.unlocked.port = true;
   state.port.openedOn = dayOf(state.t);
-  planBoats(state, { onlyFuture: true });
+  planBoats(state, { onlyFuture: true, only: state.port });
 }
 
 // 住民が決まった人数になったら、その場でひらく（D292 の不具合修正：区切りの時刻ではなく、満たした瞬間に判定する）
@@ -1025,16 +1102,19 @@ export function unlockNow(state, id) {
   state.unlockedOn[id] = dayOf(state.t);
 }
 
-function spawnTourists(state, boatIdx, boat) {
+function spawnTourists(state, port, boatIdx, boat) {
   const [lo, hi] = CONFIG.port.tourists[state.weather];
   const n = Math.round(between(state, lo, hi));
-  const pier = center(PIER);
+  const at = pierOf(port);
+  const pier = center(at);
+  const dir = areaById(port.id).pier.dir;
   for (let k = 0; k < n; k++) {
     const v = {
       id: `v${state.nextId++}`,
       name: '観光客',
       tourist: true,
-      boat: boatIdx,
+      boat: boatKey(port, boatIdx),
+      pier: at,
       look: Math.floor(rand(state) * 1000),
       prefs: { cafe: between(state, 18, 34), park: between(state, 10, 24), stroll: between(state, 22, 36), shop: between(state, 26, 40) },
       coffee: 0,
@@ -1045,9 +1125,9 @@ function spawnTourists(state, boatIdx, boat) {
       bed: boat.depart - CONFIG.port.leaveBefore,
       departAt: boat.depart,
       state: 'STROLL',
-      at: PIER,
-      x: pier.x + between(state, -6, 6),
-      y: pier.y + T + 14 + k * 4,
+      at,
+      x: pier.x + between(state, -6, 6) + dir[0] * (T + 14 + k * 4),
+      y: pier.y + (dir[1] ? dir[1] * (T + 14 + k * 4) : between(state, -6, 6)),
       tx: 0,
       ty: 0,
       path: [],
@@ -1073,17 +1153,26 @@ function spawnTourists(state, boatIdx, boat) {
 }
 
 function goBoat(state, r) {
-  const pier = center(PIER);
-  goTo(state, r, 'boat', null, PIER, { x: pier.x + between(state, -5, 5), y: pier.y + T + 10 });
+  const at = r.pier ?? PIER;
+  const pier = center(at);
+  const port = portsOf(state).find((p) => pierOf(p) === at) || state.port;
+  const [dx, dy] = areaById(port.id).pier.dir;
+  const j = between(state, -5, 5);
+  goTo(state, r, 'boat', null, at, { x: pier.x + (dx ? dx * (T + 10) : j), y: pier.y + (dy ? dy * (T + 10) : j) });
 }
 
 function updatePort(state, events) {
-  if (!state.port.open) return;
-  state.port.today.forEach((boat, i) => {
+  for (const port of portsOf(state)) updateOnePort(state, port, events);
+}
+
+function updateOnePort(state, port, events) {
+  if (!port.open) return;
+  port.today.forEach((boat, idx0) => {
+    const i = boatKey(port, idx0);
     if (!boat.spawned && state.t >= boat.arrive) {
       boat.spawned = true;
-      const n = spawnTourists(state, i, boat);
-      events.push({ type: 'boat', n });
+      const n = spawnTourists(state, port, idx0, boat);
+      events.push({ type: 'boat', n, port: port.id });
     }
     if (boat.spawned && !boat.left && state.t >= boat.depart) {
       boat.left = true;
@@ -1102,10 +1191,10 @@ function updatePort(state, events) {
 }
 
 // 描画用：いま船が海のどこにいるか（null＝見えない）
-export function boatNow(state) {
-  if (!state.port?.open) return null;
+export function boatNow(state, port = state.port) {
+  if (!port?.open) return null;
   const S = CONFIG.port.sail;
-  for (const b of state.port.today) {
+  for (const b of port.today) {
     if (state.t >= b.arrive - S && state.t < b.arrive) return { phase: 'arriving', k: (state.t - (b.arrive - S)) / S };
     if (state.t >= b.arrive && state.t < b.depart) return { phase: 'docked', k: 1, depart: b.depart };
     if (state.t >= b.depart && state.t < b.depart + S) return { phase: 'leaving', k: 1 - (state.t - b.depart) / S };
@@ -1113,8 +1202,8 @@ export function boatNow(state) {
   return null;
 }
 
-export function nextBoat(state) {
-  return state.port.today.find((b) => state.t < b.arrive) || null;
+export function nextBoat(state, port = state.port) {
+  return port.today.find((b) => state.t < b.arrive) || null;
 }
 
 function chooseWeather(state, day) {
@@ -1130,8 +1219,9 @@ function chooseWeather(state, day) {
 
 // place: true のものは、建てる場所をプレイヤーが選ぶ
 export function actionsFor(state) {
+  syncMap(state);
   const list = [];
-  if (houses(state).length < CONFIG.house.max) {
+  if (houses(state).length < houseMax(state)) {
     list.push({ id: 'house', icon: 'house_build', place: 'house', title: '家を建てる', detail: `${CONFIG.houseCapacity}人まで住める。場所を選べる`, cost: CONFIG.house.cost });
   }
   if (cafes(state).length < CONFIG.cafe.max) {
@@ -1208,11 +1298,43 @@ export function actionsFor(state) {
   if (park && !park.roof) {
     list.push({ id: 'park_roof', icon: 'park_roof', title: '公園に東屋をつくる', detail: '屋根の下なら、雨でも過ごせる', cost: CONFIG.park.roofCost });
   }
+  // 島を広げる（D298）：「島」のタブ
+  const u = CONFIG.unlocks.find((x) => x.id === 'expand');
+  const expandLocked = !isUnlocked(state, 'expand');
+  const opened = state.areas.length - 1;
+  for (const a of AREAS) {
+    if (a.id === 'main' || state.areas.includes(a.id)) continue;
+    list.push({
+      id: `expand:${a.id}`,
+      tab: 'island',
+      icon: `expand_${a.id}`,
+      title: `${a.name}をひらく`,
+      detail: expandLocked ? `住民が ${u.pop}人 になると広げられます` : `建てられる土地が ${landTilesOf(a.id)}マス 増える。道も通る`,
+      cost: CONFIG.expand.costs[Math.min(opened, CONFIG.expand.costs.length - 1)],
+      locked: expandLocked,
+    });
+  }
+  for (const id of state.areas) {
+    if (id === 'main' || portById(state, id)) continue;
+    const H = CONFIG.harbor;
+    list.push({
+      id: `harbor:${id}`,
+      tab: 'island',
+      icon: 'harbor',
+      title: `${areaById(id).name}に港をつくる`,
+      detail: state.port.open
+        ? `船が1日2回 来る（${H.boats.map(fmtClock).join('・')}ごろ）。維持費 1日 ${H.upkeep} Coin`
+        : '本島の港がひらくと つくれます',
+      cost: H.cost,
+      locked: !state.port.open,
+    });
+  }
   return list;
 }
 
 // place は { c, r }（建てる場所の左上のマス）
 export function applyAction(state, id, place) {
+  syncMap(state);
   const action = actionsFor(state).find((a) => a.id === id);
   if (!action || action.locked) return { ok: false, message: 'いまは できません' };
   if (state.coin < action.cost) return { ok: false, message: `Coin が足りません（あと ${action.cost - state.coin}）` };
@@ -1234,6 +1356,13 @@ export function applyAction(state, id, place) {
     shop.stock = CONFIG.shop.levels[shop.level - 1].stock;
   } else if (id === 'park_roof') {
     parkOf(state).roof = true;
+  } else if (id.startsWith('expand:')) {
+    state.areas.push(id.split(':')[1]);
+    syncMap(state);
+  } else if (id.startsWith('harbor:')) {
+    const port = { id: id.split(':')[1], open: true, today: [], openedOn: dayOf(state.t) };
+    state.harbors.push(port);
+    planBoats(state, { onlyFuture: true, only: port });
   }
   state.coin -= action.cost;
   state.history.push({ t: state.t, action: id, place: place || null });
@@ -1585,7 +1714,7 @@ function strayAnchor(state, near) {
     const q = cafe ? queueSlot(cafe, 0) : center(PIER);
     return { x: q.x + 22, y: q.y + 12 };
   }
-  if (near === 'north') return { x: 7.5 * T, y: 3.6 * T };
+  if (near === 'north') return { x: (OX + 7.5) * T, y: (OY + 3.6) * T };
   const park = parkOf(state);
   return park ? { x: center(park.access).x, y: center(park.access).y + 10 } : center(PIER);
 }
@@ -1638,14 +1767,14 @@ function spotPoint(state, key, home) {
     case 'garden':
       return home && landPoint(state, houseDoor(home), 22);
     case 'north':
-      return landPoint(state, { x: 7.5 * T, y: 3.6 * T }, 45);
+      return landPoint(state, { x: (OX + 7.5) * T, y: (OY + 3.6) * T }, 45);
     case 'shopfront': {
       const shop = shops(state)[0] || ofType(state, 'super')[0];
       return shop ? { x: shop.c * T + 8, y: (shop.r + SIZES[shop.type].h) * T - 4 } : cafe && { x: cafe.c * T + 10, y: (cafe.r + 3) * T - 8 };
     }
     case 'plaza':
     default:
-      return { x: 8 * T + T / 2 + 14, y: 11 * T + T / 2 - 12 };
+      return { x: (OX + 8) * T + T / 2 + 14, y: (OY + 11) * T + T / 2 - 12 };
   }
 }
 
