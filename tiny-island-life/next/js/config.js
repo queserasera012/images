@@ -111,7 +111,6 @@ export const CONFIG = {
     { id: 'planetarium', pop: 14, goal: 'プラネタリウムをひらく', done: 'プラネタリウムを建てられるようになりました', note: 'プラネタリウムを建てられるようになります' },
     { id: 'expand', pop: 16, goal: '島を広げる', done: '島を広げられるようになりました', note: '島を広げられるようになります' },
   ],
-  maxPopulation: 40,
 
   // ---- 公園 ----
   park: {

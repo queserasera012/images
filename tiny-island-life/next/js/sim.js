@@ -348,8 +348,8 @@ function genericResident(state) {
   };
 }
 
+// 住民の数に上限は無い（D301）。住めるのは家の空きの分だけ。家は土地の分だけ。土地は島を広げると増える
 function addResident(state, { arriving }) {
-  if (state.residents.length >= CONFIG.maxPopulation) return null;
   const home = freeHouse(state);
   if (!home) return null;
   const base = RESIDENT_POOL[state.poolIndex] || genericResident(state);
@@ -1002,23 +1002,21 @@ function rolloverDay(state, events) {
   const served = Object.values(today.byType).reduce((n, x) => n + x.served, 0) || today.served;
   const customers = served + today.lost.length;
   const satisfaction = customers === 0 ? 1 : served / customers;
-  if (state.residents.length < CONFIG.maxPopulation) {
-    if (vacancy(state) <= 0) {
-      lines.push({ kind: 'problem', text: '島に住みたい人がいたようですが、空いている家がありませんでした' });
-    } else if (satisfaction < CONFIG.growth.minSatisfaction) {
-      lines.push({ kind: 'problem', text: '島を見に来た人がいましたが、住むのはやめたようです' });
-    } else {
-      const n = satisfaction >= 0.9 && vacancy(state) >= 2 && state.poolIndex >= RESIDENT_POOL.length ? 2 : 1;
-      const names = [];
-      for (let k = 0; k < n; k++) {
-        const r = addResident(state, { arriving: true });
-        if (!r) break;
-        r.arriveAt = Math.floor(state.t / DAY) * DAY + clockToInDay(8 * 60) + between(state, 0, 120);
-        names.push(r);
-      }
-      if (names.length === 1 && !names[0].generic) lines.push({ kind: 'good', text: `今日、${names[0].name}が島に引っ越してくるそうです` });
-      else if (names.length) lines.push({ kind: 'good', text: `今日、新しい住民が ${names.length}人 引っ越してくるそうです` });
+  if (vacancy(state) <= 0) {
+    lines.push({ kind: 'problem', text: '島に住みたい人がいたようですが、空いている家がありませんでした' });
+  } else if (satisfaction < CONFIG.growth.minSatisfaction) {
+    lines.push({ kind: 'problem', text: '島を見に来た人がいましたが、住むのはやめたようです' });
+  } else {
+    const n = satisfaction >= 0.9 && vacancy(state) >= 2 && state.poolIndex >= RESIDENT_POOL.length ? 2 : 1;
+    const names = [];
+    for (let k = 0; k < n; k++) {
+      const r = addResident(state, { arriving: true });
+      if (!r) break;
+      r.arriveAt = Math.floor(state.t / DAY) * DAY + clockToInDay(8 * 60) + between(state, 0, 120);
+      names.push(r);
     }
+    if (names.length === 1 && !names[0].generic) lines.push({ kind: 'good', text: `今日、${names[0].name}が島に引っ越してくるそうです` });
+    else if (names.length) lines.push({ kind: 'good', text: `今日、新しい住民が ${names.length}人 引っ越してくるそうです` });
   }
 
   // 家族：結婚・引っ越し・赤ちゃん・歩けるようになる（D297）
