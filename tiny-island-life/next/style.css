@@ -73,6 +73,57 @@ button:focus-visible { outline: 3px solid var(--mustard); outline-offset: 2px; }
 #clock { color: var(--muted); min-width: 3.2em; }
 .pill .icon { display: block; }
 
+/* ---- やること（チュートリアル） ---- */
+
+#quest {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 56px);
+  left: 16px;
+  right: 16px;
+  padding: 9px 12px 8px;
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: var(--lift);
+  z-index: 3;
+  animation: rise 0.25s ease-out;
+}
+.quest-head { display: flex; align-items: center; gap: 8px; }
+.quest-head b { flex: 1; font-size: 14px; font-weight: 700; }
+.quest-head .reward {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px 2px 4px;
+  border-radius: 12px;
+  background: #fdf1d6;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.quest-head .reward .icon { width: 15px; height: 15px; }
+#quest p { margin: 2px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+#quest .choices { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+#quest .choices button {
+  height: 42px;
+  border: 0;
+  border-radius: 21px;
+  background: #e8eef2;
+  font-size: 15px;
+  font-weight: 700;
+}
+/* 3つの選択肢は同じ見た目にする（どれかを勧めているように見せない・v0.3 §43） */
+#quest .skip {
+  position: absolute;
+  right: 12px;
+  bottom: -22px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--muted);
+  font-size: 11px;
+}
+
 /* ---- 島 ---- */
 
 #island {
@@ -146,6 +197,7 @@ button:focus-visible { outline: 3px solid var(--mustard); outline-offset: 2px; }
 }
 #hint { top: calc(env(safe-area-inset-top) + 62px); }
 #toast { bottom: calc(env(safe-area-inset-bottom) + 84px); z-index: 7; }
+body.card-open #toast { bottom: calc(env(safe-area-inset-bottom) + 220px); }
 #placebar:not([hidden]) ~ #toast, body.placing #toast { bottom: calc(env(safe-area-inset-bottom) + 140px); }
 
 /* ---- タップしたときのカード ---- */
@@ -235,6 +287,27 @@ h3 .dot { width: 14px; height: 14px; }
   .pill-btn { transition: none; }
 }
 .sheet-body h2 { margin: 0 0 8px; font-size: 20px; font-weight: 700; }
+/* 右上の ×（スクロールしても見えている） */
+.sheet-top {
+  position: sticky;
+  top: -20px;
+  display: flex;
+  justify-content: flex-end;
+  height: 0;
+  z-index: 1;
+}
+.sheet-top .x {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: -8px -8px 0 0;
+  border: 0;
+  border-radius: 50%;
+  background: #eef3f6;
+}
+.action.focus { background: #fdf1d6; border-radius: 12px; }
 .sheet-body .lead { margin: 0 0 8px; color: var(--muted); font-size: 14px; }
 .close {
   display: block;

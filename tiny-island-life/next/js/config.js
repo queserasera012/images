@@ -4,7 +4,7 @@ export const CONFIG = {
   // ---- 時間（現実の時間とは結びつけない。テストしながら決める・D281） ----
   // ゲームの1分＝ゲーム内時間の1分。t は「Day 1 の 05:00」を 0 とする通しの分。
   dayStartClock: 5 * 60,        // 1日の区切り（05:00。全員 寝ている時刻）
-  startClock: 6 * 60 + 30,      // 新しいゲームは Day 1 の 06:30 から
+  startClock: 7 * 60 + 10,      // 新しいゲームは Day 1 の 07:10 から（開いた瞬間に人が歩いている・D290）
   daySecondsReal: 480,          // 06:00〜22:00（960分）を現実の何秒で流すか
   nightSpeed: 6,                // 夜（22:00〜06:00）は何倍速で流すか
   morningClock: 7 * 60,         // 留守から戻ったときは「翌朝 07:00」までしか進めない
@@ -13,7 +13,7 @@ export const CONFIG = {
   startResidents: 5,
   houseCapacity: 3,
   walkSpeed: 11,                // px / ゲーム内1分（1マス＝30px）
-  distanceHalf: 10,             // 何マス離れると行きたさが半分になるか（遠いほど行かない・D289）
+  distanceHalf: 8,              // 何マス離れると行きたさが半分になるか（遠いほど行かない・D289）
   patienceMin: 18,              // 列で待てる時間（ゲーム内の分）。住民ごとに幅を持たせる
   patienceMax: 34,
 

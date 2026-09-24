@@ -11,6 +11,7 @@ const svg = (body, size = 24) =>
 const cloudPath = 'M7 18h10a4 4 0 0 0 .6-7.96A5.5 5.5 0 0 0 7.1 9.5 4.3 4.3 0 0 0 7 18z';
 
 export const ICONS = {
+  close: svg(`<path d="M7 7l10 10M17 7L7 17" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>`, 22),
   sunny: svg(
     `<g stroke="${MUSTARD}" stroke-width="2" stroke-linecap="round">` +
       [0, 45, 90, 135, 180, 225, 270, 315]

@@ -421,7 +421,7 @@ function updateResident(state, r, h, events) {
         const list = cafeChoices(state, r);
         if (list.length) {
           const best = list.reduce((a, b) => (b.w > a.w ? b : a));
-          const p = Math.min(1, r.coffee * (state.weather === 'rain' ? 1.2 : 1) * (0.4 + 0.6 * near(r, best.cafe.access) * 1.6));
+          const p = Math.min(1, r.coffee * (state.weather === 'rain' ? 1.2 : 1) * Math.min(1, near(r, best.cafe.access) * 1.5));
           if (rand(state) < p) return goCafe(state, r, best.cafe);
         }
       }

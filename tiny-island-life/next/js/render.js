@@ -79,6 +79,7 @@ export function createRenderer(canvas) {
   const cam = { x: 6.5 * T, y: 11 * T, zoom: 1 };
   const drops = Array.from({ length: 70 }, () => ({ x: Math.random(), y: Math.random(), s: 0.7 + Math.random() * 0.6 }));
   let ground = null;
+  let pokes = null; // タップされた住民（id → タップした時刻）。ぴょんと跳ねて ハートを出す
   const GROUND_RES = 3; // 地面は一度だけ高い解像度で描いておく
 
   const minZoom = () => Math.min(1, (view.w / WORLD.w) * 1.02);
@@ -598,6 +599,13 @@ export function createRenderer(canvas) {
       ctx.moveTo(cx + 3, cy - 3);
       ctx.lineTo(cx - 3, cy + 3);
       ctx.stroke();
+    } else if (kind === 'heart') {
+      ctx.fillStyle = '#e56b9f';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy + 3.5);
+      ctx.bezierCurveTo(cx - 6, cy - 1, cx - 3, cy - 5.5, cx, cy - 2.5);
+      ctx.bezierCurveTo(cx + 3, cy - 5.5, cx + 6, cy - 1, cx, cy + 3.5);
+      ctx.fill();
     } else if (kind === 'arrive') {
       ctx.fillStyle = PALETTE.mustard;
       roundRect(ctx, cx - 4.5, cy - 2.5, 9, 6.5, 1.5);
@@ -621,6 +629,10 @@ export function createRenderer(canvas) {
     } else {
       bob = (Math.sin(time * 2 + ph) + 1) * 0.5;
     }
+    // タップされたら、ぴょんと跳ねる
+    const poked = pokes?.get(r.id);
+    const since = poked === undefined ? 99 : time - poked;
+    if (since < 1.2) bob += Math.abs(Math.sin((since / 1.2) * Math.PI * 2)) * 8;
     // 立ち止まっているときは、ときどき振り返る
     let facing = r.facing;
     if (!moving && Math.sin(time * 0.6 + ph * 3) > 0.9) facing = -facing;
@@ -628,6 +640,7 @@ export function createRenderer(canvas) {
     person(r, r.x, r.y, { bob, stride, facing, seated: r.state === 'SEATED' });
 
     let b = r.bubble;
+    if (!b && since < 2) b = 'heart';
     if (!b && r.state === 'QUEUE' && state.t - r.queuedAt > r.patience * 0.6) b = 'sweat';
     if (b) bubble(b, r.x + 11, r.y - 30 - Math.sin(time * 3 + ph) * 1.2);
 
@@ -705,6 +718,7 @@ export function createRenderer(canvas) {
   // ---------------------------------------------------------------- 1コマ
 
   function draw(state, time, ui = {}) {
+    pokes = ui.pokes || null;
     ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
     ctx.fillStyle = PALETTE.sea;
     ctx.fillRect(0, 0, view.w, view.h);

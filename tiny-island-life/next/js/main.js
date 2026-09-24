@@ -8,6 +8,7 @@ import {
 } from './sim.js';
 import { createRenderer, lookOf } from './render.js';
 import { ICONS } from './icons.js';
+import { currentStep, report, skipTutorial, busyCafeNow } from './tutorial.js';
 
 // 🚨 前の版（3日テスト中）と同じサイトに置くので、保存の名前を分ける（D289）
 const SAVE_KEY = 'til.grid.save.v1';
@@ -26,6 +27,9 @@ let placing = null; // { action, type, cells, ghost }
 let speed = 1;
 let lastFrame = performance.now();
 let hiddenAt = null;
+const pokes = new Map(); // タップした住民 → 時刻（跳ねる演出だけ。ルールには関係ない）
+let busyStage = null; // 「カフェが混んでいます」の段階：null → 'watch' → 'ask'
+let busyAt = 0;
 
 // ---------------------------------------------------------------- 保存
 
@@ -83,8 +87,20 @@ function frame(now) {
       toast(`${e.name}が島に引っ越してきました`);
     }
   }
+  const quest = currentStep(state);
+  if (quest?.id === 'busy_cafe') {
+    if (busyStage === null && busyCafeNow(state)) {
+      busyStage = 'watch';
+      busyAt = now;
+      renderQuest();
+    } else if (busyStage === 'watch' && now - busyAt > 12000) {
+      busyStage = 'ask';
+      renderQuest();
+    }
+  }
   renderer.draw(state, now / 1000, {
     selectedId: selected?.kind === 'resident' ? selected.id : null,
+    pokes,
     placing,
     cafeLabel: (b) => cafeLabel(state, b),
   });
@@ -162,16 +178,24 @@ function tap(clientX, clientY) {
     .map((r) => ({ r, d: Math.hypot(r.x - p.x, r.y - 12 - p.y) }))
     .filter((x) => x.d < 18)
     .sort((a, b) => a.d - b.d)[0];
-  if (hit) return select({ kind: 'resident', id: hit.r.id });
+  if (hit) {
+    pokes.set(hit.r.id, performance.now() / 1000);
+    tutorial('tap_resident');
+    return select({ kind: 'resident', id: hit.r.id });
+  }
   const { c, r } = renderer.tileAt(clientX, clientY);
   const b = state.buildings.find((x) => c >= x.c && c < x.c + SIZES[x.type].w && r >= x.r && r < x.r + SIZES[x.type].h);
-  if (b) return select({ kind: 'building', id: b.id });
+  if (b) {
+    if (b.type === 'cafe') tutorial('tap_cafe');
+    return select({ kind: 'building', id: b.id });
+  }
   select(null);
 }
 
 function select(s) {
   selected = s;
   $('card').hidden = !s;
+  document.body.classList.toggle('card-open', !!s);
   if (s) renderCard();
 }
 
@@ -224,13 +248,15 @@ function renderCard() {
 
 function openSheet(html) {
   const sheet = $('sheet');
-  sheet.querySelector('.sheet-body').innerHTML = `${html}<button class="close" type="button">とじる</button>`;
+  const body = sheet.querySelector('.sheet-body');
+  body.innerHTML = `<div class="sheet-top"><button class="close x" type="button" aria-label="とじる">${ICONS.close}</button></div>${html}`;
+  body.scrollTop = 0;
   sheet.hidden = false;
   select(null);
 }
 
 $('sheet').addEventListener('click', (ev) => {
-  if (ev.target.id === 'sheet' || ev.target.classList.contains('close')) {
+  if (ev.target.id === 'sheet' || ev.target.closest('.close')) {
     $('sheet').hidden = true;
     return;
   }
@@ -250,7 +276,9 @@ $('sheet').addEventListener('click', (ev) => {
   }
 });
 
-$('btn-build').addEventListener('click', () => {
+$('btn-build').addEventListener('click', () => openBuild());
+
+function openBuild(focusId) {
   if (placing) return;
   const items = actionsFor(state)
     .map((a) => {
@@ -263,7 +291,11 @@ $('btn-build').addEventListener('click', () => {
     })
     .join('');
   openSheet(`<h2>つくる</h2>${items || '<p class="lead">いまつくれるものはありません</p>'}`);
-});
+  if (focusId) {
+    const el = [...document.querySelectorAll('.action')].find((x) => x.dataset.action.startsWith(focusId));
+    if (el) el.classList.add('focus');
+  }
+}
 
 function entryHtml(e) {
   const lines = e.lines.map((l) => `<p class="${l.kind}">${l.text}</p>`).join('');
@@ -275,11 +307,13 @@ $('btn-diary').addEventListener('click', () => {
   $('diary-dot').hidden = true;
   for (const e of state.diary) e.read = true;
   const entries = [...state.diary].reverse().map(entryHtml).join('');
+  if (state.diary.length) tutorial('read_diary');
   openSheet(`<h2>島の日記</h2>${entries ? `<div class="notebook">${entries}</div>` : '<p class="lead">まだ日記はありません。1日が終わると、ここに届きます。</p>'}`);
 });
 
 function showMorning(entries) {
   for (const e of entries) e.read = true;
+  tutorial('read_diary');
   $('diary-dot').hidden = true;
   openSheet(`<div class="morning">${ICONS.sunrise}<h2>おはようございます</h2><p class="lead">昨日の島では、こんなことがありました</p></div><div class="notebook">${entries.map(entryHtml).join('')}</div>`);
 }
@@ -331,9 +365,55 @@ $('place-ok').addEventListener('click', () => {
   const res = applyAction(state, placing.action.id, placing.ghost);
   toast(res.message);
   if (res.ok) {
+    const type = placing.type;
     endPlacing();
+    if (type === 'house') tutorial('build_house');
     save();
   }
+});
+
+// ---------------------------------------------------------------- やること（チュートリアル・D290）
+
+function tutorial(trigger) {
+  const res = report(state, trigger);
+  if (!res) return;
+  busyStage = null;
+  if (res.reward > 0) setTimeout(() => toast(`できました　+${res.reward} Coin`), 400);
+  if (res.finished) setTimeout(() => toast('ここからは、島を自由に育ててください'), 3300);
+  renderQuest();
+  save();
+}
+
+function renderQuest() {
+  const el = $('quest');
+  const step = currentStep(state);
+  if (!step || (step.id === 'busy_cafe' && busyStage === null)) {
+    el.hidden = true;
+    return;
+  }
+  const reward = step.reward ? `<span class="reward">${ICONS.coin}+${step.reward}</span>` : '';
+  let html = `<div class="quest-head"><b>${step.title}</b>${reward}</div>`;
+  if (step.id === 'busy_cafe' && busyStage === 'ask') {
+    html += `<p>${step.ask}</p><div class="choices">${step.choices.map((c) => `<button type="button" data-choice="${c.id}">${c.label}</button>`).join('')}</div>`;
+  } else {
+    html += `<p>${step.body}</p>`;
+  }
+  if (step.id !== 'busy_cafe') html += `<button class="skip" type="button">とばす</button>`;
+  el.innerHTML = html;
+  el.hidden = false;
+}
+
+$('quest').addEventListener('click', (ev) => {
+  if (ev.target.closest('.skip')) {
+    skipTutorial(state);
+    renderQuest();
+    save();
+    return;
+  }
+  const choice = ev.target.closest('[data-choice]')?.dataset.choice;
+  if (!choice) return;
+  tutorial('busy_cafe');
+  if (choice !== 'nothing') openBuild(choice);
 });
 
 // ---------------------------------------------------------------- お知らせ
@@ -376,7 +456,15 @@ function renderDebug() {
 
 if (DEBUG) {
   // 画面テスト用（?debug のときだけ）：マスの画面上の位置
-  window.__til = { tileToClient: (c, r) => renderer.toClient((c + 0.5) * T, (r + 0.5) * T), placements: (t) => placements(t, state.buildings) };
+  window.__til = {
+    tileToClient: (c, r) => renderer.toClient((c + 0.5) * T, (r + 0.5) * T),
+    placements: (t) => placements(t, state.buildings),
+    setTutorial: (n) => {
+      state.tutorial = { step: n, skipped: false };
+      busyStage = null;
+      renderQuest();
+    },
+  };
   $('debug').hidden = false;
   renderDebug();
   $('debug').addEventListener('click', (ev) => {
@@ -388,6 +476,8 @@ if (DEBUG) {
     if (k === 'reset' && confirm('島を最初からやり直しますか？')) {
       state = createGame();
       firstRun = true;
+      busyStage = null;
+      renderQuest();
       save();
     }
     renderDebug();
@@ -423,16 +513,17 @@ renderer.resize();
 }
 recordOpen();
 if (state.savedAt) returnAfter((Date.now() - state.savedAt) / 1000);
-if (firstRun) {
+if (firstRun && !currentStep(state)) {
   const hint = $('hint');
   hint.hidden = false;
   setTimeout(() => {
     hint.style.opacity = 0;
     setTimeout(() => (hint.hidden = true), 700);
   }, 6000);
-  save();
 }
+if (firstRun) save();
 if (state.diary.some((e) => !e.read)) $('diary-dot').hidden = false;
+renderQuest();
 updateHud();
 requestAnimationFrame(frame);
 
