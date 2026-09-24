@@ -336,6 +336,40 @@ h3 .dot { width: 14px; height: 14px; }
   background: #eef3f6;
 }
 .action.focus { background: #fdf1d6; border-radius: 12px; }
+
+/* つくる のタブ（新しく建てる／広げる） */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 4px 0 6px;
+  padding: 4px;
+  border-radius: 14px;
+  background: #eef3f6;
+}
+.tabs button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  border: 0;
+  border-radius: 11px;
+  background: none;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+.tabs button[aria-selected='true'] { background: var(--paper); color: var(--ink); box-shadow: 1.5px 2px 0 var(--shadow); }
+.tabs .n {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--mustard);
+  color: var(--ink);
+  font-size: 11px;
+  line-height: 18px;
+}
 .sheet-body .lead { margin: 0 0 8px; color: var(--muted); font-size: 14px; }
 .close {
   display: block;

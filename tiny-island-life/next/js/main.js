@@ -11,6 +11,7 @@ import {
 import { createRenderer, lookOf } from './render.js';
 import { ICONS } from './icons.js';
 import { currentStep, report, skipTutorial, busyCafeNow } from './tutorial.js';
+import { setupKeepAwake, awakeStatus } from './awake.js';
 
 // 🚨 前の版（3日テスト中）と同じサイトに置くので、保存の名前を分ける（D289）
 const SAVE_KEY = 'til.grid.save.v1';
@@ -355,6 +356,11 @@ $('sheet').addEventListener('click', (ev) => {
     $('sheet').hidden = true;
     return;
   }
+  const tab = ev.target.closest('[data-tab]');
+  if (tab) {
+    buildTab = tab.dataset.tab;
+    return openBuild();
+  }
   const btn = ev.target.closest('[data-action]');
   if (!btn) return;
   const action = actionsFor(state).find((a) => a.id === btn.dataset.action);
@@ -373,9 +379,21 @@ $('sheet').addEventListener('click', (ev) => {
 
 $('btn-build').addEventListener('click', () => openBuild());
 
+// つくる：「新しく建てる」と「広げる」のタブ（D296）。新しく建てるものは ほぼ一定、広げるものは建物の数だけ増える
+let buildTab = 'new';
+const isNewAction = (a) => !!a.place;
+
 function openBuild(focusId) {
   if (placing) return;
-  const items = actionsFor(state)
+  const all = actionsFor(state);
+  if (focusId) {
+    const target = all.find((a) => a.id.startsWith(focusId));
+    if (target) buildTab = isNewAction(target) ? 'new' : 'grow';
+  }
+  const list = all.filter((a) => (buildTab === 'new' ? isNewAction(a) : !isNewAction(a)));
+  // 建てられるものを上に、まだひらいていないものは下に
+  list.sort((a, b) => Number(!!a.locked) - Number(!!b.locked));
+  const items = list
     .map((a) => {
       const short = a.cost - state.coin;
       return `<button class="action" type="button" data-action="${a.id}" ${short > 0 || a.locked ? 'disabled' : ''}>
@@ -385,7 +403,13 @@ function openBuild(focusId) {
       </button>`;
     })
     .join('');
-  openSheet(`<h2>つくる</h2>${items || '<p class="lead">いまつくれるものはありません</p>'}`);
+  const count = (tab) => all.filter((a) => (tab === 'new' ? isNewAction(a) : !isNewAction(a))).length;
+  const tabs = `<div class="tabs" role="tablist">
+    <button type="button" role="tab" data-tab="new" aria-selected="${buildTab === 'new'}">新しく建てる</button>
+    <button type="button" role="tab" data-tab="grow" aria-selected="${buildTab === 'grow'}">広げる<span class="n">${count('grow')}</span></button>
+  </div>`;
+  const empty = buildTab === 'new' ? 'いま建てられるものはありません' : 'まだ広げられるものはありません';
+  openSheet(`<h2>つくる</h2>${tabs}${items || `<p class="lead">${empty}</p>`}`);
   if (focusId) {
     const el = [...document.querySelectorAll('.action')].find((x) => x.dataset.action.startsWith(focusId));
     if (el) el.classList.add('focus');
@@ -559,6 +583,7 @@ function renderDebug() {
     <button data-dbg="port">港をひらく</button>
     <button data-dbg="unlock">スーパーとプラネタリウムをひらく</button>
     <button data-dbg="reset">最初からやり直す</button>
+    <pre>画面をつけたまま：${{ on: 'オン', off: 'オフ', unsupported: 'この端末では使えない' }[awakeStatus()]}</pre>
     <pre>起動の記録（日付: 回数）\n${Object.entries(byDate).map(([d, n]) => `${d}: ${n}`).join('\n') || '—'}</pre>`;
 }
 
@@ -627,6 +652,7 @@ setInterval(save, 5000);
 $('coin-icon').innerHTML = ICONS.coin;
 document.querySelector('#btn-build .i').innerHTML = ICONS.build;
 document.querySelector('#btn-diary .i').innerHTML = ICONS.diary;
+setupKeepAwake();
 renderer.resize();
 {
   // 最初はカフェのあたりを見せる
