@@ -77,6 +77,14 @@ export const ICONS = {
       `<circle cx="9" cy="11.5" r="0.9" fill="${MUSTARD}"/><circle cx="13" cy="9.5" r="1.1" fill="${MUSTARD}"/><circle cx="15.5" cy="12.5" r="0.8" fill="${MUSTARD}"/>`,
     28,
   ),
+  petshop_new: svg(
+    `<rect x="4" y="10" width="16" height="10" rx="1" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<rect x="4" y="10" width="16" height="10" rx="1" fill="#fff" stroke="${INK}" stroke-width="1.4"/>` +
+      `<path d="M3 11l9-7 9 7z" fill="#f4a259"/>` +
+      `<ellipse cx="14.5" cy="16" rx="2" ry="1.6" fill="#f4a259"/><circle cx="12.6" cy="14.1" r="0.8" fill="#f4a259"/><circle cx="14" cy="13.3" r="0.8" fill="#f4a259"/><circle cx="15.4" cy="13.3" r="0.8" fill="#f4a259"/><circle cx="16.6" cy="14.1" r="0.8" fill="#f4a259"/>` +
+      `<rect x="6.5" y="14" width="3" height="6" rx="1" fill="${INK}"/>`,
+    28,
+  ),
   park_roof: svg(
     `<path d="M3 11l9-7 9 7z" transform="translate(1 1)" fill="${SHADOW}"/><path d="M3 11l9-7 9 7z" fill="${INK}"/>` +
       `<rect x="6" y="11" width="2" height="9" fill="#8d6a4f"/><rect x="16" y="11" width="2" height="9" fill="#8d6a4f"/>` +

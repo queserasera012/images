@@ -78,6 +78,7 @@ export const CONFIG = {
   unlocks: [
     { id: 'port', pop: 7, goal: '港をひらく', done: '港に船が来るようになりました', note: '港に船が来るようになります' },
     { id: 'super', pop: 10, goal: 'スーパーをひらく', done: 'スーパーを建てられるようになりました', note: 'スーパーを建てられるようになります' },
+    { id: 'petshop', pets: 2, goal: 'ペットショップをひらく', done: 'ペットショップを建てられるようになりました', note: 'ペットショップを建てられるようになります' },
     { id: 'planetarium', pop: 14, goal: 'プラネタリウムをひらく', done: 'プラネタリウムを建てられるようになりました', note: 'プラネタリウムを建てられるようになります' },
   ],
   maxPopulation: 40,
@@ -128,9 +129,31 @@ export const CONFIG = {
   },
 
   // ---- ペット（D293） ----
+  // near＝迷い込んでくる場所／spots＝昼寝やひと休みに行く場所（D296 で うさぎ・キツネ・アライグマを追加）
   pets: {
-    cat: { day: 1, clock: 13 * 60, name: 'ミケ', label: 'ねこ', speed: 0.55 },
-    dog: { day: 2, clock: 11 * 60, name: 'ポチ', label: 'いぬ', speed: 1.0 },
+    cat: { day: 1, clock: 13 * 60, name: 'ミケ', label: 'ねこ', speed: 0.55, near: 'cafe', spots: ['terrace', 'bench', 'roof', 'plaza'], nap: [60, 150] },
+    dog: { day: 2, clock: 11 * 60, name: 'ポチ', label: 'いぬ', speed: 1.0, near: 'park' },
+    rabbit: { day: 3, clock: 10 * 60, name: 'しろ', label: 'うさぎ', speed: 0.8, near: 'park', spots: ['lawn', 'garden', 'lawn'], nap: [30, 80] },
+    fox: { day: 5, clock: 16 * 60, name: 'コン', label: 'キツネ', speed: 0.9, near: 'north', spots: ['north', 'north', 'bench'], nap: [50, 120] },
+    raccoon: { day: 6, clock: 19 * 60, name: 'クー', label: 'アライグマ', speed: 0.7, near: 'cafe', spots: ['terrace', 'shopfront', 'plaza'], nap: [40, 100] },
+  },
+
+  // ---- ペットショップ（D296）：ペットのいる家の人だけ。2日に1回 ----
+  petshop: {
+    open: 9 * 60,
+    close: 19 * 60,
+    customerValue: 20,
+    stayMin: 8,
+    stayMax: 14,
+    maxQueue: 3,
+    rainLinger: 1,
+    pull: 26,
+    levels: [
+      { level: 1, seats: 2, upkeep: 10 },
+      { level: 2, seats: 4, upkeep: 20, cost: 700 },
+    ],
+    buildCost: 600,
+    max: 1,
   },
 
   // ---- 人口が増える条件（1日の終わりに判定） ----

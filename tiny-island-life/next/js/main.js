@@ -90,7 +90,7 @@ function frame(now) {
       toast(`${e.name}が島に引っ越してきました`);
       renderQuest();
     } else if (e.type === 'stray') {
-      toast(`${e.near}のあたりに、${e.kind === 'cat' ? 'ねこ' : 'いぬ'}が迷い込んできたようです`);
+      toast(`${e.near}のあたりに、${e.label}が迷い込んできたようです`);
     } else if (e.type === 'boat') {
       toast(`船が着きました。観光客が ${e.n}人 降りてきました`);
     } else if (e.type === 'portOpen') {
@@ -265,7 +265,7 @@ function renderCard() {
   if (selected.kind === 'pet') {
     const pet = state.pets.find((x) => x.id === selected.id);
     if (!pet) return select(null);
-    const label = pet.kind === 'cat' ? 'ねこ' : 'いぬ';
+    const label = CONFIG.pets[pet.kind].label;
     if (!pet.adopted) {
       if (card.dataset.stray === pet.id) return; // 名前を入力中は描き直さない
       card.dataset.stray = pet.id;
@@ -299,12 +299,12 @@ function renderCard() {
       html = `<h3>${cafeLabel(state, b)} Lv${b.level}</h3><div class="sub">席は ${seatCount(b)} つ。${fmt(CONFIG.cafe.open)}から${fmt(CONFIG.cafe.close)}まで</div>`;
       html += `<div class="now">座っている：${who(seated)}</div>`;
       html += `<div>外で待っている：${who(b.queue)}</div>`;
-    } else if (b.type === 'super' || b.type === 'planetarium') {
+    } else if (b.type === 'super' || b.type === 'planetarium' || b.type === 'petshop') {
       const V = CONFIG[b.type];
       const inside = b.seats.filter(Boolean);
-      const unit = b.type === 'super' ? `一度に ${seatCount(b)}人 まで` : `${seatCount(b)}席`;
+      const unit = b.type === 'planetarium' ? `${seatCount(b)}席` : `一度に ${seatCount(b)}人 まで`;
       html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${unit}。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
-      html += `<div class="now">${b.type === 'super' ? '買い物中' : '星を見ている'}：${who(inside)}</div>`;
+      html += `<div class="now">${b.type === 'planetarium' ? '星を見ている' : '買い物中'}：${who(inside)}</div>`;
       html += `<div>外で待っている：${who(b.queue)}</div>`;
     } else if (b.type === 'shop') {
       const max = CONFIG.shop.levels[b.level - 1].stock;
@@ -513,7 +513,7 @@ function renderQuest() {
       el.hidden = true;
       return;
     }
-    el.innerHTML = `<div class="quest-head"><b>目標：${g.goal}</b><span class="reward">${g.now} / ${g.pop}人</span></div><p>住民が ${g.pop}人 になると、${g.note}</p>`;
+    el.innerHTML = `<div class="quest-head"><b>目標：${g.goal}</b><span class="reward">${g.now} / ${g.need}${g.unit}</span></div><p>${g.what}が ${g.need}${g.unit} になると、${g.note}</p>`;
     el.hidden = false;
     return;
   }
@@ -582,6 +582,7 @@ function renderDebug() {
     <button data-dbg="coin">Coin +500</button>
     <button data-dbg="port">港をひらく</button>
     <button data-dbg="unlock">スーパーとプラネタリウムをひらく</button>
+    <button data-dbg="pets">ペットを全部 迷い込ませる</button>
     <button data-dbg="reset">最初からやり直す</button>
     <pre>画面をつけたまま：${{ on: 'オン', off: 'オフ', unsupported: 'この端末では使えない' }[awakeStatus()]}</pre>
     <pre>起動の記録（日付: 回数）\n${Object.entries(byDate).map(([d, n]) => `${d}: ${n}`).join('\n') || '—'}</pre>`;
@@ -595,6 +596,9 @@ if (DEBUG) {
     pets: () => state.pets.map((p) => ({ id: p.id, kind: p.kind, adopted: p.adopted, state: p.state, ...renderer.toClient(p.x, p.y - 8) })),
     clock: () => clockOf(state.t),
     shops: () => state.buildings.filter((b) => b.type === 'shop').map((b) => ({ id: b.id, stock: b.stock, ...renderer.toClient((b.c + 1) * T, (b.r + 1) * T) })),
+    adoptAll: () => state.pets.filter((p) => !p.adopted).forEach((p) => adoptPet(state, p.id, '')),
+    wakePets: () => state.pets.forEach((p, i) => { p.state = 'SIT'; p.until = state.t + 999; p.tx = p.x = 8 * T + 20 + i * 26; p.ty = p.y = 11 * T + 12; p.facing = i % 2 ? -1 : 1; }),
+    dogState: () => state.pets.find((p) => p.kind === 'dog')?.state,
     setStock: (n) => state.buildings.filter((b) => b.type === 'shop').forEach((b) => (b.stock = n)),
     setTutorial: (n) => {
       state.tutorial = { step: n, skipped: false };
@@ -613,6 +617,10 @@ if (DEBUG) {
     if (k === 'port') {
       openPort(state);
       renderQuest();
+    }
+    if (k === 'pets') {
+      // 迷い込む日時を今日の今にして、まだ来ていない子を全部 呼ぶ
+      for (const kind of Object.keys(CONFIG.pets)) CONFIG.pets[kind] = { ...CONFIG.pets[kind], day: 1, clock: 0 };
     }
     if (k === 'unlock') {
       unlockNow(state, 'port');

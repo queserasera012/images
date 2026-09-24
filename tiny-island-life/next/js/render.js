@@ -658,6 +658,55 @@ export function createRenderer(canvas) {
     ctx.fillText(label, x, y);
   }
 
+  // ペットショップ（2×2）：オレンジの屋根と肉球の看板
+  function petshop(state, b) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.petshop.w * T;
+    paperShadow((shadow) => {
+      if (!shadow) ctx.fillStyle = PALETTE.white;
+      roundRect(ctx, x0 + 4, y0 + 8, w - 8, T + 12, 3);
+      ctx.fill();
+      if (!shadow) ctx.fillStyle = '#f4a259';
+      ctx.beginPath();
+      ctx.moveTo(x0 + 1, y0 + 10);
+      ctx.lineTo(x0 + w / 2, y0 - 4);
+      ctx.lineTo(x0 + w - 1, y0 + 10);
+      ctx.closePath();
+      ctx.fill();
+    });
+    // 肉球の看板
+    const px = x0 + w / 2 + 8;
+    const py = y0 + 24;
+    ctx.fillStyle = '#f4a259';
+    ctx.beginPath();
+    ctx.ellipse(px, py + 1.5, 3.4, 2.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    for (const [dx, dy] of [[-3.4, -2.6], [-1.2, -4.2], [1.2, -4.2], [3.4, -2.6]]) {
+      ctx.beginPath();
+      ctx.arc(px + dx, py + dy, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = PALETTE.ink;
+    ctx.font = `700 8px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('ペット', px, py + 11);
+    ctx.fillStyle = PALETTE.ink;
+    roundRect(ctx, x0 + 9, y0 + 22, 10, T - 6, [5, 5, 0, 0]);
+    ctx.fill();
+    // 店先の骨
+    ctx.fillStyle = PALETTE.white;
+    const bx = x0 + w / 2;
+    const by = y0 + 2 * T - 7;
+    ctx.fillRect(bx - 5, by - 1.2, 10, 2.4);
+    for (const dx of [-5, 5]) for (const dy of [-1.4, 1.4]) {
+      ctx.beginPath();
+      ctx.arc(bx + dx, by + dy, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
   function lamp(i, lit) {
     const p = center(i);
     const x = p.x + 12;
@@ -746,20 +795,28 @@ export function createRenderer(canvas) {
     ctx.restore();
   }
 
+  // 種類ごとの色と形（D296：うさぎ・キツネ・アライグマを追加）
+  const SPECIES = {
+    cat: { body: '#ffffff', dark: '#3b2a20', patch: '#f4a259', ears: 'pointy', tail: 'thin' },
+    dog: { body: '#d9a066', dark: '#8d6a4f', ears: 'floppy', tail: 'wag', muzzle: '#fff4e6', nose: true },
+    rabbit: { body: '#f4f1ee', dark: '#b8aca3', ears: 'long', tail: 'puff', inner: '#f7c5cc' },
+    fox: { body: '#e8833a', dark: '#5a3825', ears: 'fox', tail: 'bushy', chest: '#fff4e6', nose: true },
+    raccoon: { body: '#8a8f98', dark: '#3f434a', ears: 'round', tail: 'ringed', mask: true },
+  };
+
   function drawPetBody(state, pet, time) {
     const ph = phaseOf(pet.id);
+    const sp = SPECIES[pet.kind] || SPECIES.cat;
     const moving = Math.hypot(pet.tx - pet.x, pet.ty - pet.y) > 0.5;
     const poked = pokes?.get(pet.id);
     const since = poked === undefined ? 99 : time - poked;
     let hop = since < 1.2 ? Math.abs(Math.sin((since / 1.2) * Math.PI * 2)) * 7 : 0;
-    if (moving) hop += Math.abs(Math.sin(time * 14 + ph)) * 1.6;
+    if (moving) hop += Math.abs(Math.sin(time * (pet.kind === 'rabbit' ? 8 : 14) + ph)) * (pet.kind === 'rabbit' ? 4.5 : 1.6);
     const x = pet.x;
     const y = pet.y - hop;
     const f = pet.facing;
     const sleeping = pet.state === 'SLEEP' || pet.state === 'NAP';
-    const cat = pet.kind === 'cat';
-    const body = cat ? '#ffffff' : '#d9a066';
-    const dark = cat ? '#3b2a20' : '#8d6a4f';
+    const { body, dark } = sp;
 
     ctx.fillStyle = PALETTE.shadow;
     ctx.beginPath();
@@ -776,13 +833,25 @@ export function createRenderer(canvas) {
       ctx.beginPath();
       ctx.ellipse(x, y - 4, 8, 5, 0, 0, Math.PI * 2);
       ctx.fill();
-      if (cat) {
-        ctx.fillStyle = '#f4a259';
+      if (sp.patch) {
+        ctx.fillStyle = sp.patch;
         ctx.beginPath();
         ctx.arc(x - 3, y - 6, 3, 0, Math.PI * 2);
         ctx.fill();
       }
-      ctx.fillStyle = dark;
+      if (sp.tail === 'bushy' || sp.tail === 'ringed') {
+        ctx.fillStyle = sp.tail === 'bushy' ? '#fff4e6' : dark;
+        ctx.beginPath();
+        ctx.arc(x - f * 7, y - 2, 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (sp.ears === 'long') {
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.ellipse(x + f * 3, y - 8, 1.8, 4.5, f * 1.1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = sp.mask ? dark : dark;
       ctx.beginPath();
       ctx.arc(x + f * 5, y - 5, 2.6, 0, Math.PI * 2);
       ctx.fill();
@@ -794,22 +863,61 @@ export function createRenderer(canvas) {
       return;
     }
 
-    const sitting = !moving && (pet.state === 'SIT' || pet.state === 'SHELTER' || pet.state === 'FOLLOW');
+    const sitting = !moving && ['SIT', 'SHELTER', 'FOLLOW', 'WAIT'].includes(pet.state);
     // 白いふち
     ctx.fillStyle = PALETTE.white;
     ctx.beginPath();
     ctx.ellipse(x, y - 6, sitting ? 6.5 : 9, sitting ? 7.5 : 6, 0, 0, Math.PI * 2);
     ctx.arc(x + f * 7, y - (sitting ? 13 : 11), 6.3, 0, Math.PI * 2);
     ctx.fill();
+
     // しっぽ
-    ctx.strokeStyle = cat ? dark : body;
-    ctx.lineWidth = 2.2;
     ctx.lineCap = 'round';
-    ctx.beginPath();
-    const wag = Math.sin(time * (cat ? 2 : 12) + ph) * (cat ? 2 : 3);
-    ctx.moveTo(x - f * 7, y - 7);
-    ctx.quadraticCurveTo(x - f * 11, y - 12 + wag * 0.3, x - f * (10 + wag * 0.5), y - (cat ? 16 : 13));
-    ctx.stroke();
+    const tx0 = x - f * 7;
+    if (sp.tail === 'puff') {
+      ctx.fillStyle = PALETTE.white;
+      ctx.beginPath();
+      ctx.arc(tx0, y - 6, 2.8, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (sp.tail === 'bushy') {
+      const sway = Math.sin(time * 2 + ph) * 1.5;
+      ctx.strokeStyle = body;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(tx0, y - 6);
+      ctx.quadraticCurveTo(x - f * 13, y - 8 + sway, x - f * 14, y - 13);
+      ctx.stroke();
+      ctx.fillStyle = '#fff4e6';
+      ctx.beginPath();
+      ctx.arc(x - f * 14, y - 13.5, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (sp.tail === 'ringed') {
+      ctx.strokeStyle = body;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(tx0, y - 6);
+      ctx.lineTo(x - f * 13, y - 11);
+      ctx.stroke();
+      ctx.strokeStyle = dark;
+      ctx.lineWidth = 4;
+      for (const k of [0.45, 0.85]) {
+        const px = tx0 + (x - f * 13 - tx0) * k;
+        const py = y - 6 + (y - 11 - (y - 6)) * k;
+        ctx.beginPath();
+        ctx.moveTo(px - f * 0.6, py - 0.3);
+        ctx.lineTo(px + f * 0.6, py + 0.3);
+        ctx.stroke();
+      }
+    } else {
+      const thin = sp.tail === 'thin';
+      ctx.strokeStyle = thin ? dark : body;
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      const wag = Math.sin(time * (thin ? 2 : 12) + ph) * (thin ? 2 : 3);
+      ctx.moveTo(tx0, y - 7);
+      ctx.quadraticCurveTo(x - f * 11, y - 12 + wag * 0.3, x - f * (10 + wag * 0.5), y - (thin ? 16 : 13));
+      ctx.stroke();
+    }
     // 足
     if (!sitting) {
       ctx.fillStyle = dark;
@@ -822,48 +930,103 @@ export function createRenderer(canvas) {
     ctx.beginPath();
     ctx.ellipse(x, y - 6, sitting ? 5 : 7.5, sitting ? 6 : 4.5, 0, 0, Math.PI * 2);
     ctx.fill();
-    if (cat) {
-      ctx.fillStyle = '#f4a259';
+    if (sp.patch) {
+      ctx.fillStyle = sp.patch;
       ctx.beginPath();
       ctx.arc(x - f * 2, y - 7, 2.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (sp.chest) {
+      ctx.fillStyle = sp.chest;
+      ctx.beginPath();
+      ctx.ellipse(x + f * 3, y - 6, 2.4, 3.2, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     // あたま
     const hx = x + f * 7;
     const hy = y - (sitting ? 13 : 11);
+    // 耳（頭より先に描くものと、あとに描くもの）
+    if (sp.ears === 'long') {
+      for (const dx of [-1.8, 1.8]) {
+        ctx.fillStyle = PALETTE.white;
+        ctx.beginPath();
+        ctx.ellipse(hx + dx, hy - 7, 2.6, 5.6, dx * 0.08, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.ellipse(hx + dx, hy - 7, 1.7, 4.6, dx * 0.08, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = sp.inner;
+        ctx.beginPath();
+        ctx.ellipse(hx + dx, hy - 6.5, 0.7, 3, dx * 0.08, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
     ctx.fillStyle = body;
     ctx.beginPath();
     ctx.arc(hx, hy, 4.8, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = dark;
-    if (cat) {
-      // とがった耳（片方は黒）
+    if (sp.ears === 'pointy' || sp.ears === 'fox') {
+      // とがった耳（ねこは片方が茶色、キツネは先が黒）
+      ctx.fillStyle = sp.ears === 'fox' ? body : dark;
       ctx.beginPath();
       ctx.moveTo(hx - 4, hy - 2);
-      ctx.lineTo(hx - 3, hy - 7.5);
+      ctx.lineTo(hx - 3, hy - 8);
       ctx.lineTo(hx - 0.5, hy - 3.5);
       ctx.fill();
-      ctx.fillStyle = '#f4a259';
+      ctx.fillStyle = sp.ears === 'fox' ? body : '#f4a259';
       ctx.beginPath();
       ctx.moveTo(hx + 4, hy - 2);
-      ctx.lineTo(hx + 3, hy - 7.5);
+      ctx.lineTo(hx + 3, hy - 8);
       ctx.lineTo(hx + 0.5, hy - 3.5);
       ctx.fill();
-    } else {
-      // たれ耳
+      if (sp.ears === 'fox') {
+        ctx.fillStyle = dark;
+        for (const dx of [-3, 3]) {
+          ctx.beginPath();
+          ctx.moveTo(hx + dx - 0.9, hy - 6.2);
+          ctx.lineTo(hx + dx, hy - 8);
+          ctx.lineTo(hx + dx + 0.9, hy - 6.2);
+          ctx.fill();
+        }
+        ctx.fillStyle = '#fff4e6';
+        ctx.beginPath();
+        ctx.ellipse(hx + f * 2.5, hy + 1.8, 2.6, 1.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (sp.ears === 'floppy') {
       ctx.beginPath();
       ctx.ellipse(hx - f * 3, hy - 1, 1.8, 3.6, f * 0.3, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#fff4e6';
+      ctx.fillStyle = sp.muzzle;
       ctx.beginPath();
       ctx.ellipse(hx + f * 2.5, hy + 1.5, 2.4, 1.8, 0, 0, Math.PI * 2);
       ctx.fill();
+    } else if (sp.ears === 'round') {
+      for (const dx of [-3.4, 3.4]) {
+        ctx.beginPath();
+        ctx.arc(hx + dx, hy - 3.8, 1.9, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
-    ctx.fillStyle = PALETTE.ink;
-    ctx.beginPath();
-    ctx.arc(hx + f * 1.5, hy - 1, 0.9, 0, Math.PI * 2);
-    ctx.fill();
-    if (!cat) {
+    if (sp.mask) {
+      // アライグマの目のまわりの黒い帯
+      ctx.fillStyle = dark;
+      ctx.beginPath();
+      ctx.ellipse(hx + f * 1.2, hy - 0.8, 4.2, 1.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = PALETTE.white;
+      ctx.beginPath();
+      ctx.arc(hx + f * 1.5, hy - 1, 0.9, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = PALETTE.ink;
+      ctx.beginPath();
+      ctx.arc(hx + f * 1.5, hy - 1, 0.9, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (sp.nose) {
       ctx.fillStyle = '#2b2b33';
       ctx.beginPath();
       ctx.arc(hx + f * 4.3, hy + 1, 1, 0, Math.PI * 2);
@@ -1116,6 +1279,18 @@ export function createRenderer(canvas) {
       ctx.lineTo(bx + 3, by - 5);
       ctx.stroke();
     }
+    if (r.carry === 'petfood') {
+      // ペットフードの袋（肉球）
+      const bx = r.x - facing * 8;
+      const by = r.y - bob - 11;
+      ctx.fillStyle = '#f4a259';
+      roundRect(ctx, bx - 3.5, by, 7, 8, 1.5);
+      ctx.fill();
+      ctx.fillStyle = PALETTE.white;
+      ctx.beginPath();
+      ctx.arc(bx, by + 4.5, 1.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
     if (r.bought) {
       // お土産の紙袋を持っている
       const bx = r.x - facing * 7;
@@ -1243,6 +1418,7 @@ export function createRenderer(canvas) {
       else if (b.type === 'shop') shop(state, b, state.buildings.filter((x) => x.type === 'shop').length > 1);
       else if (b.type === 'super') superMarket(state, b, state.buildings.filter((x) => x.type === 'super').length > 1);
       else if (b.type === 'planetarium') planetarium(state, b, time);
+      else if (b.type === 'petshop') petshop(state, b);
     }
     for (const i of LAMPS) lamp(i, false);
     boat(state, time);

@@ -86,8 +86,8 @@ export const everyone = (state) => (state.visitors?.length ? state.residents.con
 export const personById = (state, id) => state.residents.find((r) => r.id === id) || state.visitors?.find((r) => r.id === id);
 
 // 席と列のある施設（カフェ・スーパー・プラネタリウム）。同じ仕組みで動く（D295）
-export const VENUE_TYPES = ['cafe', 'super', 'planetarium'];
-export const VENUE_NAME = { cafe: 'カフェ', super: 'スーパー', planetarium: 'プラネタリウム' };
+export const VENUE_TYPES = ['cafe', 'super', 'planetarium', 'petshop'];
+export const VENUE_NAME = { cafe: 'カフェ', super: 'スーパー', planetarium: 'プラネタリウム', petshop: 'ペットショップ' };
 export const isVenue = (b) => VENUE_TYPES.includes(b.type);
 export const venues = (state) => state.buildings.filter(isVenue);
 export const ofType = (state, type) => state.buildings.filter((b) => b.type === type);
@@ -295,6 +295,8 @@ function planDay(state, r) {
   const base = Math.floor(state.t / DAY) * DAY;
   r.needShop = ofType(state, 'super').length > 0; // スーパーがあれば、毎日1回 買い物に行きたい
   r.visitedFun = false; // プラネタリウムも1日1回まで
+  // ペットのいる家の人は、2日に1回 ペットショップへ（家ごとに曜日をずらす）
+  r.needPet = ofType(state, 'petshop').length > 0 && householdHasPet(state, r) && (dayOf(state.t) + (r.look || 0)) % 2 === 0;
   r.wake = base + clockToInDay(6 * 60 + 30) + between(state, 0, 35);
   r.bed = base + clockToInDay(21 * 60 + 30) + between(state, 0, 60);
 }
@@ -417,6 +419,14 @@ function superChoices(state, r) {
   return ofType(state, 'super').map((b) => ({ cafe: b, w: CONFIG.super.pull * boost * near(r, b.access) }));
 }
 
+// ペットショップ：ペットのいる家の人だけ。2日に1回（needPet）
+function petshopChoices(state, r) {
+  if (r.tourist || !r.needPet || !venueOpen(state, 'petshop', 20)) return [];
+  return ofType(state, 'petshop').map((b) => ({ cafe: b, w: CONFIG.petshop.pull * near(r, b.access) }));
+}
+
+const householdHasPet = (state, r) => (state.pets || []).some((p) => p.adopted && p.homeId === r.homeId);
+
 // プラネタリウム：雨の日と夜に行きたくなる（屋内）
 function planetariumChoices(state, r) {
   if (r.visitedFun || !venueOpen(state, 'planetarium', 45)) return [];
@@ -451,6 +461,7 @@ function decideNext(state, r, { noCafe = false, avoid = null } = {}) {
     ...(noCafe || avoid === 'cafe' ? [] : cafeChoices(state, r)),
     ...(avoid === 'super' ? [] : superChoices(state, r)),
     ...(avoid === 'planetarium' ? [] : planetariumChoices(state, r)),
+    ...(avoid === 'petshop' ? [] : petshopChoices(state, r)),
   ];
   const shopList = shopChoices(state, r);
   const shopW = shopList.reduce((s, x) => s + x.w, 0);
@@ -698,6 +709,10 @@ function leaveVenue(state, r, events) {
     r.carry = 'groceries'; // 買い物袋を持って帰る
   }
   if (b.type === 'planetarium') r.visitedFun = true;
+  if (b.type === 'petshop') {
+    r.needPet = false;
+    r.carry = 'petfood';
+  }
   events.push({ type: 'served', name: r.name, venue: b.type });
   afterActivity(state, r, b.type === 'super' ? 0.8 : 0.55, { avoid: b.type });
 }
@@ -768,6 +783,8 @@ function rolloverDay(state, events) {
   if (sup?.served) lines.push({ kind: 'good', text: `スーパーで ${sup.served}人 が買い物しました（+${sup.income} Coin）` });
   const fun = today.byType.planetarium;
   if (fun?.served) lines.push({ kind: 'good', text: `プラネタリウムに ${fun.served}人 が来ました（+${fun.income} Coin）` });
+  const ps = today.byType.petshop;
+  if (ps?.served) lines.push({ kind: 'good', text: `ペットショップに ${ps.served}人 が来ました（+${ps.income} Coin）` });
   if (today.shopSold > 0) {
     lines.push({ kind: 'good', text: `お土産が ${today.shopSold}個 売れました（+${today.shopIncome} Coin）` });
   }
@@ -851,7 +868,7 @@ function rolloverDay(state, events) {
   // 解放：ひらいた日の日記に書く（ひらくのは条件を満たしたその場・checkUnlocks）
   for (const u of CONFIG.unlocks) {
     const on = u.id === 'port' ? state.port.openedOn ?? state.unlockedOn.port : state.unlockedOn[u.id];
-    if (on === endedDay) lines.push({ kind: 'good', text: `住民が ${u.pop}人 になって、${u.done}` });
+    if (on === endedDay) lines.push({ kind: 'good', text: u.pets ? `家族のペットが ${u.pets}匹 になって、${u.done}` : `住民が ${u.pop}人 になって、${u.done}` });
   }
 
   const entry = { day: endedDay, weather: state.weather, lines, read: false };
@@ -891,7 +908,7 @@ export function openPort(state) {
 // 住民が決まった人数になったら、その場でひらく（D292 の不具合修正：区切りの時刻ではなく、満たした瞬間に判定する）
 function checkUnlocks(state, events) {
   for (const u of CONFIG.unlocks) {
-    if (isUnlocked(state, u.id) || state.residents.length < u.pop) continue;
+    if (isUnlocked(state, u.id) || !unlockMet(state, u)) continue;
     if (u.id === 'port') {
       openPort(state);
       events.push({ type: 'portOpen' });
@@ -903,6 +920,12 @@ function checkUnlocks(state, events) {
   }
 }
 
+const adoptedPets = (state) => (state.pets || []).filter((p) => p.adopted).length;
+function unlockMet(state, u) {
+  if (u.pets) return adoptedPets(state) >= u.pets;
+  return state.residents.length >= u.pop;
+}
+
 export function isUnlocked(state, id) {
   if (id === 'port') return !!state.port?.open;
   return !!state.unlocked?.[id];
@@ -911,7 +934,10 @@ export function isUnlocked(state, id) {
 // 次の目標（まだひらいていない中で いちばん手前）
 export function nextGoal(state) {
   const u = CONFIG.unlocks.find((x) => !isUnlocked(state, x.id));
-  return u ? { ...u, now: state.residents.length } : null;
+  if (!u) return null;
+  return u.pets
+    ? { ...u, now: adoptedPets(state), need: u.pets, unit: '匹', what: '家族のペット' }
+    : { ...u, now: state.residents.length, need: u.pop, unit: '人', what: '住民' };
 }
 
 // テストや ?debug 用：今すぐ解放する
@@ -1033,20 +1059,22 @@ export function actionsFor(state) {
   if (cafes(state).length < CONFIG.cafe.max) {
     list.push({ id: 'cafe', icon: 'cafe_new', place: 'cafe', title: 'カフェをもう1軒つくる', detail: `席 3。維持費 1日 ${CONFIG.cafe.levels[0].upkeep} Coin。場所を選べる`, cost: CONFIG.cafe.buildCost });
   }
-  for (const type of ['super', 'planetarium']) {
+  for (const type of ['super', 'petshop', 'planetarium']) {
     const V = CONFIG[type];
     if (ofType(state, type).length >= V.max) continue;
     const u = CONFIG.unlocks.find((x) => x.id === type);
     const locked = !isUnlocked(state, type);
     const what = type === 'super'
       ? `住民が毎日 買い物に行く。一度に ${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`
-      : `長く過ごせる屋内の施設。${V.levels[0].seats}席。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`;
+      : type === 'petshop'
+        ? `ペットのいる家の人が通う。一度に ${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`
+        : `長く過ごせる屋内の施設。${V.levels[0].seats}席。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`;
     list.push({
       id: type,
-      icon: type === 'super' ? 'super_new' : 'planetarium_new',
+      icon: `${type}_new`,
       place: type,
       title: `${VENUE_NAME[type]}をつくる`,
-      detail: locked ? `住民が ${u.pop}人 になると建てられます` : what,
+      detail: locked ? (u.pets ? `家族のペットが ${u.pets}匹 になると建てられます` : `住民が ${u.pop}人 になると建てられます`) : what,
       cost: V.buildCost,
       locked,
     });
@@ -1102,6 +1130,7 @@ export function applyAction(state, id, place) {
     state.buildings.push(makeBuilding(state, action.place, place.c, place.r));
     // スーパーを建てたら、その日から買い物に行く（翌朝まで待たせない）
     if (action.place === 'super') for (const r of state.residents) if (!r.carry) r.needShop = true;
+    if (action.place === 'petshop') for (const r of state.residents) if (householdHasPet(state, r)) r.needPet = true;
   } else if (id.startsWith('cafe_upgrade:') || id.startsWith('venue_upgrade:')) {
     const cafe = buildingById(state, id.split(':')[1]);
     cafe.level += 1;
@@ -1133,6 +1162,7 @@ export function describeResident(state, r) {
       const b = buildingById(state, r.destId);
       if (b.type === 'super') return 'スーパーで買い物中';
       if (b.type === 'planetarium') return 'プラネタリウムで星を見ている';
+      if (b.type === 'petshop') return 'ペットショップで買い物中';
       return `${labelOf(state, b)}でひと休み中`;
     }
     case 'PARK':
@@ -1166,7 +1196,11 @@ export function nearestCafeSteps(state, house) {
 // 迷い込んできた ねこ・いぬ に名前をつけて、家族にする。能力は無い（眺めて かわいい、だけ）。
 // いぬは飼い主が出かけると後ろをついて歩く。ねこは毎日ちがう場所で昼寝する。雨の日は軒下へ。
 
-const PET_SPOT_LABEL = { terrace: 'カフェのテラス', bench: '公園のベンチ', roof: '家の屋根の上', plaza: '広場' };
+const PET_SPOT_LABEL = {
+  terrace: 'カフェのテラス', bench: '公園のベンチ', roof: '家の屋根の上', plaza: '広場',
+  lawn: '公園の芝生', garden: '家の庭', north: '島の北の木かげ', shopfront: 'お店の前',
+};
+export const PET_KINDS = Object.keys(CONFIG.pets);
 
 function landPoint(state, around, radius) {
   for (let k = 0; k < 12; k++) {
@@ -1181,19 +1215,11 @@ function landPoint(state, around, radius) {
 function spawnStrays(state, events) {
   const clock = clockOf(state.t);
   const day = dayOf(state.t);
-  for (const kind of ['cat', 'dog']) {
+  for (const kind of PET_KINDS) {
     const P = CONFIG.pets[kind];
     if (state.petsSpawned[kind] || day < P.day || (day === P.day && clock < P.clock)) continue;
     if (clock < 6 * 60 || clock >= 20 * 60) continue; // 夜には来ない
-    let anchor;
-    if (kind === 'cat') {
-      const cafe = cafes(state)[0];
-      const q = cafe ? queueSlot(cafe, 0) : center(PIER);
-      anchor = { x: q.x + 22, y: q.y + 12 };
-    } else {
-      const park = parkOf(state);
-      anchor = park ? { x: center(park.access).x, y: center(park.access).y + 10 } : center(PIER);
-    }
+    const anchor = strayAnchor(state, P.near);
     const pet = {
       id: `p${state.nextId++}`,
       kind,
@@ -1213,8 +1239,19 @@ function spawnStrays(state, events) {
     };
     state.pets.push(pet);
     state.petsSpawned[kind] = true;
-    events.push({ type: 'stray', kind, near: kind === 'cat' ? 'カフェ' : '公園' });
+    events.push({ type: 'stray', kind, label: P.label, near: { cafe: 'カフェ', park: '公園', north: '島の北' }[P.near] });
   }
+}
+
+function strayAnchor(state, near) {
+  if (near === 'cafe') {
+    const cafe = cafes(state)[0];
+    const q = cafe ? queueSlot(cafe, 0) : center(PIER);
+    return { x: q.x + 22, y: q.y + 12 };
+  }
+  if (near === 'north') return { x: 7.5 * T, y: 3.6 * T };
+  const park = parkOf(state);
+  return park ? { x: center(park.access).x, y: center(park.access).y + 10 } : center(PIER);
 }
 
 // 名前をつけて家族にする。いちばん近い、人が住んでいる家の子になる
@@ -1250,15 +1287,36 @@ function petMove(state, pet, h, speedMul) {
   return false;
 }
 
-function catSpots(state, home) {
-  const spots = [];
+function spotPoint(state, key, home) {
   const cafe = cafes(state)[0];
-  if (cafe) spots.push({ key: 'terrace', x: cafe.c * T + 10, y: (cafe.r + 3) * T - 8 });
   const park = parkOf(state);
-  if (park) spots.push({ key: 'bench', x: (park.c + 1.5) * T + 22, y: (park.r + 3) * T - 16 });
-  if (home) spots.push({ key: 'roof', x: home.c * T + T / 2, y: home.r * T - 2 });
-  spots.push({ key: 'plaza', x: 8 * T + T / 2 + 14, y: 11 * T + T / 2 - 12 });
-  return spots;
+  switch (key) {
+    case 'terrace':
+      return cafe && { x: cafe.c * T + 10, y: (cafe.r + 3) * T - 8 };
+    case 'bench':
+      return park && { x: (park.c + 1.5) * T + 22, y: (park.r + 3) * T - 16 };
+    case 'lawn':
+      return park && parkPoint(state, park);
+    case 'roof':
+      return home && { x: home.c * T + T / 2, y: home.r * T - 2 };
+    case 'garden':
+      return home && landPoint(state, houseDoor(home), 22);
+    case 'north':
+      return landPoint(state, { x: 7.5 * T, y: 3.6 * T }, 45);
+    case 'shopfront': {
+      const shop = shops(state)[0] || ofType(state, 'super')[0];
+      return shop ? { x: shop.c * T + 8, y: (shop.r + SIZES[shop.type].h) * T - 4 } : cafe && { x: cafe.c * T + 10, y: (cafe.r + 3) * T - 8 };
+    }
+    case 'plaza':
+    default:
+      return { x: 8 * T + T / 2 + 14, y: 11 * T + T / 2 - 12 };
+  }
+}
+
+function petSpots(state, pet, home) {
+  return (CONFIG.pets[pet.kind].spots || ['plaza'])
+    .map((key) => ({ key, ...spotPoint(state, key, home) }))
+    .filter((p) => p.x !== undefined);
 }
 
 function updatePet(state, pet, h) {
@@ -1283,6 +1341,18 @@ function updatePet(state, pet, h) {
   const door = home ? houseDoor(home) : { x: pet.x, y: pet.y };
 
   if (pet.kind === 'dog') {
+    // 飼い主がお店の中にいるあいだは、お店の前で待つ
+    if (owner && !owner.visible && owner.state === 'SEATED') {
+      const b = buildingById(state, owner.destId);
+      if (b) {
+        const door = queueSlot(b, 0);
+        pet.state = 'WAIT';
+        pet.tx = door.x + 30;
+        pet.ty = door.y + 4;
+        petMove(state, pet, h, 1.2);
+        return;
+      }
+    }
     const out = owner && owner.visible && !['HOME', 'SLEEP', 'PENDING'].includes(owner.state);
     if (out) {
       // 飼い主の うしろを ついて歩く
@@ -1312,8 +1382,10 @@ function updatePet(state, pet, h) {
     return;
   }
 
-  // ねこ
-  if (night) {
+  // ねこ・うさぎ・キツネ・アライグマ（昼寝の場所を選んで過ごす）
+  // アライグマは夜の方が元気（21時まで起きている）
+  const sleepy = pet.kind === 'raccoon' ? clock >= 23 * 60 || clock < 9 * 60 : night;
+  if (sleepy) {
     pet.state = 'SLEEP';
     pet.tx = door.x - 14;
     pet.ty = door.y + 1;
@@ -1347,13 +1419,14 @@ function updatePet(state, pet, h) {
   if (pet.state === 'GOING') {
     if (petMove(state, pet, h, kind.speed)) {
       pet.state = 'NAP';
-      pet.until = state.t + between(state, 60, 150);
+      const [a, b] = kind.nap || [60, 150];
+      pet.until = state.t + between(state, a, b);
     }
     return;
   }
   // WANDER：すこし歩いたら、昼寝の場所を選ぶ（毎日ちがう場所になりやすい）
   if (petMove(state, pet, h, kind.speed) && state.t >= pet.until) {
-    const spots = catSpots(state, home);
+    const spots = petSpots(state, pet, home);
     const spot = pick(state, spots);
     pet.spot = spot.key;
     pet.tx = spot.x;
@@ -1367,7 +1440,8 @@ function petDiaryLine(state, day) {
   const stray = state.pets.find((p) => !p.adopted);
   if (adopted.length === 0) {
     if (!stray) return null;
-    return { kind: 'info', text: `${stray.kind === 'cat' ? 'カフェ' : '公園'}のあたりに、迷い${stray.name}がいたようです` };
+    const where = { cafe: 'カフェ', park: '公園', north: '島の北' }[CONFIG.pets[stray.kind].near];
+    return { kind: 'info', text: `${where}のあたりに、迷い${CONFIG.pets[stray.kind].label}がいたようです` };
   }
   const pet = adopted[day % adopted.length];
   const owner = state.residents.find((r) => r.id === pet.ownerId);
@@ -1397,6 +1471,8 @@ export function describePet(state, pet) {
       return '昼寝の場所を探している';
     case 'SHELTER':
       return '軒下で雨宿りしている';
+    case 'WAIT':
+      return `お店の前で ${owner?.name ?? '飼い主'}を待っている`;
     case 'SIT':
       return 'ひと休みしている';
     default:
