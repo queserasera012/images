@@ -121,7 +121,7 @@ export const CONFIG = {
   },
 
   // ---- 家 ----
-  house: { cost: 450, max: 8, perArea: 4 }, // 島を広げると 1か所につき4軒ふえる（D298）
+  house: { cost: 450 }, // 軒数の上限は無い。建てられるのは空いている土地の分だけ（D300）
 
   // ---- 天気（Day 1 は晴れ・Day 2 は雨で固定。以後は抽選） ----
   weatherOdds: { sunny: 0.5, cloudy: 0.25, rain: 0.25 },

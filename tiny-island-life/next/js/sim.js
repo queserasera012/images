@@ -1046,8 +1046,6 @@ function rolloverDay(state, events) {
 
 // ---------------------------------------------------------------- 港と観光客（D292）
 
-export const houseMax = (state) => CONFIG.house.max + (state.areas.length - 1) * CONFIG.house.perArea;
-
 // 港の一覧。本島の港（state.port）と、広げた土地の港（state.harbors・D298）
 export const portsOf = (state) => [state.port, ...(state.harbors || [])];
 export const portById = (state, id) => portsOf(state).find((p) => p.id === id);
@@ -1243,17 +1241,20 @@ function chooseWeather(state, day) {
 export function actionsFor(state) {
   syncMap(state);
   const list = [];
-  if (houses(state).length < houseMax(state)) {
-    list.push({ id: 'house', icon: 'house_build', place: 'house', title: '家を建てる', detail: `${CONFIG.houseCapacity}人まで住める。場所を選べる`, cost: CONFIG.house.cost });
-  }
-  if (cafes(state).length < CONFIG.cafe.max) {
-    list.push({ id: 'cafe', icon: 'cafe_new', place: 'cafe', title: 'カフェをもう1軒つくる', detail: `席 3。維持費 1日 ${CONFIG.cafe.levels[0].upkeep} Coin。場所を選べる`, cost: CONFIG.cafe.buildCost });
-  }
+  // 家の軒数に上限は無い（D300）。建てられる土地が無くなったら、それが上限
+  list.push({ id: 'house', icon: 'house_build', place: 'house', title: '家を建てる', detail: `${CONFIG.houseCapacity}人まで住める。場所を選べる`, cost: CONFIG.house.cost });
+  // 軒数に上限のある施設は、上限に達しても一覧から消さない（消えると理由が分からない・D300）
+  const full = cafes(state).length >= CONFIG.cafe.max;
+  list.push({
+    id: 'cafe', icon: 'cafe_new', place: 'cafe', title: 'カフェをもう1軒つくる',
+    detail: full ? `カフェは島に ${CONFIG.cafe.max}軒まで` : `席 3。維持費 1日 ${CONFIG.cafe.levels[0].upkeep} Coin。場所を選べる`,
+    cost: CONFIG.cafe.buildCost, locked: full,
+  });
   for (const type of ['super', 'petshop', 'planetarium', 'kinder']) {
     const V = CONFIG[type];
-    if (ofType(state, type).length >= V.max) continue;
     const u = CONFIG.unlocks.find((x) => x.id === type);
-    const locked = !isUnlocked(state, type);
+    const full = ofType(state, type).length >= V.max;
+    const locked = !isUnlocked(state, type) || full;
     const what = type === 'super'
       ? `住民が毎日 買い物に行く。一度に ${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`
       : type === 'kinder'
@@ -1266,7 +1267,7 @@ export function actionsFor(state) {
       icon: `${type}_new`,
       place: type,
       title: `${VENUE_NAME[type] || '幼稚園'}をつくる`,
-      detail: locked ? (u.pets ? `家族のペットが ${u.pets}匹 になると建てられます` : u.kids ? '島に子どもが生まれると建てられます' : `住民が ${u.pop}人 になると建てられます`) : what,
+      detail: full ? `${VENUE_NAME[type] || '幼稚園'}は島に ${V.max}軒まで` : locked ? (u.pets ? `家族のペットが ${u.pets}匹 になると建てられます` : u.kids ? '島に子どもが生まれると建てられます' : `住民が ${u.pop}人 になると建てられます`) : what,
       cost: V.buildCost,
       locked,
     });
@@ -1294,15 +1295,18 @@ export function actionsFor(state) {
       cost: next.cost,
     });
   }
-  if (shops(state).length < CONFIG.shop.max) {
+  {
+    const full = shops(state).length >= CONFIG.shop.max;
     list.push({
       id: 'shop',
       icon: 'shop_new',
       place: 'shop',
       title: shops(state).length ? 'お土産屋をもう1軒つくる' : 'お土産屋をつくる',
-      detail: state.port?.open ? `観光客がお土産を買う。1日 ${CONFIG.shop.levels[0].stock}個まで。維持費 1日 ${CONFIG.shop.levels[0].upkeep} Coin。場所を選べる` : '港がひらくと建てられます',
+      detail: full
+        ? `お土産屋は島に ${CONFIG.shop.max}軒まで`
+        : state.port?.open ? `観光客がお土産を買う。1日 ${CONFIG.shop.levels[0].stock}個まで。維持費 1日 ${CONFIG.shop.levels[0].upkeep} Coin。場所を選べる` : '港がひらくと建てられます',
       cost: CONFIG.shop.cost,
-      locked: !state.port?.open,
+      locked: !state.port?.open || full,
     });
   }
   for (const b of shops(state)) {
