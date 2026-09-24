@@ -4,6 +4,7 @@
 // 画面を開いているあいだも、留守のあいだも、同じ tick() を回す。
 // 描画は state を読んで絵を置くだけ。画面の NPC は「この状態を演じる役」。
 //
+// 港と観光客（D292）：住民が7人になると船が来る。観光客は住民と同じ tick で動く（住民の数には入れない）。
 // 格子版（D289）：住民は道のマスの上だけを歩く。建物はプレイヤーが場所を選んで建てる。
 // 遠いカフェには行きにくい → 「どこに建てるか」が判断になる（v0.3 の Location Problem）。
 
@@ -80,6 +81,10 @@ export function nextMorning(t) {
 
 // ---------------------------------------------------------------- 建物
 
+// 住民と観光客をまとめて（動かす・席や列で探す）
+export const everyone = (state) => (state.visitors?.length ? state.residents.concat(state.visitors) : state.residents);
+export const personById = (state, id) => state.residents.find((r) => r.id === id) || state.visitors?.find((r) => r.id === id);
+
 export const cafes = (state) => state.buildings.filter((b) => b.type === 'cafe');
 export const houses = (state) => state.buildings.filter((b) => b.type === 'house');
 export const parkOf = (state) => state.buildings.find((b) => b.type === 'park');
@@ -144,6 +149,8 @@ export function createGame(seed = Date.now()) {
     weather: 'sunny',
     buildings: [],
     residents: [],
+    visitors: [],
+    port: { open: false, today: [] },
     poolIndex: 0,
     today: freshToday(),
     diary: [],
@@ -157,7 +164,16 @@ export function createGame(seed = Date.now()) {
 }
 
 function freshToday() {
-  return { served: 0, income: 0, lost: [], queueMinutes: { 朝: 0, 昼: 0, 夕方: 0, 夜: 0 }, maxQueue: 0, parkMinutes: {} };
+  return { served: 0, income: 0, lost: [], queueMinutes: { 朝: 0, 昼: 0, 夕方: 0, 夜: 0 }, maxQueue: 0, parkMinutes: {}, boats: 0, tourists: 0 };
+}
+
+// 古いセーブ（港が無かった頃）を今の形にそろえる
+export function migrate(state) {
+  state.visitors ||= [];
+  state.port ||= { open: false, today: [] };
+  state.today.boats ||= 0;
+  state.today.tourists ||= 0;
+  return state;
 }
 
 function vacancy(state) {
@@ -243,8 +259,9 @@ function tick(state, h, events) {
   state.t += h;
   if (dayOf(state.t) > before) rolloverDay(state, events);
 
-  for (const r of state.residents) updateResident(state, r, h, events);
+  for (const r of everyone(state)) updateResident(state, r, h, events);
   for (const cafe of cafes(state)) updateCafe(state, cafe, events);
+  updatePort(state, events);
 
   const longest = Math.max(0, ...cafes(state).map((c) => c.queue.length));
   if (longest > 0) {
@@ -296,6 +313,7 @@ function goTo(state, r, dest, destId, access, inner) {
 }
 
 function goHome(state, r) {
+  if (r.tourist) return goBoat(state, r);
   const home = buildingById(state, r.homeId);
   goTo(state, r, 'home', home.id, home.access, houseDoor(home));
 }
@@ -337,7 +355,7 @@ function decideNext(state, r, { noCafe = false } = {}) {
   const cafeList = noCafe ? [] : cafeChoices(state, r);
   const cafeW = cafeList.reduce((s, x) => s + x.w, 0);
   const strollW = r.prefs.stroll * w.stroll;
-  const homeW = 16 * w.home;
+  const homeW = r.tourist ? 0 : 16 * w.home;
   let x = rand(state) * (cafeW + parkW + strollW + homeW);
   for (const c of cafeList) if ((x -= c.w) < 0) return goCafe(state, r, c.cafe);
   if ((x -= parkW) < 0) return goTo(state, r, 'park', park.id, park.access, parkPoint(state, park));
@@ -366,6 +384,10 @@ function arrive(state, r, events) {
     case 'stroll':
       r.state = 'STROLL';
       r.until = state.t + between(state, 4, 14);
+      return;
+    case 'boat':
+      r.state = 'BOARDED';
+      r.visible = false;
       return;
     case 'home':
     default:
@@ -465,6 +487,7 @@ function updateResident(state, r, h, events) {
 }
 
 function afterActivity(state, r, homeChance, opts) {
+  if (r.tourist) homeChance = 0.1; // 観光客は船の時間まで島を見て回る
   if (state.t >= r.bed - 20 || rand(state) < homeChance) return goHome(state, r);
   return decideNext(state, r, opts);
 }
@@ -484,6 +507,7 @@ function sit(state, r, cafe, seatIdx) {
   r.ty = s.y;
   const linger = state.weather === 'rain' ? CONFIG.cafe.rainLinger : 1;
   r.until = state.t + between(state, CONFIG.cafe.stayMin, CONFIG.cafe.stayMax) * linger;
+  if (r.tourist) r.until = Math.min(r.until, r.bed);
 }
 
 function enterCafe(state, r, cafe, events) {
@@ -517,7 +541,7 @@ function leaveCafe(state, r, events) {
 }
 
 function loseCustomer(state, r, cafe, waited, events) {
-  state.today.lost.push({ clock: clockOf(state.t), waited: Math.round(waited), name: r.name, cafeId: cafe.id });
+  state.today.lost.push({ clock: clockOf(state.t), waited: Math.round(waited), name: r.name, cafeId: cafe.id, tourist: !!r.tourist });
   r.bubble = 'lost';
   r.bubbleUntil = state.t + 25;
   events.push({ type: 'lost', name: r.name, waited });
@@ -529,7 +553,7 @@ function updateCafe(state, cafe, events) {
   // 閉店したら、並んでいた人は帰る（売り損には数えない）
   if (!cafeOpen(state) && cafe.queue.length > 0) {
     for (const id of cafe.queue.splice(0)) {
-      const r = state.residents.find((x) => x.id === id);
+      const r = personById(state, id);
       r.bubble = 'closed';
       r.bubbleUntil = state.t + 15;
       afterActivity(state, r, 0.9, { noCafe: true });
@@ -540,13 +564,14 @@ function updateCafe(state, cafe, events) {
   let seat = cafe.seats.findIndex((s) => s === null);
   while (seat >= 0 && cafe.queue.length > 0) {
     const id = cafe.queue.shift();
-    sit(state, state.residents.find((x) => x.id === id), cafe, seat);
+    sit(state, personById(state, id), cafe, seat);
     seat = cafe.seats.findIndex((s) => s === null);
   }
   // 待ちきれなかった人は帰る
   for (const id of [...cafe.queue]) {
-    const r = state.residents.find((x) => x.id === id);
-    if (state.t - r.queuedAt > r.patience) {
+    const r = personById(state, id);
+    // 待ちきれない、または（観光客は）船の時間になった
+    if (state.t - r.queuedAt > r.patience || (r.tourist && state.t >= r.bed)) {
       cafe.queue.splice(cafe.queue.indexOf(id), 1);
       loseCustomer(state, r, cafe, state.t - r.queuedAt, events);
     }
@@ -566,8 +591,13 @@ function rolloverDay(state, events) {
   if (today.served > 0) {
     lines.push({ kind: 'good', text: `カフェに ${today.served}人 が来ました（+${today.income} Coin）` });
   }
-  const parkFan = Object.entries(today.parkMinutes).sort((a, b) => b[1] - a[1])[0];
-  if (parkFan && parkFan[1] >= 60) {
+  if (today.boats > 0) {
+    lines.push({ kind: 'good', text: `船が ${today.boats}回 来て、観光客が ${today.tourists}人 やってきました` });
+  }
+  const parkFan = Object.entries(today.parkMinutes)
+    .filter(([id]) => state.residents.some((x) => x.id === id))
+    .sort((a, b) => b[1] - a[1])[0];
+  if (parkFan && parkFan[1] >= 60 && today.boats === 0) {
     const r = state.residents.find((x) => x.id === parkFan[0]);
     lines.push({ kind: 'good', text: `${r.name}は公園で長いこと過ごしていました` });
   }
@@ -576,15 +606,18 @@ function rolloverDay(state, events) {
   const groups = {};
   for (const l of today.lost) {
     const cafe = buildingById(state, l.cafeId);
-    const key = `${timeBucket(l.clock)}|${cafe ? cafeLabel(state, cafe) : 'カフェ'}`;
+    const key = `${timeBucket(l.clock)}|${cafe ? cafeLabel(state, cafe) : 'カフェ'}|${l.tourist ? 'tourist' : ''}`;
     groups[key] = (groups[key] || 0) + 1;
   }
   const top = Object.entries(groups).sort((a, b) => b[1] - a[1]).slice(0, 2);
   for (const [key, n] of top) {
-    const [bucket, label] = key.split('|');
+    const [bucket, label, who] = key.split('|');
+    const loss = `（−${n * CONFIG.cafe.customerValue} Coin）`;
     lines.push({
       kind: 'problem',
-      text: `${bucket}、${label}の前で待っていた ${n}人 が、帰ってしまいました（−${n * CONFIG.cafe.customerValue} Coin）`,
+      text: who
+        ? `${bucket}、${label}の前で待っていた観光客 ${n}人 が、港へ戻ってしまいました${loss}`
+        : `${bucket}、${label}の前で待っていた ${n}人 が、帰ってしまいました${loss}`,
     });
   }
   if (top.length === 0) {
@@ -616,6 +649,13 @@ function rolloverDay(state, events) {
     }
   }
 
+  // 港：住民が決まった人数になった日から、船が来る
+  if (!state.port.open && state.residents.length >= CONFIG.port.unlockPopulation) {
+    state.port.open = true;
+    lines.push({ kind: 'good', text: `住民が ${state.residents.length}人 になりました。今日から、港に船が来ます` });
+    events.push({ type: 'portOpen' });
+  }
+
   const entry = { day: endedDay, weather: state.weather, lines, read: false };
   state.diary.push(entry);
   events.push({ type: 'newday', entry });
@@ -624,6 +664,119 @@ function rolloverDay(state, events) {
   state.weather = chooseWeather(state, dayOf(state.t));
   state.today = freshToday();
   for (const r of state.residents) planDay(state, r);
+  planBoats(state);
+}
+
+// ---------------------------------------------------------------- 港と観光客（D292）
+
+function planBoats(state, { onlyFuture = false } = {}) {
+  const P = CONFIG.port;
+  state.port.today = [];
+  if (!state.port.open) return;
+  const base = Math.floor(state.t / DAY) * DAY;
+  for (const clock of P.boats) {
+    const arrive = base + clockToInDay(clock) + Math.round(between(state, 0, 25));
+    if (onlyFuture && arrive - P.sail <= state.t) continue;
+    state.port.today.push({ arrive, depart: arrive + P.stay, spawned: false, left: false });
+  }
+}
+
+// テストや ?debug 用：今すぐ港を開く
+export function openPort(state) {
+  state.port.open = true;
+  planBoats(state, { onlyFuture: true });
+}
+
+function spawnTourists(state, boatIdx, boat) {
+  const [lo, hi] = CONFIG.port.tourists[state.weather];
+  const n = Math.round(between(state, lo, hi));
+  const pier = center(PIER);
+  for (let k = 0; k < n; k++) {
+    const v = {
+      id: `v${state.nextId++}`,
+      name: '観光客',
+      tourist: true,
+      boat: boatIdx,
+      look: Math.floor(rand(state) * 1000),
+      prefs: { cafe: between(state, 18, 34), park: between(state, 10, 24), stroll: between(state, 22, 36) },
+      coffee: 0,
+      patience: between(state, CONFIG.patienceMin, CONFIG.patienceMax),
+      speed: between(state, 0.85, 1.05),
+      lane: between(state, -5, 5),
+      wake: 0,
+      bed: boat.depart - CONFIG.port.leaveBefore,
+      departAt: boat.depart,
+      state: 'STROLL',
+      at: PIER,
+      x: pier.x + between(state, -6, 6),
+      y: pier.y + T + 14 + k * 4,
+      tx: 0,
+      ty: 0,
+      path: [],
+      dest: null,
+      destId: null,
+      until: 0,
+      seat: -1,
+      queuedAt: 0,
+      pauseUntil: state.t + k * 2, // 1人ずつ降りてくる
+      facing: 1,
+      visible: true,
+      bubble: null,
+      bubbleUntil: 0,
+    };
+    v.tx = v.x;
+    v.ty = v.y;
+    state.visitors.push(v);
+    decideNext(state, v);
+  }
+  state.today.boats += 1;
+  state.today.tourists += n;
+  return n;
+}
+
+function goBoat(state, r) {
+  const pier = center(PIER);
+  goTo(state, r, 'boat', null, PIER, { x: pier.x + between(state, -5, 5), y: pier.y + T + 10 });
+}
+
+function updatePort(state, events) {
+  if (!state.port.open) return;
+  state.port.today.forEach((boat, i) => {
+    if (!boat.spawned && state.t >= boat.arrive) {
+      boat.spawned = true;
+      const n = spawnTourists(state, i, boat);
+      events.push({ type: 'boat', n });
+    }
+    if (boat.spawned && !boat.left && state.t >= boat.depart) {
+      boat.left = true;
+      // 乗り遅れた人は 船が待っていてくれた、ということにする（島に取り残さない）
+      for (const v of state.visitors.filter((x) => x.boat === i)) {
+        for (const c of cafes(state)) {
+          const q = c.queue.indexOf(v.id);
+          if (q >= 0) c.queue.splice(q, 1);
+          const s = c.seats.indexOf(v.id);
+          if (s >= 0) c.seats[s] = null;
+        }
+      }
+      state.visitors = state.visitors.filter((x) => x.boat !== i);
+    }
+  });
+}
+
+// 描画用：いま船が海のどこにいるか（null＝見えない）
+export function boatNow(state) {
+  if (!state.port?.open) return null;
+  const S = CONFIG.port.sail;
+  for (const b of state.port.today) {
+    if (state.t >= b.arrive - S && state.t < b.arrive) return { phase: 'arriving', k: (state.t - (b.arrive - S)) / S };
+    if (state.t >= b.arrive && state.t < b.depart) return { phase: 'docked', k: 1, depart: b.depart };
+    if (state.t >= b.depart && state.t < b.depart + S) return { phase: 'leaving', k: 1 - (state.t - b.depart) / S };
+  }
+  return null;
+}
+
+export function nextBoat(state) {
+  return state.port.today.find((b) => state.t < b.arrive) || null;
 }
 
 function chooseWeather(state, day) {
@@ -690,7 +843,7 @@ export function describeResident(state, r) {
   switch (r.state) {
     case 'WALK': {
       if (r.dest === 'cafe') return `${cafeLabel(state, buildingById(state, r.destId))}へ向かっている`;
-      return { park: '公園へ向かっている', stroll: 'ぶらぶら歩いている', home: '家へ帰るところ' }[r.dest] || '歩いている';
+      return { park: '公園へ向かっている', stroll: r.tourist ? '島を見て回っている' : 'ぶらぶら歩いている', home: '家へ帰るところ', boat: '港へ戻るところ' }[r.dest] || '歩いている';
     }
     case 'QUEUE':
       return `${cafeLabel(state, buildingById(state, r.destId))}の前で待っている（${Math.round(state.t - r.queuedAt)}分）`;
@@ -699,7 +852,7 @@ export function describeResident(state, r) {
     case 'PARK':
       return '公園で過ごしている';
     case 'STROLL':
-      return 'あたりを眺めている';
+      return r.tourist ? '景色を眺めている' : 'あたりを眺めている';
     case 'HOME':
       return '家にいる';
     case 'SLEEP':

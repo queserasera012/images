@@ -2,7 +2,7 @@
 // 見た目の方針は docs/DESIGN.md（切り絵のジオラマ・絵文字は使わない）。格子版（D289）。
 
 import { T, COLS, ROWS, WORLD, ISLAND, SIZES, MAP, PIER, islandRadius, idx, center, neighbors, isRoad, occupied } from './grid.js';
-import { clockOf, seatCount, seatPositions, queueSlot } from './sim.js';
+import { clockOf, seatCount, seatPositions, queueSlot, everyone, boatNow } from './sim.js';
 
 export const FONT = '"Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif';
 
@@ -35,7 +35,13 @@ export const LOOKS = {
   ノゾミ: { shirt: '#e56b9f', hair: '#5a3825', style: 'pigtails', skin: '#f6d6bb' },
 };
 const DEFAULT_LOOK = { shirt: '#3d5a80', hair: '#3b2a20', style: 'short', skin: '#f3cfb0' };
-export const lookOf = (r) => LOOKS[r.name] || DEFAULT_LOOK;
+// 観光客：麦わら帽子とカメラ。服の色は人ごとに変える
+const TOURIST_SHIRTS = ['#ffffff', '#b8e0d2', '#f7c5cc', '#c9d8f0', '#f6e3a1', '#d6c7e8'];
+const TOURIST_SKINS = ['#f6d6bb', '#e9bf99', '#d9a982', '#f3cfb0'];
+export const lookOf = (r) =>
+  r.tourist
+    ? { shirt: TOURIST_SHIRTS[r.look % TOURIST_SHIRTS.length], hair: '#e8c170', style: 'hat', skin: TOURIST_SKINS[r.look % TOURIST_SKINS.length], camera: true }
+    : LOOKS[r.name] || DEFAULT_LOOK;
 
 const ROOF_COLORS = ['#3d5a80', '#f2b84b', '#2a9d8f', '#9c89b8'];
 
@@ -85,13 +91,15 @@ export function createRenderer(canvas) {
   const minZoom = () => Math.min(1, (view.w / WORLD.w) * 1.02);
   const maxZoom = 1.7;
 
+  // カメラが動ける範囲。南は桟橋の先の船が見えるところまで（下のボタンに隠れないよう広めに）
+  const BOUNDS = { left: -20, right: WORLD.w + 20, top: -20, bottom: WORLD.h + 210 };
   function clampCam() {
     cam.zoom = Math.max(minZoom(), Math.min(maxZoom, cam.zoom));
     const hw = view.w / 2 / cam.zoom;
     const hh = view.h / 2 / cam.zoom;
-    const clampAxis = (v, half, size) => (half * 2 >= size ? size / 2 : Math.max(half - 20, Math.min(size - half + 20, v)));
-    cam.x = clampAxis(cam.x, hw, WORLD.w);
-    cam.y = clampAxis(cam.y, hh, WORLD.h);
+    const clampAxis = (v, half, lo, hi) => (hi - lo <= half * 2 ? (lo + hi) / 2 : Math.max(lo + half, Math.min(hi - half, v)));
+    cam.x = clampAxis(cam.x, hw, BOUNDS.left, BOUNDS.right);
+    cam.y = clampAxis(cam.y, hh, BOUNDS.top, BOUNDS.bottom);
   }
 
   function resize() {
@@ -456,6 +464,64 @@ export function createRenderer(canvas) {
     }
   }
 
+  // 船：南の桟橋の横に着く
+  function boat(state, time) {
+    const b = boatNow(state);
+    if (!b) return;
+    const pier = center(PIER);
+    const dock = { x: pier.x + 34, y: pier.y + 46 };
+    const from = { x: dock.x + 90, y: dock.y + 150 };
+    const e = 1 - Math.pow(1 - b.k, 2); // 着く前にゆっくりになる
+    const x = from.x + (dock.x - from.x) * e;
+    const y = from.y + (dock.y - from.y) * e + (b.phase === 'docked' ? Math.sin(time * 1.6) * 0.8 : 0);
+    const moving = b.phase !== 'docked';
+    if (moving) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x - 10, y + 10);
+      ctx.lineTo(x - 26, y + 26);
+      ctx.moveTo(x + 10, y + 10);
+      ctx.lineTo(x + 20, y + 30);
+      ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(20, 60, 70, 0.3)';
+    ctx.beginPath();
+    ctx.ellipse(x + 3, y + 8, 26, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // 船体
+    ctx.fillStyle = PALETTE.white;
+    ctx.beginPath();
+    ctx.moveTo(x - 25, y - 4);
+    ctx.lineTo(x + 25, y - 4);
+    ctx.lineTo(x + 18, y + 8);
+    ctx.lineTo(x - 18, y + 8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = PALETTE.ink;
+    ctx.fillRect(x - 20, y + 3, 40, 3);
+    // 船室
+    ctx.fillStyle = PALETTE.mustard;
+    roundRect(ctx, x - 12, y - 16, 22, 12, 3);
+    ctx.fill();
+    ctx.fillStyle = '#cfe6ee';
+    for (const wx of [-8, -2, 4]) {
+      roundRect(ctx, x + wx, y - 13, 4, 4, 1);
+      ctx.fill();
+    }
+    // 旗
+    ctx.fillStyle = PALETTE.ink;
+    ctx.fillRect(x + 14, y - 26, 1.5, 22);
+    ctx.fillStyle = PALETTE.problem;
+    ctx.beginPath();
+    ctx.moveTo(x + 15.5, y - 26);
+    ctx.lineTo(x + 24 + Math.sin(time * 5) * 1.5, y - 23);
+    ctx.lineTo(x + 15.5, y - 20);
+    ctx.closePath();
+    ctx.fill();
+  }
+
   // ---------------------------------------------------------------- 住民（前の版から そのまま）
 
   function hair(look, hx, hy, f) {
@@ -501,6 +567,17 @@ export function createRenderer(canvas) {
         ctx.closePath();
         ctx.fill();
         return;
+      case 'hat':
+        ctx.fillStyle = '#e8c170';
+        ctx.beginPath();
+        ctx.ellipse(hx, hy - 3.5, 9.5, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(hx, hy - 4, 5.2, Math.PI, 0);
+        ctx.fill();
+        ctx.fillStyle = PALETTE.problem;
+        ctx.fillRect(hx - 5.2, hy - 5.5, 10.4, 1.6);
+        return;
       case 'bald':
         ctx.beginPath();
         ctx.arc(hx - 5.5, hy, 1.8, 0, Math.PI * 2);
@@ -545,6 +622,15 @@ export function createRenderer(canvas) {
     ctx.fillStyle = look.shirt;
     roundRect(ctx, x - 6.2, by - 16.5, 12.4, 12.5, 5);
     ctx.fill();
+    if (look.camera) {
+      ctx.fillStyle = '#2b2b33';
+      roundRect(ctx, x - 3.5, by - 12, 7, 5, 1.2);
+      ctx.fill();
+      ctx.fillStyle = '#9fb4c4';
+      ctx.beginPath();
+      ctx.arc(x, by - 9.5, 1.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
     // 頭
     ctx.fillStyle = look.skin;
     ctx.beginPath();
@@ -599,6 +685,14 @@ export function createRenderer(canvas) {
       ctx.moveTo(cx + 3, cy - 3);
       ctx.lineTo(cx - 3, cy + 3);
       ctx.stroke();
+    } else if (kind === 'photo') {
+      ctx.fillStyle = '#2b2b33';
+      roundRect(ctx, cx - 5, cy - 3, 10, 7, 1.5);
+      ctx.fill();
+      ctx.fillStyle = '#ffd66b';
+      ctx.beginPath();
+      ctx.arc(cx, cy + 0.5, 2, 0, Math.PI * 2);
+      ctx.fill();
     } else if (kind === 'heart') {
       ctx.fillStyle = '#e56b9f';
       ctx.beginPath();
@@ -641,6 +735,8 @@ export function createRenderer(canvas) {
 
     let b = r.bubble;
     if (!b && since < 2) b = 'heart';
+    // 観光客は ときどき写真を撮る
+    if (!b && r.tourist && (r.state === 'STROLL' || r.state === 'PARK') && Math.sin(time * 0.9 + ph * 5) > 0.8) b = 'photo';
     if (!b && r.state === 'QUEUE' && state.t - r.queuedAt > r.patience * 0.6) b = 'sweat';
     if (b) bubble(b, r.x + 11, r.y - 30 - Math.sin(time * 3 + ph) * 1.2);
 
@@ -755,6 +851,7 @@ export function createRenderer(canvas) {
       else if (b.type === 'cafe') cafe(b, ui.cafeLabel ? ui.cafeLabel(b) : 'カフェ', cafeList.length > 1);
     }
     for (const i of LAMPS) lamp(i, false);
+    boat(state, time);
     if (ui.placing) drawPlacing(state, ui.placing, time);
 
     // 天気と時間帯の色は住民より下にかける（主役を色あせさせない）
@@ -773,7 +870,7 @@ export function createRenderer(canvas) {
       houseWindow(b, night && home);
     }
     if (night) for (const i of LAMPS) lamp(i, true);
-    const people = state.residents.filter((r) => r.visible).sort((a, b) => a.y - b.y);
+    const people = everyone(state).filter((r) => r.visible).sort((a, b) => a.y - b.y);
     for (const r of people) drawResident(state, r, time, r.id === ui.selectedId);
     drawSleep(state, time);
 

@@ -1,10 +1,11 @@
 // 画面の組み立て：時間を流す・保存する・タップと指の操作を受ける。ゲームのルールは sim.js にしか書かない。
 
 import { CONFIG } from './config.js';
-import { T, SIZES, placements, footprint, canPlace } from './grid.js';
+import { T, SIZES, PIER, center, placements, footprint, canPlace } from './grid.js';
 import {
   createGame, step, catchUp, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
+  migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf,
 } from './sim.js';
 import { createRenderer, lookOf } from './render.js';
 import { ICONS } from './icons.js';
@@ -37,7 +38,7 @@ function load() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     const s = raw ? JSON.parse(raw) : null;
-    return s && s.version === 2 ? s : null;
+    return s && s.version === 2 ? migrate(s) : null;
   } catch {
     return null;
   }
@@ -85,6 +86,12 @@ function frame(now) {
       $('diary-dot').hidden = false;
     } else if (e.type === 'arrived') {
       toast(`${e.name}が島に引っ越してきました`);
+      renderQuest();
+    } else if (e.type === 'boat') {
+      toast(`船が着きました。観光客が ${e.n}人 降りてきました`);
+    } else if (e.type === 'portOpen') {
+      setTimeout(() => toast('港がひらきました。船が来るようになります'), 3000);
+      renderQuest();
     }
   }
   const quest = currentStep(state);
@@ -173,7 +180,7 @@ canvas.addEventListener(
 function tap(clientX, clientY) {
   if (placing) return tapWhilePlacing(clientX, clientY);
   const p = renderer.toWorld(clientX, clientY);
-  const hit = state.residents
+  const hit = everyone(state)
     .filter((r) => r.visible)
     .map((r) => ({ r, d: Math.hypot(r.x - p.x, r.y - 12 - p.y) }))
     .filter((x) => x.d < 18)
@@ -183,6 +190,8 @@ function tap(clientX, clientY) {
     tutorial('tap_resident');
     return select({ kind: 'resident', id: hit.r.id });
   }
+  const pier = center(PIER);
+  if (Math.abs(p.x - (pier.x + 16)) < 40 && p.y > pier.y - 14 && p.y < pier.y + 80) return select({ kind: 'port' });
   const b = buildingAt(p);
   if (b) {
     if (b.type === 'cafe') tutorial('tap_cafe');
@@ -224,7 +233,7 @@ function dot(r) {
 }
 
 function who(ids) {
-  const list = ids.map((id) => state.residents.find((r) => r.id === id)).filter(Boolean);
+  const list = ids.map((id) => personById(state, id)).filter(Boolean);
   if (list.length === 0) return 'だれもいない';
   return `<span class="who">${list.map((r) => `<span>${dot(r)}${r.name}</span>`).join('')}</span>`;
 }
@@ -236,10 +245,23 @@ function fmt(clock) {
 function renderCard() {
   const card = $('card');
   let html = '';
+  const at = (t) => fmt(Math.floor(clockOf(t)));
   if (selected.kind === 'resident') {
-    const r = state.residents.find((x) => x.id === selected.id);
+    const r = personById(state, selected.id);
     if (!r || !r.visible) return select(null);
-    html = `<h3>${dot(r)}${r.name}</h3><div class="sub">${favoriteText(r)}</div><div class="now">いまは、${describeResident(state, r)}</div>`;
+    const sub = r.tourist ? `船で来た人。${at(r.departAt)}の船で帰る` : favoriteText(r);
+    html = `<h3>${dot(r)}${r.name}</h3><div class="sub">${sub}</div><div class="now">いまは、${describeResident(state, r)}</div>`;
+  } else if (selected.kind === 'port') {
+    const N = CONFIG.port.unlockPopulation;
+    if (!state.port.open) {
+      html = `<h3>港</h3><div class="sub">住民が ${N}人 になると、船が来るようになります</div><div class="now">いまの住民：${state.residents.length}人</div>`;
+    } else {
+      const b = boatNow(state);
+      const next = nextBoat(state);
+      const sub = b?.phase === 'docked' ? `船が来ています。${at(b.depart)}に出航` : next ? `次の船は ${at(next.arrive)}ごろ` : '今日の船は、もう来ません';
+      const onIsland = state.visitors.filter((v) => v.visible).length;
+      html = `<h3>港</h3><div class="sub">${sub}</div><div class="now">島にいる観光客：${onIsland}人</div><div>今日来た観光客：${state.today.tourists}人</div>`;
+    }
   } else {
     const b = buildingById(state, selected.id);
     if (b.type === 'cafe') {
@@ -405,7 +427,18 @@ function tutorial(trigger) {
 function renderQuest() {
   const el = $('quest');
   const step = currentStep(state);
-  if (!step || (step.id === 'busy_cafe' && busyStage === null)) {
+  if (!step) {
+    // チュートリアルのあとは「次の目標」だけを小さく出す（港がひらくまで）
+    const N = CONFIG.port.unlockPopulation;
+    if (state.port.open) {
+      el.hidden = true;
+      return;
+    }
+    el.innerHTML = `<div class="quest-head"><b>目標：港をひらく</b><span class="reward">${state.residents.length} / ${N}人</span></div><p>住民が ${N}人 になると、港に船が来るようになります</p>`;
+    el.hidden = false;
+    return;
+  }
+  if (step.id === 'busy_cafe' && busyStage === null) {
     el.hidden = true;
     return;
   }
@@ -468,6 +501,7 @@ function renderDebug() {
     <button data-dbg="speed">速さ ×${speed === 1 ? 10 : 1} にする</button>
     <button data-dbg="rain">今日を雨にする</button>
     <button data-dbg="coin">Coin +500</button>
+    <button data-dbg="port">港をひらく</button>
     <button data-dbg="reset">最初からやり直す</button>
     <pre>起動の記録（日付: 回数）\n${Object.entries(byDate).map(([d, n]) => `${d}: ${n}`).join('\n') || '—'}</pre>`;
 }
@@ -491,6 +525,10 @@ if (DEBUG) {
     if (k === 'speed') speed = speed === 1 ? 10 : 1;
     if (k === 'rain') state.weather = 'rain';
     if (k === 'coin') state.coin += 500;
+    if (k === 'port') {
+      openPort(state);
+      renderQuest();
+    }
     if (k === 'reset' && confirm('島を最初からやり直しますか？')) {
       state = createGame();
       firstRun = true;
