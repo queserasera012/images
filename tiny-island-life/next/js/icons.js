@@ -111,6 +111,14 @@ export const ICONS = {
     `<path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3" stroke="${INK}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
     18,
   ),
+  house_up: svg(
+    `<path d="M5 20V9l7-5 7 5v11z" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<path d="M5 20V9l7-5 7 5v11z" fill="#fff" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"/>` +
+      `<rect x="8" y="10" width="3" height="3" rx="0.6" fill="${SKY}"/><rect x="13" y="10" width="3" height="3" rx="0.6" fill="${SKY}"/>` +
+      `<rect x="10.5" y="15" width="3" height="5" rx="1" fill="${INK}"/>` +
+      `<path d="M19.5 3.5v5M17 6h5" stroke="${MUSTARD}" stroke-width="2" stroke-linecap="round"/>`,
+    28,
+  ),
   harbor: svg(
     `<path d="M4 15h16l-2.5 4h-11z" transform="translate(1 1)" fill="${SHADOW}"/>` +
       `<path d="M4 15h16l-2.5 4h-11z" fill="#fff" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"/>` +

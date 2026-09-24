@@ -2,7 +2,7 @@
 // 見た目の方針は docs/DESIGN.md（切り絵のジオラマ・絵文字は使わない）。格子版（D289）。
 
 import {
-  T, COLS, ROWS, WORLD, SIZES, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, landBounds, shapesOf, islandRadius, idx, center, neighbors, isRoad, occupied,
+  T, COLS, ROWS, WORLD, SIZES, HOUSE_FLOOR, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, landBounds, shapesOf, islandRadius, idx, center, neighbors, isRoad, occupied,
 } from './grid.js';
 import { clockOf, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf } from './sim.js';
 
@@ -339,22 +339,41 @@ export function createRenderer(canvas) {
     draw(false);
   }
 
+  // 家（D303：広げると2階建て → アパート。1階分ずつ上に伸びる）
+  const floorsOf = (b) => b.level || 1;
   function house(b, n) {
     const x = b.c * T + T / 2;
     const y = b.r * T + 9;
+    const lv = floorsOf(b);
+    const lift = (lv - 1) * HOUSE_FLOOR;
+    const w = lv >= 3 ? 26 : 24;
     const roof = ROOF_COLORS[n % ROOF_COLORS.length];
     paperShadow((shadow) => {
       if (!shadow) ctx.fillStyle = PALETTE.white;
-      roundRect(ctx, x - 12, y, 24, 18, 2);
+      roundRect(ctx, x - w / 2, y - lift, w, 18 + lift, 2);
       ctx.fill();
       if (!shadow) ctx.fillStyle = roof;
-      ctx.beginPath();
-      ctx.moveTo(x - 15, y + 2);
-      ctx.lineTo(x, y - 12);
-      ctx.lineTo(x + 15, y + 2);
-      ctx.closePath();
-      ctx.fill();
+      if (lv >= 3) {
+        // アパート：平らな屋根
+        roundRect(ctx, x - w / 2 - 2, y - lift - 5, w + 4, 7, 2);
+        ctx.fill();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(x - 15, y - lift + 2);
+        ctx.lineTo(x, y - lift - 12);
+        ctx.lineTo(x + 15, y - lift + 2);
+        ctx.closePath();
+        ctx.fill();
+      }
     });
+    // 階の境目
+    ctx.fillStyle = 'rgba(61, 90, 128, 0.14)';
+    for (let f = 1; f < lv; f++) ctx.fillRect(x - w / 2 + 1, y + 2 - f * HOUSE_FLOOR + HOUSE_FLOOR - 2, w - 2, 1.2);
+    if (lv >= 3) {
+      // アパートの看板（屋根の色の帯）
+      ctx.fillStyle = roof;
+      ctx.fillRect(x - w / 2, y + 1, w, 2);
+    }
     ctx.fillStyle = PALETTE.ink;
     roundRect(ctx, x - 3, y + 8, 6, 10, [3, 3, 0, 0]);
     ctx.fill();
@@ -363,15 +382,23 @@ export function createRenderer(canvas) {
   function houseWindow(b, lit) {
     const x = b.c * T + T / 2;
     const y = b.r * T + 9;
+    const lv = floorsOf(b);
     ctx.fillStyle = lit ? '#ffd66b' : '#cfe6ee';
-    roundRect(ctx, x + 5, y + 4, 5, 5, 1);
-    ctx.fill();
-    roundRect(ctx, x - 10, y + 4, 5, 5, 1);
-    ctx.fill();
+    for (let f = 0; f < lv; f++) {
+      const wy = y + 4 - f * HOUSE_FLOOR;
+      roundRect(ctx, x + 5, wy, 5, 5, 1);
+      ctx.fill();
+      roundRect(ctx, x - 10, wy, 5, 5, 1);
+      ctx.fill();
+      if (f > 0) {
+        roundRect(ctx, x - 2.5, wy, 5, 5, 1);
+        ctx.fill();
+      }
+    }
     if (lit) {
       ctx.fillStyle = 'rgba(255, 214, 107, 0.26)';
       ctx.beginPath();
-      ctx.arc(x, y + 8, 20, 0, Math.PI * 2);
+      ctx.arc(x, y + 8 - ((lv - 1) * HOUSE_FLOOR) / 2, 20 + (lv - 1) * 4, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -1511,7 +1538,7 @@ export function createRenderer(canvas) {
       if (b.type !== 'house') continue;
       if (!state.residents.some((r) => r.homeId === b.id && r.state === 'SLEEP')) continue;
       const x = b.c * T + T / 2;
-      const y = b.r * T;
+      const y = b.r * T - (floorsOf(b) - 1) * HOUSE_FLOOR;
       const k = (time * 0.5) % 1;
       ctx.fillStyle = `rgba(255,255,255,${0.9 * (1 - k)})`;
       ctx.fillText('z', x + 10 + k * 4, y - 2 - k * 10);

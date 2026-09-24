@@ -11,7 +11,6 @@ export const CONFIG = {
 
   // ---- 島の住民 ----
   startResidents: 5,
-  houseCapacity: 3,
   walkSpeed: 11,                // px / ゲーム内1分（1マス＝30px）
   distanceHalf: 8,              // 何マス離れると行きたさが半分になるか（遠いほど行かない・D289）
   patienceMin: 18,              // 列で待てる時間（ゲーム内の分）。住民ごとに幅を持たせる
@@ -120,7 +119,16 @@ export const CONFIG = {
   },
 
   // ---- 家 ----
-  house: { cost: 450 }, // 軒数の上限は無い。建てられるのは空いている土地の分だけ（D300）
+  // 家。軒数の上限は無い。建てられるのは空いている土地の分だけ（D300）
+  // 広げると住める人が増える（D303）。土地を使わずに人を増やせる代わりに、1人あたりは高くつく
+  house: {
+    cost: 450,
+    levels: [
+      { level: 1, capacity: 3 },
+      { level: 2, capacity: 5, cost: 600 },  // 2階建て
+      { level: 3, capacity: 8, cost: 1200 }, // アパート
+    ],
+  },
 
   // ---- 天気（Day 1 は晴れ・Day 2 は雨で固定。以後は抽選） ----
   weatherOdds: { sunny: 0.5, cloudy: 0.25, rain: 0.25 },

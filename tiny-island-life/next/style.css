@@ -478,3 +478,25 @@ h3 .dot { width: 14px; height: 14px; }
 }
 .card-btn .icon { width: 18px; height: 18px; }
 #card:has(.card-btn) h3 { padding-right: 88px; }
+
+/* 家を広げる（D303）。カードの下の行のボタン */
+.card-act {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 40px;
+  margin-top: 8px;
+  padding: 0 12px 0 8px;
+  border: 0;
+  border-radius: 12px;
+  background: #eef3f6;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+.card-act .icon { width: 22px; height: 22px; }
+.card-act .cost { margin-left: auto; display: flex; align-items: center; gap: 3px; }
+.card-act .cost .icon { width: 14px; height: 14px; }
+.card-act:disabled { opacity: 0.45; }
+.card-note { margin-top: 6px; color: var(--muted); font-size: 13px; }

@@ -7,6 +7,7 @@ import {
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
   migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
   labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding,
+  capacityOf, houseUpgradeCost, houseLift, houses,
 } from './sim.js';
 import { createRenderer, lookOf } from './render.js';
 import { ICONS } from './icons.js';
@@ -236,7 +237,7 @@ function buildingAt(p) {
     const s = SIZES[b.type];
     const x0 = b.c * T - HIT_PAD;
     const x1 = (b.c + s.w) * T + HIT_PAD;
-    const y0 = b.r * T - HIT_PAD - ROOF_PAD;
+    const y0 = b.r * T - HIT_PAD - ROOF_PAD - (b.type === 'house' ? houseLift(b) : 0);
     const y1 = (b.r + s.h) * T + HIT_PAD;
     if (p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1) continue;
     // 重なったら、真ん中がいちばん近い建物
@@ -368,13 +369,23 @@ function renderCard() {
       html += `<div class="now">いま：${who(here)}</div>`;
     } else {
       const living = state.residents.filter((r) => r.homeId === b.id && r.state !== 'PENDING').map((r) => r.id);
-      const free = CONFIG.houseCapacity - state.residents.filter((r) => r.homeId === b.id).length;
+      const free = capacityOf(b) - state.residents.filter((r) => r.homeId === b.id).length;
       const steps = nearestCafeSteps(state, b);
-      html = `<h3>家</h3><div class="sub">${free > 0 ? `あと ${free}人 住める` : '満室'}${steps !== null ? `。カフェまで道で ${steps}マス` : ''}</div>`;
+      const kind = { 1: '家', 2: '2階建ての家', 3: 'アパート' }[b.level || 1];
+      html = `<h3>${kind}</h3><div class="sub">${free > 0 ? `あと ${free}人 住める` : '満室'}${steps !== null ? `。カフェまで道で ${steps}マス` : ''}</div>`;
       html += `<div class="now">住んでいる：${who(living)}</div>`;
     }
   }
   if (selected.kind === 'building') html += `<button id="btn-move" class="card-btn" type="button">${ICONS.move}動かす</button>`;
+  if (selected.kind === 'building' && buildingById(state, selected.id)?.type === 'house') {
+    // 家を広げる（D303）。押せないときも出しておく（理由が分かるように）
+    const h = buildingById(state, selected.id);
+    const cost = houseUpgradeCost(h);
+    const next = CONFIG.house.levels[h.level || 1];
+    html += cost === null
+      ? `<div class="card-note">これ以上は広げられない（${capacityOf(h)}人まで）</div>`
+      : `<button id="btn-upgrade" class="card-act" type="button" ${state.coin < cost ? 'disabled' : ''}>${ICONS.house_up}${next.level === 3 ? 'アパートにする' : '2階建てにする'}（${next.capacity}人まで）<span class="cost">${ICONS.coin}${cost.toLocaleString()}</span></button>`;
+  }
   delete card.dataset.stray;
   // 前に書いた文字列と比べる（SVG は innerHTML で読み直すと書き方が変わり、毎コマ描き直してボタンが押せなくなる）
   if (lastCardHtml !== html || !card.innerHTML) {
@@ -384,6 +395,15 @@ function renderCard() {
 }
 
 $('card').addEventListener('click', (ev) => {
+  if (ev.target.closest('#btn-upgrade')) {
+    const res = applyAction(state, 'house_upgrade', { id: selected?.id });
+    toast(res.message);
+    if (res.ok) {
+      renderCard();
+      save();
+    }
+    return;
+  }
   if (ev.target.closest('#btn-move')) {
     const b = buildingById(state, selected?.id);
     if (b) startMoving(b);
@@ -437,6 +457,10 @@ $('sheet').addEventListener('click', (ev) => {
   if (action.place) {
     $('sheet').hidden = true;
     return startPlacing(action);
+  }
+  if (action.pick === 'house') {
+    $('sheet').hidden = true;
+    return startPicking(action);
   }
   const res = applyAction(state, action.id);
   toast(res.message);
@@ -529,6 +553,13 @@ function startMoving(b) {
   beginPlacing({ action: { title: `${name}を動かす`, cost: 0 }, type: b.type, move: b.id, from: { c: b.c, r: b.r } }, spots, `${name}を動かす：明るいところをタップ`, 'ここに動かす');
 }
 
+// 広げる家を島の上で選ぶ（D303）
+function startPicking(action) {
+  const spots = houses(state).filter((h) => houseUpgradeCost(h) !== null).map((h) => ({ c: h.c, r: h.r, id: h.id }));
+  if (spots.length === 0) return toast('広げられる家がありません');
+  beginPlacing({ action, type: 'house', pick: spots }, spots, '家を広げる：明るい家をタップ', '広げる');
+}
+
 function beginPlacing(p, spots, title, okLabel) {
   const cells = new Set();
   for (const s of spots) for (const t of footprint(p.type, s.c, s.r)) cells.add(t);
@@ -548,6 +579,19 @@ function tapWhilePlacing(clientX, clientY) {
   // タップしたマスが建物の真ん中に来る置き方を優先し、だめなら そのマスを含む置き方を探す
   const tries = [[c - Math.floor((s.w - 1) / 2), r - Math.floor((s.h - 1) / 2)]];
   for (let dr = 0; dr < s.h; dr++) for (let dc = 0; dc < s.w; dc++) tries.push([c - dc, r - dr]);
+  if (placing.pick) {
+    const h = placing.pick.find((x) => x.c === c && x.r === r);
+    if (!h) {
+      placing.ghost = null;
+      $('place-ok').disabled = true;
+      return toast('明るい家をタップしてください');
+    }
+    const cost = houseUpgradeCost(buildingById(state, h.id));
+    placing.ghost = h;
+    $('place-ok').disabled = state.coin < cost;
+    $('place-ok').innerHTML = `広げる ${ICONS.coin}${cost.toLocaleString()}`;
+    return;
+  }
   const fits = ([cc, rr]) => (placing.move ? canMoveTo(state, placing.move, cc, rr) : canPlace(placing.type, cc, rr, state.buildings));
   const ok = tries.find(fits);
   if (!ok) {
@@ -575,6 +619,15 @@ function endPlacing() {
 $('place-cancel').addEventListener('click', endPlacing);
 $('place-ok').addEventListener('click', () => {
   if (!placing?.ghost) return;
+  if (placing.pick) {
+    const res = applyAction(state, 'house_upgrade', { id: placing.ghost.id });
+    toast(res.message);
+    if (res.ok) {
+      endPlacing();
+      save();
+    }
+    return;
+  }
   if (placing.move) {
     const res = moveBuilding(state, placing.move, placing.ghost);
     toast(res.message);

@@ -18,6 +18,9 @@ export const OY = 6;
 const MAIN_COLS = 17;
 const MAIN_ROWS = 25;
 
+// 家を広げたときの1階分の高さ（描画と、屋根の上で昼寝するペットの位置に使う）
+export const HOUSE_FLOOR = 12;
+
 // 建物の大きさ（マス）
 export const SIZES = {
   house: { w: 1, h: 1 },

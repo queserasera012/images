@@ -11,7 +11,7 @@
 import { CONFIG } from './config.js';
 import {
   T, SIZES, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, center, roadPath, roadDistance, accessTile, canPlace, isRoad, idx,
-  useAreas, landTilesOf, placements,
+  useAreas, landTilesOf, placements, HOUSE_FLOOR,
 } from './grid.js';
 
 const DAY = 1440;
@@ -142,9 +142,15 @@ function makeBuilding(state, type, c, r) {
   const b = { id: `b${state.nextId++}`, type, c, r, access: accessTile(type, c, r) };
   if (VENUE_TYPES.includes(type) || type === 'kinder') Object.assign(b, { level: 1, seats: new Array(CONFIG[type].levels[0].seats).fill(null), queue: [] });
   if (type === 'park') b.roof = false;
+  if (type === 'house') b.level = 1;
   if (type === 'shop') Object.assign(b, { level: 1, stock: CONFIG.shop.levels[0].stock });
   return b;
 }
+
+// 家に住める人数と、次に広げる費用（D303）
+export const capacityOf = (h) => CONFIG.house.levels[(h?.level || 1) - 1].capacity;
+export const houseUpgradeCost = (h) => CONFIG.house.levels[h.level || 1]?.cost ?? null;
+export const houseLift = (h) => ((h.level || 1) - 1) * HOUSE_FLOOR;
 
 // 建物の中の点（描画と同じ場所）
 export function houseDoor(h) {
@@ -282,6 +288,7 @@ export function migrate(state) {
   state.today.kinder ||= { went: 0, missed: 0 };
   if (state.port.open) state.unlocked.port = true;
   for (const b of state.buildings) if (isVenue(b) && !b.queue) Object.assign(b, { seats: [], queue: [] });
+  for (const b of state.buildings) if (b.type === 'house') b.level ||= 1;
   return state;
 }
 
@@ -327,7 +334,7 @@ function familyHome(state, h) {
 }
 
 function openRoom(state, h) {
-  return familyHome(state, h) ? 0 : Math.max(0, CONFIG.houseCapacity - state.residents.filter((r) => r.homeId === h.id).length);
+  return familyHome(state, h) ? 0 : Math.max(0, capacityOf(h) - state.residents.filter((r) => r.homeId === h.id).length);
 }
 
 function vacancy(state) {
@@ -1240,7 +1247,7 @@ export function actionsFor(state) {
   syncMap(state);
   const list = [];
   // 家の軒数に上限は無い（D300）。建てられる土地が無くなったら、それが上限
-  list.push({ id: 'house', icon: 'house_build', place: 'house', title: '家を建てる', detail: `${CONFIG.houseCapacity}人まで住める。場所を選べる`, cost: CONFIG.house.cost });
+  list.push({ id: 'house', icon: 'house_build', place: 'house', title: '家を建てる', detail: `${CONFIG.house.levels[0].capacity}人まで住める。場所を選べる`, cost: CONFIG.house.cost });
   // 軒数に上限のある施設は、上限に達しても一覧から消さない（消えると理由が分からない・D300）
   const full = cafes(state).length >= CONFIG.cafe.max;
   list.push({
@@ -1318,6 +1325,19 @@ export function actionsFor(state) {
       cost: next.cost,
     });
   }
+  // 家を広げる（D303）：家の数だけ並べると一覧が長くなるので1行にまとめ、広げる家は島の上で選ぶ
+  const growable = houses(state).filter((h) => houseUpgradeCost(h) !== null);
+  if (growable.length) {
+    const L = CONFIG.house.levels;
+    list.push({
+      id: 'house_upgrade',
+      icon: 'house_up',
+      pick: 'house',
+      title: '家を広げる',
+      detail: `住める人が増える（2階建て ${L[1].capacity}人・アパート ${L[2].capacity}人）。広げる家を選べる`,
+      cost: Math.min(...growable.map(houseUpgradeCost)),
+    });
+  }
   const park = parkOf(state);
   if (park && !park.roof) {
     list.push({ id: 'park_roof', icon: 'park_roof', title: '公園に東屋をつくる', detail: '屋根の下なら、雨でも過ごせる', cost: CONFIG.park.roofCost });
@@ -1359,6 +1379,7 @@ export function actionsFor(state) {
 // place は { c, r }（建てる場所の左上のマス）
 export function applyAction(state, id, place) {
   syncMap(state);
+  if (id === 'house_upgrade') return upgradeHouse(state, place?.id);
   const action = actionsFor(state).find((a) => a.id === id);
   if (!action || action.locked) return { ok: false, message: 'いまは できません' };
   if (state.coin < action.cost) return { ok: false, message: `Coin が足りません（あと ${action.cost - state.coin}）` };
@@ -1391,6 +1412,19 @@ export function applyAction(state, id, place) {
   state.coin -= action.cost;
   state.history.push({ t: state.t, action: id, place: place || null });
   return { ok: true, message: `${action.title.replace('（', ' ').replace('）', '')}：完成しました` };
+}
+
+// 家を広げる（D303）。place ではなく家の id で選ぶ
+function upgradeHouse(state, id) {
+  const h = buildingById(state, id);
+  if (!h || h.type !== 'house') return { ok: false, message: 'いまは できません' };
+  const cost = houseUpgradeCost(h);
+  if (cost === null) return { ok: false, message: 'この家は これ以上 広げられません' };
+  if (state.coin < cost) return { ok: false, message: `Coin が足りません（あと ${cost - state.coin}）` };
+  h.level = (h.level || 1) + 1;
+  state.coin -= cost;
+  state.history.push({ t: state.t, action: `house_upgrade:${h.id}`, place: null });
+  return { ok: true, message: `家を広げました（${capacityOf(h)}人まで住める）` };
 }
 
 // ---------------------------------------------------------------- 建物を動かす（D299）
@@ -1544,7 +1578,7 @@ function growAffinity(state, h) {
 }
 
 const houseCount = (state, homeId) => state.residents.filter((x) => x.homeId === homeId).length;
-const roomIn = (state, homeId) => CONFIG.houseCapacity - houseCount(state, homeId);
+const roomIn = (state, homeId) => capacityOf(buildingById(state, homeId)) - houseCount(state, homeId);
 
 // 夫婦（と子ども）を、空きのある1軒にまとめる。できなければ false
 function moveTogether(state, a, b) {
@@ -1855,7 +1889,7 @@ function spotPoint(state, key, home) {
     case 'lawn':
       return park && parkPoint(state, park);
     case 'roof':
-      return home && { x: home.c * T + T / 2, y: home.r * T - 2 };
+      return home && { x: home.c * T + T / 2, y: home.r * T - 2 - houseLift(home) };
     case 'garden':
       return home && landPoint(state, houseDoor(home), 22);
     case 'north':
