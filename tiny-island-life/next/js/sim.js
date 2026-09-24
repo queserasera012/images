@@ -261,6 +261,7 @@ function tick(state, h, events) {
 
   for (const r of everyone(state)) updateResident(state, r, h, events);
   for (const cafe of cafes(state)) updateCafe(state, cafe, events);
+  checkPortUnlock(state, events);
   updatePort(state, events);
 
   const longest = Math.max(0, ...cafes(state).map((c) => c.queue.length));
@@ -649,11 +650,9 @@ function rolloverDay(state, events) {
     }
   }
 
-  // 港：住民が決まった人数になった日から、船が来る
-  if (!state.port.open && state.residents.length >= CONFIG.port.unlockPopulation) {
-    state.port.open = true;
-    lines.push({ kind: 'good', text: `住民が ${state.residents.length}人 になりました。今日から、港に船が来ます` });
-    events.push({ type: 'portOpen' });
+  // 港：ひらいた日の日記に書く（ひらくのは条件を満たしたその場・checkPortUnlock）
+  if (state.port.openedOn === endedDay) {
+    lines.push({ kind: 'good', text: `住民が ${CONFIG.port.unlockPopulation}人 になって、港に船が来るようになりました` });
   }
 
   const entry = { day: endedDay, weather: state.weather, lines, read: false };
@@ -684,7 +683,16 @@ function planBoats(state, { onlyFuture = false } = {}) {
 // テストや ?debug 用：今すぐ港を開く
 export function openPort(state) {
   state.port.open = true;
+  state.port.openedOn = dayOf(state.t);
   planBoats(state, { onlyFuture: true });
+}
+
+// 住民が決まった人数になったら、その場で港をひらく（D292 の不具合修正：
+// 前は 05:00 の区切りでしか見ていなかったので、すでに人数を満たしたセーブでは翌朝まで開かなかった）
+function checkPortUnlock(state, events) {
+  if (state.port.open || state.residents.length < CONFIG.port.unlockPopulation) return;
+  openPort(state);
+  events.push({ type: 'portOpen' });
 }
 
 function spawnTourists(state, boatIdx, boat) {
