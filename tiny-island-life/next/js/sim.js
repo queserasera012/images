@@ -1490,6 +1490,8 @@ export function describeResident(state, r) {
       return r.age === 'baby' ? '家で すやすや眠っている' : '家にいる';
     case 'SLEEP':
       return '寝ている';
+    case 'BEDTIME':
+      return '家に帰るところ';
     case 'KINDER':
       return '幼稚園にいる';
     default:
@@ -1920,13 +1922,13 @@ function updatePet(state, pet, h) {
       return;
     }
     if (night) {
-      pet.state = 'SLEEP';
+      // 家の前に着いてから寝る（着くまでは歩いて帰る・D302）
       pet.tx = door.x + 14;
       pet.ty = door.y + 2;
-      petMove(state, pet, h, 1);
+      pet.state = petMove(state, pet, h, 1) ? 'SLEEP' : 'BEDTIME';
       return;
     }
-    if (pet.state === 'FOLLOW' || pet.state === 'SLEEP') pet.until = state.t;
+    if (pet.state === 'FOLLOW' || pet.state === 'SLEEP' || pet.state === 'BEDTIME') pet.until = state.t;
     if (petMove(state, pet, h, 0.9) && state.t >= pet.until) {
       const p = landPoint(state, door, 36);
       pet.tx = p.x;
@@ -1941,12 +1943,12 @@ function updatePet(state, pet, h) {
   // アライグマは夜の方が元気（21時まで起きている）
   const sleepy = pet.kind === 'raccoon' ? clock >= 23 * 60 || clock < 9 * 60 : night;
   if (sleepy) {
-    pet.state = 'SLEEP';
     pet.tx = door.x - 14;
     pet.ty = door.y + 1;
-    petMove(state, pet, h, kind.speed);
+    pet.state = petMove(state, pet, h, kind.speed) ? 'SLEEP' : 'BEDTIME';
     return;
   }
+  if (pet.state === 'SLEEP' || pet.state === 'BEDTIME') pet.state = 'WANDER';
   if (state.weather === 'rain' && pet.state !== 'SHELTER') {
     // 雨の日は、家の軒下で雨宿り
     pet.state = 'SHELTER';
