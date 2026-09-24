@@ -2,7 +2,7 @@
 // 見た目の方針は docs/DESIGN.md（切り絵のジオラマ・絵文字は使わない）。格子版（D289）。
 
 import { T, COLS, ROWS, WORLD, ISLAND, SIZES, MAP, PIER, islandRadius, idx, center, neighbors, isRoad, occupied } from './grid.js';
-import { clockOf, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel } from './sim.js';
+import { clockOf, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf } from './sim.js';
 
 export const FONT = '"Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif';
 
@@ -38,8 +38,19 @@ const DEFAULT_LOOK = { shirt: '#3d5a80', hair: '#3b2a20', style: 'short', skin: 
 // 観光客：麦わら帽子とカメラ。服の色は人ごとに変える
 const TOURIST_SHIRTS = ['#ffffff', '#b8e0d2', '#f7c5cc', '#c9d8f0', '#f6e3a1', '#d6c7e8'];
 const TOURIST_SKINS = ['#f6d6bb', '#e9bf99', '#d9a982', '#f3cfb0'];
+// 「島の人」（名前のない住民）は、服・髪・肌を人ごとに組み合わせる
+const GENERIC_SHIRTS = ['#4f6d7a', '#c06c84', '#6c8ead', '#e0a458', '#7a9e7e', '#b5838d', '#577590', '#d4a373'];
+const GENERIC_HAIR = ['#3b2a20', '#2b2b33', '#6b3f2a', '#a0522d', '#c9c4cf'];
+const GENERIC_STYLES = ['short', 'long', 'bob', 'short', 'bun', 'cap'];
 export const lookOf = (r) =>
-  r.tourist
+  r.generic
+    ? {
+        shirt: GENERIC_SHIRTS[r.look % GENERIC_SHIRTS.length],
+        hair: GENERIC_HAIR[Math.floor(r.look / 8) % GENERIC_HAIR.length],
+        style: GENERIC_STYLES[Math.floor(r.look / 40) % GENERIC_STYLES.length],
+        skin: ['#f6d6bb', '#e9bf99', '#d9a982', '#f3cfb0'][Math.floor(r.look / 7) % 4],
+      }
+    : r.tourist
     ? { shirt: TOURIST_SHIRTS[r.look % TOURIST_SHIRTS.length], hair: '#e8c170', style: 'hat', skin: TOURIST_SKINS[r.look % TOURIST_SKINS.length], camera: true }
     : LOOKS[r.name] || DEFAULT_LOOK;
 
@@ -516,6 +527,137 @@ export function createRenderer(canvas) {
     }
   }
 
+  // スーパー（3×2）：大きなガラス窓。中にいる人数が窓の人影で分かる
+  function superMarket(state, b, showLabel) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.super.w * T;
+    const h = SIZES.super.h * T;
+    paperShadow((shadow) => {
+      if (!shadow) ctx.fillStyle = PALETTE.white;
+      roundRect(ctx, x0 + 4, y0 + 6, w - 8, h - 16, 3);
+      ctx.fill();
+    });
+    ctx.fillStyle = '#6a994e';
+    roundRect(ctx, x0 + 1, y0 + 1, w - 2, 9, 3);
+    ctx.fill();
+    ctx.fillStyle = PALETTE.white;
+    ctx.font = `700 9px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('スーパー', x0 + w / 2, y0 + 6);
+    // 窓と、中の人影
+    const inside = b.seats.filter(Boolean).length;
+    ctx.fillStyle = '#cfe6ee';
+    roundRect(ctx, x0 + 10, y0 + 16, w - 44, 20, 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(61,90,128,0.55)';
+    for (let i = 0; i < inside; i++) {
+      const px = x0 + 16 + (i % 5) * 9;
+      const py = y0 + 22 + Math.floor(i / 5) * 8;
+      ctx.beginPath();
+      ctx.arc(px, py, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(px - 2.2, py + 2, 4.4, 4);
+    }
+    // 自動ドア
+    ctx.fillStyle = '#9fb4c4';
+    roundRect(ctx, x0 + w - 30, y0 + 16, 20, 28, 2);
+    ctx.fill();
+    ctx.strokeStyle = PALETTE.white;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x0 + w - 20, y0 + 16);
+    ctx.lineTo(x0 + w - 20, y0 + 44);
+    ctx.stroke();
+    // カート置き場
+    ctx.strokeStyle = PALETTE.ink;
+    ctx.lineWidth = 1.2;
+    for (let k = 0; k < 2; k++) {
+      const cx = x0 + 14 + k * 9;
+      ctx.strokeRect(cx, y0 + h - 12, 7, 5);
+      ctx.beginPath();
+      ctx.arc(cx + 1.5, y0 + h - 5.5, 1, 0, Math.PI * 2);
+      ctx.arc(cx + 5.5, y0 + h - 5.5, 1, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (showLabel) nameTag(labelOf(state, b), x0 + w / 2, y0 - 12);
+  }
+
+  // プラネタリウム（3×3）：星柄のドーム。夜は光る
+  function planetarium(state, b, time) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.planetarium.w * T;
+    const cx = x0 + w / 2;
+    const base = y0 + 64;
+    paperShadow((shadow) => {
+      if (!shadow) ctx.fillStyle = PALETTE.white;
+      roundRect(ctx, x0 + 8, base - 6, w - 16, 22, 3);
+      ctx.fill();
+      if (!shadow) ctx.fillStyle = '#3d5a80';
+      ctx.beginPath();
+      ctx.arc(cx, base - 4, 36, Math.PI, 0);
+      ctx.closePath();
+      ctx.fill();
+    });
+    // ドームの星
+    const clock = clockOf(state.t);
+    const night = clock >= 18 * 60 || clock < 6 * 60;
+    for (let k = 0; k < 11; k++) {
+      const a = Math.PI + ((k * 0.61) % 1) * Math.PI;
+      const rr = 10 + ((k * 37) % 24);
+      const sx = cx + Math.cos(a) * rr;
+      const sy = base - 4 + Math.sin(a) * rr;
+      const tw = night ? 0.6 + Math.sin(time * 3 + k) * 0.4 : 0.8;
+      ctx.fillStyle = `rgba(255, 214, 107, ${tw})`;
+      ctx.beginPath();
+      ctx.arc(sx, sy, k % 3 === 0 ? 1.8 : 1.1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = PALETTE.ink;
+    ctx.font = `700 8px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('プラネタリウム', cx, base + 5);
+    ctx.fillStyle = PALETTE.ink;
+    roundRect(ctx, cx - 5, base + 9, 10, 7, [3, 3, 0, 0]);
+    ctx.fill();
+  }
+
+  // 夜：暗くする色の上から、ドームの星と入口の明かりだけを明るく描き直す
+  function planetariumGlow(b, time) {
+    const cx = b.c * T + (SIZES.planetarium.w * T) / 2;
+    const base = b.r * T + 64;
+    for (let k = 0; k < 11; k++) {
+      const a = Math.PI + ((k * 0.61) % 1) * Math.PI;
+      const rr = 10 + ((k * 37) % 24);
+      ctx.fillStyle = `rgba(255, 224, 130, ${0.65 + Math.sin(time * 3 + k) * 0.35})`;
+      ctx.beginPath();
+      ctx.arc(cx + Math.cos(a) * rr, base - 4 + Math.sin(a) * rr, k % 3 === 0 ? 2 : 1.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(255, 214, 107, 0.9)';
+    roundRect(ctx, cx - 5, base + 9, 10, 7, [3, 3, 0, 0]);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 214, 107, 0.2)';
+    ctx.beginPath();
+    ctx.arc(cx, base + 14, 16, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function nameTag(label, x, y) {
+    ctx.font = `700 10px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const tw = ctx.measureText(label).width + 12;
+    ctx.fillStyle = PALETTE.ink;
+    roundRect(ctx, x - tw / 2, y - 7.5, tw, 15, 7.5);
+    ctx.fill();
+    ctx.fillStyle = PALETTE.white;
+    ctx.fillText(label, x, y);
+  }
+
   function lamp(i, lit) {
     const p = center(i);
     const x = p.x + 12;
@@ -960,6 +1102,20 @@ export function createRenderer(canvas) {
     if (!moving && Math.sin(time * 0.6 + ph * 3) > 0.9) facing = -facing;
 
     person(r, r.x, r.y, { bob, stride, facing, seated: r.state === 'SEATED' });
+    if (r.carry === 'groceries') {
+      // スーパーの買い物袋（ねぎが のぞいている）
+      const bx = r.x - facing * 8;
+      const by = r.y - bob - 11;
+      ctx.fillStyle = '#ffffff';
+      roundRect(ctx, bx - 3.5, by, 7, 8, 1.5);
+      ctx.fill();
+      ctx.strokeStyle = '#6a994e';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(bx + 1, by);
+      ctx.lineTo(bx + 3, by - 5);
+      ctx.stroke();
+    }
     if (r.bought) {
       // お土産の紙袋を持っている
       const bx = r.x - facing * 7;
@@ -1085,6 +1241,8 @@ export function createRenderer(canvas) {
       else if (b.type === 'park') park(b, time);
       else if (b.type === 'cafe') cafe(b, ui.cafeLabel ? ui.cafeLabel(b) : 'カフェ', cafeList.length > 1);
       else if (b.type === 'shop') shop(state, b, state.buildings.filter((x) => x.type === 'shop').length > 1);
+      else if (b.type === 'super') superMarket(state, b, state.buildings.filter((x) => x.type === 'super').length > 1);
+      else if (b.type === 'planetarium') planetarium(state, b, time);
     }
     for (const i of LAMPS) lamp(i, false);
     boat(state, time);
@@ -1106,6 +1264,7 @@ export function createRenderer(canvas) {
       houseWindow(b, night && home);
     }
     if (night) for (const i of LAMPS) lamp(i, true);
+    if (night) for (const b of state.buildings) if (b.type === 'planetarium') planetariumGlow(b, time);
     // 住民・観光客・ペットを、奥（上）から順に
     const things = [
       ...everyone(state).filter((r) => r.visible).map((r) => ({ y: r.y, draw: () => drawResident(state, r, time, r.id === ui.selectedId) })),

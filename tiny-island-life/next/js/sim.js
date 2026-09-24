@@ -85,7 +85,13 @@ export function nextMorning(t) {
 export const everyone = (state) => (state.visitors?.length ? state.residents.concat(state.visitors) : state.residents);
 export const personById = (state, id) => state.residents.find((r) => r.id === id) || state.visitors?.find((r) => r.id === id);
 
-export const cafes = (state) => state.buildings.filter((b) => b.type === 'cafe');
+// 席と列のある施設（カフェ・スーパー・プラネタリウム）。同じ仕組みで動く（D295）
+export const VENUE_TYPES = ['cafe', 'super', 'planetarium'];
+export const VENUE_NAME = { cafe: 'カフェ', super: 'スーパー', planetarium: 'プラネタリウム' };
+export const isVenue = (b) => VENUE_TYPES.includes(b.type);
+export const venues = (state) => state.buildings.filter(isVenue);
+export const ofType = (state, type) => state.buildings.filter((b) => b.type === type);
+export const cafes = (state) => ofType(state, 'cafe');
 export const houses = (state) => state.buildings.filter((b) => b.type === 'house');
 export const shops = (state) => state.buildings.filter((b) => b.type === 'shop');
 export const parkOf = (state) => state.buildings.find((b) => b.type === 'park');
@@ -93,7 +99,7 @@ export const buildingById = (state, id) => state.buildings.find((b) => b.id === 
 
 function makeBuilding(state, type, c, r) {
   const b = { id: `b${state.nextId++}`, type, c, r, access: accessTile(type, c, r) };
-  if (type === 'cafe') Object.assign(b, { level: 1, seats: [null, null, null], queue: [] });
+  if (VENUE_TYPES.includes(type)) Object.assign(b, { level: 1, seats: new Array(CONFIG[type].levels[0].seats).fill(null), queue: [] });
   if (type === 'park') b.roof = false;
   if (type === 'shop') Object.assign(b, { level: 1, stock: CONFIG.shop.levels[0].stock });
   return b;
@@ -133,8 +139,20 @@ export function shopFront(shop, k = 0) {
   return { x: shop.c * T + 14 + (k % 3) * 16, y: (shop.r + 2) * T - 6 };
 }
 
-// 島の中心から見た方角で名前をつける（カフェが2軒以上のとき）
+// 島の中心から見た方角で名前をつける（同じ種類が2軒以上のとき）
+export function labelOf(state, b) {
+  if (b.type === 'shop') return shopLabel(state, b);
+  if (!isVenue(b)) return b.type;
+  const list = ofType(state, b.type);
+  const base = VENUE_NAME[b.type];
+  if (list.length <= 1) return base;
+  const dir = cafeLabel0(b);
+  const same = list.filter((x) => x !== b && cafeLabel0(x) === dir);
+  return same.length && list.indexOf(b) > list.indexOf(same[0]) ? `${dir}の${base}2` : `${dir}の${base}`;
+}
+
 export function cafeLabel(state, cafe) {
+  if (cafe.type !== 'cafe') return labelOf(state, cafe);
   const list = cafes(state);
   if (list.length <= 1) return 'カフェ';
   const cx = cafe.c + 1;
@@ -167,6 +185,8 @@ export function createGame(seed = Date.now()) {
     port: { open: false, today: [] },
     pets: [],
     petsSpawned: { cat: false, dog: false },
+    unlocked: {},
+    unlockedOn: {},
     poolIndex: 0,
     today: freshToday(),
     diary: [],
@@ -183,6 +203,7 @@ function freshToday() {
   return {
     served: 0, income: 0, lost: [], queueMinutes: { 朝: 0, 昼: 0, 夕方: 0, 夜: 0 }, maxQueue: 0, parkMinutes: {},
     boats: 0, tourists: 0, petWalk: {}, petNap: {}, shopSold: 0, shopIncome: 0, shopMissed: [],
+    byType: {},
   };
 }
 
@@ -199,6 +220,11 @@ export function migrate(state) {
   state.today.shopSold ||= 0;
   state.today.shopIncome ||= 0;
   state.today.shopMissed ||= [];
+  state.today.byType ||= {};
+  state.unlocked ||= {};
+  state.unlockedOn ||= {};
+  if (state.port.open) state.unlocked.port = true;
+  for (const b of state.buildings) if (isVenue(b) && !b.queue) Object.assign(b, { seats: [], queue: [] });
   return state;
 }
 
@@ -210,17 +236,29 @@ function freeHouse(state) {
   return houses(state).find((h) => state.residents.filter((r) => r.homeId === h.id).length < CONFIG.houseCapacity);
 }
 
+// 名前のある住民（10人）のあとは「島の人」が住む（v0.3 §16 の一般住民・D295）
+function genericResident(state) {
+  return {
+    name: '島の人',
+    generic: true,
+    prefs: { cafe: between(state, 8, 28), park: between(state, 8, 30), stroll: between(state, 8, 26), fun: between(state, 6, 22) },
+    coffee: between(state, 0.2, 0.9),
+  };
+}
+
 function addResident(state, { arriving }) {
-  const base = RESIDENT_POOL[state.poolIndex];
-  if (!base) return null;
+  if (state.residents.length >= CONFIG.maxPopulation) return null;
   const home = freeHouse(state);
   if (!home) return null;
-  state.poolIndex += 1;
+  const base = RESIDENT_POOL[state.poolIndex] || genericResident(state);
+  if (RESIDENT_POOL[state.poolIndex]) state.poolIndex += 1;
   const door = houseDoor(home);
   const r = {
     id: `r${state.nextId++}`,
     name: base.name,
-    prefs: base.prefs,
+    generic: !!base.generic,
+    look: Math.floor(rand(state) * 1000),
+    prefs: { fun: 12, ...base.prefs },
     coffee: base.coffee,
     homeId: home.id,
     patience: between(state, CONFIG.patienceMin, CONFIG.patienceMax),
@@ -255,6 +293,8 @@ function addResident(state, { arriving }) {
 // その日の起床・就寝をすこしずつずらす（毎日同じ動きにしない）
 function planDay(state, r) {
   const base = Math.floor(state.t / DAY) * DAY;
+  r.needShop = ofType(state, 'super').length > 0; // スーパーがあれば、毎日1回 買い物に行きたい
+  r.visitedFun = false; // プラネタリウムも1日1回まで
   r.wake = base + clockToInDay(6 * 60 + 30) + between(state, 0, 35);
   r.bed = base + clockToInDay(21 * 60 + 30) + between(state, 0, 60);
 }
@@ -286,8 +326,8 @@ function tick(state, h, events) {
   if (dayOf(state.t) > before) rolloverDay(state, events);
 
   for (const r of everyone(state)) updateResident(state, r, h, events);
-  for (const cafe of cafes(state)) updateCafe(state, cafe, events);
-  checkPortUnlock(state, events);
+  for (const v of venues(state)) updateVenue(state, v, events);
+  checkUnlocks(state, events);
   updatePort(state, events);
   spawnStrays(state, events);
   for (const pet of state.pets) updatePet(state, pet, h);
@@ -354,10 +394,11 @@ function parkPoint(state, park) {
   };
 }
 
-function cafeOpen(state, margin = 0) {
+function venueOpen(state, type, margin = 0) {
   const c = clockOf(state.t);
-  return c >= CONFIG.cafe.open && c < CONFIG.cafe.close - margin;
+  return c >= CONFIG[type].open && c < CONFIG[type].close - margin;
 }
+const cafeOpen = (state, margin = 0) => venueOpen(state, 'cafe', margin);
 
 // 遠いところほど行きにくい（D289）
 const near = (r, access) => 1 / (1 + roadDistance(r.at, access) / CONFIG.distanceHalf);
@@ -366,6 +407,23 @@ function cafeChoices(state, r) {
   if (!cafeOpen(state, 30)) return [];
   const w = CONFIG.weatherWeights[state.weather].cafe;
   return cafes(state).map((c) => ({ cafe: c, w: r.prefs.cafe * w * near(r, c.access) }));
+}
+
+// スーパー：住民だけ。1日1回。夕方に行きたくなる
+function superChoices(state, r) {
+  if (r.tourist || !r.needShop || !venueOpen(state, 'super', 20)) return [];
+  const c = clockOf(state.t);
+  const boost = c >= 16 * 60 && c < 19 * 60 + 30 ? CONFIG.super.eveningBoost : 1;
+  return ofType(state, 'super').map((b) => ({ cafe: b, w: CONFIG.super.pull * boost * near(r, b.access) }));
+}
+
+// プラネタリウム：雨の日と夜に行きたくなる（屋内）
+function planetariumChoices(state, r) {
+  if (r.visitedFun || !venueOpen(state, 'planetarium', 45)) return [];
+  const P = CONFIG.planetarium;
+  const weather = state.weather === 'rain' ? P.rainBoost : state.weather === 'cloudy' ? 1.3 : 1;
+  const night = clockOf(state.t) >= 18 * 60 ? P.nightBoost : 1;
+  return ofType(state, 'planetarium').map((b) => ({ cafe: b, w: (r.prefs.fun ?? 12) * weather * night * near(r, b.access) }));
 }
 
 // お土産屋：行くのは観光客だけ。1人1回まで。遠い店ほど行きにくい（船の時間が限られているので）
@@ -380,7 +438,7 @@ function goCafe(state, r, cafe) {
   goTo(state, r, 'cafe', cafe.id, cafe.access, queueSlot(cafe, 0));
 }
 
-function decideNext(state, r, { noCafe = false } = {}) {
+function decideNext(state, r, { noCafe = false, avoid = null } = {}) {
   if (state.t >= r.bed - 20) return goHome(state, r);
   const w = CONFIG.weatherWeights[state.weather];
   const park = parkOf(state);
@@ -389,7 +447,11 @@ function decideNext(state, r, { noCafe = false } = {}) {
     const mult = state.weather === 'rain' && park.roof ? CONFIG.rainParkWithRoof : w.park;
     parkW = r.prefs.park * mult * near(r, park.access);
   }
-  const cafeList = noCafe ? [] : cafeChoices(state, r);
+  const cafeList = [
+    ...(noCafe || avoid === 'cafe' ? [] : cafeChoices(state, r)),
+    ...(avoid === 'super' ? [] : superChoices(state, r)),
+    ...(avoid === 'planetarium' ? [] : planetariumChoices(state, r)),
+  ];
   const shopList = shopChoices(state, r);
   const shopW = shopList.reduce((s, x) => s + x.w, 0);
   const cafeW = cafeList.reduce((s, x) => s + x.w, 0);
@@ -437,6 +499,7 @@ function arrive(state, r, events) {
     case 'home':
     default:
       r.visible = false;
+      r.carry = null;
       if (state.t >= r.bed) {
         r.state = 'SLEEP';
       } else {
@@ -506,6 +569,7 @@ function updateResident(state, r, h, events) {
       return;
     case 'QUEUE': {
       const cafe = buildingById(state, r.destId);
+      if (!cafe) return;
       const slot = queueSlot(cafe, Math.max(0, cafe.queue.indexOf(r.id)));
       r.tx = slot.x;
       r.ty = slot.y;
@@ -513,8 +577,8 @@ function updateResident(state, r, h, events) {
       return;
     }
     case 'SEATED':
-      moveToward(state, r, h);
-      if (t >= r.until) leaveCafe(state, r, events);
+      if (r.visible) moveToward(state, r, h);
+      if (t >= r.until) leaveVenue(state, r, events);
       return;
     case 'PARK':
       state.today.parkMinutes[r.id] = (state.today.parkMinutes[r.id] || 0) + h;
@@ -561,88 +625,117 @@ function afterActivity(state, r, homeChance, opts) {
   return decideNext(state, r, opts);
 }
 
-// ---------------------------------------------------------------- カフェ
+// ---------------------------------------------------------------- 席と列のある施設（カフェ・スーパー・プラネタリウム）
 
-export function seatCount(cafe) {
-  return CONFIG.cafe.levels[cafe.level - 1].seats;
+export function seatCount(b) {
+  return CONFIG[b.type].levels[b.level - 1].seats;
 }
 
-function sit(state, r, cafe, seatIdx) {
-  cafe.seats[seatIdx] = r.id;
+// カフェはテラスに座る姿が見える。スーパーとプラネタリウムは中に入る（見えない）
+function sit(state, r, b, seatIdx) {
+  const V = CONFIG[b.type];
+  b.seats[seatIdx] = r.id;
   r.state = 'SEATED';
   r.seat = seatIdx;
-  const s = seatPositions(cafe)[seatIdx];
-  r.tx = s.x;
-  r.ty = s.y;
-  const linger = state.weather === 'rain' ? CONFIG.cafe.rainLinger : 1;
-  r.until = state.t + between(state, CONFIG.cafe.stayMin, CONFIG.cafe.stayMax) * linger;
+  if (b.type === 'cafe') {
+    const s = seatPositions(b)[seatIdx];
+    r.tx = s.x;
+    r.ty = s.y;
+  } else {
+    r.visible = false;
+    const door = queueSlot(b, 0);
+    r.x = r.tx = door.x + 20;
+    r.y = r.ty = door.y;
+  }
+  const linger = state.weather === 'rain' ? V.rainLinger || 1 : 1;
+  r.until = state.t + between(state, V.stayMin, V.stayMax) * linger;
+  const closeAt = Math.floor(state.t / DAY) * DAY + clockToInDay(V.close);
+  if (b.type !== 'cafe') r.until = Math.min(r.until, Math.max(state.t + 5, closeAt));
   if (r.tourist) r.until = Math.min(r.until, r.bed);
 }
 
-function enterCafe(state, r, cafe, events) {
-  if (!cafeOpen(state)) {
+function enterVenue(state, r, b, events) {
+  if (!venueOpen(state, b.type)) {
     // 閉まっていた。売り損ではないので数えない
     r.bubble = 'closed';
     r.bubbleUntil = state.t + 15;
-    return afterActivity(state, r, 0.8, { noCafe: true });
+    return afterActivity(state, r, 0.8, { avoid: b.type });
   }
-  const seat = cafe.seats.findIndex((s) => s === null);
-  if (seat >= 0 && cafe.queue.length === 0) return sit(state, r, cafe, seat);
-  if (cafe.queue.length < CONFIG.cafe.maxQueue) {
+  const seat = b.seats.findIndex((x) => x === null);
+  if (seat >= 0 && b.queue.length === 0) return sit(state, r, b, seat);
+  if (b.queue.length < CONFIG[b.type].maxQueue) {
     r.state = 'QUEUE';
     r.queuedAt = state.t;
-    cafe.queue.push(r.id);
+    b.queue.push(r.id);
     return;
   }
   // 並ぶ場所も無い
-  loseCustomer(state, r, cafe, 0, events);
+  loseCustomer(state, r, b, 0, events);
 }
+const enterCafe = enterVenue;
 
-function leaveCafe(state, r, events) {
-  const cafe = buildingById(state, r.destId);
-  cafe.seats[r.seat] = null;
+function leaveVenue(state, r, events) {
+  const b = buildingById(state, r.destId);
+  const V = CONFIG[b.type];
+  b.seats[r.seat] = null;
   r.seat = -1;
-  state.coin += CONFIG.cafe.customerValue;
-  state.today.served += 1;
-  state.today.income += CONFIG.cafe.customerValue;
-  events.push({ type: 'served', name: r.name });
-  afterActivity(state, r, 0.55);
+  if (!r.visible) {
+    r.visible = true;
+    const door = queueSlot(b, 0);
+    r.x = door.x + 20;
+    r.y = door.y;
+  }
+  state.coin += V.customerValue;
+  const t = (state.today.byType[b.type] ||= { served: 0, income: 0 });
+  t.served += 1;
+  t.income += V.customerValue;
+  if (b.type === 'cafe') {
+    state.today.served += 1;
+    state.today.income += V.customerValue;
+  }
+  if (b.type === 'super') {
+    r.needShop = false;
+    r.carry = 'groceries'; // 買い物袋を持って帰る
+  }
+  if (b.type === 'planetarium') r.visitedFun = true;
+  events.push({ type: 'served', name: r.name, venue: b.type });
+  afterActivity(state, r, b.type === 'super' ? 0.8 : 0.55, { avoid: b.type });
 }
 
-function loseCustomer(state, r, cafe, waited, events) {
-  state.today.lost.push({ clock: clockOf(state.t), waited: Math.round(waited), name: r.name, cafeId: cafe.id, tourist: !!r.tourist });
+function loseCustomer(state, r, b, waited, events) {
+  state.today.lost.push({ clock: clockOf(state.t), waited: Math.round(waited), name: r.name, cafeId: b.id, venue: b.type, tourist: !!r.tourist });
   r.bubble = 'lost';
   r.bubbleUntil = state.t + 25;
-  events.push({ type: 'lost', name: r.name, waited });
-  // 帰った人が、すぐまたカフェに並び直すことはしない
-  afterActivity(state, r, 0.6, { noCafe: true });
+  events.push({ type: 'lost', name: r.name, waited, venue: b.type });
+  // 帰った人が、すぐまた同じ施設に並び直すことはしない
+  afterActivity(state, r, 0.6, { avoid: b.type });
 }
 
-function updateCafe(state, cafe, events) {
+function updateVenue(state, b, events) {
   // 閉店したら、並んでいた人は帰る（売り損には数えない）
-  if (!cafeOpen(state) && cafe.queue.length > 0) {
-    for (const id of cafe.queue.splice(0)) {
+  if (!venueOpen(state, b.type) && b.queue.length > 0) {
+    for (const id of b.queue.splice(0)) {
       const r = personById(state, id);
       r.bubble = 'closed';
       r.bubbleUntil = state.t + 15;
-      afterActivity(state, r, 0.9, { noCafe: true });
+      afterActivity(state, r, 0.9, { avoid: b.type });
     }
     return;
   }
-  // 空いた席に、列の先頭から座る
-  let seat = cafe.seats.findIndex((s) => s === null);
-  while (seat >= 0 && cafe.queue.length > 0) {
-    const id = cafe.queue.shift();
-    sit(state, personById(state, id), cafe, seat);
-    seat = cafe.seats.findIndex((s) => s === null);
+  // 空いた席に、列の先頭から入る
+  let seat = b.seats.findIndex((x) => x === null);
+  while (seat >= 0 && b.queue.length > 0) {
+    const id = b.queue.shift();
+    sit(state, personById(state, id), b, seat);
+    seat = b.seats.findIndex((x) => x === null);
   }
   // 待ちきれなかった人は帰る
-  for (const id of [...cafe.queue]) {
+  for (const id of [...b.queue]) {
     const r = personById(state, id);
     // 待ちきれない、または（観光客は）船の時間になった
     if (state.t - r.queuedAt > r.patience || (r.tourist && state.t >= r.bed)) {
-      cafe.queue.splice(cafe.queue.indexOf(id), 1);
-      loseCustomer(state, r, cafe, state.t - r.queuedAt, events);
+      b.queue.splice(b.queue.indexOf(id), 1);
+      loseCustomer(state, r, b, state.t - r.queuedAt, events);
     }
   }
 }
@@ -671,6 +764,10 @@ function rolloverDay(state, events) {
     lines.push({ kind: 'good', text: `${r.name}は公園で長いこと過ごしていました` });
   }
 
+  const sup = today.byType.super;
+  if (sup?.served) lines.push({ kind: 'good', text: `スーパーで ${sup.served}人 が買い物しました（+${sup.income} Coin）` });
+  const fun = today.byType.planetarium;
+  if (fun?.served) lines.push({ kind: 'good', text: `プラネタリウムに ${fun.served}人 が来ました（+${fun.income} Coin）` });
   if (today.shopSold > 0) {
     lines.push({ kind: 'good', text: `お土産が ${today.shopSold}個 売れました（+${today.shopIncome} Coin）` });
   }
@@ -693,19 +790,21 @@ function rolloverDay(state, events) {
   // 困ったこと（答えは書かない。起きたことと損だけ・D281）
   const groups = {};
   for (const l of today.lost) {
-    const cafe = buildingById(state, l.cafeId);
-    const key = `${timeBucket(l.clock)}|${cafe ? cafeLabel(state, cafe) : 'カフェ'}|${l.tourist ? 'tourist' : ''}`;
+    const b = buildingById(state, l.cafeId);
+    const venue = l.venue || 'cafe';
+    const key = `${timeBucket(l.clock)}|${b ? labelOf(state, b) : VENUE_NAME[venue]}|${l.tourist ? 'tourist' : ''}|${venue}`;
     groups[key] = (groups[key] || 0) + 1;
   }
   const top = Object.entries(groups).sort((a, b) => b[1] - a[1]).slice(0, 2);
   for (const [key, n] of top) {
-    const [bucket, label, who] = key.split('|');
-    const loss = `（−${n * CONFIG.cafe.customerValue} Coin）`;
+    const [bucket, label, who, venue] = key.split('|');
+    const loss = `（−${n * CONFIG[venue].customerValue} Coin）`;
+    const how = venue === 'super' ? '買い物できずに帰りました' : venue === 'planetarium' ? '入れずに帰りました' : '帰ってしまいました';
     lines.push({
       kind: 'problem',
       text: who
         ? `${bucket}、${label}の前で待っていた観光客 ${n}人 が、港へ戻ってしまいました${loss}`
-        : `${bucket}、${label}の前で待っていた ${n}人 が、帰ってしまいました${loss}`,
+        : `${bucket}、${label}の前で待っていた ${n}人 が、${how}${loss}`,
     });
   }
   if (top.length === 0) {
@@ -716,33 +815,43 @@ function rolloverDay(state, events) {
   }
 
   // 維持費
-  const upkeep = cafes(state).reduce((s, c) => s + CONFIG.cafe.levels[c.level - 1].upkeep, 0);
+  const upkeep = venues(state).reduce((s, c) => s + CONFIG[c.type].levels[c.level - 1].upkeep, 0);
+  const onlyCafes = venues(state).every((v) => v.type === 'cafe');
   const shopUpkeep = shops(state).reduce((s, b) => s + CONFIG.shop.levels[b.level - 1].upkeep, 0);
   if (upkeep + shopUpkeep > 0) {
     state.coin -= upkeep + shopUpkeep;
-    lines.push({ kind: 'info', text: shopUpkeep ? `お店の維持費 −${upkeep + shopUpkeep} Coin` : `カフェの維持費 −${upkeep} Coin` });
+    lines.push({ kind: 'info', text: shopUpkeep || !onlyCafes ? `お店の維持費 −${upkeep + shopUpkeep} Coin` : `カフェの維持費 −${upkeep} Coin` });
   }
   // お土産屋は毎朝 入荷する
   for (const b of shops(state)) b.stock = CONFIG.shop.levels[b.level - 1].stock;
 
-  // 人口：空き家があって、昨日のカフェで座れた人が多ければ、1人やってくる
-  const customers = today.served + today.lost.length;
-  const satisfaction = customers === 0 ? 1 : today.served / customers;
-  if (state.poolIndex < RESIDENT_POOL.length) {
+  // 人口：空き家があって、昨日 お店に入れた人が多ければ、1人（とても多ければ2人）やってくる
+  const served = Object.values(today.byType).reduce((n, x) => n + x.served, 0) || today.served;
+  const customers = served + today.lost.length;
+  const satisfaction = customers === 0 ? 1 : served / customers;
+  if (state.residents.length < CONFIG.maxPopulation) {
     if (vacancy(state) <= 0) {
       lines.push({ kind: 'problem', text: '島に住みたい人がいたようですが、空いている家がありませんでした' });
     } else if (satisfaction < CONFIG.growth.minSatisfaction) {
       lines.push({ kind: 'problem', text: '島を見に来た人がいましたが、住むのはやめたようです' });
     } else {
-      const r = addResident(state, { arriving: true });
-      r.arriveAt = Math.floor(state.t / DAY) * DAY + clockToInDay(8 * 60) + between(state, 0, 90);
-      lines.push({ kind: 'good', text: `今日、${r.name}が島に引っ越してくるそうです` });
+      const n = satisfaction >= 0.9 && vacancy(state) >= 2 && state.poolIndex >= RESIDENT_POOL.length ? 2 : 1;
+      const names = [];
+      for (let k = 0; k < n; k++) {
+        const r = addResident(state, { arriving: true });
+        if (!r) break;
+        r.arriveAt = Math.floor(state.t / DAY) * DAY + clockToInDay(8 * 60) + between(state, 0, 120);
+        names.push(r);
+      }
+      if (names.length === 1 && !names[0].generic) lines.push({ kind: 'good', text: `今日、${names[0].name}が島に引っ越してくるそうです` });
+      else if (names.length) lines.push({ kind: 'good', text: `今日、新しい住民が ${names.length}人 引っ越してくるそうです` });
     }
   }
 
-  // 港：ひらいた日の日記に書く（ひらくのは条件を満たしたその場・checkPortUnlock）
-  if (state.port.openedOn === endedDay) {
-    lines.push({ kind: 'good', text: `住民が ${CONFIG.port.unlockPopulation}人 になって、港に船が来るようになりました` });
+  // 解放：ひらいた日の日記に書く（ひらくのは条件を満たしたその場・checkUnlocks）
+  for (const u of CONFIG.unlocks) {
+    const on = u.id === 'port' ? state.port.openedOn ?? state.unlockedOn.port : state.unlockedOn[u.id];
+    if (on === endedDay) lines.push({ kind: 'good', text: `住民が ${u.pop}人 になって、${u.done}` });
   }
 
   const entry = { day: endedDay, weather: state.weather, lines, read: false };
@@ -773,16 +882,43 @@ function planBoats(state, { onlyFuture = false } = {}) {
 // テストや ?debug 用：今すぐ港を開く
 export function openPort(state) {
   state.port.open = true;
+  state.unlocked ||= {};
+  state.unlocked.port = true;
   state.port.openedOn = dayOf(state.t);
   planBoats(state, { onlyFuture: true });
 }
 
-// 住民が決まった人数になったら、その場で港をひらく（D292 の不具合修正：
-// 前は 05:00 の区切りでしか見ていなかったので、すでに人数を満たしたセーブでは翌朝まで開かなかった）
-function checkPortUnlock(state, events) {
-  if (state.port.open || state.residents.length < CONFIG.port.unlockPopulation) return;
-  openPort(state);
-  events.push({ type: 'portOpen' });
+// 住民が決まった人数になったら、その場でひらく（D292 の不具合修正：区切りの時刻ではなく、満たした瞬間に判定する）
+function checkUnlocks(state, events) {
+  for (const u of CONFIG.unlocks) {
+    if (isUnlocked(state, u.id) || state.residents.length < u.pop) continue;
+    if (u.id === 'port') {
+      openPort(state);
+      events.push({ type: 'portOpen' });
+    } else {
+      state.unlocked[u.id] = true;
+      state.unlockedOn[u.id] = dayOf(state.t);
+    }
+    events.push({ type: 'unlock', id: u.id, done: u.done });
+  }
+}
+
+export function isUnlocked(state, id) {
+  if (id === 'port') return !!state.port?.open;
+  return !!state.unlocked?.[id];
+}
+
+// 次の目標（まだひらいていない中で いちばん手前）
+export function nextGoal(state) {
+  const u = CONFIG.unlocks.find((x) => !isUnlocked(state, x.id));
+  return u ? { ...u, now: state.residents.length } : null;
+}
+
+// テストや ?debug 用：今すぐ解放する
+export function unlockNow(state, id) {
+  if (id === 'port') return openPort(state);
+  state.unlocked[id] = true;
+  state.unlockedOn[id] = dayOf(state.t);
 }
 
 function spawnTourists(state, boatIdx, boat) {
@@ -897,14 +1033,33 @@ export function actionsFor(state) {
   if (cafes(state).length < CONFIG.cafe.max) {
     list.push({ id: 'cafe', icon: 'cafe_new', place: 'cafe', title: 'カフェをもう1軒つくる', detail: `席 3。維持費 1日 ${CONFIG.cafe.levels[0].upkeep} Coin。場所を選べる`, cost: CONFIG.cafe.buildCost });
   }
-  for (const c of cafes(state)) {
-    const next = CONFIG.cafe.levels[c.level];
-    if (!next) continue;
+  for (const type of ['super', 'planetarium']) {
+    const V = CONFIG[type];
+    if (ofType(state, type).length >= V.max) continue;
+    const u = CONFIG.unlocks.find((x) => x.id === type);
+    const locked = !isUnlocked(state, type);
+    const what = type === 'super'
+      ? `住民が毎日 買い物に行く。一度に ${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`
+      : `長く過ごせる屋内の施設。${V.levels[0].seats}席。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`;
     list.push({
-      id: `cafe_upgrade:${c.id}`,
+      id: type,
+      icon: type === 'super' ? 'super_new' : 'planetarium_new',
+      place: type,
+      title: `${VENUE_NAME[type]}をつくる`,
+      detail: locked ? `住民が ${u.pop}人 になると建てられます` : what,
+      cost: V.buildCost,
+      locked,
+    });
+  }
+  for (const c of venues(state)) {
+    const next = CONFIG[c.type].levels[c.level];
+    if (!next) continue;
+    const unit = c.type === 'cafe' ? '席' : c.type === 'super' ? '一度に入れる人' : '席';
+    list.push({
+      id: `${c.type === 'cafe' ? 'cafe' : 'venue'}_upgrade:${c.id}`,
       icon: 'cafe_upgrade',
-      title: `${cafeLabel(state, c)}を広げる（Lv${next.level}）`,
-      detail: `席 ${seatCount(c)} → ${next.seats}　維持費 1日 ${next.upkeep} Coin`,
+      title: `${labelOf(state, c)}を広げる（Lv${next.level}）`,
+      detail: `${unit} ${seatCount(c)} → ${next.seats}　維持費 1日 ${next.upkeep} Coin`,
       cost: next.cost,
     });
   }
@@ -945,7 +1100,9 @@ export function applyAction(state, id, place) {
   if (action.place) {
     if (!place || !canPlace(action.place, place.c, place.r, state.buildings)) return { ok: false, message: 'そこには建てられません' };
     state.buildings.push(makeBuilding(state, action.place, place.c, place.r));
-  } else if (id.startsWith('cafe_upgrade:')) {
+    // スーパーを建てたら、その日から買い物に行く（翌朝まで待たせない）
+    if (action.place === 'super') for (const r of state.residents) if (!r.carry) r.needShop = true;
+  } else if (id.startsWith('cafe_upgrade:') || id.startsWith('venue_upgrade:')) {
     const cafe = buildingById(state, id.split(':')[1]);
     cafe.level += 1;
     while (cafe.seats.length < seatCount(cafe)) cafe.seats.push(null);
@@ -966,14 +1123,18 @@ export function applyAction(state, id, place) {
 export function describeResident(state, r) {
   switch (r.state) {
     case 'WALK': {
-      if (r.dest === 'cafe') return `${cafeLabel(state, buildingById(state, r.destId))}へ向かっている`;
+      if (r.dest === 'cafe') return `${labelOf(state, buildingById(state, r.destId))}へ向かっている`;
       if (r.dest === 'shop') return `${shopLabel(state, buildingById(state, r.destId))}へ向かっている`;
       return { park: '公園へ向かっている', stroll: r.tourist ? '島を見て回っている' : 'ぶらぶら歩いている', home: '家へ帰るところ', boat: '港へ戻るところ' }[r.dest] || '歩いている';
     }
     case 'QUEUE':
-      return `${cafeLabel(state, buildingById(state, r.destId))}の前で待っている（${Math.round(state.t - r.queuedAt)}分）`;
-    case 'SEATED':
-      return `${cafeLabel(state, buildingById(state, r.destId))}でひと休み中`;
+      return `${labelOf(state, buildingById(state, r.destId))}の前で待っている（${Math.round(state.t - r.queuedAt)}分）`;
+    case 'SEATED': {
+      const b = buildingById(state, r.destId);
+      if (b.type === 'super') return 'スーパーで買い物中';
+      if (b.type === 'planetarium') return 'プラネタリウムで星を見ている';
+      return `${labelOf(state, b)}でひと休み中`;
+    }
     case 'PARK':
       return '公園で過ごしている';
     case 'SHOP':
@@ -991,7 +1152,7 @@ export function describeResident(state, r) {
 
 export function favoriteText(r) {
   const top = Object.entries(r.prefs).sort((a, b) => b[1] - a[1])[0][0];
-  return { cafe: 'カフェが好き', park: '公園が好き', stroll: '散歩が好き' }[top];
+  return { cafe: 'カフェが好き', park: '公園が好き', stroll: '散歩が好き', fun: '星を見るのが好き' }[top];
 }
 
 // 家から、いちばん近いカフェまで何マスか（カードで見せる。答えではなく事実）

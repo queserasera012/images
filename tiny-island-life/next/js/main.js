@@ -6,6 +6,7 @@ import {
   createGame, step, catchUp, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
   migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
+  labelOf, nextGoal, unlockNow,
 } from './sim.js';
 import { createRenderer, lookOf } from './render.js';
 import { ICONS } from './icons.js';
@@ -93,6 +94,9 @@ function frame(now) {
       toast(`船が着きました。観光客が ${e.n}人 降りてきました`);
     } else if (e.type === 'portOpen') {
       setTimeout(() => toast('港がひらきました。船が来るようになります'), 3000);
+      renderQuest();
+    } else if (e.type === 'unlock' && e.id !== 'port') {
+      setTimeout(() => toast(e.done), 3000);
       renderQuest();
     }
   }
@@ -294,6 +298,13 @@ function renderCard() {
       html = `<h3>${cafeLabel(state, b)} Lv${b.level}</h3><div class="sub">席は ${seatCount(b)} つ。${fmt(CONFIG.cafe.open)}から${fmt(CONFIG.cafe.close)}まで</div>`;
       html += `<div class="now">座っている：${who(seated)}</div>`;
       html += `<div>外で待っている：${who(b.queue)}</div>`;
+    } else if (b.type === 'super' || b.type === 'planetarium') {
+      const V = CONFIG[b.type];
+      const inside = b.seats.filter(Boolean);
+      const unit = b.type === 'super' ? `一度に ${seatCount(b)}人 まで` : `${seatCount(b)}席`;
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${unit}。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
+      html += `<div class="now">${b.type === 'super' ? '買い物中' : '星を見ている'}：${who(inside)}</div>`;
+      html += `<div>外で待っている：${who(b.queue)}</div>`;
     } else if (b.type === 'shop') {
       const max = CONFIG.shop.levels[b.level - 1].stock;
       const here = everyone(state).filter((r) => r.state === 'SHOP' && r.destId === b.id).map((r) => r.id);
@@ -472,13 +483,13 @@ function renderQuest() {
   const el = $('quest');
   const step = currentStep(state);
   if (!step) {
-    // チュートリアルのあとは「次の目標」だけを小さく出す（港がひらくまで）
-    const N = CONFIG.port.unlockPopulation;
-    if (state.port.open) {
+    // チュートリアルのあとは「次の目標」だけを小さく出す（段階的な解放・D295）
+    const g = nextGoal(state);
+    if (!g) {
       el.hidden = true;
       return;
     }
-    el.innerHTML = `<div class="quest-head"><b>目標：港をひらく</b><span class="reward">${state.residents.length} / ${N}人</span></div><p>住民が ${N}人 になると、港に船が来るようになります</p>`;
+    el.innerHTML = `<div class="quest-head"><b>目標：${g.goal}</b><span class="reward">${g.now} / ${g.pop}人</span></div><p>住民が ${g.pop}人 になると、${g.note}</p>`;
     el.hidden = false;
     return;
   }
@@ -546,6 +557,7 @@ function renderDebug() {
     <button data-dbg="rain">今日を雨にする</button>
     <button data-dbg="coin">Coin +500</button>
     <button data-dbg="port">港をひらく</button>
+    <button data-dbg="unlock">スーパーとプラネタリウムをひらく</button>
     <button data-dbg="reset">最初からやり直す</button>
     <pre>起動の記録（日付: 回数）\n${Object.entries(byDate).map(([d, n]) => `${d}: ${n}`).join('\n') || '—'}</pre>`;
 }
@@ -575,6 +587,12 @@ if (DEBUG) {
     if (k === 'coin') state.coin += 500;
     if (k === 'port') {
       openPort(state);
+      renderQuest();
+    }
+    if (k === 'unlock') {
+      unlockNow(state, 'port');
+      unlockNow(state, 'super');
+      unlockNow(state, 'planetarium');
       renderQuest();
     }
     if (k === 'reset' && confirm('島を最初からやり直しますか？')) {

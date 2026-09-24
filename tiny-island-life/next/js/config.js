@@ -33,7 +33,54 @@ export const CONFIG = {
     ],
     buildCost: 900,             // 2軒目のカフェ
     max: 3,
+    rainBoost: null,            // カフェの雨の倍率は weatherWeights.rain.cafe
   },
+
+  // ---- スーパー（D295）：住民が毎日1回 買い物に行く。夕方に集中する。中の様子は見えない ----
+  super: {
+    open: 10 * 60,
+    close: 20 * 60,
+    customerValue: 15,
+    stayMin: 12,
+    stayMax: 20,
+    maxQueue: 5,
+    rainLinger: 1,
+    pull: 30,                   // 買い物に行きたい強さ（夕方は eveningBoost 倍）
+    eveningBoost: 2.5,          // 16:00〜19:30
+    levels: [
+      { level: 1, seats: 4, upkeep: 15 },
+      { level: 2, seats: 7, upkeep: 30, cost: 900 },
+    ],
+    buildCost: 800,
+    max: 2,
+  },
+
+  // ---- プラネタリウム（D295）：長居する。雨の日と夜に人が集まる（屋内） ----
+  planetarium: {
+    open: 13 * 60,
+    close: 22 * 60,
+    customerValue: 25,
+    stayMin: 60,
+    stayMax: 90,
+    maxQueue: 5,
+    rainLinger: 1,
+    rainBoost: 2.6,
+    nightBoost: 2,              // 18:00 から
+    levels: [
+      { level: 1, seats: 6, upkeep: 30 },
+      { level: 2, seats: 10, upkeep: 50, cost: 1600 },
+    ],
+    buildCost: 1400,
+    max: 1,
+  },
+
+  // ---- 段階的な解放（D295）。住民の人数で順番にひらく。いつも「次の目標」が1つ見える ----
+  unlocks: [
+    { id: 'port', pop: 7, goal: '港をひらく', done: '港に船が来るようになりました', note: '港に船が来るようになります' },
+    { id: 'super', pop: 10, goal: 'スーパーをひらく', done: 'スーパーを建てられるようになりました', note: 'スーパーを建てられるようになります' },
+    { id: 'planetarium', pop: 14, goal: 'プラネタリウムをひらく', done: 'プラネタリウムを建てられるようになりました', note: 'プラネタリウムを建てられるようになります' },
+  ],
+  maxPopulation: 40,
 
   // ---- 公園 ----
   park: {

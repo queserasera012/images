@@ -63,6 +63,20 @@ export const ICONS = {
       `<rect x="7" y="14" width="3" height="3" rx="0.6" fill="#f28aa0"/><rect x="11" y="14" width="3" height="3" rx="0.6" fill="${MUSTARD}"/><rect x="15" y="14" width="3" height="3" rx="0.6" fill="${SKY}"/>`,
     28,
   ),
+  super_new: svg(
+    `<rect x="3" y="8" width="18" height="12" rx="1" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<rect x="3" y="8" width="18" height="12" rx="1" fill="#fff" stroke="${INK}" stroke-width="1.4"/>` +
+      `<rect x="2" y="5" width="20" height="4" rx="1" fill="#6a994e"/><rect x="6" y="11" width="7" height="5" rx="0.6" fill="#cfe6ee"/>` +
+      `<rect x="15" y="11" width="4" height="9" rx="0.6" fill="#9fb4c4"/>`,
+    28,
+  ),
+  planetarium_new: svg(
+    `<rect x="4" y="15" width="16" height="6" rx="1" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<rect x="4" y="15" width="16" height="6" rx="1" fill="#fff" stroke="${INK}" stroke-width="1.4"/>` +
+      `<path d="M4.5 15a7.5 7.5 0 0 1 15 0z" fill="${INK}"/>` +
+      `<circle cx="9" cy="11.5" r="0.9" fill="${MUSTARD}"/><circle cx="13" cy="9.5" r="1.1" fill="${MUSTARD}"/><circle cx="15.5" cy="12.5" r="0.8" fill="${MUSTARD}"/>`,
+    28,
+  ),
   park_roof: svg(
     `<path d="M3 11l9-7 9 7z" transform="translate(1 1)" fill="${SHADOW}"/><path d="M3 11l9-7 9 7z" fill="${INK}"/>` +
       `<rect x="6" y="11" width="2" height="9" fill="#8d6a4f"/><rect x="16" y="11" width="2" height="9" fill="#8d6a4f"/>` +
