@@ -2,7 +2,7 @@
 // 見た目の方針は docs/DESIGN.md（切り絵のジオラマ・絵文字は使わない）。格子版（D289）。
 
 import { T, COLS, ROWS, WORLD, ISLAND, SIZES, MAP, PIER, islandRadius, idx, center, neighbors, isRoad, occupied } from './grid.js';
-import { clockOf, seatCount, seatPositions, queueSlot, everyone, boatNow } from './sim.js';
+import { clockOf, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel } from './sim.js';
 
 export const FONT = '"Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif';
 
@@ -446,6 +446,76 @@ export function createRenderer(canvas) {
     }
   }
 
+  // お土産屋（2×2）：上の段が店、下の段が店先の台。台の上の品物は在庫に合わせて減る
+  function shop(state, b, showLabel) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.shop.w * T;
+    paperShadow((shadow) => {
+      if (!shadow) ctx.fillStyle = PALETTE.white;
+      roundRect(ctx, x0 + 4, y0 + 4, w - 8, T + 4, 3);
+      ctx.fill();
+    });
+    // 屋根（ティール）と日よけ
+    ctx.fillStyle = '#2a9d8f';
+    roundRect(ctx, x0 + 1, y0 - 2, w - 2, 8, 3);
+    ctx.fill();
+    const n = 6;
+    const sw = (w - 8) / n;
+    for (let i = 0; i < n; i++) {
+      ctx.fillStyle = i % 2 ? PALETTE.white : '#2a9d8f';
+      ctx.beginPath();
+      ctx.moveTo(x0 + 4 + sw * i, y0 + 6);
+      ctx.lineTo(x0 + 4 + sw * (i + 1), y0 + 6);
+      ctx.lineTo(x0 + 4 + sw * (i + 1), y0 + 12);
+      ctx.arc(x0 + 4 + sw * (i + 0.5), y0 + 12, sw / 2, 0, Math.PI);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.fillStyle = PALETTE.ink;
+    ctx.font = `700 9px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('おみやげ', x0 + w / 2 + 6, y0 + 25);
+    ctx.fillStyle = PALETTE.ink;
+    roundRect(ctx, x0 + 8, y0 + 18, 9, T - 12, [4, 4, 0, 0]);
+    ctx.fill();
+    // 店先の台
+    const ty = y0 + T + 14;
+    ctx.fillStyle = PALETTE.shadow;
+    roundRect(ctx, x0 + 9, ty + 3, w - 14, 10, 3);
+    ctx.fill();
+    ctx.fillStyle = '#b98b5e';
+    roundRect(ctx, x0 + 7, ty, w - 14, 10, 3);
+    ctx.fill();
+    const colors = ['#f28aa0', '#f2b84b', '#62b6cb', '#9c89b8', '#6a994e'];
+    const shown = Math.min(b.stock, 8);
+    for (let i = 0; i < shown; i++) {
+      ctx.fillStyle = colors[i % colors.length];
+      roundRect(ctx, x0 + 10 + (i % 4) * 11, ty - 5 + Math.floor(i / 4) * 5, 8, 6, 1.5);
+      ctx.fill();
+    }
+    if (b.stock <= 0) {
+      // 売り切れの札
+      ctx.fillStyle = PALETTE.white;
+      roundRect(ctx, x0 + w / 2 - 15, ty - 9, 30, 13, 3);
+      ctx.fill();
+      ctx.fillStyle = PALETTE.problem;
+      ctx.font = `700 9px ${FONT}`;
+      ctx.fillText('売切', x0 + w / 2, ty - 2.5);
+    }
+    if (showLabel) {
+      const label = shopLabel(state, b);
+      ctx.font = `700 10px ${FONT}`;
+      const tw = ctx.measureText(label).width + 12;
+      ctx.fillStyle = PALETTE.ink;
+      roundRect(ctx, x0 + w / 2 - tw / 2, y0 - 20, tw, 15, 7.5);
+      ctx.fill();
+      ctx.fillStyle = PALETTE.white;
+      ctx.fillText(label, x0 + w / 2, y0 - 12);
+    }
+  }
+
   function lamp(i, lit) {
     const p = center(i);
     const x = p.x + 12;
@@ -836,6 +906,15 @@ export function createRenderer(canvas) {
       ctx.beginPath();
       ctx.arc(cx, cy + 0.5, 2, 0, Math.PI * 2);
       ctx.fill();
+    } else if (kind === 'bag') {
+      ctx.fillStyle = '#2a9d8f';
+      roundRect(ctx, cx - 4, cy - 2, 8, 7, 1.5);
+      ctx.fill();
+      ctx.strokeStyle = '#2a9d8f';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(cx, cy - 2, 2.2, Math.PI, 0);
+      ctx.stroke();
     } else if (kind === 'question') {
       ctx.fillStyle = PALETTE.ink;
       ctx.font = `700 10px ${FONT}`;
@@ -881,6 +960,13 @@ export function createRenderer(canvas) {
     if (!moving && Math.sin(time * 0.6 + ph * 3) > 0.9) facing = -facing;
 
     person(r, r.x, r.y, { bob, stride, facing, seated: r.state === 'SEATED' });
+    if (r.bought) {
+      // お土産の紙袋を持っている
+      const bx = r.x - facing * 7;
+      ctx.fillStyle = '#2a9d8f';
+      roundRect(ctx, bx - 3, r.y - bob - 11, 6, 7, 1.2);
+      ctx.fill();
+    }
 
     let b = r.bubble;
     if (!b && since < 2) b = 'heart';
@@ -998,6 +1084,7 @@ export function createRenderer(canvas) {
       if (b.type === 'house') house(b, houseN++);
       else if (b.type === 'park') park(b, time);
       else if (b.type === 'cafe') cafe(b, ui.cafeLabel ? ui.cafeLabel(b) : 'カフェ', cafeList.length > 1);
+      else if (b.type === 'shop') shop(state, b, state.buildings.filter((x) => x.type === 'shop').length > 1);
     }
     for (const i of LAMPS) lamp(i, false);
     boat(state, time);

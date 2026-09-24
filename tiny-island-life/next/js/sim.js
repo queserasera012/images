@@ -87,6 +87,7 @@ export const personById = (state, id) => state.residents.find((r) => r.id === id
 
 export const cafes = (state) => state.buildings.filter((b) => b.type === 'cafe');
 export const houses = (state) => state.buildings.filter((b) => b.type === 'house');
+export const shops = (state) => state.buildings.filter((b) => b.type === 'shop');
 export const parkOf = (state) => state.buildings.find((b) => b.type === 'park');
 export const buildingById = (state, id) => state.buildings.find((b) => b.id === id);
 
@@ -94,6 +95,7 @@ function makeBuilding(state, type, c, r) {
   const b = { id: `b${state.nextId++}`, type, c, r, access: accessTile(type, c, r) };
   if (type === 'cafe') Object.assign(b, { level: 1, seats: [null, null, null], queue: [] });
   if (type === 'park') b.roof = false;
+  if (type === 'shop') Object.assign(b, { level: 1, stock: CONFIG.shop.levels[0].stock });
   return b;
 }
 
@@ -117,6 +119,18 @@ export function queueSlot(cafe, i) {
   const a = center(cafe.access);
   const horizontal = isRoad(cafe.access - 1) || isRoad(cafe.access + 1);
   return horizontal ? { x: a.x - 28 - i * 13, y: a.y - 6 } : { x: a.x + 8, y: a.y - 28 - i * 13 };
+}
+
+// お土産屋の名前（2軒以上なら方角をつける）
+export function shopLabel(state, shop) {
+  const list = shops(state);
+  if (list.length <= 1) return 'お土産屋';
+  return `${cafeLabel0(shop)}のお土産屋`;
+}
+
+// 店先で お土産を見る場所
+export function shopFront(shop, k = 0) {
+  return { x: shop.c * T + 14 + (k % 3) * 16, y: (shop.r + 2) * T - 6 };
 }
 
 // 島の中心から見た方角で名前をつける（カフェが2軒以上のとき）
@@ -166,7 +180,10 @@ export function createGame(seed = Date.now()) {
 }
 
 function freshToday() {
-  return { served: 0, income: 0, lost: [], queueMinutes: { 朝: 0, 昼: 0, 夕方: 0, 夜: 0 }, maxQueue: 0, parkMinutes: {}, boats: 0, tourists: 0, petWalk: {}, petNap: {} };
+  return {
+    served: 0, income: 0, lost: [], queueMinutes: { 朝: 0, 昼: 0, 夕方: 0, 夜: 0 }, maxQueue: 0, parkMinutes: {},
+    boats: 0, tourists: 0, petWalk: {}, petNap: {}, shopSold: 0, shopIncome: 0, shopMissed: [],
+  };
 }
 
 // 古いセーブ（港が無かった頃）を今の形にそろえる
@@ -179,6 +196,9 @@ export function migrate(state) {
   state.petsSpawned ||= { cat: false, dog: false };
   state.today.petWalk ||= {};
   state.today.petNap ||= {};
+  state.today.shopSold ||= 0;
+  state.today.shopIncome ||= 0;
+  state.today.shopMissed ||= [];
   return state;
 }
 
@@ -348,6 +368,14 @@ function cafeChoices(state, r) {
   return cafes(state).map((c) => ({ cafe: c, w: r.prefs.cafe * w * near(r, c.access) }));
 }
 
+// お土産屋：行くのは観光客だけ。1人1回まで。遠い店ほど行きにくい（船の時間が限られているので）
+function shopChoices(state, r) {
+  if (!r.tourist || r.bought || r.visitedShop) return [];
+  const c = clockOf(state.t);
+  if (c < CONFIG.shop.open || c >= CONFIG.shop.close - 15) return [];
+  return shops(state).map((b) => ({ shop: b, w: r.prefs.shop * near(r, b.access) }));
+}
+
 function goCafe(state, r, cafe) {
   goTo(state, r, 'cafe', cafe.id, cafe.access, queueSlot(cafe, 0));
 }
@@ -362,11 +390,14 @@ function decideNext(state, r, { noCafe = false } = {}) {
     parkW = r.prefs.park * mult * near(r, park.access);
   }
   const cafeList = noCafe ? [] : cafeChoices(state, r);
+  const shopList = shopChoices(state, r);
+  const shopW = shopList.reduce((s, x) => s + x.w, 0);
   const cafeW = cafeList.reduce((s, x) => s + x.w, 0);
   const strollW = r.prefs.stroll * w.stroll;
   const homeW = r.tourist ? 0 : 16 * w.home;
-  let x = rand(state) * (cafeW + parkW + strollW + homeW);
+  let x = rand(state) * (cafeW + shopW + parkW + strollW + homeW);
   for (const c of cafeList) if ((x -= c.w) < 0) return goCafe(state, r, c.cafe);
+  for (const c of shopList) if ((x -= c.w) < 0) return goTo(state, r, 'shop', c.shop.id, c.shop.access, shopFront(c.shop, Math.floor(rand(state) * 3)));
   if ((x -= parkW) < 0) return goTo(state, r, 'park', park.id, park.access, parkPoint(state, park));
   if ((x -= strollW) < 0) {
     // 近くの道をぶらぶら（遠くには行かない）
@@ -397,6 +428,11 @@ function arrive(state, r, events) {
     case 'boat':
       r.state = 'BOARDED';
       r.visible = false;
+      return;
+    case 'shop':
+      r.state = 'SHOP';
+      r.visitedShop = true;
+      r.until = Math.min(state.t + between(state, CONFIG.shop.browseMin, CONFIG.shop.browseMax), r.bed);
       return;
     case 'home':
     default:
@@ -492,7 +528,31 @@ function updateResident(state, r, h, events) {
     case 'STROLL':
       if (moveToward(state, r, h) && t >= r.until) afterActivity(state, r, 0.5);
       return;
+    case 'SHOP':
+      moveToward(state, r, h);
+      if (t >= r.until) buySouvenir(state, r, buildingById(state, r.destId), events);
+      return;
   }
+}
+
+function buySouvenir(state, r, shop, events) {
+  if (shop.stock > 0) {
+    shop.stock -= 1;
+    state.coin += CONFIG.shop.value;
+    state.today.shopSold += 1;
+    state.today.shopIncome += CONFIG.shop.value;
+    r.bought = true;
+    r.bubble = 'bag';
+    r.bubbleUntil = state.t + 20;
+    events.push({ type: 'bought', shopId: shop.id });
+  } else {
+    // 売り切れ：何も買えずに店を出る
+    state.today.shopMissed.push({ clock: clockOf(state.t), shopId: shop.id });
+    r.bubble = 'lost';
+    r.bubbleUntil = state.t + 20;
+    events.push({ type: 'soldOut', shopId: shop.id });
+  }
+  afterActivity(state, r, 0.1);
 }
 
 function afterActivity(state, r, homeChance, opts) {
@@ -611,6 +671,22 @@ function rolloverDay(state, events) {
     lines.push({ kind: 'good', text: `${r.name}は公園で長いこと過ごしていました` });
   }
 
+  if (today.shopSold > 0) {
+    lines.push({ kind: 'good', text: `お土産が ${today.shopSold}個 売れました（+${today.shopIncome} Coin）` });
+  }
+  const missed = {};
+  for (const m of today.shopMissed) {
+    const shop = buildingById(state, m.shopId);
+    const key = `${timeBucket(m.clock)}|${shop ? shopLabel(state, shop) : 'お土産屋'}`;
+    missed[key] = (missed[key] || 0) + 1;
+  }
+  for (const [key, n] of Object.entries(missed).sort((a, b) => b[1] - a[1]).slice(0, 1)) {
+    const [bucket, label] = key.split('|');
+    lines.push({
+      kind: 'problem',
+      text: `${bucket}、${label}が売り切れて、観光客 ${n}人 が何も買えませんでした（−${n * CONFIG.shop.value} Coin）`,
+    });
+  }
   const petLine = petDiaryLine(state, endedDay);
   if (petLine) lines.push(petLine);
 
@@ -641,10 +717,13 @@ function rolloverDay(state, events) {
 
   // 維持費
   const upkeep = cafes(state).reduce((s, c) => s + CONFIG.cafe.levels[c.level - 1].upkeep, 0);
-  if (upkeep > 0) {
-    state.coin -= upkeep;
-    lines.push({ kind: 'info', text: `カフェの維持費 −${upkeep} Coin` });
+  const shopUpkeep = shops(state).reduce((s, b) => s + CONFIG.shop.levels[b.level - 1].upkeep, 0);
+  if (upkeep + shopUpkeep > 0) {
+    state.coin -= upkeep + shopUpkeep;
+    lines.push({ kind: 'info', text: shopUpkeep ? `お店の維持費 −${upkeep + shopUpkeep} Coin` : `カフェの維持費 −${upkeep} Coin` });
   }
+  // お土産屋は毎朝 入荷する
+  for (const b of shops(state)) b.stock = CONFIG.shop.levels[b.level - 1].stock;
 
   // 人口：空き家があって、昨日のカフェで座れた人が多ければ、1人やってくる
   const customers = today.served + today.lost.length;
@@ -717,7 +796,7 @@ function spawnTourists(state, boatIdx, boat) {
       tourist: true,
       boat: boatIdx,
       look: Math.floor(rand(state) * 1000),
-      prefs: { cafe: between(state, 18, 34), park: between(state, 10, 24), stroll: between(state, 22, 36) },
+      prefs: { cafe: between(state, 18, 34), park: between(state, 10, 24), stroll: between(state, 22, 36), shop: between(state, 26, 40) },
       coffee: 0,
       patience: between(state, CONFIG.patienceMin, CONFIG.patienceMax),
       speed: between(state, 0.85, 1.05),
@@ -829,6 +908,28 @@ export function actionsFor(state) {
       cost: next.cost,
     });
   }
+  if (shops(state).length < CONFIG.shop.max) {
+    list.push({
+      id: 'shop',
+      icon: 'shop_new',
+      place: 'shop',
+      title: shops(state).length ? 'お土産屋をもう1軒つくる' : 'お土産屋をつくる',
+      detail: state.port?.open ? `観光客がお土産を買う。1日 ${CONFIG.shop.levels[0].stock}個まで。維持費 1日 ${CONFIG.shop.levels[0].upkeep} Coin。場所を選べる` : '港がひらくと建てられます',
+      cost: CONFIG.shop.cost,
+      locked: !state.port?.open,
+    });
+  }
+  for (const b of shops(state)) {
+    const next = CONFIG.shop.levels[b.level];
+    if (!next) continue;
+    list.push({
+      id: `shop_upgrade:${b.id}`,
+      icon: 'shop_new',
+      title: `${shopLabel(state, b)}の品数を増やす（Lv${next.level}）`,
+      detail: `1日 ${CONFIG.shop.levels[b.level - 1].stock} → ${next.stock}個　維持費 1日 ${next.upkeep} Coin`,
+      cost: next.cost,
+    });
+  }
   const park = parkOf(state);
   if (park && !park.roof) {
     list.push({ id: 'park_roof', icon: 'park_roof', title: '公園に東屋をつくる', detail: '屋根の下なら、雨でも過ごせる', cost: CONFIG.park.roofCost });
@@ -839,7 +940,7 @@ export function actionsFor(state) {
 // place は { c, r }（建てる場所の左上のマス）
 export function applyAction(state, id, place) {
   const action = actionsFor(state).find((a) => a.id === id);
-  if (!action) return { ok: false, message: 'いまは できません' };
+  if (!action || action.locked) return { ok: false, message: 'いまは できません' };
   if (state.coin < action.cost) return { ok: false, message: `Coin が足りません（あと ${action.cost - state.coin}）` };
   if (action.place) {
     if (!place || !canPlace(action.place, place.c, place.r, state.buildings)) return { ok: false, message: 'そこには建てられません' };
@@ -848,6 +949,10 @@ export function applyAction(state, id, place) {
     const cafe = buildingById(state, id.split(':')[1]);
     cafe.level += 1;
     while (cafe.seats.length < seatCount(cafe)) cafe.seats.push(null);
+  } else if (id.startsWith('shop_upgrade:')) {
+    const shop = buildingById(state, id.split(':')[1]);
+    shop.level += 1;
+    shop.stock = CONFIG.shop.levels[shop.level - 1].stock;
   } else if (id === 'park_roof') {
     parkOf(state).roof = true;
   }
@@ -862,6 +967,7 @@ export function describeResident(state, r) {
   switch (r.state) {
     case 'WALK': {
       if (r.dest === 'cafe') return `${cafeLabel(state, buildingById(state, r.destId))}へ向かっている`;
+      if (r.dest === 'shop') return `${shopLabel(state, buildingById(state, r.destId))}へ向かっている`;
       return { park: '公園へ向かっている', stroll: r.tourist ? '島を見て回っている' : 'ぶらぶら歩いている', home: '家へ帰るところ', boat: '港へ戻るところ' }[r.dest] || '歩いている';
     }
     case 'QUEUE':
@@ -870,6 +976,8 @@ export function describeResident(state, r) {
       return `${cafeLabel(state, buildingById(state, r.destId))}でひと休み中`;
     case 'PARK':
       return '公園で過ごしている';
+    case 'SHOP':
+      return 'お土産を見ている';
     case 'STROLL':
       return r.tourist ? '景色を眺めている' : 'あたりを眺めている';
     case 'HOME':

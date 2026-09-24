@@ -5,7 +5,7 @@ import { T, SIZES, PIER, center, placements, footprint, canPlace } from './grid.
 import {
   createGame, step, catchUp, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
-  migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet,
+  migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
 } from './sim.js';
 import { createRenderer, lookOf } from './render.js';
 import { ICONS } from './icons.js';
@@ -294,6 +294,11 @@ function renderCard() {
       html = `<h3>${cafeLabel(state, b)} Lv${b.level}</h3><div class="sub">席は ${seatCount(b)} つ。${fmt(CONFIG.cafe.open)}から${fmt(CONFIG.cafe.close)}まで</div>`;
       html += `<div class="now">座っている：${who(seated)}</div>`;
       html += `<div>外で待っている：${who(b.queue)}</div>`;
+    } else if (b.type === 'shop') {
+      const max = CONFIG.shop.levels[b.level - 1].stock;
+      const here = everyone(state).filter((r) => r.state === 'SHOP' && r.destId === b.id).map((r) => r.id);
+      html = `<h3>${shopLabel(state, b)} Lv${b.level}</h3><div class="sub">今日の品物 ${b.stock} / ${max}個。毎朝 入荷。${fmt(CONFIG.shop.open)}から${fmt(CONFIG.shop.close)}まで</div>`;
+      html += `<div class="now">見ている人：${who(here)}</div>`;
     } else if (b.type === 'park') {
       const here = state.residents.filter((r) => r.state === 'PARK' && r.destId === b.id).map((r) => r.id);
       html = `<h3>公園</h3><div class="sub">${b.roof ? '東屋がある' : '屋根はない'}</div>`;
@@ -362,10 +367,10 @@ function openBuild(focusId) {
   const items = actionsFor(state)
     .map((a) => {
       const short = a.cost - state.coin;
-      return `<button class="action" type="button" data-action="${a.id}" ${short > 0 ? 'disabled' : ''}>
+      return `<button class="action" type="button" data-action="${a.id}" ${short > 0 || a.locked ? 'disabled' : ''}>
         ${ICONS[a.icon]}
         <span class="text">${a.title}<span class="detail">${a.detail}</span></span>
-        <span><span class="cost">${ICONS.coin}${a.cost.toLocaleString()}</span>${short > 0 ? `<span class="need">あと ${short.toLocaleString()}</span>` : ''}</span>
+        <span><span class="cost">${ICONS.coin}${a.cost.toLocaleString()}</span>${short > 0 && !a.locked ? `<span class="need">あと ${short.toLocaleString()}</span>` : ''}</span>
       </button>`;
     })
     .join('');
@@ -552,6 +557,8 @@ if (DEBUG) {
     placements: (t) => placements(t, state.buildings),
     pets: () => state.pets.map((p) => ({ id: p.id, kind: p.kind, adopted: p.adopted, state: p.state, ...renderer.toClient(p.x, p.y - 8) })),
     clock: () => clockOf(state.t),
+    shops: () => state.buildings.filter((b) => b.type === 'shop').map((b) => ({ id: b.id, stock: b.stock, ...renderer.toClient((b.c + 1) * T, (b.r + 1) * T) })),
+    setStock: (n) => state.buildings.filter((b) => b.type === 'shop').forEach((b) => (b.stock = n)),
     setTutorial: (n) => {
       state.tutorial = { step: n, skipped: false };
       busyStage = null;

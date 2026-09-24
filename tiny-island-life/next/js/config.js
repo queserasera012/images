@@ -65,6 +65,21 @@ export const CONFIG = {
     leaveBefore: 25,            // 出航の何分前に港へ戻りはじめるか
   },
 
+  // ---- お土産屋（D294） ----
+  shop: {
+    cost: 700,
+    max: 2,
+    open: 9 * 60,
+    close: 18 * 60,
+    value: 30,                  // お土産1つの売上
+    browseMin: 6,               // 店先で見ている時間（ゲーム内の分）
+    browseMax: 14,
+    levels: [
+      { level: 1, stock: 4, upkeep: 10 },
+      { level: 2, stock: 9, upkeep: 20, cost: 800 },
+    ],
+  },
+
   // ---- ペット（D293） ----
   pets: {
     cat: { day: 1, clock: 13 * 60, name: 'ミケ', label: 'ねこ', speed: 0.55 },

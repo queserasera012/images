@@ -56,6 +56,13 @@ export const ICONS = {
       `<rect x="7" y="13" width="3.5" height="7" rx="1" fill="${INK}"/>`,
     28,
   ),
+  shop_new: svg(
+    `<rect x="4" y="10" width="16" height="10" rx="1" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<rect x="4" y="10" width="16" height="10" rx="1" fill="#fff" stroke="${INK}" stroke-width="1.4"/>` +
+      `<path d="M3 6h18v4H3z" fill="#2a9d8f"/><path d="M8 6v4M13 6v4M18 6v4" stroke="#fff" stroke-width="1.6"/>` +
+      `<rect x="7" y="14" width="3" height="3" rx="0.6" fill="#f28aa0"/><rect x="11" y="14" width="3" height="3" rx="0.6" fill="${MUSTARD}"/><rect x="15" y="14" width="3" height="3" rx="0.6" fill="${SKY}"/>`,
+    28,
+  ),
   park_roof: svg(
     `<path d="M3 11l9-7 9 7z" transform="translate(1 1)" fill="${SHADOW}"/><path d="M3 11l9-7 9 7z" fill="${INK}"/>` +
       `<rect x="6" y="11" width="2" height="9" fill="#8d6a4f"/><rect x="16" y="11" width="2" height="9" fill="#8d6a4f"/>` +
