@@ -1,0 +1,325 @@
+/* 見た目の方針は docs/DESIGN.md。UI も島と同じ「紙」：白い面＋ぼかさずずらした影 */
+
+[hidden] { display: none !important; }
+
+:root {
+  --sea: #3aa6b9;
+  --sand: #f2d8a7;
+  --grass: #8cc084;
+  --ink: #3d5a80;
+  --mustard: #f2b84b;
+  --paper: #ffffff;
+  --shadow: rgba(20, 60, 70, 0.28);
+  --problem: #c8553d;
+  --muted: #6d7f96;
+  --rule: rgba(98, 182, 203, 0.32);
+  --lift: 2.5px 3px 0 var(--shadow);
+  --font: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--sea);
+  color: var(--ink);
+  font-family: var(--font);
+  font-weight: 500;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button { font: inherit; color: inherit; }
+button:focus-visible { outline: 3px solid var(--mustard); outline-offset: 2px; }
+
+#app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+/* ---- 上の表示 ---- */
+
+#hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px 0 10px;
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: var(--lift);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.pill b { font-weight: 700; }
+#clock { color: var(--muted); min-width: 3.2em; }
+.pill .icon { display: block; }
+
+/* ---- 島 ---- */
+
+#island {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  touch-action: none; /* ドラッグと2本指の拡大縮小は自前で扱う */
+  cursor: grab;
+}
+
+/* ---- 下のボタン ---- */
+
+#bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  padding: 6px 16px calc(env(safe-area-inset-bottom) + 14px);
+  z-index: 2;
+}
+
+.pill-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 0 1 150px;
+  height: 50px;
+  border: 0;
+  border-radius: 25px;
+  background: var(--paper);
+  box-shadow: var(--lift);
+  font-size: 16px;
+  font-weight: 700;
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+.pill-btn:active { transform: translate(2px, 2px); box-shadow: 0.5px 1px 0 var(--shadow); }
+.pill-btn .i { display: flex; }
+
+#diary-dot {
+  position: absolute;
+  top: 9px;
+  right: 24px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--problem);
+  box-shadow: 0 0 0 2px var(--paper);
+}
+
+/* ---- ひとこと ---- */
+
+.note {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 9px 16px;
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: var(--lift);
+  font-size: 14px;
+  text-align: center;
+  z-index: 3;
+  transition: opacity 0.5s;
+}
+#hint { top: calc(env(safe-area-inset-top) + 62px); }
+#toast { bottom: calc(env(safe-area-inset-bottom) + 84px); z-index: 7; }
+#placebar:not([hidden]) ~ #toast, body.placing #toast { bottom: calc(env(safe-area-inset-bottom) + 140px); }
+
+/* ---- タップしたときのカード ---- */
+
+#card {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(env(safe-area-inset-bottom) + 80px);
+  padding: 14px 16px 12px;
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow: var(--lift);
+  font-size: 14px;
+  line-height: 1.7;
+  z-index: 4;
+}
+#card h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 2px;
+  font-size: 17px;
+  font-weight: 700;
+}
+#card .sub { color: var(--muted); }
+#card .now { margin-top: 4px; }
+.who { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; vertical-align: top; }
+.who span { display: inline-flex; align-items: center; gap: 4px; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
+h3 .dot { width: 14px; height: 14px; }
+
+/* ---- 建てる場所を選んでいるあいだ ---- */
+
+#placebar {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom) + 12px);
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: var(--lift);
+  z-index: 4;
+}
+#place-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+.place-buttons { display: flex; gap: 10px; }
+.place-buttons button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 46px;
+  border: 0;
+  border-radius: 23px;
+  font-size: 15px;
+  font-weight: 700;
+}
+#place-cancel { flex: 0 0 96px; background: #e8eef2; color: var(--ink); }
+#place-ok { background: var(--ink); color: var(--paper); }
+#place-ok:disabled { opacity: 0.4; }
+#place-ok .icon { width: 16px; height: 16px; }
+
+/* ---- 下から出る紙（つくる・日記） ---- */
+
+#sheet {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(20, 50, 70, 0.3);
+  z-index: 5;
+}
+.sheet-body {
+  width: 100%;
+  max-height: 82%;
+  overflow-y: auto;
+  padding: 20px 20px calc(env(safe-area-inset-bottom) + 18px);
+  border-radius: 22px 22px 0 0;
+  background: var(--paper);
+  animation: rise 0.22s ease-out;
+}
+@keyframes rise { from { transform: translateY(24px); opacity: 0.6; } }
+@media (prefers-reduced-motion: reduce) {
+  .sheet-body { animation: none; }
+  .pill-btn { transition: none; }
+}
+.sheet-body h2 { margin: 0 0 8px; font-size: 20px; font-weight: 700; }
+.sheet-body .lead { margin: 0 0 8px; color: var(--muted); font-size: 14px; }
+.close {
+  display: block;
+  width: 100%;
+  height: 48px;
+  margin-top: 16px;
+  border: 0;
+  border-radius: 24px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* つくる：区切り線だけの一覧 */
+.action {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 2px;
+  border: 0;
+  border-bottom: 1.5px dashed #d9e3ea;
+  background: none;
+  text-align: left;
+}
+.action:last-of-type { border-bottom: 0; }
+.action .text { flex: 1; font-size: 16px; font-weight: 700; line-height: 1.4; }
+.action .detail { display: block; margin-top: 2px; color: var(--muted); font-size: 13px; font-weight: 500; }
+.action .cost { display: flex; align-items: center; gap: 4px; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.action[disabled] .text, .action[disabled] .cost { opacity: 0.4; }
+.action[disabled] .icon { filter: grayscale(1); opacity: 0.5; }
+.action .need { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; font-weight: 500; text-align: right; }
+
+/* 日記：ノートの1ページ */
+.notebook {
+  margin: 8px -20px 0;
+  padding: 0 20px 0 36px;
+  background:
+    linear-gradient(90deg, transparent 26px, rgba(200, 85, 61, 0.35) 26px, rgba(200, 85, 61, 0.35) 27.5px, transparent 27.5px),
+    repeating-linear-gradient(to bottom, transparent 0 29px, var(--rule) 29px 30px);
+  line-height: 30px;
+  font-size: 15px;
+}
+.entry h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 30px;
+}
+.entry h3 .icon { width: 20px; height: 20px; }
+.entry p { margin: 0; }
+.entry p.problem { color: var(--problem); }
+.entry + .entry { margin-top: 30px; }
+
+.morning { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 4px; }
+.morning h2 { margin: 0; }
+
+/* ---- テスト用パネル（?debug） ---- */
+
+#debug {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 58px);
+  right: 12px;
+  width: 196px;
+  padding: 8px;
+  border-radius: 12px;
+  background: rgba(30, 45, 70, 0.88);
+  color: #fff;
+  font-size: 12px;
+  z-index: 6;
+}
+#debug button {
+  display: block;
+  width: 100%;
+  margin: 3px 0;
+  padding: 6px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+#debug pre { margin: 6px 0 0; white-space: pre-wrap; font-family: var(--font); font-size: 11px; max-height: 120px; overflow: auto; }
