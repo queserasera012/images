@@ -409,7 +409,7 @@ export function createRenderer(canvas) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const stars = b.level > 1 ? ' ' + '★'.repeat(b.level - 1) : '';
-    ctx.fillText(`CAFE${stars}`, x0 + w / 2 + 8, y0 + 22);
+    ctx.fillText(b.bar ? `CAFE&BAR${stars}` : `CAFE${stars}`, x0 + w / 2 + 8, y0 + 22);
     ctx.fillStyle = PALETTE.ink;
     roundRect(ctx, x0 + 10, y0 + 16, 11, T - 12, [5, 5, 0, 0]);
     ctx.fill();
@@ -704,6 +704,115 @@ export function createRenderer(canvas) {
       ctx.beginPath();
       ctx.arc(bx + dx, by + dy, 1.5, 0, Math.PI * 2);
       ctx.fill();
+    }
+  }
+
+  // 幼稚園：上の段が園舎（パステルの屋根）、下の段が園庭（すべり台と砂場）
+  function kinder(state, b, time) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.kinder.w * T;
+    // 園庭の柵
+    ctx.fillStyle = '#f7ecd6';
+    roundRect(ctx, x0 + 3, y0 + T + 2, w - 6, T - 6, 4);
+    ctx.fill();
+    ctx.strokeStyle = PALETTE.white;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    for (let x = x0 + 6; x < x0 + w - 4; x += 6) {
+      ctx.moveTo(x, y0 + 2 * T - 5);
+      ctx.lineTo(x, y0 + 2 * T - 10);
+    }
+    ctx.stroke();
+    paperShadow((shadow) => {
+      if (!shadow) ctx.fillStyle = '#fff6ea';
+      roundRect(ctx, x0 + 5, y0 + 8, w - 10, T - 2, 3);
+      ctx.fill();
+      if (!shadow) ctx.fillStyle = '#f7a8b8';
+      ctx.beginPath();
+      ctx.moveTo(x0 + 1, y0 + 11);
+      ctx.lineTo(x0 + 14, y0 - 3);
+      ctx.lineTo(x0 + w - 14, y0 - 3);
+      ctx.lineTo(x0 + w - 1, y0 + 11);
+      ctx.closePath();
+      ctx.fill();
+    });
+    // 看板
+    ctx.fillStyle = PALETTE.white;
+    roundRect(ctx, x0 + w / 2 - 24, y0 + 1, 48, 10, 5);
+    ctx.fill();
+    ctx.fillStyle = '#d06a82';
+    ctx.font = `700 8px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('ようちえん', x0 + w / 2, y0 + 6.5);
+    // 丸い窓（中に子どもがいれば、小さな頭が見える）
+    const inside = b.seats.filter(Boolean).length;
+    const wins = [x0 + 18, x0 + w - 18];
+    wins.forEach((wx, i) => {
+      ctx.fillStyle = '#cfe6ee';
+      ctx.beginPath();
+      ctx.arc(wx, y0 + 22, 6, 0, Math.PI * 2);
+      ctx.fill();
+      if (inside > i) {
+        ctx.fillStyle = 'rgba(61,90,128,0.55)';
+        ctx.beginPath();
+        ctx.arc(wx + Math.sin(time * 2 + i) * 1.5, y0 + 24, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+    // 入り口
+    ctx.fillStyle = '#8ecae6';
+    roundRect(ctx, x0 + w / 2 - 6, y0 + 20, 12, T - 12, [6, 6, 0, 0]);
+    ctx.fill();
+    // すべり台
+    const sx = x0 + 14;
+    const sy = y0 + 2 * T - 8;
+    ctx.strokeStyle = '#f2b84b';
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(sx - 4, sy);
+    ctx.lineTo(sx - 4, sy - 10);
+    ctx.lineTo(sx + 8, sy);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+    // 砂場とバケツ
+    ctx.fillStyle = PALETTE.sandDark;
+    ctx.beginPath();
+    ctx.ellipse(x0 + w - 18, sy - 4, 9, 4.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#e76f51';
+    roundRect(ctx, x0 + w - 16, sy - 8, 4, 4, 1);
+    ctx.fill();
+  }
+
+  // カフェ&バー：テラスの上の電球かざり（夜は灯る）
+  function barLights(b, lit, time) {
+    const x0 = b.c * T + 6;
+    const x1 = (b.c + SIZES.cafe.w) * T - 6;
+    const y = (b.r + 1) * T + 6;
+    ctx.strokeStyle = 'rgba(61,90,128,0.7)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x0, y);
+    ctx.quadraticCurveTo((x0 + x1) / 2, y + 10, x1, y);
+    ctx.stroke();
+    const colors = ['#ffd66b', '#f28aa0', '#62b6cb', '#ffd66b', '#b8e0d2'];
+    for (let k = 0; k <= 8; k++) {
+      const t = k / 8;
+      const px = x0 + (x1 - x0) * t;
+      const py = y + 10 * 4 * t * (1 - t) * 0.5 + 1.5;
+      ctx.fillStyle = lit ? colors[k % colors.length] : '#e6e2dc';
+      ctx.beginPath();
+      ctx.arc(px, py, lit ? 2.2 + Math.sin(time * 3 + k) * 0.3 : 1.6, 0, Math.PI * 2);
+      ctx.fill();
+      if (lit) {
+        ctx.fillStyle = 'rgba(255, 214, 107, 0.16)';
+        ctx.beginPath();
+        ctx.arc(px, py, 7, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   }
 
@@ -1264,7 +1373,17 @@ export function createRenderer(canvas) {
     let facing = r.facing;
     if (!moving && Math.sin(time * 0.6 + ph * 3) > 0.9) facing = -facing;
 
-    person(r, r.x, r.y, { bob, stride, facing, seated: r.state === 'SEATED' });
+    if (r.age === 'kid') {
+      // 子どもは小さく描く（足もとを基準に縮める）
+      ctx.save();
+      ctx.translate(r.x, r.y);
+      ctx.scale(0.72, 0.72);
+      ctx.translate(-r.x, -r.y);
+      person(r, r.x, r.y, { bob, stride, facing, seated: false });
+      ctx.restore();
+    } else {
+      person(r, r.x, r.y, { bob, stride, facing, seated: r.state === 'SEATED' });
+    }
     if (r.carry === 'groceries') {
       // スーパーの買い物袋（ねぎが のぞいている）
       const bx = r.x - facing * 8;
@@ -1304,6 +1423,11 @@ export function createRenderer(canvas) {
     // 観光客は ときどき写真を撮る
     if (!b && r.tourist && (r.state === 'STROLL' || r.state === 'PARK') && Math.sin(time * 0.9 + ph * 5) > 0.8) b = 'photo';
     if (!b && r.state === 'QUEUE' && state.t - r.queuedAt > r.patience * 0.6) b = 'sweat';
+    // 夫婦で並んで歩いているときは、ときどきハート
+    if (!b && r.spouseId && moving && Math.sin(time * 0.7 + ph * 2) > 0.93) {
+      const sp = state.residents.find((x) => x.id === r.spouseId);
+      if (sp && sp.visible && Math.hypot(sp.x - r.x, sp.y - r.y) < 18) b = 'heart';
+    }
     if (b) bubble(b, r.x + 11, r.y - 30 - Math.sin(time * 3 + ph) * 1.2);
 
     if (selected) {
@@ -1419,8 +1543,10 @@ export function createRenderer(canvas) {
       else if (b.type === 'super') superMarket(state, b, state.buildings.filter((x) => x.type === 'super').length > 1);
       else if (b.type === 'planetarium') planetarium(state, b, time);
       else if (b.type === 'petshop') petshop(state, b);
+      else if (b.type === 'kinder') kinder(state, b, time);
     }
     for (const i of LAMPS) lamp(i, false);
+    for (const b of state.buildings) if (b.type === 'cafe' && b.bar && !night) barLights(b, false, time);
     boat(state, time);
     if (ui.placing) drawPlacing(state, ui.placing, time);
 
@@ -1441,6 +1567,7 @@ export function createRenderer(canvas) {
     }
     if (night) for (const i of LAMPS) lamp(i, true);
     if (night) for (const b of state.buildings) if (b.type === 'planetarium') planetariumGlow(b, time);
+    if (night) for (const b of state.buildings) if (b.type === 'cafe' && b.bar) barLights(b, true, time);
     // 住民・観光客・ペットを、奥（上）から順に
     const things = [
       ...everyone(state).filter((r) => r.visible).map((r) => ({ y: r.y, draw: () => drawResident(state, r, time, r.id === ui.selectedId) })),

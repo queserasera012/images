@@ -6,7 +6,7 @@ import {
   createGame, step, catchUp, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
   migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
-  labelOf, nextGoal, unlockNow,
+  labelOf, nextGoal, unlockNow, nameBaby, parentsOf,
 } from './sim.js';
 import { createRenderer, lookOf } from './render.js';
 import { ICONS } from './icons.js';
@@ -96,11 +96,15 @@ function frame(now) {
     } else if (e.type === 'portOpen') {
       setTimeout(() => toast('港がひらきました。船が来るようになります'), 3000);
       renderQuest();
+    } else if (e.type === 'married') {
+      toast(`${e.a}と${e.b}が結婚しました`);
     } else if (e.type === 'unlock' && e.id !== 'port') {
       setTimeout(() => toast(e.done), 3000);
       renderQuest();
     }
   }
+  // 赤ちゃんが生まれていたら、名前をつけるカードを出す
+  if (state.naming?.length && !selected && !placing && $('sheet').hidden) select({ kind: 'baby', id: state.naming[0] });
   const quest = currentStep(state);
   if (quest?.id === 'busy_cafe') {
     if (busyStage === null && busyCafeNow(state)) {
@@ -235,6 +239,11 @@ function buildingAt(p) {
 }
 
 function select(s) {
+  // 名前をつけずに閉じたら、最初の名前のままにする
+  if (selected?.kind === 'baby' && s?.id !== selected.id) {
+    nameBaby(state, selected.id, '');
+    save();
+  }
   selected = s;
   delete $('card').dataset.stray;
   $('card').hidden = !s;
@@ -262,6 +271,17 @@ function renderCard() {
   const card = $('card');
   let html = '';
   const at = (t) => fmt(Math.floor(clockOf(t)));
+  if (selected.kind === 'baby') {
+    const baby = state.residents.find((x) => x.id === selected.id);
+    if (!baby) return select(null);
+    if (card.dataset.stray === baby.id) return; // 名前を入力中は描き直さない
+    card.dataset.stray = baby.id;
+    const [p1, p2] = parentsOf(state, baby);
+    card.innerHTML = `<h3>赤ちゃんが生まれました</h3><div class="sub">${p1 && p2 ? `${p1.name}と${p2.name}の子ども` : '島の子ども'}</div>
+      <div class="adopt"><input id="baby-name" type="text" maxlength="8" value="${baby.name}" aria-label="名前" />
+      <button id="btn-baby" type="button" data-baby="${baby.id}">この名前にする</button></div>`;
+    return;
+  }
   if (selected.kind === 'pet') {
     const pet = state.pets.find((x) => x.id === selected.id);
     if (!pet) return select(null);
@@ -279,7 +299,13 @@ function renderCard() {
   } else if (selected.kind === 'resident') {
     const r = personById(state, selected.id);
     if (!r || !r.visible) return select(null);
-    const sub = r.tourist ? `船で来た人。${at(r.departAt)}の船で帰る` : favoriteText(r);
+    const parents = parentsOf(state, r);
+    const spouse = r.spouseId && personById(state, r.spouseId);
+    const sub = r.tourist
+      ? `船で来た人。${at(r.departAt)}の船で帰る`
+      : r.age && parents.length === 2
+        ? `${parents[0].name}と${parents[1].name}の子ども`
+        : favoriteText(r) + (spouse ? `。${spouse.name}と結婚している` : '');
     html = `<h3>${dot(r)}${r.name}</h3><div class="sub">${sub}</div><div class="now">いまは、${describeResident(state, r)}</div>`;
   } else if (selected.kind === 'port') {
     const N = CONFIG.port.unlockPopulation;
@@ -306,6 +332,11 @@ function renderCard() {
       html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${unit}。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
       html += `<div class="now">${b.type === 'planetarium' ? '星を見ている' : '買い物中'}：${who(inside)}</div>`;
       html += `<div>外で待っている：${who(b.queue)}</div>`;
+    } else if (b.type === 'kinder') {
+      const K = CONFIG.kinder;
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${seatCount(b)}人まで。朝 ${fmt(K.open)}から${fmt(K.close)}まで。1人 ${K.fee} Coin</div>`;
+      html += `<div class="now">いま：${who(b.seats.filter(Boolean))}</div>`;
+      html += `<div>今日 来た子：${state.today.kinder?.went || 0}人</div>`;
     } else if (b.type === 'shop') {
       const max = CONFIG.shop.levels[b.level - 1].stock;
       const here = everyone(state).filter((r) => r.state === 'SHOP' && r.destId === b.id).map((r) => r.id);
@@ -328,6 +359,14 @@ function renderCard() {
 }
 
 $('card').addEventListener('click', (ev) => {
+  const nb = ev.target.closest('#btn-baby');
+  if (nb) {
+    const res = nameBaby(state, nb.dataset.baby, $('baby-name').value);
+    toast(res.message);
+    select(null);
+    save();
+    return;
+  }
   const btn = ev.target.closest('#btn-adopt');
   if (!btn) return;
   const res = adoptPet(state, btn.dataset.pet, $('pet-name').value);
@@ -583,6 +622,7 @@ function renderDebug() {
     <button data-dbg="port">港をひらく</button>
     <button data-dbg="unlock">スーパーとプラネタリウムをひらく</button>
     <button data-dbg="pets">ペットを全部 迷い込ませる</button>
+    <button data-dbg="family">結婚と出産を早める（留守2回で子ども）</button>
     <button data-dbg="reset">最初からやり直す</button>
     <pre>画面をつけたまま：${{ on: 'オン', off: 'オフ', unsupported: 'この端末では使えない' }[awakeStatus()]}</pre>
     <pre>起動の記録（日付: 回数）\n${Object.entries(byDate).map(([d, n]) => `${d}: ${n}`).join('\n') || '—'}</pre>`;
@@ -598,6 +638,8 @@ if (DEBUG) {
     shops: () => state.buildings.filter((b) => b.type === 'shop').map((b) => ({ id: b.id, stock: b.stock, ...renderer.toClient((b.c + 1) * T, (b.r + 1) * T) })),
     adoptAll: () => state.pets.filter((p) => !p.adopted).forEach((p) => adoptPet(state, p.id, '')),
     wakePets: () => state.pets.forEach((p, i) => { p.state = 'SIT'; p.until = state.t + 999; p.tx = p.x = 8 * T + 20 + i * 26; p.ty = p.y = 11 * T + 12; p.facing = i % 2 ? -1 : 1; }),
+    kids: () => state.residents.filter((r) => r.age).map((r) => ({ name: r.name, age: r.age, state: r.state, visible: r.visible, ...renderer.toClient(r.x, r.y - 10) })),
+    building: (type) => state.buildings.filter((b) => b.type === type).map((b) => renderer.toClient((b.c + SIZES[b.type].w / 2) * T, (b.r + SIZES[b.type].h / 2) * T)),
     dogState: () => state.pets.find((p) => p.kind === 'dog')?.state,
     setStock: (n) => state.buildings.filter((b) => b.type === 'shop').forEach((b) => (b.stock = n)),
     setTutorial: (n) => {
@@ -621,6 +663,12 @@ if (DEBUG) {
     if (k === 'pets') {
       // 迷い込む日時を今日の今にして、まだ来ていない子を全部 呼ぶ
       for (const kind of Object.keys(CONFIG.pets)) CONFIG.pets[kind] = { ...CONFIG.pets[kind], day: 1, clock: 0 };
+    }
+    if (k === 'family') {
+      // 名前のある独身の2人を仲良しにして、結婚・出産・成長の日数を0にする
+      const two = state.residents.filter((r) => !r.generic && !r.spouseId && !r.age).slice(0, 2);
+      if (two.length === 2) state.affinity[[two[0].id, two[1].id].sort().join('|')] = 9999;
+      Object.assign(CONFIG.family, { marryChance: 1, minDay: 0, birthAfterDays: 0, babyDays: 1 });
     }
     if (k === 'unlock') {
       unlockNow(state, 'port');

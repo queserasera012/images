@@ -23,6 +23,7 @@ export const SIZES = {
   super: { w: 3, h: 2 }, // スーパー
   planetarium: { w: 3, h: 3 }, // プラネタリウム（ドーム）
   petshop: { w: 2, h: 2 }, // ペットショップ
+  kinder: { w: 3, h: 2 }, // 幼稚園
 };
 
 // 道の線（碁盤の目）

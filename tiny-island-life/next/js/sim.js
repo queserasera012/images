@@ -57,6 +57,8 @@ export const inDay = (t) => ((t % DAY) + DAY) % DAY;
 export const clockOf = (t) => (inDay(t) + CONFIG.dayStartClock) % DAY;
 const clockToInDay = (clock) => (clock - CONFIG.dayStartClock + DAY) % DAY;
 
+const fmtClock = (c) => `${Math.floor(c / 60)}:${String(c % 60).padStart(2, '0')}`;
+
 export function formatClock(t) {
   const c = Math.floor(clockOf(t));
   return `${Math.floor(c / 60)}:${String(c % 60).padStart(2, '0')}`;
@@ -99,7 +101,7 @@ export const buildingById = (state, id) => state.buildings.find((b) => b.id === 
 
 function makeBuilding(state, type, c, r) {
   const b = { id: `b${state.nextId++}`, type, c, r, access: accessTile(type, c, r) };
-  if (VENUE_TYPES.includes(type)) Object.assign(b, { level: 1, seats: new Array(CONFIG[type].levels[0].seats).fill(null), queue: [] });
+  if (VENUE_TYPES.includes(type) || type === 'kinder') Object.assign(b, { level: 1, seats: new Array(CONFIG[type].levels[0].seats).fill(null), queue: [] });
   if (type === 'park') b.roof = false;
   if (type === 'shop') Object.assign(b, { level: 1, stock: CONFIG.shop.levels[0].stock });
   return b;
@@ -142,6 +144,7 @@ export function shopFront(shop, k = 0) {
 // 島の中心から見た方角で名前をつける（同じ種類が2軒以上のとき）
 export function labelOf(state, b) {
   if (b.type === 'shop') return shopLabel(state, b);
+  if (b.type === 'kinder') return '幼稚園';
   if (!isVenue(b)) return b.type;
   const list = ofType(state, b.type);
   const base = VENUE_NAME[b.type];
@@ -187,6 +190,8 @@ export function createGame(seed = Date.now()) {
     petsSpawned: { cat: false, dog: false },
     unlocked: {},
     unlockedOn: {},
+    affinity: {},
+    naming: [],
     poolIndex: 0,
     today: freshToday(),
     diary: [],
@@ -204,6 +209,7 @@ function freshToday() {
     served: 0, income: 0, lost: [], queueMinutes: { 朝: 0, 昼: 0, 夕方: 0, 夜: 0 }, maxQueue: 0, parkMinutes: {},
     boats: 0, tourists: 0, petWalk: {}, petNap: {}, shopSold: 0, shopIncome: 0, shopMissed: [],
     byType: {},
+    kinder: { went: 0, missed: 0 },
   };
 }
 
@@ -223,17 +229,33 @@ export function migrate(state) {
   state.today.byType ||= {};
   state.unlocked ||= {};
   state.unlockedOn ||= {};
+  state.affinity ||= {};
+  state.naming ||= [];
+  state.today.kinder ||= { went: 0, missed: 0 };
   if (state.port.open) state.unlocked.port = true;
   for (const b of state.buildings) if (isVenue(b) && !b.queue) Object.assign(b, { seats: [], queue: [] });
   return state;
 }
 
+// 夫婦の住む家の空きは、生まれてくる子どもの分。新しい住民には貸さない（D297）
+function familyHome(state, h) {
+  const here = state.residents.filter((r) => r.homeId === h.id);
+  return here.some((a) => {
+    const b = a.spouseId && here.find((x) => x.id === a.spouseId);
+    return b && here.filter((x) => x.parents?.includes(a.id)).length < CONFIG.family.maxKids;
+  });
+}
+
+function openRoom(state, h) {
+  return familyHome(state, h) ? 0 : Math.max(0, CONFIG.houseCapacity - state.residents.filter((r) => r.homeId === h.id).length);
+}
+
 function vacancy(state) {
-  return houses(state).length * CONFIG.houseCapacity - state.residents.length;
+  return houses(state).reduce((n, h) => n + openRoom(state, h), 0);
 }
 
 function freeHouse(state) {
-  return houses(state).find((h) => state.residents.filter((r) => r.homeId === h.id).length < CONFIG.houseCapacity);
+  return houses(state).find((h) => openRoom(state, h) > 0);
 }
 
 // 名前のある住民（10人）のあとは「島の人」が住む（v0.3 §16 の一般住民・D295）
@@ -252,11 +274,18 @@ function addResident(state, { arriving }) {
   if (!home) return null;
   const base = RESIDENT_POOL[state.poolIndex] || genericResident(state);
   if (RESIDENT_POOL[state.poolIndex]) state.poolIndex += 1;
+  return makeResident(state, base, home, arriving);
+}
+
+function makeResident(state, base, home, arriving) {
   const door = houseDoor(home);
   const r = {
     id: `r${state.nextId++}`,
     name: base.name,
     generic: !!base.generic,
+    age: base.age || null, // null＝大人／'baby'／'kid'（D297）
+    parents: base.parents || null,
+    bornOn: base.bornOn || null,
     look: Math.floor(rand(state) * 1000),
     prefs: { fun: 12, ...base.prefs },
     coffee: base.coffee,
@@ -299,6 +328,11 @@ function planDay(state, r) {
   r.needPet = ofType(state, 'petshop').length > 0 && householdHasPet(state, r) && (dayOf(state.t) + (r.look || 0)) % 2 === 0;
   r.wake = base + clockToInDay(6 * 60 + 30) + between(state, 0, 35);
   r.bed = base + clockToInDay(21 * 60 + 30) + between(state, 0, 60);
+  // 夜ふかしの人（住民ごとに決まっている）は1時間半おそく寝る
+  if (r.nightOwl === undefined) r.nightOwl = rand(state) < CONFIG.nightOwls;
+  if (r.nightOwl && !r.tourist && !r.age) r.bed += 90;
+  if (r.age) r.bed = base + clockToInDay(20 * 60) + between(state, 0, 20); // 子どもは早寝
+  r.kinderToday = false;
 }
 
 // ---------------------------------------------------------------- 進める
@@ -328,6 +362,7 @@ function tick(state, h, events) {
   if (dayOf(state.t) > before) rolloverDay(state, events);
 
   for (const r of everyone(state)) updateResident(state, r, h, events);
+  growAffinity(state, h);
   for (const v of venues(state)) updateVenue(state, v, events);
   checkUnlocks(state, events);
   updatePort(state, events);
@@ -400,15 +435,25 @@ function venueOpen(state, type, margin = 0) {
   const c = clockOf(state.t);
   return c >= CONFIG[type].open && c < CONFIG[type].close - margin;
 }
-const cafeOpen = (state, margin = 0) => venueOpen(state, 'cafe', margin);
+
+// 建物ごとの閉店時刻（カフェ&バーは夜23時まで・D297）
+export const closeOf = (b) => (b.type === 'cafe' && b.bar ? CONFIG.cafe.bar.close : CONFIG[b.type].close);
+function buildingOpen(state, b, margin = 0) {
+  const c = clockOf(state.t);
+  return c >= CONFIG[b.type].open && c < closeOf(b) - margin;
+}
+const isBarTime = (state, b) => b.bar && clockOf(state.t) >= CONFIG.cafe.close;
 
 // 遠いところほど行きにくい（D289）
 const near = (r, access) => 1 / (1 + roadDistance(r.at, access) / CONFIG.distanceHalf);
 
 function cafeChoices(state, r) {
-  if (!cafeOpen(state, 30)) return [];
   const w = CONFIG.weatherWeights[state.weather].cafe;
-  return cafes(state).map((c) => ({ cafe: c, w: r.prefs.cafe * w * near(r, c.access) }));
+  return cafes(state)
+    .filter((c) => buildingOpen(state, c, 30))
+    // 夜のバーに行くのは大人だけ
+    .filter((c) => !(isBarTime(state, c) && (r.tourist || r.age)))
+    .map((c) => ({ cafe: c, w: r.prefs.cafe * w * near(r, c.access) * (isBarTime(state, c) ? 1.4 : 1) }));
 }
 
 // スーパー：住民だけ。1日1回。夕方に行きたくなる
@@ -450,6 +495,7 @@ function goCafe(state, r, cafe) {
 
 function decideNext(state, r, { noCafe = false, avoid = null } = {}) {
   if (state.t >= r.bed - 20) return goHome(state, r);
+  if (r.age) return goHome(state, r); // 子どもは ひとりでは出かけない（親についていくか、幼稚園）
   const w = CONFIG.weatherWeights[state.weather];
   const park = parkOf(state);
   let parkW = 0;
@@ -502,6 +548,10 @@ function arrive(state, r, events) {
       r.state = 'BOARDED';
       r.visible = false;
       return;
+    case 'kinder':
+      return enterKinder(state, r, events);
+    case 'escort':
+      return afterActivity(state, r, 0.3);
     case 'shop':
       r.state = 'SHOP';
       r.visitedShop = true;
@@ -550,7 +600,10 @@ function updateResident(state, r, h, events) {
         r.state = 'SLEEP';
         return;
       }
+      if (r.age === 'baby') return; // 赤ちゃんは家の中
+      if (r.age === 'kid') return kidAtHome(state, r, events);
       if (t < r.until) return;
+      if (waitingForKid(state, r)) return; // 幼稚園に送るまで、親のどちらかは家にいる
       {
         const door = houseDoor(buildingById(state, r.homeId));
         r.x = door.x;
@@ -566,7 +619,9 @@ function updateResident(state, r, h, events) {
           if (rand(state) < p) return goCafe(state, r, best.cafe);
         }
       }
-      return decideNext(state, r);
+      decideNext(state, r);
+      bringCompanions(state, r);
+      return;
     case 'WALK':
       if (moveToward(state, r, h)) {
         if (r.path.length) {
@@ -603,6 +658,9 @@ function updateResident(state, r, h, events) {
     case 'STROLL':
       if (moveToward(state, r, h) && t >= r.until) afterActivity(state, r, 0.5);
       return;
+    case 'KINDER':
+      if (t >= r.until) leaveKinder(state, r);
+      return;
     case 'SHOP':
       moveToward(state, r, h);
       if (t >= r.until) buySouvenir(state, r, buildingById(state, r.destId), events);
@@ -632,6 +690,7 @@ function buySouvenir(state, r, shop, events) {
 
 function afterActivity(state, r, homeChance, opts) {
   if (r.tourist) homeChance = 0.1; // 観光客は船の時間まで島を見て回る
+  if (r.age) homeChance = 1; // 子どもは親と遊んだら家に帰る
   if (state.t >= r.bed - 20 || rand(state) < homeChance) return goHome(state, r);
   return decideNext(state, r, opts);
 }
@@ -660,13 +719,14 @@ function sit(state, r, b, seatIdx) {
   }
   const linger = state.weather === 'rain' ? V.rainLinger || 1 : 1;
   r.until = state.t + between(state, V.stayMin, V.stayMax) * linger;
-  const closeAt = Math.floor(state.t / DAY) * DAY + clockToInDay(V.close);
-  if (b.type !== 'cafe') r.until = Math.min(r.until, Math.max(state.t + 5, closeAt));
+  const closeAt = Math.floor(state.t / DAY) * DAY + clockToInDay(closeOf(b));
+  // カフェは閉店後も飲み終わるまで居てよい。ただしバーは23時で閉める
+  if (b.type !== 'cafe' || isBarTime(state, b)) r.until = Math.min(r.until, Math.max(state.t + 5, closeAt));
   if (r.tourist) r.until = Math.min(r.until, r.bed);
 }
 
 function enterVenue(state, r, b, events) {
-  if (!venueOpen(state, b.type)) {
+  if (!buildingOpen(state, b)) {
     // 閉まっていた。売り損ではないので数えない
     r.bubble = 'closed';
     r.bubbleUntil = state.t + 15;
@@ -696,13 +756,15 @@ function leaveVenue(state, r, events) {
     r.x = door.x + 20;
     r.y = door.y;
   }
-  state.coin += V.customerValue;
-  const t = (state.today.byType[b.type] ||= { served: 0, income: 0 });
+  const night = isBarTime(state, b);
+  const value = night ? CONFIG.cafe.bar.nightValue : V.customerValue;
+  state.coin += value;
+  const t = (state.today.byType[night ? 'bar' : b.type] ||= { served: 0, income: 0 });
   t.served += 1;
-  t.income += V.customerValue;
-  if (b.type === 'cafe') {
+  t.income += value;
+  if (b.type === 'cafe' && !night) {
     state.today.served += 1;
-    state.today.income += V.customerValue;
+    state.today.income += value;
   }
   if (b.type === 'super') {
     r.needShop = false;
@@ -728,7 +790,7 @@ function loseCustomer(state, r, b, waited, events) {
 
 function updateVenue(state, b, events) {
   // 閉店したら、並んでいた人は帰る（売り損には数えない）
-  if (!venueOpen(state, b.type) && b.queue.length > 0) {
+  if (!buildingOpen(state, b) && b.queue.length > 0) {
     for (const id of b.queue.splice(0)) {
       const r = personById(state, id);
       r.bubble = 'closed';
@@ -783,6 +845,8 @@ function rolloverDay(state, events) {
   if (sup?.served) lines.push({ kind: 'good', text: `スーパーで ${sup.served}人 が買い物しました（+${sup.income} Coin）` });
   const fun = today.byType.planetarium;
   if (fun?.served) lines.push({ kind: 'good', text: `プラネタリウムに ${fun.served}人 が来ました（+${fun.income} Coin）` });
+  const bar = today.byType.bar;
+  if (bar?.served) lines.push({ kind: 'good', text: `夜のバーに ${bar.served}人 が来ました（+${bar.income} Coin）` });
   const ps = today.byType.petshop;
   if (ps?.served) lines.push({ kind: 'good', text: `ペットショップに ${ps.served}人 が来ました（+${ps.income} Coin）` });
   if (today.shopSold > 0) {
@@ -801,6 +865,9 @@ function rolloverDay(state, events) {
       text: `${bucket}、${label}が売り切れて、観光客 ${n}人 が何も買えませんでした（−${n * CONFIG.shop.value} Coin）`,
     });
   }
+  const kg = today.kinder || { went: 0, missed: 0 };
+  if (kg.went) lines.push({ kind: 'good', text: `幼稚園に ${kg.went}人 が通いました（+${kg.went * CONFIG.kinder.fee} Coin）` });
+  if (kg.missed) lines.push({ kind: 'problem', text: `幼稚園がいっぱいで、${kg.missed}人 の子が家で過ごしました` });
   const petLine = petDiaryLine(state, endedDay);
   if (petLine) lines.push(petLine);
 
@@ -832,9 +899,11 @@ function rolloverDay(state, events) {
   }
 
   // 維持費
-  const upkeep = venues(state).reduce((s, c) => s + CONFIG[c.type].levels[c.level - 1].upkeep, 0);
+  const upkeep = venues(state).reduce((s, c) => s + CONFIG[c.type].levels[c.level - 1].upkeep + (c.bar ? CONFIG.cafe.bar.upkeep : 0), 0);
   const onlyCafes = venues(state).every((v) => v.type === 'cafe');
-  const shopUpkeep = shops(state).reduce((s, b) => s + CONFIG.shop.levels[b.level - 1].upkeep, 0);
+  const shopUpkeep =
+    shops(state).reduce((s, b) => s + CONFIG.shop.levels[b.level - 1].upkeep, 0) +
+    ofType(state, 'kinder').reduce((s, b) => s + CONFIG.kinder.levels[b.level - 1].upkeep, 0);
   if (upkeep + shopUpkeep > 0) {
     state.coin -= upkeep + shopUpkeep;
     lines.push({ kind: 'info', text: shopUpkeep || !onlyCafes ? `お店の維持費 −${upkeep + shopUpkeep} Coin` : `カフェの維持費 −${upkeep} Coin` });
@@ -865,10 +934,16 @@ function rolloverDay(state, events) {
     }
   }
 
+  // 家族：結婚・引っ越し・赤ちゃん・歩けるようになる（D297）
+  for (const l of familyEvents(state, endedDay, events)) lines.push(l);
+
   // 解放：ひらいた日の日記に書く（ひらくのは条件を満たしたその場・checkUnlocks）
   for (const u of CONFIG.unlocks) {
     const on = u.id === 'port' ? state.port.openedOn ?? state.unlockedOn.port : state.unlockedOn[u.id];
-    if (on === endedDay) lines.push({ kind: 'good', text: u.pets ? `家族のペットが ${u.pets}匹 になって、${u.done}` : `住民が ${u.pop}人 になって、${u.done}` });
+    if (on === endedDay) {
+      const why = u.pets ? `家族のペットが ${u.pets}匹 になって` : u.kids ? '島に子どもが生まれて' : `住民が ${u.pop}人 になって`;
+      lines.push({ kind: 'good', text: `${why}、${u.done}` });
+    }
   }
 
   const entry = { day: endedDay, weather: state.weather, lines, read: false };
@@ -921,8 +996,10 @@ function checkUnlocks(state, events) {
 }
 
 const adoptedPets = (state) => (state.pets || []).filter((p) => p.adopted).length;
+const kidsCount = (state) => state.residents.filter((r) => r.age).length;
 function unlockMet(state, u) {
   if (u.pets) return adoptedPets(state) >= u.pets;
+  if (u.kids) return kidsCount(state) >= u.kids;
   return state.residents.length >= u.pop;
 }
 
@@ -935,6 +1012,7 @@ export function isUnlocked(state, id) {
 export function nextGoal(state) {
   const u = CONFIG.unlocks.find((x) => !isUnlocked(state, x.id));
   if (!u) return null;
+  if (u.kids) return { ...u, now: kidsCount(state), need: u.kids, unit: '人', what: '島の子ども' };
   return u.pets
     ? { ...u, now: adoptedPets(state), need: u.pets, unit: '匹', what: '家族のペット' }
     : { ...u, now: state.residents.length, need: u.pop, unit: '人', what: '住民' };
@@ -1059,13 +1137,15 @@ export function actionsFor(state) {
   if (cafes(state).length < CONFIG.cafe.max) {
     list.push({ id: 'cafe', icon: 'cafe_new', place: 'cafe', title: 'カフェをもう1軒つくる', detail: `席 3。維持費 1日 ${CONFIG.cafe.levels[0].upkeep} Coin。場所を選べる`, cost: CONFIG.cafe.buildCost });
   }
-  for (const type of ['super', 'petshop', 'planetarium']) {
+  for (const type of ['super', 'petshop', 'planetarium', 'kinder']) {
     const V = CONFIG[type];
     if (ofType(state, type).length >= V.max) continue;
     const u = CONFIG.unlocks.find((x) => x.id === type);
     const locked = !isUnlocked(state, type);
     const what = type === 'super'
       ? `住民が毎日 買い物に行く。一度に ${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`
+      : type === 'kinder'
+        ? `子どもが朝 通って、15時に帰る。${V.levels[0].seats}人まで。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`
       : type === 'petshop'
         ? `ペットのいる家の人が通う。一度に ${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`
         : `長く過ごせる屋内の施設。${V.levels[0].seats}席。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`;
@@ -1073,16 +1153,27 @@ export function actionsFor(state) {
       id: type,
       icon: `${type}_new`,
       place: type,
-      title: `${VENUE_NAME[type]}をつくる`,
-      detail: locked ? (u.pets ? `家族のペットが ${u.pets}匹 になると建てられます` : `住民が ${u.pop}人 になると建てられます`) : what,
+      title: `${VENUE_NAME[type] || '幼稚園'}をつくる`,
+      detail: locked ? (u.pets ? `家族のペットが ${u.pets}匹 になると建てられます` : u.kids ? '島に子どもが生まれると建てられます' : `住民が ${u.pop}人 になると建てられます`) : what,
       cost: V.buildCost,
       locked,
     });
   }
-  for (const c of venues(state)) {
+  for (const c of cafes(state)) {
+    if (c.bar) continue;
+    const B = CONFIG.cafe.bar;
+    list.push({
+      id: `cafe_bar:${c.id}`,
+      icon: 'bar',
+      title: `${cafeLabel(state, c)}を カフェ&バーにする`,
+      detail: `夜 ${fmtClock(B.close)} まで開く。維持費 1日 +${B.upkeep} Coin`,
+      cost: B.cost,
+    });
+  }
+  for (const c of [...venues(state), ...ofType(state, 'kinder')]) {
     const next = CONFIG[c.type].levels[c.level];
     if (!next) continue;
-    const unit = c.type === 'cafe' ? '席' : c.type === 'super' ? '一度に入れる人' : '席';
+    const unit = c.type === 'kinder' ? '通える子' : c.type === 'super' ? '一度に入れる人' : '席';
     list.push({
       id: `${c.type === 'cafe' ? 'cafe' : 'venue'}_upgrade:${c.id}`,
       icon: 'cafe_upgrade',
@@ -1135,6 +1226,8 @@ export function applyAction(state, id, place) {
     const cafe = buildingById(state, id.split(':')[1]);
     cafe.level += 1;
     while (cafe.seats.length < seatCount(cafe)) cafe.seats.push(null);
+  } else if (id.startsWith('cafe_bar:')) {
+    buildingById(state, id.split(':')[1]).bar = true;
   } else if (id.startsWith('shop_upgrade:')) {
     const shop = buildingById(state, id.split(':')[1]);
     shop.level += 1;
@@ -1154,7 +1247,10 @@ export function describeResident(state, r) {
     case 'WALK': {
       if (r.dest === 'cafe') return `${labelOf(state, buildingById(state, r.destId))}へ向かっている`;
       if (r.dest === 'shop') return `${shopLabel(state, buildingById(state, r.destId))}へ向かっている`;
-      return { park: '公園へ向かっている', stroll: r.tourist ? '島を見て回っている' : 'ぶらぶら歩いている', home: '家へ帰るところ', boat: '港へ戻るところ' }[r.dest] || '歩いている';
+      return (
+        { park: '公園へ向かっている', stroll: r.tourist ? '島を見て回っている' : 'ぶらぶら歩いている', home: '家へ帰るところ', boat: '港へ戻るところ', kinder: '幼稚園へ向かっている', escort: '子どもを幼稚園へ送っている' }[r.dest] ||
+        '歩いている'
+      );
     }
     case 'QUEUE':
       return `${labelOf(state, buildingById(state, r.destId))}の前で待っている（${Math.round(state.t - r.queuedAt)}分）`;
@@ -1163,7 +1259,7 @@ export function describeResident(state, r) {
       if (b.type === 'super') return 'スーパーで買い物中';
       if (b.type === 'planetarium') return 'プラネタリウムで星を見ている';
       if (b.type === 'petshop') return 'ペットショップで買い物中';
-      return `${labelOf(state, b)}でひと休み中`;
+      return isBarTime(state, b) ? `${labelOf(state, b)}で夜のひととき` : `${labelOf(state, b)}でひと休み中`;
     }
     case 'PARK':
       return '公園で過ごしている';
@@ -1172,9 +1268,11 @@ export function describeResident(state, r) {
     case 'STROLL':
       return r.tourist ? '景色を眺めている' : 'あたりを眺めている';
     case 'HOME':
-      return '家にいる';
+      return r.age === 'baby' ? '家で すやすや眠っている' : '家にいる';
     case 'SLEEP':
       return '寝ている';
+    case 'KINDER':
+      return '幼稚園にいる';
     default:
       return '';
   }
@@ -1190,6 +1288,244 @@ export function nearestCafeSteps(state, house) {
   const d = Math.min(...cafes(state).map((c) => roadDistance(house.access, c.access)));
   return Number.isFinite(d) ? d : null;
 }
+
+// ---------------------------------------------------------------- 結婚・子ども・幼稚園（D297）
+//
+// 独身の大人どうしが、同じ席・公園・散歩道で一緒に過ごした時間が長いと、仲よくなって結婚する。
+// 結婚すると同じ家に住む（空きが無ければ、家が建つまで別々）。2日たつと赤ちゃんが生まれ、プレイヤーが名前をつける。
+// 赤ちゃんは2日で歩けるようになる。子どもは ひとりでは出かけず、親と公園に行ったり、幼稚園に通ったりする。
+
+const pairKey = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+// 結婚するのは名前のある住民だけ（「島の人と島の人が結婚しました」では誰の話か分からない）
+const single = (r) => !r.age && !r.tourist && !r.generic && !r.spouseId && r.state !== 'PENDING';
+
+function placeKey(r) {
+  if (r.state === 'SEATED' || r.state === 'QUEUE') return `v:${r.destId}`;
+  if (r.state === 'PARK') return `p:${r.destId}`;
+  if (r.state === 'STROLL') return `s:${r.at}`;
+  return null;
+}
+
+function growAffinity(state, h) {
+  const groups = {};
+  for (const r of state.residents) {
+    if (!single(r)) continue;
+    const k = placeKey(r);
+    if (k) (groups[k] ||= []).push(r.id);
+  }
+  for (const ids of Object.values(groups)) {
+    if (ids.length < 2) continue;
+    for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
+      const k = pairKey(ids[i], ids[j]);
+      state.affinity[k] = (state.affinity[k] || 0) + h;
+    }
+  }
+}
+
+const houseCount = (state, homeId) => state.residents.filter((x) => x.homeId === homeId).length;
+const roomIn = (state, homeId) => CONFIG.houseCapacity - houseCount(state, homeId);
+
+// 夫婦（と子ども）を、空きのある1軒にまとめる。できなければ false
+function moveTogether(state, a, b) {
+  if (a.homeId === b.homeId) return true;
+  const moveFamily = (from, to) => {
+    const who = state.residents.filter((x) => x.homeId === from.homeId && (x === from || (x.parents && x.parents.includes(from.id))));
+    if (roomIn(state, to.homeId) < who.length) return false;
+    for (const x of who) {
+      x.homeId = to.homeId;
+      x.at = buildingById(state, to.homeId).access;
+    }
+    return true;
+  };
+  return moveFamily(b, a) || moveFamily(a, b);
+}
+
+function familyEvents(state, day, events) {
+  const F = CONFIG.family;
+  const lines = [];
+  const byId = (id) => state.residents.find((x) => x.id === id);
+
+  // 赤ちゃん → 歩けるように
+  for (const r of state.residents) {
+    if (r.age === 'baby' && day - r.bornOn >= F.babyDays) {
+      r.age = 'kid';
+      lines.push({ kind: 'good', text: `${r.name}が歩けるようになりました` });
+    }
+  }
+
+  // 別々に住んでいる夫婦は、空きができたら一緒に住む
+  for (const a of state.residents) {
+    const b = a.spouseId && byId(a.spouseId);
+    if (!b || a.id > b.id || a.homeId === b.homeId) continue;
+    if (moveTogether(state, a, b)) lines.push({ kind: 'good', text: `${a.name}と${b.name}が、同じ家で暮らしはじめました` });
+    else lines.push({ kind: 'problem', text: `${a.name}と${b.name}は、一緒に住める家を探しているようです` });
+  }
+
+  // 夫婦と同じ家に住んでいる人は、ほかの家に空きがあれば引っ越す（子どもの部屋をあける）
+  for (const a of state.residents) {
+    const b = a.spouseId && byId(a.spouseId);
+    if (!b || a.id > b.id || a.homeId !== b.homeId || roomIn(state, a.homeId) > 0) continue;
+    const other = state.residents.find(
+      (x) => x.homeId === a.homeId && x !== a && x !== b && !x.parents?.includes(a.id) && !(x.spouseId && byId(x.spouseId)?.homeId === a.homeId),
+    );
+    const to = other && freeHouse(state);
+    if (!to) continue;
+    other.homeId = to.id;
+    other.at = to.access;
+    lines.push({ kind: 'info', text: `${other.name}は、${a.name}と${b.name}の家を出て、別の家に引っ越しました` });
+  }
+
+  // 赤ちゃんが生まれる（結婚して2日・一緒に住んでいて・家に空きがある）
+  for (const a of state.residents) {
+    const b = a.spouseId && byId(a.spouseId);
+    if (!b || a.id > b.id || a.homeId !== b.homeId) continue;
+    if (day - a.marriedOn < F.birthAfterDays || day - (a.lastBirth || 0) < F.birthAfterDays + 1) continue;
+    const kids = state.residents.filter((x) => x.parents && x.parents.includes(a.id));
+    if (kids.length >= F.maxKids) continue;
+    if (roomIn(state, a.homeId) <= 0) {
+      lines.push({ kind: 'problem', text: `${a.name}と${b.name}は、もう少し広い家に住みたいようです` });
+      continue;
+    }
+    const used = new Set(state.residents.map((x) => x.name));
+    const name = F.kidNames.find((n) => !used.has(n)) || '赤ちゃん';
+    const baby = makeResident(
+      state,
+      { name, age: 'baby', parents: [a.id, b.id], bornOn: day, prefs: { cafe: 0, park: 30, stroll: 20, fun: 0 }, coffee: 0 },
+      buildingById(state, a.homeId),
+      false,
+    );
+    planDay(state, baby);
+    a.lastBirth = day;
+    b.lastBirth = day;
+    state.naming.push(baby.id);
+    lines.push({ kind: 'good', text: `${a.name}と${b.name}に、赤ちゃんが生まれました` });
+    events.push({ type: 'birth', id: baby.id });
+  }
+
+  // 結婚（3日目から・1日に1組まで）
+  if (day >= F.minDay) {
+    const best = Object.entries(state.affinity)
+      .filter(([, v]) => v >= F.affinityNeed)
+      .map(([k, v]) => ({ ids: k.split('|'), v }))
+      .filter(({ ids }) => ids.every((id) => byId(id) && single(byId(id))))
+      .sort((x, y) => y.v - x.v)[0];
+    if (best && rand(state) < F.marryChance) {
+      const [a, b] = best.ids.map(byId);
+      a.spouseId = b.id;
+      b.spouseId = a.id;
+      a.marriedOn = b.marriedOn = day;
+      for (const k of Object.keys(state.affinity)) if (k.split('|').some((id) => id === a.id || id === b.id)) delete state.affinity[k];
+      lines.push({ kind: 'good', text: `${a.name}と${b.name}が結婚しました` });
+      events.push({ type: 'married', a: a.name, b: b.name });
+      const apart = a.homeId !== b.homeId;
+      const aHome = a.homeId;
+      if (moveTogether(state, a, b)) {
+        const [mover, stay] = a.homeId === aHome ? [b, a] : [a, b];
+        if (apart) lines.push({ kind: 'info', text: `${mover.name}は${stay.name}の家に引っ越しました` });
+      } else {
+        lines.push({ kind: 'problem', text: `${a.name}と${b.name}は、一緒に住める家を探しているようです` });
+      }
+    }
+  }
+  return lines;
+}
+
+// 大人が家を出るとき、夫婦や子どもが ついてくることがある
+function bringCompanions(state, r) {
+  if (r.age || r.tourist || r.state !== 'WALK' || r.dest === 'home') return;
+  const F = CONFIG.family;
+  const join = (c) => {
+    c.at = r.at;
+    goTo(state, c, r.dest, r.destId, r.nextAt, r.path.length ? { x: r.path[r.path.length - 1].x + 8, y: r.path[r.path.length - 1].y + 2 } : { x: r.tx + 8, y: r.ty });
+    c.x = r.x + 6;
+    c.y = r.y + 2;
+    c.visible = true;
+  };
+  const awakeHome = (c) => c && c.homeId === r.homeId && c.state === 'HOME' && state.t >= c.wake && state.t < c.bed;
+  // 用のない所には付いていかない（買い物は1日1回、プラネタリウムも1日1回）
+  // （施設はどれも dest='cafe' で向かうので、行き先の建物の種類で見る）
+  const where = r.dest === 'cafe' ? buildingById(state, r.destId)?.type : r.dest;
+  const wants = (c) =>
+    ({ super: c.needShop, petshop: c.needPet, planetarium: !c.visitedFun }[where] ?? true);
+  const spouse = r.spouseId && state.residents.find((x) => x.id === r.spouseId);
+  if (awakeHome(spouse) && wants(spouse) && rand(state) < F.walkTogether) join(spouse);
+  if (r.dest === 'park' || r.dest === 'stroll') {
+    for (const kid of state.residents) {
+      if (kid.age === 'kid' && kid.parents?.includes(r.id) && awakeHome(kid) && rand(state) < F.kidJoins) join(kid);
+    }
+  }
+}
+
+// 子ども：朝は幼稚園へ（親が送る）。それ以外は家にいる（親が公園に連れていく）
+function kidAtHome(state, r, events) {
+  const kinder = ofType(state, 'kinder')[0];
+  const c = clockOf(state.t);
+  if (!kinder || r.kinderToday || c < CONFIG.kinder.open || c >= CONFIG.kinder.dropUntil) return;
+  // ひとりでは行かない。家にいる親が送っていく
+  const parent = state.residents.find((p) => r.parents?.includes(p.id) && p.homeId === r.homeId && p.state === 'HOME' && state.t >= p.wake);
+  if (!parent) return;
+  r.kinderToday = true;
+  goTo(state, r, 'kinder', kinder.id, kinder.access, kinderFront(kinder));
+  parent.at = r.at;
+  goTo(state, parent, 'escort', kinder.id, kinder.access, { x: kinderFront(kinder).x + 10, y: kinderFront(kinder).y + 2 });
+  void events;
+}
+
+// 朝、幼稚園に送る子がいて、ほかに家にいる親がいなければ、出かけずに待つ
+function waitingForKid(state, r) {
+  if (!r.spouseId && !state.residents.some((k) => k.parents?.includes(r.id))) return false;
+  if (!ofType(state, 'kinder').length || clockOf(state.t) >= CONFIG.kinder.dropUntil) return false;
+  const kids = state.residents.filter((k) => k.age === 'kid' && k.parents?.includes(r.id) && k.homeId === r.homeId && !k.kinderToday);
+  if (!kids.length) return false;
+  const other = state.residents.find((p) => p.id === r.spouseId && p.homeId === r.homeId && p.state === 'HOME' && state.t >= p.wake);
+  return !other;
+}
+
+export function kinderFront(k) {
+  return { x: (k.c + 1.5) * T, y: (k.r + SIZES.kinder.h) * T - 6 };
+}
+
+function enterKinder(state, r, events) {
+  const k = buildingById(state, r.destId);
+  const seat = k ? k.seats.findIndex((x) => x === null) : -1;
+  if (seat < 0) {
+    state.today.kinder.missed += 1;
+    r.bubble = 'lost';
+    r.bubbleUntil = state.t + 20;
+    return goHome(state, r);
+  }
+  k.seats[seat] = r.id;
+  r.seat = seat;
+  r.state = 'KINDER';
+  r.visible = false;
+  r.until = Math.floor(state.t / DAY) * DAY + clockToInDay(CONFIG.kinder.close) + between(state, 0, 6);
+  state.coin += CONFIG.kinder.fee;
+  state.today.kinder.went += 1;
+  events.push({ type: 'kinder', name: r.name });
+}
+
+function leaveKinder(state, r) {
+  const k = buildingById(state, r.destId);
+  if (k) k.seats[r.seat] = null;
+  r.seat = -1;
+  r.visible = true;
+  const p = kinderFront(k);
+  r.x = r.tx = p.x + between(state, -8, 8);
+  r.y = r.ty = p.y;
+  goHome(state, r);
+}
+
+// 赤ちゃんに名前をつける（プレイヤー）
+export function nameBaby(state, id, name) {
+  const r = state.residents.find((x) => x.id === id);
+  state.naming = state.naming.filter((x) => x !== id);
+  if (!r) return { ok: false };
+  const n = (name || '').trim().slice(0, 8);
+  if (n) r.name = n;
+  return { ok: true, message: `${r.name}、ようこそ` };
+}
+
+export const parentsOf = (state, r) => (r.parents || []).map((id) => state.residents.find((x) => x.id === id)).filter(Boolean);
 
 // ---------------------------------------------------------------- ペット（D293）
 //

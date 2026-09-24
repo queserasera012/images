@@ -85,6 +85,21 @@ export const ICONS = {
       `<rect x="6.5" y="14" width="3" height="6" rx="1" fill="${INK}"/>`,
     28,
   ),
+  kinder_new: svg(
+    `<rect x="4" y="10" width="16" height="10" rx="1" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<rect x="4" y="10" width="16" height="10" rx="1" fill="#fff6ea" stroke="${INK}" stroke-width="1.4"/>` +
+      `<path d="M3 11l3-5h12l3 5z" fill="#f7a8b8"/>` +
+      `<circle cx="8.5" cy="14" r="1.8" fill="#cfe6ee"/><circle cx="15.5" cy="14" r="1.8" fill="#cfe6ee"/>` +
+      `<rect x="10.5" y="15" width="3" height="5" rx="1.5" fill="#8ecae6"/>`,
+    28,
+  ),
+  bar: svg(
+    `<path d="M6 5h12l-6 8z" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<path d="M6 5h12l-6 8z" fill="#fff" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"/>` +
+      `<path d="M12 13v6M8.5 19.5h7" stroke="${INK}" stroke-width="1.6" stroke-linecap="round"/>` +
+      `<circle cx="15" cy="7" r="1.4" fill="${MUSTARD}"/><path d="M3 4.5q2 1.5 4 0" stroke="#f28aa0" stroke-width="1.4" fill="none" stroke-linecap="round"/>`,
+    28,
+  ),
   park_roof: svg(
     `<path d="M3 11l9-7 9 7z" transform="translate(1 1)" fill="${SHADOW}"/><path d="M3 11l9-7 9 7z" fill="${INK}"/>` +
       `<rect x="6" y="11" width="2" height="9" fill="#8d6a4f"/><rect x="16" y="11" width="2" height="9" fill="#8d6a4f"/>` +

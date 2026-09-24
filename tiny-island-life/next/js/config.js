@@ -33,6 +33,7 @@ export const CONFIG = {
     ],
     buildCost: 900,             // 2軒目のカフェ
     max: 3,
+    bar: { cost: 1000, upkeep: 15, close: 23 * 60, nightValue: 30 }, // カフェ&バー（D297）：夜23時まで。夜は1人30 Coin
     rainBoost: null,            // カフェの雨の倍率は weatherWeights.rain.cafe
   },
 
@@ -74,11 +75,39 @@ export const CONFIG = {
     max: 1,
   },
 
+  // ---- 結婚・子ども（D297） ----
+  family: {
+    affinityNeed: 120,          // 同じ場所で一緒に過ごした時間（ゲーム内の分）がこれを超えると、結婚するかもしれない
+    marryChance: 0.5,           // 1日の区切りで、いちばん仲のいい2人が結婚する確率
+    minDay: 3,                  // 3日目から
+    birthAfterDays: 2,          // 結婚して2日で赤ちゃん（家に空きがあれば）
+    babyDays: 2,                // 赤ちゃんは2日で歩けるようになる
+    maxKids: 2,                 // 1組あたり
+    walkTogether: 0.35,         // 夫婦で出かける確率
+    kidJoins: 0.6,              // 親が公園や散歩に行くとき、子どもがついていく確率
+    kidNames: ['ハル', 'ユイ', 'レン', 'ミオ', 'ソウタ', 'ヒナ', 'リク', 'サクラ', 'カイ', 'ノア', 'アオイ', 'ツムギ'],
+  },
+
+  // ---- 幼稚園（D297）：子どもが朝 親と来て、15時に帰る ----
+  kinder: {
+    open: 7 * 60 + 45,
+    dropUntil: 9 * 60,
+    close: 15 * 60,
+    fee: 20,                    // 1人1日
+    levels: [
+      { level: 1, seats: 4, upkeep: 20 },
+      { level: 2, seats: 8, upkeep: 35, cost: 800 },
+    ],
+    buildCost: 900,
+    max: 1,
+  },
+
   // ---- 段階的な解放（D295）。住民の人数で順番にひらく。いつも「次の目標」が1つ見える ----
   unlocks: [
     { id: 'port', pop: 7, goal: '港をひらく', done: '港に船が来るようになりました', note: '港に船が来るようになります' },
     { id: 'super', pop: 10, goal: 'スーパーをひらく', done: 'スーパーを建てられるようになりました', note: 'スーパーを建てられるようになります' },
     { id: 'petshop', pets: 2, goal: 'ペットショップをひらく', done: 'ペットショップを建てられるようになりました', note: 'ペットショップを建てられるようになります' },
+    { id: 'kinder', kids: 1, goal: '幼稚園をひらく', done: '幼稚園を建てられるようになりました', note: '幼稚園を建てられるようになります' },
     { id: 'planetarium', pop: 14, goal: 'プラネタリウムをひらく', done: 'プラネタリウムを建てられるようになりました', note: 'プラネタリウムを建てられるようになります' },
   ],
   maxPopulation: 40,
@@ -161,5 +190,6 @@ export const CONFIG = {
     minSatisfaction: 0.75,      // その日のカフェ客のうち、座れた人の割合
   },
 
+  nightOwls: 0.3,               // 夜ふかしの住民の割合（寝るのが1時間半おそい・D297）
   startCoin: 200,
 };
