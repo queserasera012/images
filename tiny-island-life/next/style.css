@@ -194,6 +194,7 @@ button:focus-visible { outline: 3px solid var(--mustard); outline-offset: 2px; }
   text-align: center;
   z-index: 3;
   transition: opacity 0.5s;
+  pointer-events: none; /* お知らせの下の島も タップできるように */
 }
 #hint { top: calc(env(safe-area-inset-top) + 62px); }
 #toast { bottom: calc(env(safe-area-inset-bottom) + 84px); z-index: 7; }

@@ -156,7 +156,7 @@ canvas.addEventListener('pointermove', (ev) => {
 function endPointer(ev) {
   if (!pointers.has(ev.pointerId)) return;
   pointers.delete(ev.pointerId);
-  if (pointers.size === 0 && dragMoved < 8 && ev.type === 'pointerup') tap(ev.clientX, ev.clientY);
+  if (pointers.size === 0 && dragMoved < 12 && ev.type === 'pointerup') tap(ev.clientX, ev.clientY);
   if (pointers.size < 2) pinchDist = 0;
 }
 canvas.addEventListener('pointerup', endPointer);
@@ -183,13 +183,31 @@ function tap(clientX, clientY) {
     tutorial('tap_resident');
     return select({ kind: 'resident', id: hit.r.id });
   }
-  const { c, r } = renderer.tileAt(clientX, clientY);
-  const b = state.buildings.find((x) => c >= x.c && c < x.c + SIZES[x.type].w && r >= x.r && r < x.r + SIZES[x.type].h);
+  const b = buildingAt(p);
   if (b) {
     if (b.type === 'cafe') tutorial('tap_cafe');
     return select({ kind: 'building', id: b.id });
   }
   select(null);
+}
+
+// 建物のタップ判定。マスより少し広く取る（指は30pxのマスには小さすぎる・屋根はマスの上にはみ出している）
+const HIT_PAD = 10;
+const ROOF_PAD = 16;
+function buildingAt(p) {
+  let best = null;
+  for (const b of state.buildings) {
+    const s = SIZES[b.type];
+    const x0 = b.c * T - HIT_PAD;
+    const x1 = (b.c + s.w) * T + HIT_PAD;
+    const y0 = b.r * T - HIT_PAD - ROOF_PAD;
+    const y1 = (b.r + s.h) * T + HIT_PAD;
+    if (p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1) continue;
+    // 重なったら、真ん中がいちばん近い建物
+    const d = Math.hypot(p.x - (b.c + s.w / 2) * T, p.y - (b.r + s.h / 2) * T);
+    if (!best || d < best.d) best = { b, d };
+  }
+  return best?.b || null;
 }
 
 function select(s) {
