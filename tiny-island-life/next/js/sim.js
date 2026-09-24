@@ -151,6 +151,8 @@ export function createGame(seed = Date.now()) {
     residents: [],
     visitors: [],
     port: { open: false, today: [] },
+    pets: [],
+    petsSpawned: { cat: false, dog: false },
     poolIndex: 0,
     today: freshToday(),
     diary: [],
@@ -164,7 +166,7 @@ export function createGame(seed = Date.now()) {
 }
 
 function freshToday() {
-  return { served: 0, income: 0, lost: [], queueMinutes: { 朝: 0, 昼: 0, 夕方: 0, 夜: 0 }, maxQueue: 0, parkMinutes: {}, boats: 0, tourists: 0 };
+  return { served: 0, income: 0, lost: [], queueMinutes: { 朝: 0, 昼: 0, 夕方: 0, 夜: 0 }, maxQueue: 0, parkMinutes: {}, boats: 0, tourists: 0, petWalk: {}, petNap: {} };
 }
 
 // 古いセーブ（港が無かった頃）を今の形にそろえる
@@ -173,6 +175,10 @@ export function migrate(state) {
   state.port ||= { open: false, today: [] };
   state.today.boats ||= 0;
   state.today.tourists ||= 0;
+  state.pets ||= [];
+  state.petsSpawned ||= { cat: false, dog: false };
+  state.today.petWalk ||= {};
+  state.today.petNap ||= {};
   return state;
 }
 
@@ -263,6 +269,8 @@ function tick(state, h, events) {
   for (const cafe of cafes(state)) updateCafe(state, cafe, events);
   checkPortUnlock(state, events);
   updatePort(state, events);
+  spawnStrays(state, events);
+  for (const pet of state.pets) updatePet(state, pet, h);
 
   const longest = Math.max(0, ...cafes(state).map((c) => c.queue.length));
   if (longest > 0) {
@@ -603,6 +611,9 @@ function rolloverDay(state, events) {
     lines.push({ kind: 'good', text: `${r.name}は公園で長いこと過ごしていました` });
   }
 
+  const petLine = petDiaryLine(state, endedDay);
+  if (petLine) lines.push(petLine);
+
   // 困ったこと（答えは書かない。起きたことと損だけ・D281）
   const groups = {};
   for (const l of today.lost) {
@@ -879,6 +890,249 @@ export function favoriteText(r) {
 export function nearestCafeSteps(state, house) {
   const d = Math.min(...cafes(state).map((c) => roadDistance(house.access, c.access)));
   return Number.isFinite(d) ? d : null;
+}
+
+// ---------------------------------------------------------------- ペット（D293）
+//
+// 迷い込んできた ねこ・いぬ に名前をつけて、家族にする。能力は無い（眺めて かわいい、だけ）。
+// いぬは飼い主が出かけると後ろをついて歩く。ねこは毎日ちがう場所で昼寝する。雨の日は軒下へ。
+
+const PET_SPOT_LABEL = { terrace: 'カフェのテラス', bench: '公園のベンチ', roof: '家の屋根の上', plaza: '広場' };
+
+function landPoint(state, around, radius) {
+  for (let k = 0; k < 12; k++) {
+    const x = around.x + between(state, -radius, radius);
+    const y = around.y + between(state, -radius, radius);
+    const i = idx(Math.floor(x / T), Math.floor(y / T));
+    if (MAP[i] === 'land' || MAP[i] === 'road') return { x, y };
+  }
+  return { x: around.x, y: around.y };
+}
+
+function spawnStrays(state, events) {
+  const clock = clockOf(state.t);
+  const day = dayOf(state.t);
+  for (const kind of ['cat', 'dog']) {
+    const P = CONFIG.pets[kind];
+    if (state.petsSpawned[kind] || day < P.day || (day === P.day && clock < P.clock)) continue;
+    if (clock < 6 * 60 || clock >= 20 * 60) continue; // 夜には来ない
+    let anchor;
+    if (kind === 'cat') {
+      const cafe = cafes(state)[0];
+      const q = cafe ? queueSlot(cafe, 0) : center(PIER);
+      anchor = { x: q.x + 22, y: q.y + 12 };
+    } else {
+      const park = parkOf(state);
+      anchor = park ? { x: center(park.access).x, y: center(park.access).y + 10 } : center(PIER);
+    }
+    const pet = {
+      id: `p${state.nextId++}`,
+      kind,
+      name: P.label,
+      adopted: false,
+      ownerId: null,
+      homeId: null,
+      anchor,
+      x: anchor.x,
+      y: anchor.y,
+      tx: anchor.x,
+      ty: anchor.y,
+      state: 'WANDER',
+      until: state.t + between(state, 3, 10),
+      spot: null,
+      facing: 1,
+    };
+    state.pets.push(pet);
+    state.petsSpawned[kind] = true;
+    events.push({ type: 'stray', kind, near: kind === 'cat' ? 'カフェ' : '公園' });
+  }
+}
+
+// 名前をつけて家族にする。いちばん近い、人が住んでいる家の子になる
+export function adoptPet(state, petId, name) {
+  const pet = state.pets.find((p) => p.id === petId);
+  if (!pet || pet.adopted) return { ok: false, message: 'もう家族になっています' };
+  const lived = houses(state).filter((h) => state.residents.some((r) => r.homeId === h.id && r.state !== 'PENDING'));
+  if (lived.length === 0) return { ok: false, message: '住んでいる家がありません' };
+  const home = lived.reduce((a, b) => {
+    const da = Math.hypot(houseDoor(a).x - pet.x, houseDoor(a).y - pet.y);
+    const db = Math.hypot(houseDoor(b).x - pet.x, houseDoor(b).y - pet.y);
+    return db < da ? b : a;
+  });
+  const owner = state.residents.find((r) => r.homeId === home.id && r.state !== 'PENDING');
+  pet.adopted = true;
+  pet.name = (name || '').trim().slice(0, 8) || CONFIG.pets[pet.kind].name;
+  pet.homeId = home.id;
+  pet.ownerId = owner.id;
+  pet.state = 'WANDER';
+  pet.until = state.t;
+  return { ok: true, message: `${pet.name}が${owner.name}の家の子になりました`, owner };
+}
+
+function petMove(state, pet, h, speedMul) {
+  const dx = pet.tx - pet.x;
+  const dy = pet.ty - pet.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 0.5) return true;
+  const stepLen = Math.min(d, CONFIG.walkSpeed * speedMul * h);
+  pet.x += (dx / d) * stepLen;
+  pet.y += (dy / d) * stepLen;
+  if (Math.abs(dx) > 0.5) pet.facing = dx > 0 ? 1 : -1;
+  return false;
+}
+
+function catSpots(state, home) {
+  const spots = [];
+  const cafe = cafes(state)[0];
+  if (cafe) spots.push({ key: 'terrace', x: cafe.c * T + 10, y: (cafe.r + 3) * T - 8 });
+  const park = parkOf(state);
+  if (park) spots.push({ key: 'bench', x: (park.c + 1.5) * T + 22, y: (park.r + 3) * T - 16 });
+  if (home) spots.push({ key: 'roof', x: home.c * T + T / 2, y: home.r * T - 2 });
+  spots.push({ key: 'plaza', x: 8 * T + T / 2 + 14, y: 11 * T + T / 2 - 12 });
+  return spots;
+}
+
+function updatePet(state, pet, h) {
+  const clock = clockOf(state.t);
+  const night = clock >= 21 * 60 || clock < 6 * 60 + 30;
+  const kind = CONFIG.pets[pet.kind];
+
+  if (!pet.adopted) {
+    // 迷い込んだ子：見つけた場所のまわりを うろうろ
+    if (petMove(state, pet, h, kind.speed) && state.t >= pet.until) {
+      const p = landPoint(state, pet.anchor, 40);
+      pet.tx = p.x;
+      pet.ty = p.y;
+      pet.state = rand(state) < 0.5 ? 'SIT' : 'WANDER';
+      pet.until = state.t + between(state, 5, 20);
+    }
+    return;
+  }
+
+  const home = buildingById(state, pet.homeId);
+  const owner = state.residents.find((r) => r.id === pet.ownerId);
+  const door = home ? houseDoor(home) : { x: pet.x, y: pet.y };
+
+  if (pet.kind === 'dog') {
+    const out = owner && owner.visible && !['HOME', 'SLEEP', 'PENDING'].includes(owner.state);
+    if (out) {
+      // 飼い主の うしろを ついて歩く
+      pet.state = 'FOLLOW';
+      pet.tx = owner.x - owner.facing * 13;
+      pet.ty = owner.y + 3;
+      const far = Math.hypot(pet.tx - pet.x, pet.ty - pet.y) > 40;
+      petMove(state, pet, h, far ? 1.6 : 1.05);
+      if (owner.state === 'WALK') state.today.petWalk[pet.id] = (state.today.petWalk[pet.id] || 0) + h;
+      return;
+    }
+    if (night) {
+      pet.state = 'SLEEP';
+      pet.tx = door.x + 14;
+      pet.ty = door.y + 2;
+      petMove(state, pet, h, 1);
+      return;
+    }
+    if (pet.state === 'FOLLOW' || pet.state === 'SLEEP') pet.until = state.t;
+    if (petMove(state, pet, h, 0.9) && state.t >= pet.until) {
+      const p = landPoint(state, door, 36);
+      pet.tx = p.x;
+      pet.ty = p.y;
+      pet.state = rand(state) < 0.4 ? 'SIT' : 'WANDER';
+      pet.until = state.t + between(state, 6, 25);
+    }
+    return;
+  }
+
+  // ねこ
+  if (night) {
+    pet.state = 'SLEEP';
+    pet.tx = door.x - 14;
+    pet.ty = door.y + 1;
+    petMove(state, pet, h, kind.speed);
+    return;
+  }
+  if (state.weather === 'rain' && pet.state !== 'SHELTER') {
+    // 雨の日は、家の軒下で雨宿り
+    pet.state = 'SHELTER';
+    pet.spot = null;
+    pet.tx = door.x - 12;
+    pet.ty = door.y - 2;
+  }
+  if (pet.state === 'SHELTER') {
+    petMove(state, pet, h, kind.speed * 1.3);
+    if (state.weather !== 'rain') pet.state = 'WANDER';
+    return;
+  }
+  if (pet.state === 'NAP') {
+    state.today.petNap[pet.id] ||= {};
+    state.today.petNap[pet.id][pet.spot] = (state.today.petNap[pet.id][pet.spot] || 0) + h;
+    if (state.t >= pet.until) {
+      pet.state = 'WANDER';
+      const p = landPoint(state, { x: pet.x, y: pet.y + 12 }, 30);
+      pet.tx = p.x;
+      pet.ty = p.y;
+      pet.until = state.t + between(state, 10, 30);
+    }
+    return;
+  }
+  if (pet.state === 'GOING') {
+    if (petMove(state, pet, h, kind.speed)) {
+      pet.state = 'NAP';
+      pet.until = state.t + between(state, 60, 150);
+    }
+    return;
+  }
+  // WANDER：すこし歩いたら、昼寝の場所を選ぶ（毎日ちがう場所になりやすい）
+  if (petMove(state, pet, h, kind.speed) && state.t >= pet.until) {
+    const spots = catSpots(state, home);
+    const spot = pick(state, spots);
+    pet.spot = spot.key;
+    pet.tx = spot.x;
+    pet.ty = spot.y;
+    pet.state = 'GOING';
+  }
+}
+
+function petDiaryLine(state, day) {
+  const adopted = state.pets.filter((p) => p.adopted);
+  const stray = state.pets.find((p) => !p.adopted);
+  if (adopted.length === 0) {
+    if (!stray) return null;
+    return { kind: 'info', text: `${stray.kind === 'cat' ? 'カフェ' : '公園'}のあたりに、迷い${stray.name}がいたようです` };
+  }
+  const pet = adopted[day % adopted.length];
+  const owner = state.residents.find((r) => r.id === pet.ownerId);
+  if (pet.kind === 'dog') {
+    const walked = state.today.petWalk[pet.id] || 0;
+    return walked >= 30
+      ? { kind: 'good', text: `${pet.name}は${owner?.name ?? '飼い主'}と一緒に、たくさん歩きました` }
+      : { kind: 'good', text: `${pet.name}は家のまわりで、のんびりしていました` };
+  }
+  const naps = state.today.petNap[pet.id];
+  if (!naps) return { kind: 'good', text: `${pet.name}は軒下で、雨があがるのを待っていました` };
+  const best = Object.entries(naps).sort((a, b) => b[1] - a[1])[0][0];
+  return { kind: 'good', text: `${pet.name}は${PET_SPOT_LABEL[best]}で昼寝していました` };
+}
+
+export function describePet(state, pet) {
+  if (!pet.adopted) return 'あたりを うろうろしている';
+  const owner = state.residents.find((r) => r.id === pet.ownerId);
+  switch (pet.state) {
+    case 'FOLLOW':
+      return `${owner?.name ?? '飼い主'}と一緒に歩いている`;
+    case 'SLEEP':
+      return '寝ている';
+    case 'NAP':
+      return `${PET_SPOT_LABEL[pet.spot]}で昼寝している`;
+    case 'GOING':
+      return '昼寝の場所を探している';
+    case 'SHELTER':
+      return '軒下で雨宿りしている';
+    case 'SIT':
+      return 'ひと休みしている';
+    default:
+      return pet.kind === 'dog' ? '家のまわりを うろうろしている' : 'のんびり歩いている';
+  }
 }
 
 export { idx };

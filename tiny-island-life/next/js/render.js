@@ -522,6 +522,149 @@ export function createRenderer(canvas) {
     ctx.fill();
   }
 
+  // ---------------------------------------------------------------- ペット（D293）
+
+  // ペットは人より小さいが、見つけやすいよう 1.25倍で描く
+  function drawPet(state, pet, time) {
+    ctx.save();
+    ctx.translate(pet.x, pet.y);
+    ctx.scale(1.25, 1.25);
+    ctx.translate(-pet.x, -pet.y);
+    drawPetBody(state, pet, time);
+    ctx.restore();
+  }
+
+  function drawPetBody(state, pet, time) {
+    const ph = phaseOf(pet.id);
+    const moving = Math.hypot(pet.tx - pet.x, pet.ty - pet.y) > 0.5;
+    const poked = pokes?.get(pet.id);
+    const since = poked === undefined ? 99 : time - poked;
+    let hop = since < 1.2 ? Math.abs(Math.sin((since / 1.2) * Math.PI * 2)) * 7 : 0;
+    if (moving) hop += Math.abs(Math.sin(time * 14 + ph)) * 1.6;
+    const x = pet.x;
+    const y = pet.y - hop;
+    const f = pet.facing;
+    const sleeping = pet.state === 'SLEEP' || pet.state === 'NAP';
+    const cat = pet.kind === 'cat';
+    const body = cat ? '#ffffff' : '#d9a066';
+    const dark = cat ? '#3b2a20' : '#8d6a4f';
+
+    ctx.fillStyle = PALETTE.shadow;
+    ctx.beginPath();
+    ctx.ellipse(pet.x + 1.5, pet.y + 1, 8, 2.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (sleeping) {
+      // 丸くなって寝ている
+      ctx.fillStyle = PALETTE.white;
+      ctx.beginPath();
+      ctx.ellipse(x, y - 4, 9.5, 6.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = body;
+      ctx.beginPath();
+      ctx.ellipse(x, y - 4, 8, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (cat) {
+        ctx.fillStyle = '#f4a259';
+        ctx.beginPath();
+        ctx.arc(x - 3, y - 6, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = dark;
+      ctx.beginPath();
+      ctx.arc(x + f * 5, y - 5, 2.6, 0, Math.PI * 2);
+      ctx.fill();
+      const k = (time * 0.6 + ph) % 1;
+      ctx.font = `700 8px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = `rgba(61,90,128,${0.8 * (1 - k)})`;
+      ctx.fillText('z', x + 8 + k * 3, y - 12 - k * 8);
+      return;
+    }
+
+    const sitting = !moving && (pet.state === 'SIT' || pet.state === 'SHELTER' || pet.state === 'FOLLOW');
+    // 白いふち
+    ctx.fillStyle = PALETTE.white;
+    ctx.beginPath();
+    ctx.ellipse(x, y - 6, sitting ? 6.5 : 9, sitting ? 7.5 : 6, 0, 0, Math.PI * 2);
+    ctx.arc(x + f * 7, y - (sitting ? 13 : 11), 6.3, 0, Math.PI * 2);
+    ctx.fill();
+    // しっぽ
+    ctx.strokeStyle = cat ? dark : body;
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    const wag = Math.sin(time * (cat ? 2 : 12) + ph) * (cat ? 2 : 3);
+    ctx.moveTo(x - f * 7, y - 7);
+    ctx.quadraticCurveTo(x - f * 11, y - 12 + wag * 0.3, x - f * (10 + wag * 0.5), y - (cat ? 16 : 13));
+    ctx.stroke();
+    // 足
+    if (!sitting) {
+      ctx.fillStyle = dark;
+      const st = moving ? Math.sin(time * 14 + ph) * 1.2 : 0;
+      ctx.fillRect(x - 5 + st, y - 3, 2, 3);
+      ctx.fillRect(x + 3 - st, y - 3, 2, 3);
+    }
+    // からだ
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.ellipse(x, y - 6, sitting ? 5 : 7.5, sitting ? 6 : 4.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    if (cat) {
+      ctx.fillStyle = '#f4a259';
+      ctx.beginPath();
+      ctx.arc(x - f * 2, y - 7, 2.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // あたま
+    const hx = x + f * 7;
+    const hy = y - (sitting ? 13 : 11);
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.arc(hx, hy, 4.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = dark;
+    if (cat) {
+      // とがった耳（片方は黒）
+      ctx.beginPath();
+      ctx.moveTo(hx - 4, hy - 2);
+      ctx.lineTo(hx - 3, hy - 7.5);
+      ctx.lineTo(hx - 0.5, hy - 3.5);
+      ctx.fill();
+      ctx.fillStyle = '#f4a259';
+      ctx.beginPath();
+      ctx.moveTo(hx + 4, hy - 2);
+      ctx.lineTo(hx + 3, hy - 7.5);
+      ctx.lineTo(hx + 0.5, hy - 3.5);
+      ctx.fill();
+    } else {
+      // たれ耳
+      ctx.beginPath();
+      ctx.ellipse(hx - f * 3, hy - 1, 1.8, 3.6, f * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff4e6';
+      ctx.beginPath();
+      ctx.ellipse(hx + f * 2.5, hy + 1.5, 2.4, 1.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = PALETTE.ink;
+    ctx.beginPath();
+    ctx.arc(hx + f * 1.5, hy - 1, 0.9, 0, Math.PI * 2);
+    ctx.fill();
+    if (!cat) {
+      ctx.fillStyle = '#2b2b33';
+      ctx.beginPath();
+      ctx.arc(hx + f * 4.3, hy + 1, 1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 迷い込んだ子は ときどき「？」、タップされたらハート
+    let b = null;
+    if (since < 2) b = 'heart';
+    else if (!pet.adopted && Math.sin(time * 1.1 + ph) > 0.6) b = 'question';
+    if (b) bubble(b, x + 9, y - 22);
+  }
+
   // ---------------------------------------------------------------- 住民（前の版から そのまま）
 
   function hair(look, hx, hy, f) {
@@ -693,6 +836,12 @@ export function createRenderer(canvas) {
       ctx.beginPath();
       ctx.arc(cx, cy + 0.5, 2, 0, Math.PI * 2);
       ctx.fill();
+    } else if (kind === 'question') {
+      ctx.fillStyle = PALETTE.ink;
+      ctx.font = `700 10px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('?', cx, cy + 0.5);
     } else if (kind === 'heart') {
       ctx.fillStyle = '#e56b9f';
       ctx.beginPath();
@@ -870,8 +1019,12 @@ export function createRenderer(canvas) {
       houseWindow(b, night && home);
     }
     if (night) for (const i of LAMPS) lamp(i, true);
-    const people = everyone(state).filter((r) => r.visible).sort((a, b) => a.y - b.y);
-    for (const r of people) drawResident(state, r, time, r.id === ui.selectedId);
+    // 住民・観光客・ペットを、奥（上）から順に
+    const things = [
+      ...everyone(state).filter((r) => r.visible).map((r) => ({ y: r.y, draw: () => drawResident(state, r, time, r.id === ui.selectedId) })),
+      ...(state.pets || []).map((p) => ({ y: p.y, draw: () => drawPet(state, p, time) })),
+    ].sort((a, b) => a.y - b.y);
+    for (const t of things) t.draw();
     drawSleep(state, time);
 
     ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);

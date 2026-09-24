@@ -263,6 +263,33 @@ h3 .dot { width: 14px; height: 14px; }
 #place-ok:disabled { opacity: 0.4; }
 #place-ok .icon { width: 16px; height: 16px; }
 
+/* 迷い込んだペットに名前をつける */
+.adopt { display: flex; gap: 8px; margin-top: 10px; }
+.adopt input {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  padding: 0 12px;
+  border: 1.5px solid #d9e3ea;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 16px; /* 16px 未満だと iPhone が勝手に拡大する */
+  color: var(--ink);
+  user-select: text;
+  -webkit-user-select: text;
+}
+.adopt button {
+  flex: none;
+  height: 42px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 21px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 14px;
+  font-weight: 700;
+}
+
 /* ---- 下から出る紙（つくる・日記） ---- */
 
 #sheet {

@@ -65,6 +65,12 @@ export const CONFIG = {
     leaveBefore: 25,            // 出航の何分前に港へ戻りはじめるか
   },
 
+  // ---- ペット（D293） ----
+  pets: {
+    cat: { day: 1, clock: 13 * 60, name: 'ミケ', label: 'ねこ', speed: 0.55 },
+    dog: { day: 2, clock: 11 * 60, name: 'ポチ', label: 'いぬ', speed: 1.0 },
+  },
+
   // ---- 人口が増える条件（1日の終わりに判定） ----
   growth: {
     minSatisfaction: 0.75,      // その日のカフェ客のうち、座れた人の割合

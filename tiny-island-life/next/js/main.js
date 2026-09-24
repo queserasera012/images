@@ -5,7 +5,7 @@ import { T, SIZES, PIER, center, placements, footprint, canPlace } from './grid.
 import {
   createGame, step, catchUp, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
-  migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf,
+  migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet,
 } from './sim.js';
 import { createRenderer, lookOf } from './render.js';
 import { ICONS } from './icons.js';
@@ -87,6 +87,8 @@ function frame(now) {
     } else if (e.type === 'arrived') {
       toast(`${e.name}が島に引っ越してきました`);
       renderQuest();
+    } else if (e.type === 'stray') {
+      toast(`${e.near}のあたりに、${e.kind === 'cat' ? 'ねこ' : 'いぬ'}が迷い込んできたようです`);
     } else if (e.type === 'boat') {
       toast(`船が着きました。観光客が ${e.n}人 降りてきました`);
     } else if (e.type === 'portOpen') {
@@ -180,6 +182,14 @@ canvas.addEventListener(
 function tap(clientX, clientY) {
   if (placing) return tapWhilePlacing(clientX, clientY);
   const p = renderer.toWorld(clientX, clientY);
+  const pet = (state.pets || [])
+    .map((x) => ({ x, d: Math.hypot(x.x - p.x, x.y - 8 - p.y) }))
+    .filter((o) => o.d < 18)
+    .sort((a, b) => a.d - b.d)[0];
+  if (pet) {
+    pokes.set(pet.x.id, performance.now() / 1000);
+    return select({ kind: 'pet', id: pet.x.id });
+  }
   const hit = everyone(state)
     .filter((r) => r.visible)
     .map((r) => ({ r, d: Math.hypot(r.x - p.x, r.y - 12 - p.y) }))
@@ -221,6 +231,7 @@ function buildingAt(p) {
 
 function select(s) {
   selected = s;
+  delete $('card').dataset.stray;
   $('card').hidden = !s;
   document.body.classList.toggle('card-open', !!s);
   if (s) renderCard();
@@ -246,7 +257,21 @@ function renderCard() {
   const card = $('card');
   let html = '';
   const at = (t) => fmt(Math.floor(clockOf(t)));
-  if (selected.kind === 'resident') {
+  if (selected.kind === 'pet') {
+    const pet = state.pets.find((x) => x.id === selected.id);
+    if (!pet) return select(null);
+    const label = pet.kind === 'cat' ? 'ねこ' : 'いぬ';
+    if (!pet.adopted) {
+      if (card.dataset.stray === pet.id) return; // 名前を入力中は描き直さない
+      card.dataset.stray = pet.id;
+      card.innerHTML = `<h3>${label}</h3><div class="sub">どこからか迷い込んできたようです</div>
+        <div class="adopt"><input id="pet-name" type="text" maxlength="8" value="${CONFIG.pets[pet.kind].name}" aria-label="名前" />
+        <button id="btn-adopt" type="button" data-pet="${pet.id}">この名前で家族にする</button></div>`;
+      return;
+    }
+    const owner = state.residents.find((r) => r.id === pet.ownerId);
+    html = `<h3>${pet.name}</h3><div class="sub">${owner ? `${owner.name}の家の${label}` : label}</div><div class="now">いまは、${describePet(state, pet)}</div>`;
+  } else if (selected.kind === 'resident') {
     const r = personById(state, selected.id);
     if (!r || !r.visible) return select(null);
     const sub = r.tourist ? `船で来た人。${at(r.departAt)}の船で帰る` : favoriteText(r);
@@ -281,8 +306,22 @@ function renderCard() {
       html += `<div class="now">住んでいる：${who(living)}</div>`;
     }
   }
+  delete card.dataset.stray;
   if (card.innerHTML !== html) card.innerHTML = html;
 }
+
+$('card').addEventListener('click', (ev) => {
+  const btn = ev.target.closest('#btn-adopt');
+  if (!btn) return;
+  const res = adoptPet(state, btn.dataset.pet, $('pet-name').value);
+  toast(res.message);
+  if (res.ok) {
+    pokes.set(btn.dataset.pet, performance.now() / 1000);
+    delete $('card').dataset.stray;
+    renderCard();
+    save();
+  }
+});
 
 // ---------------------------------------------------------------- シート（つくる・日記）
 
@@ -511,6 +550,8 @@ if (DEBUG) {
   window.__til = {
     tileToClient: (c, r) => renderer.toClient((c + 0.5) * T, (r + 0.5) * T),
     placements: (t) => placements(t, state.buildings),
+    pets: () => state.pets.map((p) => ({ id: p.id, kind: p.kind, adopted: p.adopted, state: p.state, ...renderer.toClient(p.x, p.y - 8) })),
+    clock: () => clockOf(state.t),
     setTutorial: (n) => {
       state.tutorial = { step: n, skipped: false };
       busyStage = null;
