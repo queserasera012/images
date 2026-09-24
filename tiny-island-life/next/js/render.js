@@ -1543,6 +1543,16 @@ export function createRenderer(canvas) {
       ctx.stroke();
     }
     ctx.setLineDash([]);
+    if (placing.from) {
+      // 動かす前の場所（点線で囲む）
+      const s = SIZES[placing.type];
+      ctx.strokeStyle = PALETTE.mustard;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      roundRect(ctx, placing.from.c * T + 1, placing.from.r * T + 1, s.w * T - 2, s.h * T - 2, 8);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
     if (placing.ghost) {
       const s = SIZES[placing.type];
       const x = placing.ghost.c * T;

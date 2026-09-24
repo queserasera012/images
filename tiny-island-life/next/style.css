@@ -458,3 +458,23 @@ h3 .dot { width: 14px; height: 14px; }
   font-weight: 700;
 }
 #debug pre { margin: 6px 0 0; white-space: pre-wrap; font-family: var(--font); font-size: 11px; max-height: 120px; overflow: auto; }
+
+/* 建物を動かす（D299）。カードの右上の小さなボタン（おすすめに見えないよう、うすい色） */
+.card-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 12px 0 8px;
+  border: 0;
+  border-radius: 16px;
+  background: #e8eef2;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+.card-btn .icon { width: 18px; height: 18px; }
+#card:has(.card-btn) h3 { padding-right: 88px; }

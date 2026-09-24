@@ -107,6 +107,10 @@ export const ICONS = {
   expand_north: expandIcon(12, 6.5, 12, 14.5),
   expand_east: expandIcon(17.5, 10, 10, 13),
   expand_west: expandIcon(6.5, 14, 14, 11),
+  move: svg(
+    `<path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3" stroke="${INK}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
+    18,
+  ),
   harbor: svg(
     `<path d="M4 15h16l-2.5 4h-11z" transform="translate(1 1)" fill="${SHADOW}"/>` +
       `<path d="M4 15h16l-2.5 4h-11z" fill="#fff" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"/>` +

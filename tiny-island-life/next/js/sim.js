@@ -11,7 +11,7 @@
 import { CONFIG } from './config.js';
 import {
   T, SIZES, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, center, roadPath, roadDistance, accessTile, canPlace, isRoad, idx,
-  useAreas, landTilesOf,
+  useAreas, landTilesOf, placements,
 } from './grid.js';
 
 const DAY = 1440;
@@ -91,6 +91,28 @@ export function timeBucket(clock) {
 export function isNight(t) {
   const c = clockOf(t);
   return c >= 22 * 60 || c < 6 * 60;
+}
+
+// 夜の早送り（D299）：島のお店が全部 閉まってから、朝6時まで。
+// 22時より前には始めない（夕方〜夜の帰り道は眺めたい）。一晩じゅう開いている施設ができたら、早送りしない
+export function fastForwardFrom(state) {
+  let last = 22 * 60;
+  for (const b of state.buildings) {
+    const V = CONFIG[b.type];
+    if (!V || V.close === undefined) continue;
+    const close = closeOf(b);
+    if (close === null || close >= 24 * 60 + 6 * 60) return null; // 一晩じゅう
+    last = Math.max(last, close);
+  }
+  return last;
+}
+export function fastForwardNow(state) {
+  const from = fastForwardFrom(state);
+  if (from === null) return false;
+  const c = clockOf(state.t);
+  // 0時をまたいで開いている店があれば、その閉店時刻から
+  if (from >= 24 * 60) return c >= from - 24 * 60 && c < 6 * 60;
+  return c >= from || c < 6 * 60;
 }
 
 // 留守から戻ったときに進めてよい上限＝次の日の 07:00
@@ -1367,6 +1389,72 @@ export function applyAction(state, id, place) {
   state.coin -= action.cost;
   state.history.push({ t: state.t, action: id, place: place || null });
   return { ok: true, message: `${action.title.replace('（', ' ').replace('）', '')}：完成しました` };
+}
+
+// ---------------------------------------------------------------- 建物を動かす（D299）
+//
+// 島を広げたら、家やお店を置き直したくなる（オーナー）。お金はかからない（並べ替えは遊び）。
+// 中にいる人・並んでいる人は、建物ごと いっしょに動く。向かっている人は、新しい場所へ行き先を変える。
+
+export function movePlaces(state, id) {
+  syncMap(state);
+  const b = buildingById(state, id);
+  if (!b) return [];
+  return placements(b.type, state.buildings.filter((x) => x !== b)).filter((p) => p.c !== b.c || p.r !== b.r);
+}
+
+export function canMoveTo(state, id, c, r) {
+  syncMap(state);
+  const b = buildingById(state, id);
+  return !!b && (b.c !== c || b.r !== r) && canPlace(b.type, c, r, state.buildings.filter((x) => x !== b));
+}
+
+export function moveBuilding(state, id, place) {
+  syncMap(state);
+  const b = buildingById(state, id);
+  if (!b || !place || !canMoveTo(state, id, place.c, place.r)) return { ok: false, message: 'そこには動かせません' };
+  const dx = (place.c - b.c) * T;
+  const dy = (place.r - b.r) * T;
+  const S = SIZES[b.type];
+  // 前の場所（まわり1マスを含む）。ここにいたペットは いっしょに動かす
+  const was = { x0: (b.c - 1) * T, y0: (b.r - 1) * T, x1: (b.c + S.w + 1) * T, y1: (b.r + S.h + 1) * T };
+  const inWas = (x, y) => x >= was.x0 && x < was.x1 && y >= was.y0 && y < was.y1;
+  b.c = place.c;
+  b.r = place.r;
+  b.access = accessTile(b.type, b.c, b.r);
+
+  const HERE = ['SEATED', 'QUEUE', 'PARK', 'SHOP', 'KINDER'];
+  for (const p of everyone(state)) {
+    const home = p.homeId === b.id && ['HOME', 'SLEEP'].includes(p.state);
+    if (home || (p.destId === b.id && HERE.includes(p.state))) {
+      p.x += dx;
+      p.y += dy;
+      p.tx += dx;
+      p.ty += dy;
+      p.at = b.access;
+      continue;
+    }
+    if (p.state === 'WALK' && p.destId === b.id) {
+      // 向かっていた人：いま立っている道から、新しい場所へ
+      const under = idx(Math.floor(p.x / T), Math.floor(p.y / T));
+      if (isRoad(under)) p.at = under;
+      const end = p.path.length ? p.path[p.path.length - 1] : { x: p.tx, y: p.ty };
+      goTo(state, p, p.dest, p.destId, b.access, { x: end.x + dx, y: end.y + dy });
+    }
+  }
+  for (const pet of state.pets || []) {
+    if (inWas(pet.x, pet.y)) {
+      pet.x += dx;
+      pet.y += dy;
+    }
+    if (inWas(pet.tx, pet.ty)) {
+      pet.tx += dx;
+      pet.ty += dy;
+    }
+    if (pet.anchor && inWas(pet.anchor.x, pet.anchor.y)) pet.anchor = { x: pet.anchor.x + dx, y: pet.anchor.y + dy };
+  }
+  state.history.push({ t: state.t, action: `move:${b.id}`, place });
+  return { ok: true, message: `${{ house: '家', park: '公園' }[b.type] || labelOf(state, b)}を動かしました` };
 }
 
 // ---------------------------------------------------------------- 画面から読むための情報

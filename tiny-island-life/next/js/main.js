@@ -6,7 +6,7 @@ import {
   createGame, step, catchUp, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
   migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
-  labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById,
+  labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding,
 } from './sim.js';
 import { createRenderer, lookOf } from './render.js';
 import { ICONS } from './icons.js';
@@ -80,7 +80,8 @@ function returnAfter(seconds) {
 function frame(now) {
   const realDt = Math.min(0.25, (now - lastFrame) / 1000);
   lastFrame = now;
-  const rate = DAY_RATE * (isNight(state.t) ? CONFIG.nightSpeed : 1) * speed;
+  // 夜の早送りは、島のお店が全部 閉まってから（D299）
+  const rate = DAY_RATE * (fastForwardNow(state) ? CONFIG.nightSpeed : 1) * speed;
   const events = step(state, realDt * rate);
   for (const e of events) {
     if (e.type === 'newday') {
@@ -274,6 +275,7 @@ function fmt(clock) {
   return `${Math.floor(clock / 60)}:${String(clock % 60).padStart(2, '0')}`;
 }
 
+let lastCardHtml = '';
 function renderCard() {
   const card = $('card');
   let html = '';
@@ -284,6 +286,7 @@ function renderCard() {
     if (card.dataset.stray === baby.id) return; // 名前を入力中は描き直さない
     card.dataset.stray = baby.id;
     const [p1, p2] = parentsOf(state, baby);
+    lastCardHtml = '';
     card.innerHTML = `<h3>赤ちゃんが生まれました</h3><div class="sub">${p1 && p2 ? `${p1.name}と${p2.name}の子ども` : '島の子ども'}</div>
       <div class="adopt"><input id="baby-name" type="text" maxlength="8" value="${baby.name}" aria-label="名前" />
       <button id="btn-baby" type="button" data-baby="${baby.id}">この名前にする</button></div>`;
@@ -296,6 +299,7 @@ function renderCard() {
     if (!pet.adopted) {
       if (card.dataset.stray === pet.id) return; // 名前を入力中は描き直さない
       card.dataset.stray = pet.id;
+      lastCardHtml = '';
       card.innerHTML = `<h3>${label}</h3><div class="sub">どこからか迷い込んできたようです</div>
         <div class="adopt"><input id="pet-name" type="text" maxlength="8" value="${CONFIG.pets[pet.kind].name}" aria-label="名前" />
         <button id="btn-adopt" type="button" data-pet="${pet.id}">この名前で家族にする</button></div>`;
@@ -337,7 +341,8 @@ function renderCard() {
     const b = buildingById(state, selected.id);
     if (b.type === 'cafe') {
       const seated = b.seats.filter(Boolean);
-      html = `<h3>${cafeLabel(state, b)} Lv${b.level}</h3><div class="sub">席は ${seatCount(b)} つ。${fmt(CONFIG.cafe.open)}から${fmt(CONFIG.cafe.close)}まで</div>`;
+      const hours = b.bar ? `${fmt(CONFIG.cafe.open)}から${fmt(closeOf(b))}まで（${fmt(CONFIG.cafe.close)}からはバー）` : `${fmt(CONFIG.cafe.open)}から${fmt(closeOf(b))}まで`;
+      html = `<h3>${cafeLabel(state, b)} Lv${b.level}</h3><div class="sub">席は ${seatCount(b)} つ。${hours}</div>`;
       html += `<div class="now">座っている：${who(seated)}</div>`;
       html += `<div>外で待っている：${who(b.queue)}</div>`;
     } else if (b.type === 'super' || b.type === 'planetarium' || b.type === 'petshop') {
@@ -369,11 +374,21 @@ function renderCard() {
       html += `<div class="now">住んでいる：${who(living)}</div>`;
     }
   }
+  if (selected.kind === 'building') html += `<button id="btn-move" class="card-btn" type="button">${ICONS.move}動かす</button>`;
   delete card.dataset.stray;
-  if (card.innerHTML !== html) card.innerHTML = html;
+  // 前に書いた文字列と比べる（SVG は innerHTML で読み直すと書き方が変わり、毎コマ描き直してボタンが押せなくなる）
+  if (lastCardHtml !== html || !card.innerHTML) {
+    card.innerHTML = html;
+    lastCardHtml = html;
+  }
 }
 
 $('card').addEventListener('click', (ev) => {
+  if (ev.target.closest('#btn-move')) {
+    const b = buildingById(state, selected?.id);
+    if (b) startMoving(b);
+    return;
+  }
   const nb = ev.target.closest('#btn-baby');
   if (nb) {
     const res = nameBaby(state, nb.dataset.baby, $('baby-name').value);
@@ -502,13 +517,26 @@ function showMorning(entries) {
 function startPlacing(action) {
   const spots = placements(action.place, state.buildings);
   if (spots.length === 0) return toast('建てられる場所がありません');
+  beginPlacing({ action, type: action.place }, spots, `${action.title}：明るいところをタップ`, 'ここに建てる');
+}
+
+// 建物を動かす（D299）。建てるときと同じ画面で、行き先を選ぶ
+const NAME_OF = { house: '家', park: '公園' };
+function startMoving(b) {
+  const spots = movePlaces(state, b.id);
+  if (spots.length === 0) return toast('動かせる場所がありません');
+  const name = NAME_OF[b.type] || labelOf(state, b);
+  beginPlacing({ action: { title: `${name}を動かす`, cost: 0 }, type: b.type, move: b.id, from: { c: b.c, r: b.r } }, spots, `${name}を動かす：明るいところをタップ`, 'ここに動かす');
+}
+
+function beginPlacing(p, spots, title, okLabel) {
   const cells = new Set();
-  for (const s of spots) for (const t of footprint(action.place, s.c, s.r)) cells.add(t);
-  placing = { action, type: action.place, cells: [...cells], ghost: null };
+  for (const s of spots) for (const t of footprint(p.type, s.c, s.r)) cells.add(t);
+  placing = { ...p, cells: [...cells], ghost: null, okLabel };
   select(null);
-  $('place-title').textContent = `${action.title}：明るいところをタップ`;
+  $('place-title').textContent = title;
   $('place-ok').disabled = true;
-  $('place-ok').textContent = `ここに建てる`;
+  $('place-ok').textContent = okLabel;
   $('placebar').hidden = false;
   $('bar').hidden = true;
   document.body.classList.add('placing');
@@ -520,15 +548,21 @@ function tapWhilePlacing(clientX, clientY) {
   // タップしたマスが建物の真ん中に来る置き方を優先し、だめなら そのマスを含む置き方を探す
   const tries = [[c - Math.floor((s.w - 1) / 2), r - Math.floor((s.h - 1) / 2)]];
   for (let dr = 0; dr < s.h; dr++) for (let dc = 0; dc < s.w; dc++) tries.push([c - dc, r - dr]);
-  const ok = tries.find(([cc, rr]) => canPlace(placing.type, cc, rr, state.buildings));
+  const fits = ([cc, rr]) => (placing.move ? canMoveTo(state, placing.move, cc, rr) : canPlace(placing.type, cc, rr, state.buildings));
+  const ok = tries.find(fits);
   if (!ok) {
     placing.ghost = null;
     $('place-ok').disabled = true;
-    return toast('そこには建てられません');
+    return toast(placing.move ? 'そこには動かせません' : 'そこには建てられません');
   }
   placing.ghost = { c: ok[0], r: ok[1] };
+  if (placing.move) {
+    $('place-ok').disabled = false;
+    $('place-ok').textContent = placing.okLabel;
+    return;
+  }
   $('place-ok').disabled = state.coin < placing.action.cost;
-  $('place-ok').innerHTML = `ここに建てる ${ICONS.coin}${placing.action.cost.toLocaleString()}`;
+  $('place-ok').innerHTML = `${placing.okLabel} ${ICONS.coin}${placing.action.cost.toLocaleString()}`;
 }
 
 function endPlacing() {
@@ -541,6 +575,15 @@ function endPlacing() {
 $('place-cancel').addEventListener('click', endPlacing);
 $('place-ok').addEventListener('click', () => {
   if (!placing?.ghost) return;
+  if (placing.move) {
+    const res = moveBuilding(state, placing.move, placing.ghost);
+    toast(res.message);
+    if (res.ok) {
+      endPlacing();
+      save();
+    }
+    return;
+  }
   const res = applyAction(state, placing.action.id, placing.ghost);
   toast(res.message);
   if (res.ok) {
