@@ -50,6 +50,7 @@ export const CONFIG = {
     levels: [{ level: 1, seats: 1, upkeep: 5 }],
     buildCost: 500,
     max: 3,
+    perArea: 1,                 // D327：島を1か所ひらくごとに1軒ふえる
   },
 
   // ---- スーパー（D295）：住民が毎日1回 買い物に行く。夕方に集中する。中の様子は見えない ----
@@ -69,6 +70,7 @@ export const CONFIG = {
     ],
     buildCost: 800,
     max: 2,
+    perArea: 1,                 // D327：島を1か所ひらくごとに1軒ふえる
   },
 
   // ---- プラネタリウム（D295）：長居する。雨の日と夜に人が集まる（屋内） ----
@@ -123,6 +125,7 @@ export const CONFIG = {
     ],
     buildCost: 4000,                // D320：3,000 → 4,000
     max: 2,
+    perArea: 1,                 // D327：島を1か所ひらくごとに1軒ふえる
   },
 
   // ---- 水族館（D319）：観光客が長くいる。雨の日の行き先 ----
@@ -185,9 +188,11 @@ export const CONFIG = {
     levels: [
       { level: 1, seats: 4, upkeep: 20 },
       { level: 2, seats: 8, upkeep: 35, cost: 800 },
+      { level: 3, seats: 12, upkeep: 50, cost: 1400 }, // D327：8人では足りなかった（5組×2人＝10人）
     ],
     buildCost: 900,
     max: 1,
+    perArea: 1,                 // D327：島を1か所ひらくごとに1軒ふえる
   },
 
   // ---- 段階的な解放（D295）。住民の人数で順番にひらく。いつも「次の目標」が1つ見える ----
@@ -262,6 +267,7 @@ export const CONFIG = {
     ],
     buildCost: 700,
     max: 1,
+    perArea: 1,                 // D327：島を1か所ひらくごとに1軒ふえる
     // プレイヤーの釣り（ミニゲーム）。遊ぶのは何回でも、Coin が出るのは1日 rewardsPerDay 回まで（D303）
     game: {
       rewardsPerDay: 3,
@@ -314,6 +320,7 @@ export const CONFIG = {
   shop: {
     cost: 700,
     max: 2,
+    perArea: 1,                 // D327：島を1か所ひらくごとに1軒ふえる
     open: 9 * 60,
     close: 18 * 60,
     value: 30,                  // お土産1つの売上
@@ -351,6 +358,7 @@ export const CONFIG = {
     ],
     buildCost: 600,
     max: 1,
+    perArea: 1,                 // D327：島を1か所ひらくごとに1軒ふえる
   },
 
   // ---- 人口が増える条件（1日の終わりに判定） ----

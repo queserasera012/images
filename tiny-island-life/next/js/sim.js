@@ -227,7 +227,7 @@ export function shopFront(shop, k = 0) {
 // 島の中心から見た方角で名前をつける（同じ種類が2軒以上のとき）
 export function labelOf(state, b) {
   if (b.type === 'shop') return shopLabel(state, b);
-  if (b.type === 'kinder') return '幼稚園';
+  if (b.type === 'kinder') return dirName(ofType(state, 'kinder'), b, '幼稚園');
   if (b.type === 'company') return dirName(ofType(state, 'company'), b, '会社');
   if (!isVenue(b)) return b.type;
   return dirName(ofType(state, b.type), b, VENUE_NAME[b.type]);
@@ -667,7 +667,11 @@ function standChoices(state, r) {
 }
 
 // カフェの上限は島の広さで決まる（D305）
-export const cafeMax = (state) => CONFIG.cafe.max + ((state.areas?.length || 1) - 1) * CONFIG.cafe.perArea;
+export const cafeMax = (state) => maxOf(state, 'cafe');
+// 施設の軒数の上限（D327）：本島で max 軒。島を1か所ひらくごとに perArea 軒ふえる（カフェと同じ考え・D305）。
+// 名所（プラネタリウム・水族館・プール・スキー場）は perArea なし＝島に1つ
+export const maxOf = (state, type) => CONFIG[type].max + ((state.areas?.length || 1) - 1) * (CONFIG[type].perArea || 0);
+const moreLandNote = (state, type) => (CONFIG[type].perArea && state.areas.length < AREAS.length ? '（島を広げると1軒ずつ増える）' : '');
 
 // スーパー：住民だけ。1日1回。夕方に行きたくなる
 function superChoices(state, r) {
@@ -1573,10 +1577,10 @@ export function actionsFor(state) {
   });
   {
     const S = CONFIG.stand;
-    const fullS = ofType(state, 'stand').length >= S.max;
+    const fullS = ofType(state, 'stand').length >= maxOf(state, 'stand');
     list.push({
       id: 'stand', icon: 'stand_new', place: 'stand', title: 'コーヒースタンドをつくる',
-      detail: fullS ? `コーヒースタンドは島に ${S.max}軒まで` : `朝だけ開く（${fmtClock(S.open)}〜${fmtClock(S.close)}）。持ち帰りなので座らない。1マス。維持費 1日 ${S.levels[0].upkeep} Coin`,
+      detail: fullS ? `コーヒースタンドは いまの島に ${maxOf(state, 'stand')}軒まで${moreLandNote(state, 'stand')}` : `朝だけ開く（${fmtClock(S.open)}〜${fmtClock(S.close)}）。持ち帰りなので座らない。1マス。維持費 1日 ${S.levels[0].upkeep} Coin`,
       cost: S.buildCost, locked: fullS,
     });
   }
@@ -1584,7 +1588,7 @@ export function actionsFor(state) {
   for (const type of ['pond', 'super', 'petshop', 'planetarium', 'kinder', 'pool', 'aquarium', 'company']) {
     const V = CONFIG[type];
     const u = CONFIG.unlocks.find((x) => x.id === type);
-    const full = ofType(state, type).length >= V.max;
+    const full = ofType(state, type).length >= maxOf(state, type);
     const locked = !isUnlocked(state, type) || full;
     const what = type === 'company'
       ? `住民 ${V.levels[0].seats}人 が朝 出勤して、お昼に近くのカフェへ行く。1人 1日 ${CONFIG.company.pay} Coin。場所を選べる`
@@ -1606,7 +1610,7 @@ export function actionsFor(state) {
       icon: `${type}_new`,
       place: type,
       title: `${NAME[type]}をつくる`,
-      detail: full ? `${NAME[type]}は島に ${V.max}軒まで` : locked ? (u.pets ? `家族のペットが ${u.pets}匹 になると建てられます` : u.kids ? '島に子どもが生まれると建てられます' : `住民が ${u.pop}人 になると建てられます`) : what,
+      detail: full ? `${NAME[type]}は いまの島に ${maxOf(state, type)}軒まで${moreLandNote(state, type)}` : locked ? (u.pets ? `家族のペットが ${u.pets}匹 になると建てられます` : u.kids ? '島に子どもが生まれると建てられます' : `住民が ${u.pop}人 になると建てられます`) : what,
       cost: V.buildCost,
       locked,
     });
@@ -1647,14 +1651,14 @@ export function actionsFor(state) {
     });
   }
   {
-    const full = shops(state).length >= CONFIG.shop.max;
+    const full = shops(state).length >= maxOf(state, 'shop');
     list.push({
       id: 'shop',
       icon: 'shop_new',
       place: 'shop',
       title: shops(state).length ? 'お土産屋をもう1軒つくる' : 'お土産屋をつくる',
       detail: full
-        ? `お土産屋は島に ${CONFIG.shop.max}軒まで`
+        ? `お土産屋は いまの島に ${maxOf(state, 'shop')}軒まで${moreLandNote(state, 'shop')}`
         : state.port?.open ? `観光客がお土産を買う。1日 ${CONFIG.shop.levels[0].stock}個まで。維持費 1日 ${CONFIG.shop.levels[0].upkeep} Coin。場所を選べる` : '港がひらくと建てられます',
       cost: CONFIG.shop.cost,
       locked: !state.port?.open || full,
@@ -2246,7 +2250,7 @@ function bringCompanions(state, r) {
 
 // 子ども：朝は幼稚園へ（親が送る）。それ以外は家にいる（親が公園に連れていく）
 function kidAtHome(state, r, events) {
-  const kinder = ofType(state, 'kinder')[0];
+  const kinder = kinderFor(state, r);
   const c = clockOf(state.t);
   if (!kinder || r.kinderToday || c < CONFIG.kinder.open || c >= CONFIG.kinder.dropUntil) return;
   // ひとりでは行かない。家にいる親が送っていく
@@ -2257,6 +2261,17 @@ function kidAtHome(state, r, events) {
   parent.at = r.at;
   goTo(state, parent, 'escort', kinder.id, kinder.access, { x: kinderFront(kinder).x + 10, y: kinderFront(kinder).y + 2 });
   void events;
+}
+
+// どの幼稚園へ行くか（D327：2軒以上あるとき）。空きのある幼稚園のうち、家から近いところ。どこも いっぱいなら いちばん近いところ
+function kinderFor(state, r) {
+  const list = ofType(state, 'kinder');
+  if (list.length <= 1) return list[0];
+  const home = buildingById(state, r.homeId);
+  const heading = (k) => state.residents.filter((x) => x.dest === 'kinder' && x.destId === k.id && x.state === 'WALK').length;
+  const room = (k) => k.seats.filter((x) => x === null).length - heading(k);
+  const byNear = [...list].sort((a, b) => roadDistance(home.access, a.access) - roadDistance(home.access, b.access));
+  return byNear.find((k) => room(k) > 0) || byNear[0];
 }
 
 // 朝、幼稚園に送る子がいて、ほかに家にいる親がいなければ、出かけずに待つ
