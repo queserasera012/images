@@ -1040,6 +1040,15 @@ if (DEBUG) {
     fishing: () => fishingNow(),
     // スキー場の絵を見るため：席を住民で埋める（D318）
     advance: (m) => step(state, m),
+    // 見た目を並べて見るため（D325）：住民に 指定した名前の見た目をつけて、公園の前に並べて止める
+    lineup: (names) => {
+      const at = { x: (OX + 8) * T + 12, y: (OY + 11) * T + 14 };
+      state.residents.slice(0, names.length).forEach((r, i) => {
+        r.lookName = names[i];
+        Object.assign(r, { state: 'SEATED', visible: true, until: state.t + 999, x: at.x + i * 22, y: at.y, tx: at.x + i * 22, ty: at.y, destId: null });
+      });
+      renderer.focus(at.x + names.length * 11, at.y - 10);
+    },
     fillSki: () => state.buildings.filter((b) => b.type === 'ski').forEach((b) => b.seats.forEach((_, k) => (b.seats[k] = state.residents[k % state.residents.length].id))),
     markRoom: () => {
       const h = houses(state).find((x) => state.residents.filter((r) => r.homeId === x.id).length >= capacityOf(x));
@@ -1107,7 +1116,7 @@ if (DEBUG) {
 // ---------------------------------------------------------------- 起動
 
 window.addEventListener('resize', () => renderer.resize());
-// 画面の上の表示（日付・目標の紙）の高さだけ、カメラが島を下げられるようにする（D323）
+// 画面の上の表示（日付・目標の紙）の高さだけ、カメラが島を下げられるようにする（D324）
 function measureTopInset() {
   const q = $('quest');
   const el = q.hidden ? $('hud') : q;

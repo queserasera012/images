@@ -296,7 +296,7 @@ export function createRenderer(canvas) {
     const hh = view.h / 2 / cam.zoom;
     const clampAxis = (v, half, lo, hi) => (hi - lo <= half * 2 ? (lo + hi) / 2 : Math.max(lo + half, Math.min(hi - half, v)));
     cam.x = clampAxis(cam.x, hw, BOUNDS.left, BOUNDS.right);
-    // 上は、画面の上の表示（日付・目標の紙）の下まで島を下げられるように（D323：島の上の端が見えなかった）
+    // 上は、画面の上の表示（日付・目標の紙）の下まで島を下げられるように（D324：島の上の端が見えなかった）
     cam.y = clampAxis(cam.y, hh, BOUNDS.top - topInset / cam.zoom, BOUNDS.bottom);
   }
   let topInset = 0;
@@ -1554,14 +1554,25 @@ export function createRenderer(canvas) {
 
   // ---------------------------------------------------------------- 住民（前の版から そのまま）
 
+  // 顔の後ろに垂れる髪（D325：ロング・ボブを1枚で描いていて、髪が顔の上に かぶさって見えた）。顔より先に描く
+  function hairBack(look, hx, hy) {
+    ctx.fillStyle = look.hair;
+    if (look.style === 'long') {
+      roundRect(ctx, hx - 7.4, hy - 4, 14.8, 11, [4, 4, 3, 3]);
+      ctx.fill();
+    } else if (look.style === 'bob') {
+      roundRect(ctx, hx - 7.4, hy - 4, 14.8, 7.5, [4, 4, 3, 3]);
+      ctx.fill();
+    }
+  }
+
   function hair(look, hx, hy, f) {
     ctx.fillStyle = look.hair;
     switch (look.style) {
       case 'long':
+        // 前髪だけ（後ろの髪は hairBack）
         ctx.beginPath();
         ctx.arc(hx, hy - 1, 6.6, Math.PI, 0);
-        ctx.lineTo(hx + 6.6, hy + 6);
-        ctx.lineTo(hx - 6.6, hy + 6);
         ctx.closePath();
         ctx.fill();
         return;
@@ -1590,10 +1601,9 @@ export function createRenderer(canvas) {
         ctx.fillRect(hx + (f > 0 ? 0 : -9), hy - 2, 9, 2.2);
         return;
       case 'bob':
+        // 前髪だけ（後ろの髪は hairBack）
         ctx.beginPath();
-        ctx.arc(hx, hy - 1, 6.8, Math.PI * 0.95, Math.PI * 2.05);
-        ctx.lineTo(hx + 6.8, hy + 3);
-        ctx.lineTo(hx - 6.8, hy + 3);
+        ctx.arc(hx, hy - 1, 6.8, Math.PI, 0);
         ctx.closePath();
         ctx.fill();
         return;
@@ -1661,7 +1671,8 @@ export function createRenderer(canvas) {
       ctx.arc(x, by - 9.5, 1.4, 0, Math.PI * 2);
       ctx.fill();
     }
-    // 頭
+    // 頭（後ろの髪 → 顔 → 前髪）
+    hairBack(look, x, by - 22);
     ctx.fillStyle = look.skin;
     ctx.beginPath();
     ctx.arc(x, by - 22, 6.3, 0, Math.PI * 2);
