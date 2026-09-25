@@ -31,9 +31,25 @@ export const CONFIG = {
       { level: 3, seats: 8, upkeep: 45, cost: 1500 },
     ],
     buildCost: 900,             // 2軒目のカフェ
-    max: 3,
+    max: 3,                     // 本島で3軒。島を1か所広げるごとに perArea 軒ふえる（D305）
+    perArea: 1,
     bar: { cost: 1000, upkeep: 15, close: 23 * 60, nightValue: 30 }, // カフェ&バー（D297）：夜23時まで。夜は1人30 Coin
     rainBoost: null,            // カフェの雨の倍率は weatherWeights.rain.cafe
+  },
+
+  // ---- コーヒースタンド（D305）：朝だけ開く1マスの店。持ち帰りなので座らず、すぐ回る ----
+  // 朝の行列（起きてすぐの一杯が重なる）には効く。雨の日の長居（席が空かない）には効かない
+  stand: {
+    open: 6 * 60 + 30,
+    close: 11 * 60,
+    customerValue: 12,
+    stayMin: 2,                 // 注文して受け取るまで
+    stayMax: 4,
+    maxQueue: 4,
+    pull: 1.3,                  // 朝の一杯でカフェと比べるときの倍率（座らない分、気軽）
+    levels: [{ level: 1, seats: 1, upkeep: 5 }],
+    buildCost: 500,
+    max: 3,
   },
 
   // ---- スーパー（D295）：住民が毎日1回 買い物に行く。夕方に集中する。中の様子は見えない ----
@@ -45,8 +61,8 @@ export const CONFIG = {
     stayMax: 20,
     maxQueue: 5,
     rainLinger: 1,
-    pull: 30,                   // 買い物に行きたい強さ（夕方は eveningBoost 倍）
-    eveningBoost: 2.5,          // 16:00〜19:30
+    pull: 14,                   // 買い物に行きたい強さ（夕方は eveningBoost 倍）
+    eveningBoost: 6,            // 16:00〜19:30。夫婦で一緒に行く分 昼にも散るので、昼は弱く夕方を強く（D305）
     levels: [
       { level: 1, seats: 4, upkeep: 15 },
       { level: 2, seats: 7, upkeep: 30, cost: 900 },

@@ -132,6 +132,14 @@ export const ICONS = {
       `<circle cx="8" cy="11" r="1" fill="${INK}"/>`,
     22,
   ),
+  stand_new: svg(
+    `<rect x="5" y="9" width="14" height="11" rx="1" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<rect x="5" y="9" width="14" height="11" rx="1" fill="#fff" stroke="${INK}" stroke-width="1.4"/>` +
+      `<path d="M4 6h16v3.5a2 2 0 0 1-4 0 2 2 0 0 1-4 0 2 2 0 0 1-4 0 2 2 0 0 1-4 0z" fill="#8b5e3c"/>` +
+      `<rect x="8" y="12" width="8" height="3" rx="0.8" fill="#ffe9b0"/>` +
+      `<path d="M14 16.5h3v3h-3z" fill="#8b5e3c"/>`,
+    28,
+  ),
   harbor: svg(
     `<path d="M4 15h16l-2.5 4h-11z" transform="translate(1 1)" fill="${SHADOW}"/>` +
       `<path d="M4 15h16l-2.5 4h-11z" fill="#fff" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"/>` +

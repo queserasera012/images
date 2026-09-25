@@ -127,8 +127,8 @@ export const everyone = (state) => (state.visitors?.length ? state.residents.con
 export const personById = (state, id) => state.residents.find((r) => r.id === id) || state.visitors?.find((r) => r.id === id);
 
 // 席と列のある施設（カフェ・スーパー・プラネタリウム）。同じ仕組みで動く（D295）
-export const VENUE_TYPES = ['cafe', 'super', 'planetarium', 'petshop', 'pond'];
-export const VENUE_NAME = { cafe: 'カフェ', super: 'スーパー', planetarium: 'プラネタリウム', petshop: 'ペットショップ', pond: '釣り堀' };
+export const VENUE_TYPES = ['cafe', 'super', 'planetarium', 'petshop', 'pond', 'stand'];
+export const VENUE_NAME = { cafe: 'カフェ', super: 'スーパー', planetarium: 'プラネタリウム', petshop: 'ペットショップ', pond: '釣り堀', stand: 'コーヒースタンド' };
 export const isVenue = (b) => VENUE_TYPES.includes(b.type);
 export const venues = (state) => state.buildings.filter(isVenue);
 export const ofType = (state, type) => state.buildings.filter((b) => b.type === type);
@@ -166,6 +166,14 @@ export function seatPositions(cafe) {
   for (const row of [0, 1]) for (const k of [0, 1, 2, 3]) pos.push({ x: x0 + (w * (2 * k + 1)) / 8 - 5, y: y0 + 30 + row * 23 });
   // 前の列の真ん中から埋める
   return [pos[1], pos[2], pos[0], pos[5], pos[6], pos[3], pos[4], pos[7]];
+}
+
+// コーヒースタンドのカウンターの前（出入り口の道の、建物寄り）
+export function standFront(b) {
+  const a = center(b.access);
+  const dx = Math.sign(b.c * T + T / 2 - a.x);
+  const dy = Math.sign(b.r * T + T / 2 - a.y);
+  return { x: a.x + dx * 8, y: a.y + dy * 8 + (dy ? 0 : 4) };
 }
 
 // 釣り堀の釣り座：池の下のふちに並ぶ（池の方を向いて座る）
@@ -563,6 +571,16 @@ function cafeChoices(state, r) {
     .map((c) => ({ cafe: c, w: r.prefs.cafe * w * near(r, c.access) * (isBarTime(state, c) ? 1.4 : 1) }));
 }
 
+// コーヒースタンド：朝の一杯だけ（D305）。座らずに持ち帰る
+function standChoices(state, r) {
+  if (!venueOpen(state, 'stand', 10)) return [];
+  const w = CONFIG.weatherWeights[state.weather].cafe;
+  return ofType(state, 'stand').map((b) => ({ cafe: b, w: r.prefs.cafe * w * CONFIG.stand.pull * near(r, b.access) }));
+}
+
+// カフェの上限は島の広さで決まる（D305）
+export const cafeMax = (state) => CONFIG.cafe.max + ((state.areas?.length || 1) - 1) * CONFIG.cafe.perArea;
+
 // スーパー：住民だけ。1日1回。夕方に行きたくなる
 function superChoices(state, r) {
   if (r.tourist || !r.needShop || !venueOpen(state, 'super', 20)) return [];
@@ -646,6 +664,7 @@ function decideNext(state, r, { noCafe = false, avoid = null } = {}) {
 
 function arrive(state, r, events) {
   r.at = r.nextAt;
+  if (r.carry === 'coffee') r.carry = null; // 持ち帰りのコーヒーは、着くまでに飲み終わる
   switch (r.dest) {
     case 'cafe':
       return enterCafe(state, r, buildingById(state, r.destId), events);
@@ -728,7 +747,7 @@ function updateResident(state, r, h, events) {
       if (r.morning) {
         r.morning = false;
         // 朝の一杯。雨の日は行きたくなる人が増える。近いカフェほど行く
-        const list = cafeChoices(state, r);
+        const list = [...cafeChoices(state, r), ...standChoices(state, r)];
         if (list.length) {
           const best = list.reduce((a, b) => (b.w > a.w ? b : a));
           const p = Math.min(1, r.coffee * (state.weather === 'rain' ? 1.2 : 1) * Math.min(1, near(r, best.cafe.access) * 1.5));
@@ -824,7 +843,12 @@ function sit(state, r, b, seatIdx) {
   r.state = 'SEATED';
   r.seat = seatIdx;
   if (b.type === 'pond') r.fished = true;
-  if (b.type === 'cafe' || b.type === 'pond') {
+  if (b.type === 'stand') {
+    // カウンターの前に立って待つ（見える）
+    const f = standFront(b);
+    r.tx = f.x;
+    r.ty = f.y;
+  } else if (b.type === 'cafe' || b.type === 'pond') {
     const s = seatPositions(b)[seatIdx];
     r.tx = s.x;
     r.ty = s.y;
@@ -892,6 +916,7 @@ function leaveVenue(state, r, events) {
     r.needPet = false;
     r.carry = 'petfood';
   }
+  if (b.type === 'stand') r.carry = 'coffee'; // 持ち帰りのカップ
   events.push({ type: 'served', name: r.name, venue: b.type });
   afterActivity(state, r, b.type === 'super' ? 0.8 : 0.55, { avoid: b.type });
 }
@@ -964,6 +989,8 @@ function rolloverDay(state, events) {
   if (fun?.served) lines.push({ kind: 'good', text: `プラネタリウムに ${fun.served}人 が来ました（+${fun.income} Coin）` });
   const bar = today.byType.bar;
   if (bar?.served) lines.push({ kind: 'good', text: `夜のバーに ${bar.served}人 が来ました（+${bar.income} Coin）` });
+  const stand = today.byType.stand;
+  if (stand?.served) lines.push({ kind: 'good', text: `コーヒースタンドで ${stand.served}人 がコーヒーを買いました（+${stand.income} Coin）` });
   const pond = today.byType.pond;
   if (pond?.served) lines.push({ kind: 'good', text: `釣り堀に ${pond.served}人 が来ました（+${pond.income} Coin）` });
   const me = today.fishing;
@@ -1284,12 +1311,24 @@ export function actionsFor(state) {
   // 家の軒数に上限は無い（D300）。建てられる土地が無くなったら、それが上限
   list.push({ id: 'house', icon: 'house_build', place: 'house', title: '家を建てる', detail: `${CONFIG.house.levels[0].capacity}人まで住める。場所を選べる`, cost: CONFIG.house.cost });
   // 軒数に上限のある施設は、上限に達しても一覧から消さない（消えると理由が分からない・D300）
-  const full = cafes(state).length >= CONFIG.cafe.max;
+  const full = cafes(state).length >= cafeMax(state);
+  const moreLand = state.areas.length < AREAS.length;
   list.push({
     id: 'cafe', icon: 'cafe_new', place: 'cafe', title: 'カフェをもう1軒つくる',
-    detail: full ? `カフェは島に ${CONFIG.cafe.max}軒まで` : `席 3。維持費 1日 ${CONFIG.cafe.levels[0].upkeep} Coin。場所を選べる`,
+    detail: full
+      ? `カフェは いまの島に ${cafeMax(state)}軒まで${moreLand ? '（島を広げると1軒ずつ増える）' : ''}`
+      : `席 3。維持費 1日 ${CONFIG.cafe.levels[0].upkeep} Coin。場所を選べる`,
     cost: CONFIG.cafe.buildCost, locked: full,
   });
+  {
+    const S = CONFIG.stand;
+    const fullS = ofType(state, 'stand').length >= S.max;
+    list.push({
+      id: 'stand', icon: 'stand_new', place: 'stand', title: 'コーヒースタンドをつくる',
+      detail: fullS ? `コーヒースタンドは島に ${S.max}軒まで` : `朝だけ開く（${fmtClock(S.open)}〜${fmtClock(S.close)}）。持ち帰りなので座らない。1マス。維持費 1日 ${S.levels[0].upkeep} Coin`,
+      cost: S.buildCost, locked: fullS,
+    });
+  }
   for (const type of ['pond', 'super', 'petshop', 'planetarium', 'kinder']) {
     const V = CONFIG[type];
     const u = CONFIG.unlocks.find((x) => x.id === type);
@@ -1581,6 +1620,7 @@ export function describeResident(state, r) {
       if (b.type === 'super') return 'スーパーで買い物中';
       if (b.type === 'planetarium') return 'プラネタリウムで星を見ている';
       if (b.type === 'pond') return '釣り堀で釣りをしている';
+      if (b.type === 'stand') return 'コーヒースタンドで注文している';
       if (b.type === 'petshop') return 'ペットショップで買い物中';
       return isBarTime(state, b) ? `${labelOf(state, b)}で夜のひととき` : `${labelOf(state, b)}でひと休み中`;
     }
@@ -1651,18 +1691,42 @@ const houseCount = (state, homeId) => state.residents.filter((x) => x.homeId ===
 const roomIn = (state, homeId) => capacityOf(buildingById(state, homeId)) - houseCount(state, homeId);
 
 // 夫婦（と子ども）を、空きのある1軒にまとめる。できなければ false
+// その人と、同じ家に住む その人の子ども
+const familyOf = (state, p) => state.residents.filter((x) => x.homeId === p.homeId && (x === p || (x.parents && x.parents.includes(p.id))));
+
+// 家族をまるごと別の家へ。飼っているペットも いっしょに
+function relocate(state, who, house) {
+  const from = new Set(who.map((x) => x.homeId));
+  const ids = new Set(who.map((x) => x.id));
+  for (const x of who) {
+    x.homeId = house.id;
+    x.at = house.access;
+  }
+  for (const pet of state.pets || []) if (from.has(pet.homeId) && ids.has(pet.ownerId)) pet.homeId = house.id;
+}
+
+// n人が住める家（空き家を先に）。夫婦が子どもの分として空けている家には入らない（D302・D305）
+function roomyHouse(state, n, exclude = []) {
+  return houses(state)
+    .filter((h) => !exclude.includes(h.id) && openRoom(state, h) >= n)
+    .sort((x, y) => houseCount(state, x.id) - houseCount(state, y.id))[0] || null;
+}
+
 function moveTogether(state, a, b) {
   if (a.homeId === b.homeId) return true;
   const moveFamily = (from, to) => {
-    const who = state.residents.filter((x) => x.homeId === from.homeId && (x === from || (x.parents && x.parents.includes(from.id))));
+    const who = familyOf(state, from);
     if (roomIn(state, to.homeId) < who.length) return false;
-    for (const x of who) {
-      x.homeId = to.homeId;
-      x.at = buildingById(state, to.homeId).access;
-    }
+    relocate(state, who, buildingById(state, to.homeId));
     return true;
   };
-  return moveFamily(b, a) || moveFamily(a, b);
+  if (moveFamily(b, a) || moveFamily(a, b)) return true;
+  // どちらの家にも空きが無ければ、2人（と子ども）が住める別の家へ（D305：前は空き家があっても探していなかった）
+  const who = [...familyOf(state, a), ...familyOf(state, b)];
+  const h = roomyHouse(state, who.length, [a.homeId, b.homeId]);
+  if (!h) return false;
+  relocate(state, who, h);
+  return true;
 }
 
 function familyEvents(state, day, events) {
@@ -1694,10 +1758,20 @@ function familyEvents(state, day, events) {
       (x) => x.homeId === a.homeId && x !== a && x !== b && !x.parents?.includes(a.id) && !(x.spouseId && byId(x.spouseId)?.homeId === a.homeId),
     );
     const to = other && freeHouse(state);
-    if (!to) continue;
-    other.homeId = to.id;
-    other.at = to.access;
-    lines.push({ kind: 'info', text: `${other.name}は、${a.name}と${b.name}の家を出て、別の家に引っ越しました` });
+    if (to) {
+      other.homeId = to.id;
+      other.at = to.access;
+      lines.push({ kind: 'info', text: `${other.name}は、${a.name}と${b.name}の家を出て、別の家に引っ越しました` });
+      continue;
+    }
+    // 家族だけで いっぱいなら、家族ごと広い家へ（D305：前は引っ越さず「広い家に住みたい」と言い続けていた）
+    const family = [...new Set([...familyOf(state, a), ...familyOf(state, b)])];
+    const kids = family.filter((x) => x.parents?.includes(a.id)).length;
+    if (kids >= F.maxKids) continue;
+    const h = roomyHouse(state, family.length + 1, [a.homeId]);
+    if (!h) continue;
+    relocate(state, family, h);
+    lines.push({ kind: 'info', text: `${a.name}と${b.name}の家族は、広い家に引っ越しました` });
   }
 
   // 赤ちゃんが生まれる（結婚して2日・一緒に住んでいて・家に空きがある）
@@ -1744,9 +1818,11 @@ function familyEvents(state, day, events) {
       events.push({ type: 'married', a: a.name, b: b.name });
       const apart = a.homeId !== b.homeId;
       const aHome = a.homeId;
+      const bHome = b.homeId;
       if (moveTogether(state, a, b)) {
         const [mover, stay] = a.homeId === aHome ? [b, a] : [a, b];
-        if (apart) lines.push({ kind: 'info', text: `${mover.name}は${stay.name}の家に引っ越しました` });
+        if (apart && a.homeId !== aHome && b.homeId !== bHome) lines.push({ kind: 'info', text: `${a.name}と${b.name}は、空いていた家に引っ越しました` });
+        else if (apart) lines.push({ kind: 'info', text: `${mover.name}は${stay.name}の家に引っ越しました` });
       } else {
         lines.push({ kind: 'problem', text: `${a.name}と${b.name}は、一緒に住める家を探しているようです` });
       }

@@ -4,6 +4,7 @@
 import {
   T, COLS, ROWS, WORLD, SIZES, HOUSE_FLOOR, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, landBounds, shapesOf, islandRadius, idx, center, neighbors, isRoad, occupied,
 } from './grid.js';
+import { CONFIG } from './config.js';
 import { clockOf, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf } from './sim.js';
 
 export const FONT = '"Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif';
@@ -868,6 +869,45 @@ export function createRenderer(canvas) {
     ctx.fill();
   }
 
+  // コーヒースタンド（D305）：1マスの小さな店。しま模様の日よけとカウンター
+  function stand(state, b, time) {
+    const x = b.c * T + T / 2;
+    const y = b.r * T + 8;
+    const open = b.seats.some(Boolean) || (clockOf(state.t) >= CONFIG.stand.open && clockOf(state.t) < CONFIG.stand.close);
+    paperShadow((shadow) => {
+      if (!shadow) ctx.fillStyle = PALETTE.white;
+      roundRect(ctx, x - 11, y + 2, 22, 17, 2);
+      ctx.fill();
+    });
+    // しま模様の日よけ
+    for (let k = 0; k < 4; k++) {
+      ctx.fillStyle = k % 2 ? PALETTE.white : '#8b5e3c';
+      ctx.beginPath();
+      ctx.moveTo(x - 13 + k * 6.5, y);
+      ctx.lineTo(x - 13 + (k + 1) * 6.5, y);
+      ctx.lineTo(x - 13 + (k + 1) * 6.5, y + 5);
+      ctx.arc(x - 13 + k * 6.5 + 3.25, y + 5, 3.25, 0, Math.PI);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // カウンターの窓（開いていれば明るい）
+    ctx.fillStyle = open ? '#ffe9b0' : '#cfd8dd';
+    roundRect(ctx, x - 7, y + 8, 14, 6, 1.5);
+    ctx.fill();
+    // カップの看板
+    ctx.fillStyle = '#8b5e3c';
+    roundRect(ctx, x + 7, y + 13, 5, 5, [0, 0, 2, 2]);
+    ctx.fill();
+    if (open) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x + 9.5, y + 12);
+      ctx.quadraticCurveTo(x + 8 + Math.sin(time * 3) * 1.5, y + 9, x + 9.5, y + 6);
+      ctx.stroke();
+    }
+  }
+
   // 釣り堀（D304）：池と、下のふちの板の釣り座
   function pond(state, b, time) {
     const x0 = b.c * T;
@@ -1563,6 +1603,16 @@ export function createRenderer(canvas) {
       ctx.lineTo(bx + 3, by - 5);
       ctx.stroke();
     }
+    if (r.carry === 'coffee') {
+      // 持ち帰りのコーヒー
+      const bx = r.x - facing * 7;
+      const by = r.y - bob - 12;
+      ctx.fillStyle = PALETTE.white;
+      roundRect(ctx, bx - 2.2, by, 4.4, 6, [0, 0, 1.5, 1.5]);
+      ctx.fill();
+      ctx.fillStyle = '#8b5e3c';
+      ctx.fillRect(bx - 2.2, by + 2, 4.4, 1.6);
+    }
     if (r.carry === 'petfood') {
       // ペットフードの袋（肉球）
       const bx = r.x - facing * 8;
@@ -1726,6 +1776,7 @@ export function createRenderer(canvas) {
       else if (b.type === 'petshop') petshop(state, b);
       else if (b.type === 'kinder') kinder(state, b, time);
       else if (b.type === 'pond') pond(state, b, time);
+      else if (b.type === 'stand') stand(state, b, time);
     }
     for (const i of lamps()) lamp(i, false);
     for (const b of state.buildings) if (b.type === 'cafe' && b.bar && !night) barLights(b, false, time);

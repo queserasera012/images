@@ -356,12 +356,12 @@ function renderCard() {
       html += `<div class="now">釣りをしている：${who(b.seats.filter(Boolean))}</div>`;
       html += `<div>あなたが釣った魚：${log.length ? log.join('・') : 'まだ いない'}</div>`;
       html += `<button id="btn-fish" class="card-act" type="button">${ICONS.fish}釣りをする<span class="cost">${left > 0 ? `今日の Coin あと ${left}回` : '今日の Coin は おしまい'}</span></button>`;
-    } else if (b.type === 'super' || b.type === 'planetarium' || b.type === 'petshop') {
+    } else if (b.type === 'super' || b.type === 'planetarium' || b.type === 'petshop' || b.type === 'stand') {
       const V = CONFIG[b.type];
       const inside = b.seats.filter(Boolean);
-      const unit = b.type === 'planetarium' ? `${seatCount(b)}席` : `一度に ${seatCount(b)}人 まで`;
+      const unit = b.type === 'planetarium' ? `${seatCount(b)}席` : b.type === 'stand' ? '持ち帰り' : `一度に ${seatCount(b)}人 まで`;
       html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${unit}。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
-      html += `<div class="now">${b.type === 'planetarium' ? '星を見ている' : '買い物中'}：${who(inside)}</div>`;
+      html += `<div class="now">${{ planetarium: '星を見ている', stand: '注文している' }[b.type] || '買い物中'}：${who(inside)}</div>`;
       html += `<div>外で待っている：${who(b.queue)}</div>`;
     } else if (b.type === 'kinder') {
       const K = CONFIG.kinder;
