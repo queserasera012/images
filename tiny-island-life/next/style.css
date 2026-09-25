@@ -74,7 +74,32 @@ button:focus-visible { outline: 3px solid var(--mustard); outline-offset: 2px; }
 .pill .icon { display: block; }
 
 .hud-right { display: flex; gap: 8px; }
-#hud-pop { padding: 0 12px 0 8px; }
+#hud-pop { padding: 0 12px 0 8px; border: 0; color: var(--ink); font: inherit; font-size: 15px; pointer-events: auto; cursor: pointer; }
+
+/* 住民の一覧（D311）：家ごとに、誰が住んでいるか。押すと その家へ */
+.homes { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.home-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 14px;
+  background: #f4f7f9;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+}
+.home-row .icon { flex: none; width: 28px; height: 28px; margin-top: 2px; }
+.home-row .body { flex: 1; min-width: 0; }
+.home-row .top { display: flex; align-items: baseline; gap: 6px; font-size: 14px; font-weight: 700; }
+.home-row .top .n { margin-left: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.home-row .who { margin-top: 4px; font-size: 13px; line-height: 1.7; }
+.home-row .who span { margin-right: 8px; white-space: nowrap; }
+.home-row .tag { color: var(--muted); font-size: 11px; }
+.home-row .warn { margin-top: 2px; color: var(--problem); font-size: 12px; font-weight: 700; }
+.home-row .go { flex: none; align-self: center; color: var(--muted); font-size: 18px; }
 #hud-pop .icon { width: 20px; height: 20px; }
 
 /* ホーム画面から開いたとき、時計と電池（白い文字）の下に薄い影（D310） */

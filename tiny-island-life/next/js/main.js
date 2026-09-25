@@ -8,7 +8,7 @@ import {
   migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
   labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
-  dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft, nameResident,
+  dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft, nameResident, placeLabel,
 } from './sim.js';
 import { createRenderer, lookOf } from './render.js';
 import { ICONS } from './icons.js';
@@ -124,6 +124,7 @@ function frame(now) {
   }
   renderer.draw(state, now / 1000, {
     selectedId: selected?.kind === 'resident' ? selected.id : null,
+    selectedBuildingId: selected?.kind === 'building' ? selected.id : null,
     pokes,
     placing,
     cafeLabel: (b) => cafeLabel(state, b),
@@ -548,6 +549,17 @@ $('sheet').addEventListener('click', (ev) => {
     $('sheet').hidden = true;
     return;
   }
+  const home = ev.target.closest('[data-house]');
+  if (home) {
+    // その家へ移動して、家のカードを開く
+    const h = buildingById(state, home.dataset.house);
+    $('sheet').hidden = true;
+    if (h) {
+      renderer.focus((h.c + 0.5) * T, (h.r + 0.5) * T);
+      select({ kind: 'building', id: h.id });
+    }
+    return;
+  }
   const adBonus = ev.target.closest('[data-ad="bonus"]');
   if (adBonus) {
     showRewardedAd({
@@ -589,6 +601,34 @@ $('sheet').addEventListener('click', (ev) => {
 });
 
 $('btn-build').addEventListener('click', () => openBuild());
+
+// 住民の一覧（D311・ご家族の声「どの家に誰が住んでいるか分かると見やすい」「その家をタップすると そこへジャンプ」）
+const HOUSE_KIND = { 1: '家', 2: '2階建て', 3: 'アパート' };
+function openResidents() {
+  if (placing) return;
+  const living = state.residents.filter((r) => r.state !== 'PENDING');
+  const coming = state.residents.length - living.length;
+  const want = new Set(wantsRoomHouses(state));
+  // 北から南へ、西から東へ
+  const list = houses(state).slice().sort((a, b) => a.r - b.r || a.c - b.c);
+  const rows = list.map((h) => {
+    const here = state.residents.filter((r) => r.homeId === h.id);
+    const names = here
+      .map((r) => {
+        const tag = r.state === 'PENDING' ? '（今日 引っ越してくる）' : r.age === 'baby' ? '（赤ちゃん）' : r.age === 'kid' ? '（子ども）' : '';
+        return `<span>${dot(r)}${r.name}<i class="tag">${tag}</i></span>`;
+      })
+      .join('');
+    return `<button class="home-row" type="button" data-house="${h.id}">${ICONS.house_build}
+      <span class="body"><span class="top">${HOUSE_KIND[h.level || 1]}・${placeLabel(h)}<span class="n">${here.length} / ${capacityOf(h)}人</span></span>
+      <span class="who">${names || '<i class="tag">空き家</i>'}</span>
+      ${want.has(h.id) ? '<span class="warn">もう少し広い家に住みたいようです</span>' : ''}</span>
+      <span class="go">›</span></button>`;
+  });
+  const sub = `家 ${list.length}軒${coming ? `・今日 ${coming}人 引っ越してくる` : ''}`;
+  openSheet(`<h2>島の人たち（${living.length}人）</h2><p class="lead">${sub}。家を押すと、その家へ</p><div class="homes">${rows.join('')}</div>`);
+}
+$('hud-pop').addEventListener('click', () => openResidents());
 
 // つくる：「新しく建てる」と「広げる」のタブ（D296）。新しく建てるものは ほぼ一定、広げるものは建物の数だけ増える
 let buildTab = 'new';

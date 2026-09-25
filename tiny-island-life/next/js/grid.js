@@ -231,6 +231,23 @@ MAPS.set('main', { kind: MAIN_KIND, piers: { main: MAIN_PIER } });
 
 export const isRoad = (i) => MAP[i] === 'road';
 
+// そのマスは どの土地か（本島 or 広げた土地）。住民の一覧で「東の岬の家」のように呼ぶため
+export function areaAt(c, r) {
+  const k = MAIN_KIND[idx(c, r)];
+  if (k === 'land' || k === 'road') return 'main';
+  let best = 'main';
+  let bestF = Infinity;
+  for (const a of AREAS) {
+    if (a.id === 'main') continue;
+    const f = Math.min(...shapesOf(a).map((s) => tileFactor(s, c, r)));
+    if (f < bestF) {
+      bestF = f;
+      best = a.id;
+    }
+  }
+  return best;
+}
+
 // ひらいた土地が収まる範囲（px）。カメラが動ける範囲と、地面の絵の大きさに使う
 export function landBounds(ids = ['main']) {
   const list = AREAS.filter((a) => a.id === 'main' || ids.includes(a.id));

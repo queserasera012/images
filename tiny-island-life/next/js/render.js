@@ -1810,6 +1810,18 @@ export function createRenderer(canvas) {
     for (const b of state.buildings) if (b.type === 'cafe' && b.bar && !night) barLights(b, false, time);
     for (const port of [state.port, ...(state.harbors || [])]) boat(state, port, time);
     if (ui.placing) drawPlacing(state, ui.placing, time);
+    // 選んでいる建物を点線で囲む（住民の一覧から飛んだとき、どの家か分かるように・D311）
+    const sb = ui.selectedBuildingId && state.buildings.find((b) => b.id === ui.selectedBuildingId);
+    if (sb) {
+      const s = SIZES[sb.type];
+      const top = sb.type === 'house' ? 14 + ((sb.level || 1) - 1) * HOUSE_FLOOR : 6;
+      ctx.strokeStyle = `rgba(242, 184, 75, ${0.65 + Math.sin(time * 4) * 0.3})`;
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([6, 4]);
+      roundRect(ctx, sb.c * T - 3, sb.r * T - top - 3, s.w * T + 6, s.h * T + top + 6, 9);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
     // 天気と時間帯の色は住民より下にかける（主役を色あせさせない）
     ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);

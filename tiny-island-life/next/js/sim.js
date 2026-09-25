@@ -11,7 +11,7 @@
 import { CONFIG } from './config.js';
 import {
   T, SIZES, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, center, roadPath, roadDistance, accessTile, canPlace, isRoad, idx,
-  useAreas, landTilesOf, placements, HOUSE_FLOOR,
+  useAreas, landTilesOf, placements, HOUSE_FLOOR, areaAt,
 } from './grid.js';
 
 const DAY = 1440;
@@ -232,10 +232,19 @@ export function cafeLabel(state, cafe) {
   const same = list.filter((b) => b !== cafe && cafeLabel0(b) === dir);
   return same.length && list.indexOf(cafe) > list.indexOf(same[0]) ? `${dir}のカフェ2` : `${dir}のカフェ`;
 }
+// 本島の真ん中から見た方角。D311：島を広げたとき（D298）に本島を (OX, OY) ずらしたのに、ここだけ前の真ん中のままで、
+// ほとんどのカフェが「東のカフェ」になっていた
 function cafeLabel0(b) {
-  const dx = b.c + 1 - 8;
-  const dy = b.r + 1 - 12;
+  const s = SIZES[b.type];
+  const dx = b.c + s.w / 2 - (OX + 8.5);
+  const dy = b.r + s.h / 2 - (OY + 12.5);
   return Math.abs(dx) > Math.abs(dy) * 0.8 ? (dx > 0 ? '東' : '西') : dy > 0 ? '南' : '北';
+}
+
+// 建物のだいたいの場所（住民の一覧で使う）：「本島の北」「東の岬」
+export function placeLabel(b) {
+  const area = areaAt(b.c, b.r);
+  return area === 'main' ? `本島の${cafeLabel0(b)}` : areaById(area).name;
 }
 
 // ---------------------------------------------------------------- 新しいゲーム
