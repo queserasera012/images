@@ -127,10 +127,10 @@ export const everyone = (state) => (state.visitors?.length ? state.residents.con
 export const personById = (state, id) => state.residents.find((r) => r.id === id) || state.visitors?.find((r) => r.id === id);
 
 // 席と列のある施設（カフェ・スーパー・プラネタリウム）。同じ仕組みで動く（D295）
-export const VENUE_TYPES = ['cafe', 'super', 'planetarium', 'petshop', 'pond', 'stand', 'ski', 'aquarium', 'pool'];
+export const VENUE_TYPES = ['cafe', 'super', 'planetarium', 'petshop', 'pond', 'stand', 'ski', 'aquarium', 'pool', 'track'];
 export const VENUE_NAME = {
   cafe: 'カフェ', super: 'スーパー', planetarium: 'プラネタリウム', petshop: 'ペットショップ', pond: '釣り堀', stand: 'コーヒースタンド', ski: 'スキー場',
-  aquarium: '水族館', pool: 'プール',
+  aquarium: '水族館', pool: 'プール', track: 'ドッグレース場',
 };
 // 季節の施設（D318・D319）：その季節だけ開き、維持費もその季節だけ
 export const SEASONAL = { ski: 'yuki', pool: 'natsu' };
@@ -167,6 +167,7 @@ export function houseDoor(h) {
 export function seatPositions(cafe) {
   if (cafe.type === 'pond') return pondSeats(cafe);
   if (cafe.type === 'pool') return poolSeats(cafe);
+  if (cafe.type === 'track') return trackSeats(cafe);
   const x0 = cafe.c * T;
   const y0 = (cafe.r + 1) * T;
   const w = SIZES.cafe.w * T;
@@ -182,6 +183,19 @@ export function standFront(b) {
   const dx = Math.sign(b.c * T + T / 2 - a.x);
   const dy = Math.sign(b.r * T + T / 2 - a.y);
   return { x: a.x + dx * 8, y: a.y + dy * 8 + (dy ? 0 : 4) };
+}
+
+// ドッグレースの観客の立つ場所（D328）：コースのまわり（上の段の奥・左右・手前）
+function trackSeats(b) {
+  const x0 = b.c * T;
+  const y0 = b.r * T;
+  const w = SIZES.track.w * T;
+  const h = SIZES.track.h * T;
+  const pos = [];
+  for (let k = 0; k < 7; k++) pos.push({ x: x0 + 12 + (k * (w - 24)) / 6, y: y0 + h - 4 });
+  for (let k = 0; k < 7; k++) pos.push({ x: x0 + 15 + (k * (w - 30)) / 6, y: y0 + 16 });
+  for (let k = 0; k < 3; k++) pos.push({ x: x0 + 6, y: y0 + 34 + k * 17 }, { x: x0 + w - 6, y: y0 + 34 + k * 17 });
+  return pos;
 }
 
 // プールの中で泳ぐ場所（D319）：水の中に 4×3 に散らす。真ん中から埋める
@@ -309,6 +323,7 @@ function freshToday() {
     fishing: { plays: 0, rewarded: 0, coin: 0, caught: [] },
     ads: { bonus: 0, boat: 0, bait: 0 },
     work: { workers: 0, income: 0 },
+    race: null,
   };
 }
 
@@ -522,6 +537,7 @@ function planDay(state, r) {
   r.skied = false; // スキーも1日1回まで
   r.swam = false; // プールも1日1回まで
   r.visitedAqua = false; // 水族館も1日1回まで
+  r.watchedRace = false; // ドッグレース
   r.workedToday = false; // 会社（D319）
   r.lunched = false;
   // ペットのいる家の人は、2日に1回 ペットショップへ（家ごとに曜日をずらす）
@@ -566,6 +582,7 @@ function tick(state, h, events) {
   for (const r of everyone(state)) updateResident(state, r, h, events);
   growAffinity(state, h);
   for (const v of venues(state)) updateVenue(state, v, events);
+  updateRace(state, events);
   checkUnlocks(state, events);
   updatePort(state, events);
   spawnStrays(state, events);
@@ -642,6 +659,7 @@ function venueOpen(state, type, margin = 0) {
 export const closeOf = (b) => (b.type === 'cafe' && b.bar ? CONFIG.cafe.bar.close : CONFIG[b.type].close);
 function buildingOpen(state, b, margin = 0) {
   if (!inSeason(state, b.type)) return false;
+  if (b.type === 'track' && !isRaceDay(state)) return false;
   const c = clockOf(state.t);
   return c >= CONFIG[b.type].open && c < closeOf(b) - margin;
 }
@@ -723,6 +741,80 @@ function poolChoices(state, r) {
   if (r.age || r.swam || !inSeason(state, 'pool') || !venueOpen(state, 'pool', 30)) return [];
   const P = CONFIG.pool;
   return ofType(state, 'pool').map((b) => ({ cafe: b, w: P.pull * P.weather[state.weather] * near(r, b.access) }));
+}
+
+// ---------------------------------------------------------------- ドッグレース（D328）
+//
+// 7日ごとの 15:00。島の家族のペットと、島の外から来る犬（足りない分）の5匹が走る。賭けは無し。
+// 13:40 から住民と観光客が見に来て（入場料）、レースが終わるまで まわりに立って見る。島のペットが3着までに入ると賞金
+
+export const isRaceDay = (state) => ofType(state, 'track').length > 0 && dayOf(state.t) % CONFIG.track.every === 0;
+export const nextRaceDay = (state) => Math.ceil(dayOf(state.t) / CONFIG.track.every) * CONFIG.track.every || CONFIG.track.every;
+export const GUEST_DOGS = ['コロ', 'ハチ', 'モカ', 'ラッキー', 'チョコ', 'マロン', 'ソラマメ', 'ココ'];
+const RUN_SPEED = { dog: 1, fox: 0.97, rabbit: 0.95, cat: 0.92, raccoon: 0.9 };
+
+function trackChoices(state, r) {
+  if (r.age || r.watchedRace || !isRaceDay(state)) return [];
+  const R = CONFIG.track;
+  const c = clockOf(state.t);
+  if (c < R.open || c >= R.start + R.length - 5) return [];
+  const far = (b) => 1 / (1 + roadDistance(r.at, b.access) / (CONFIG.distanceHalf * 3));
+  return ofType(state, 'track').map((b) => ({ cafe: b, w: R.pull * far(b) }));
+}
+
+function updateRace(state, events) {
+  const track = ofType(state, 'track')[0];
+  if (!track || !isRaceDay(state)) return;
+  const R = CONFIG.track;
+  const day = dayOf(state.t);
+  const base = Math.floor(state.t / DAY) * DAY;
+  // 13:40：手のあいている人（家で起きている・公園・散歩）の多くが見に行く
+  if (clockOf(state.t) >= R.open && clockOf(state.t) < R.start && state.raceCalled !== day) {
+    state.raceCalled = day;
+    for (const r of everyone(state)) {
+      const free = ['HOME', 'PARK', 'STROLL'].includes(r.state) || (r.state === 'WALK' && ['park', 'stroll', 'home'].includes(r.dest));
+      if (r.age || r.watchedRace || !free) continue;
+      if (r.state === 'HOME' && (state.t < r.wake || state.t >= r.bed - 60)) continue;
+      if (r.tourist && state.t >= r.bed - 30) continue;
+      if (rand(state) > R.callChance) continue;
+      if (r.state === 'HOME') {
+        const home = buildingById(state, r.homeId);
+        const door = houseDoor(home);
+        r.x = door.x;
+        r.y = door.y;
+        r.at = home.access;
+        r.visible = true;
+      }
+      goCafe(state, r, track);
+    }
+  }
+  if (clockOf(state.t) >= R.start && state.race?.day !== day) {
+    const runners = (state.pets || []).filter((p) => p.adopted).slice(0, R.lanes).map((p) => ({ id: p.id, kind: p.kind, name: p.name, own: true }));
+    for (let g = 0; runners.length < R.lanes; g++) {
+      runners.push({ id: `guest${g}`, kind: 'dog', name: GUEST_DOGS[(Math.floor(day / R.every) * 3 + g) % GUEST_DOGS.length], own: false, tint: g });
+    }
+    for (const x of runners) x.power = (RUN_SPEED[x.kind] ?? 0.93) * (0.85 + rand(state) * 0.3);
+    const order = [...runners].sort((a, b) => b.power - a.power).map((x) => x.id);
+    state.race = { day, trackId: track.id, start: base + clockToInDay(R.start), end: base + clockToInDay(R.start + R.length), runners, order, done: false };
+    events.push({ type: 'raceStart' });
+  }
+  const race = state.race;
+  if (race && race.day === day && !race.done && state.t >= race.end) {
+    race.done = true;
+    const placed = [];
+    let prize = 0;
+    race.order.forEach((id, i) => {
+      const x = race.runners.find((y) => y.id === id);
+      if (x.own && i < R.prizes.length) {
+        prize += R.prizes[i];
+        placed.push({ name: x.name, rank: i + 1 });
+      }
+    });
+    state.coin += prize;
+    const first = race.runners.find((y) => y.id === race.order[0]);
+    state.today.race = { winner: first.name, winnerOwn: first.own, placed, prize };
+    events.push({ type: 'raceEnd', ...state.today.race });
+  }
 }
 
 // ---------------------------------------------------------------- 会社（D319）
@@ -853,6 +945,7 @@ function decideNext(state, r, { noCafe = false, avoid = null } = {}) {
     ...(avoid === 'ski' ? [] : skiChoices(state, r)),
     ...(avoid === 'aquarium' ? [] : aquariumChoices(state, r)),
     ...(avoid === 'pool' ? [] : poolChoices(state, r)),
+    ...(avoid === 'track' ? [] : trackChoices(state, r)),
   ];
   const shopList = shopChoices(state, r);
   const shopW = shopList.reduce((s, x) => s + x.w, 0);
@@ -1063,13 +1156,14 @@ function sit(state, r, b, seatIdx) {
   if (b.type === 'pond') r.fished = true;
   if (b.type === 'ski') r.skied = true;
   if (b.type === 'pool') r.swam = true;
+  if (b.type === 'track') r.watchedRace = true;
   if (b.type === 'aquarium') r.visitedAqua = true;
   if (b.type === 'stand') {
     // カウンターの前に立って待つ（見える）
     const f = standFront(b);
     r.tx = f.x;
     r.ty = f.y;
-  } else if (b.type === 'cafe' || b.type === 'pond' || b.type === 'pool') {
+  } else if (b.type === 'cafe' || b.type === 'pond' || b.type === 'pool' || b.type === 'track') {
     const s = seatPositions(b)[seatIdx];
     r.tx = s.x;
     r.ty = s.y;
@@ -1081,6 +1175,8 @@ function sit(state, r, b, seatIdx) {
   }
   const linger = state.weather === 'rain' ? V.rainLinger || 1 : 1;
   r.until = state.t + between(state, V.stayMin, V.stayMax) * linger;
+  // ドッグレースは、レースが終わるまで見る
+  if (b.type === 'track') r.until = Math.floor(state.t / DAY) * DAY + clockToInDay(V.start + V.length) + between(state, 1, 5);
   const closeAt = Math.floor(state.t / DAY) * DAY + clockToInDay(closeOf(b));
   // カフェは閉店後も飲み終わるまで居てよい。ただしバーは23時で閉める
   if (b.type !== 'cafe' || isBarTime(state, b)) r.until = Math.min(r.until, Math.max(state.t + 5, closeAt));
@@ -1212,6 +1308,15 @@ function rolloverDay(state, events) {
   if (bar?.served) lines.push({ kind: 'good', text: `夜のバーに ${bar.served}人 が来ました（+${bar.income} Coin）` });
   const stand = today.byType.stand;
   if (stand?.served) lines.push({ kind: 'good', text: `コーヒースタンドで ${stand.served}人 がコーヒーを買いました（+${stand.income} Coin）` });
+  if (today.race) {
+    const R = today.race;
+    const mine = R.placed.map((x) => `${x.name}が${x.rank}着`).join('・');
+    const seen = today.byType.track?.served || 0;
+    lines.push({
+      kind: 'good',
+      text: `ドッグレース：1着は${R.winner}${R.winnerOwn ? '' : '（島の外の犬）'}。${mine ? `${mine}（+${R.prize} Coin）。` : '島のペットは入賞ならず。'}見に来た人 ${seen}人`,
+    });
+  }
   if (today.work?.workers) lines.push({ kind: 'good', text: `会社で ${today.work.workers}人 が働きました（+${today.work.income} Coin）` });
   const aq = today.byType.aquarium;
   if (aq?.served) lines.push({ kind: 'good', text: `水族館に ${aq.served}人 が来ました（+${aq.income} Coin）` });
@@ -1314,6 +1419,11 @@ function rolloverDay(state, events) {
       names.push(r);
     }
     if (names.length) lines.push({ kind: 'good', text: `今日、${names.map((r) => r.name).join('と')}が島に引っ越してくるそうです` });
+  }
+
+  // レースの日の朝（D328）
+  if (ofType(state, 'track').length && (endedDay + 1) % CONFIG.track.every === 0) {
+    lines.push({ kind: 'info', text: `今日は ${fmtClock(CONFIG.track.start)} から ドッグレース` });
   }
 
   // 季節が変わる朝（D313）
@@ -1585,12 +1695,14 @@ export function actionsFor(state) {
     });
   }
   const NAME = { ...VENUE_NAME, kinder: '幼稚園', company: '会社' };
-  for (const type of ['pond', 'super', 'petshop', 'planetarium', 'kinder', 'pool', 'aquarium', 'company']) {
+  for (const type of ['pond', 'super', 'petshop', 'track', 'planetarium', 'kinder', 'pool', 'aquarium', 'company']) {
     const V = CONFIG[type];
     const u = CONFIG.unlocks.find((x) => x.id === type);
     const full = ofType(state, type).length >= maxOf(state, type);
     const locked = !isUnlocked(state, type) || full;
-    const what = type === 'company'
+    const what = type === 'track'
+      ? `${CONFIG.track.every}日ごと（Day ${CONFIG.track.every}・${CONFIG.track.every * 2}…）の ${fmtClock(CONFIG.track.start)} から、島のペットと島の外の犬がレース。住民と観光客が見に来る（入場料）。3着までで賞金。維持費 1日 ${V.levels[0].upkeep} Coin`
+      : type === 'company'
       ? `住民 ${V.levels[0].seats}人 が朝 出勤して、お昼に近くのカフェへ行く。1人 1日 ${CONFIG.company.pay} Coin。場所を選べる`
       : type === 'aquarium'
       ? `観光客が長く過ごす。雨の日にも人が来る。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`
@@ -2007,6 +2119,7 @@ export function describeResident(state, r) {
       if (b.type === 'aquarium') return '水族館で魚を見ている';
       if (b.type === 'pool') return 'プールで泳いでいる';
       if (b.type === 'ski') return 'スキーをしている';
+      if (b.type === 'track') return 'ドッグレースを見ている';
       return isBarTime(state, b) ? `${labelOf(state, b)}で夜のひととき` : `${labelOf(state, b)}でひと休み中`;
     }
     case 'PARK':
@@ -2238,10 +2351,10 @@ function bringCompanions(state, r) {
   // （施設はどれも dest='cafe' で向かうので、行き先の建物の種類で見る）
   const where = r.dest === 'cafe' ? buildingById(state, r.destId)?.type : r.dest;
   const wants = (c) =>
-    ({ super: c.needShop, petshop: c.needPet, planetarium: !c.visitedFun, pond: !c.fished, ski: !c.skied && !c.age, pool: !c.swam, aquarium: !c.visitedAqua, work: false }[where] ?? true);
+    ({ super: c.needShop, petshop: c.needPet, planetarium: !c.visitedFun, pond: !c.fished, ski: !c.skied && !c.age, pool: !c.swam, aquarium: !c.visitedAqua, track: !c.watchedRace, work: false }[where] ?? true);
   const spouse = r.spouseId && state.residents.find((x) => x.id === r.spouseId);
   if (awakeHome(spouse) && wants(spouse) && rand(state) < F.walkTogether) join(spouse);
-  if (r.dest === 'park' || r.dest === 'stroll' || where === 'pool') {
+  if (r.dest === 'park' || r.dest === 'stroll' || where === 'pool' || where === 'track') {
     for (const kid of state.residents) {
       if (kid.age === 'kid' && kid.parents?.includes(r.id) && awakeHome(kid) && rand(state) < F.kidJoins) join(kid);
     }

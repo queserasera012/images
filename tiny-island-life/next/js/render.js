@@ -1307,6 +1307,14 @@ export function createRenderer(canvas) {
     ctx.restore();
   }
 
+  const GUEST_TINTS = [
+    { body: '#f2f2f2', dark: '#6b6b6b' },
+    { body: '#3b2a20', dark: '#1e140f', muzzle: '#8d6a4f' },
+    { body: '#e8c170', dark: '#a87c3a' },
+    { body: '#c9a27a', dark: '#6b4a33' },
+    { body: '#8a8f98', dark: '#3f434a' },
+  ];
+
   // 種類ごとの色と形（D296：うさぎ・キツネ・アライグマを追加）
   const SPECIES = {
     cat: { body: '#ffffff', dark: '#3b2a20', patch: '#f4a259', ears: 'pointy', tail: 'thin' },
@@ -1318,7 +1326,9 @@ export function createRenderer(canvas) {
 
   function drawPetBody(state, pet, time) {
     const ph = phaseOf(pet.id);
-    const sp = SPECIES[pet.kind] || SPECIES.cat;
+    const sp0 = SPECIES[pet.kind] || SPECIES.cat;
+    // 島の外から来た犬（ドッグレース・D328）は毛の色を変える
+    const sp = pet.tint !== undefined ? { ...sp0, ...GUEST_TINTS[pet.tint % GUEST_TINTS.length] } : sp0;
     const moving = Math.hypot(pet.tx - pet.x, pet.ty - pet.y) > 0.5;
     const poked = pokes?.get(pet.id);
     const since = poked === undefined ? 99 : time - poked;
@@ -1958,6 +1968,128 @@ export function createRenderer(canvas) {
 
   // ---------------------------------------------------------------- 1コマ
 
+  // ---------------------------------------------------------------- ドッグレース（D328）
+
+  const RACE_SHOW_AFTER = 20; // ゴールのあと、何分 コースに残って見せるか
+  function racing(state, id) {
+    const r = state.race;
+    return !!r && state.t >= r.start - 1 && state.t <= r.end + RACE_SHOW_AFTER && r.runners.some((x) => x.id === id);
+  }
+  const trackGeom = (b) => ({ cx: b.c * T + (SIZES.track.w * T) / 2, cy: b.r * T + 52, rx: 33, ry: 22 });
+
+  function track(state, b, time) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.track.w * T;
+    const g = trackGeom(b);
+    // 看板と旗
+    ctx.fillStyle = PALETTE.white;
+    roundRect(ctx, x0 + w / 2 - 26, y0 + 2, 52, 11, 3);
+    ctx.fill();
+    ctx.fillStyle = PALETTE.ink;
+    ctx.font = `700 7.5px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('ドッグレース', x0 + w / 2, y0 + 8);
+    // コース（外の土・内の芝）
+    paperShadow((shadow) => {
+      if (!shadow) ctx.fillStyle = '#d9b27c';
+      ctx.beginPath();
+      ctx.ellipse(g.cx, g.cy, g.rx + 9, g.ry + 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.fillStyle = '#7fbf6f';
+    ctx.beginPath();
+    ctx.ellipse(g.cx, g.cy, g.rx - 8, g.ry - 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 0.8;
+    for (const d of [-3, 3]) {
+      ctx.beginPath();
+      ctx.ellipse(g.cx, g.cy, g.rx + d, g.ry + d, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    // ゴール（手前の真ん中）：白黒の線
+    for (let k = 0; k < 6; k++) {
+      ctx.fillStyle = k % 2 ? '#2b2b33' : '#ffffff';
+      ctx.fillRect(g.cx - 1.5, g.cy + g.ry - 8 + k * 3, 3, 3);
+    }
+    // 小旗
+    const colors = ['#e56b6f', '#f2b84b', '#62b6cb', '#7fbf6f'];
+    ctx.strokeStyle = 'rgba(61,90,128,0.5)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(x0 + 6, y0 + 20);
+    ctx.quadraticCurveTo(x0 + w / 2, y0 + 26, x0 + w - 6, y0 + 20);
+    ctx.stroke();
+    for (let k = 0; k < 9; k++) {
+      const x = x0 + 10 + k * ((w - 20) / 8);
+      const y = y0 + 21 + Math.sin((k / 8) * Math.PI) * 4;
+      ctx.fillStyle = colors[k % colors.length];
+      ctx.beginPath();
+      ctx.moveTo(x - 2.5, y);
+      ctx.lineTo(x + 2.5, y);
+      ctx.lineTo(x, y + 4 + Math.sin(time * 3 + k) * 0.6);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // 走っている5匹。2周してゴール。順位は sim が決めた順（state.race.order）
+  function raceRunners(state, b, time) {
+    const r = state.race;
+    if (!r || r.trackId !== b.id || state.t < r.start - 1 || state.t > r.end + RACE_SHOW_AFTER) return;
+    const g = trackGeom(b);
+    const len = r.end - r.start;
+    const list = r.runners.map((x) => {
+      const rank = r.order.indexOf(x.id);
+      const dur = len * (0.8 + rank * 0.05);
+      const u = Math.max(0, Math.min(1, (state.t - r.start) / dur));
+      // 手前の真ん中（ゴール）から左回りに2周
+      const a = Math.PI / 2 + u * Math.PI * 4 + Math.sin(u * 9 + rank) * 0.02;
+      const lane = (r.runners.indexOf(x) - 2) * 3.6;
+      let px = g.cx + Math.cos(a) * (g.rx + lane);
+      let py = g.cy + Math.sin(a) * (g.ry + lane * 0.7);
+      if (u >= 1) {
+        // ゴールしたら、内側の芝に着いた順に並ぶ（まわりの観客と重ならないように）
+        px = g.cx - 22 + rank * 11;
+        py = g.cy + 5;
+      }
+      const moving = u > 0 && u < 1;
+      const dir = -Math.sin(a) * (moving ? 1 : 0);
+      return { x, rank, px, py, moving, dir, u };
+    });
+    for (const k of list.sort((p, q) => p.py - q.py)) {
+      const fake = { id: k.x.id, kind: k.x.kind, adopted: true, x: k.px, y: k.py, tx: k.px + (k.moving ? 3 : 0), ty: k.py, facing: k.dir >= 0 ? 1 : -1, state: 'RUN', tint: k.x.tint };
+      ctx.save();
+      ctx.translate(k.px, k.py);
+      ctx.scale(0.8, 0.8);
+      ctx.translate(-k.px, -k.py);
+      drawPetBody(state, fake, time);
+      ctx.restore();
+    }
+    raceLabel = state.t >= r.end ? list.find((k) => k.rank === 0) : null;
+  }
+
+  // ゴールのあと：1着の名札（観客より手前に描く）
+  let raceLabel = null;
+  function drawRaceLabel() {
+    const win = raceLabel;
+    raceLabel = null;
+    if (win) {
+      const label = `1着 ${win.x.name}`;
+      ctx.font = `700 8px ${FONT}`;
+      const tw = ctx.measureText(label).width + 10;
+      ctx.fillStyle = PALETTE.mustard;
+      roundRect(ctx, win.px - tw / 2, win.py - 26, tw, 12, 6);
+      ctx.fill();
+      ctx.fillStyle = PALETTE.ink;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, win.px, win.py - 20);
+    }
+  }
+
   // ---------------------------------------------------------------- 施設 第1弾（D319）
 
   // 会社（3×2）：窓の並んだビル。中で働いている人がいると窓が明るい
@@ -2351,7 +2483,9 @@ export function createRenderer(canvas) {
       else if (b.type === 'company') company(state, b);
       else if (b.type === 'aquarium') aquarium(state, b, time);
       else if (b.type === 'pool') pool(state, b, time, poolOpen);
+      else if (b.type === 'track') track(state, b, time);
     }
+    for (const b of state.buildings) if (b.type === 'track') raceRunners(state, b, time);
     if (theme.snow) for (const b of state.buildings) if (b.type === 'ski') skiSlope(state, b, time);
     for (const i of lamps()) lamp(i, false);
     for (const b of state.buildings) if (b.type === 'cafe' && b.bar && !night) barLights(b, false, time);
@@ -2394,10 +2528,12 @@ export function createRenderer(canvas) {
         y: r.y,
         draw: () => (r.state === 'SEATED' && state.buildings.find((b) => b.id === r.destId)?.type === 'pool' ? swimmer(r, time) : drawResident(state, r, time, r.id === ui.selectedId)),
       })),
-      ...(state.pets || []).map((p) => ({ y: p.y, draw: () => drawPet(state, p, time) })),
+      // レースに出ているあいだ、島のペットはコースの上に描く（家のまわりには描かない）
+      ...(state.pets || []).filter((p) => !racing(state, p.id)).map((p) => ({ y: p.y, draw: () => drawPet(state, p, time) })),
     ].sort((a, b) => a.y - b.y);
     for (const t of things) t.draw();
     drawSleep(state, time);
+    drawRaceLabel();
     // 「もう少し広い家に住みたい」家族の家の上に、ふきだし（D307）
     for (const id of wantsRoomHouses(state)) {
       const b = state.buildings.find((x) => x.id === id);

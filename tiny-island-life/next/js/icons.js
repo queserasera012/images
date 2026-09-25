@@ -116,6 +116,14 @@ export const ICONS = {
       `<path d="M3 15v4M6.5 15v4M10 15v4" stroke="${INK}" stroke-width="1.1" stroke-linecap="round"/>`,
     28,
   ),
+  // ドッグレース場（D328）：楕円のコースと旗
+  track_new: svg(
+    `<ellipse cx="12" cy="13" rx="9.5" ry="6.5" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<ellipse cx="12" cy="13" rx="9.5" ry="6.5" fill="#d9b27c" stroke="${INK}" stroke-width="1.3"/>` +
+      `<ellipse cx="12" cy="13" rx="5" ry="2.8" fill="#7fbf6f"/>` +
+      `<path d="M16 3v7" stroke="${INK}" stroke-width="1.2" stroke-linecap="round"/><path d="M16 3l4 1.5-4 1.5z" fill="#e56b6f"/>`,
+    28,
+  ),
   // 会社（D319）：窓の並んだビル
   company_new: svg(
     `<rect x="5" y="4" width="14" height="16" rx="1.5" transform="translate(1 1)" fill="${SHADOW}"/>` +

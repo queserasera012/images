@@ -6,7 +6,7 @@ import {
   createGame, step, catchUp, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
   migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
-  labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason,
+  labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
   dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft, nameResident, placeLabel, seasonOf,
 } from './sim.js';
@@ -92,6 +92,11 @@ function frame(now) {
     if (e.type === 'newday') {
       toast(`Day ${e.entry.day} の日記が届きました`);
       $('diary-dot').hidden = false;
+    } else if (e.type === 'raceStart') {
+      toast('ドッグレースが始まりました');
+    } else if (e.type === 'raceEnd') {
+      const mine = e.placed.map((x) => `${x.name}が${x.rank}着`).join('・');
+      toast(`ドッグレース：1着は${e.winner}${mine && !e.winnerOwn ? `。${mine}` : ''}${e.prize ? `（+${e.prize} Coin）` : ''}`);
     } else if (e.type === 'arrived') {
       toast(`${e.name}が島に引っ越してきました`);
       renderQuest();
@@ -241,13 +246,18 @@ function tap(clientX, clientY) {
 // 建物のタップ判定。マスより少し広く取る（指は30pxのマスには小さすぎる・屋根はマスの上にはみ出している）
 const HIT_PAD = 10;
 const ROOF_PAD = 16;
+// 家の絵の屋根のてっぺんが、マスの上の端から何 px 上か（render.js の house() と同じ形）
+// 1階建て・2階建ては とんがり屋根（壁の上 12px）、アパートは平らな屋根（壁の上 5px）。壁の上は マスの上から 9px 下
+const houseRoofTop = (b) => houseLift(b) + ((b.level || 1) >= 3 ? 5 : 12) - 9;
+
 function buildingAt(p) {
   // まず、指の下に「描かれている」建物（屋根・看板の はみ出しを含む）。重なったら手前（下）に描かれた方
   // D310：前は余白込みの範囲で「真ん中が近い方」を選んでいて、釣り堀のふちを押すと隣の家が選ばれた
+  // D328：家の上の端は、絵の屋根のてっぺん（前は 14px 上まで取っていて、縦に並んだ上の家の壁の下を 下の家が取っていた）
   let hit = null;
   for (const b of state.buildings) {
     const s = SIZES[b.type];
-    const top = b.type === 'house' ? 14 + houseLift(b) : 8;
+    const top = b.type === 'house' ? houseRoofTop(b) : 8;
     if (p.x < b.c * T || p.x > (b.c + s.w) * T || p.y < b.r * T - top || p.y > (b.r + s.h) * T) continue;
     if (!hit || b.r + s.h > hit.r + SIZES[hit.type].h) hit = b;
   }
@@ -417,6 +427,21 @@ function renderCard() {
       html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${seatCount(b)}人 が勤める（家の近い人から）。${fmt(C.go)}ごろ出勤、お昼は近くのカフェ、${fmt(C.close)}まで。1人 1日 ${C.pay} Coin</div>`;
       html += `<div class="now">いま働いている：${who(inside)}</div>`;
       html += `<div>勤めている人：${who(b.staff || [])}</div>`;
+    } else if (b.type === 'track') {
+      // ドッグレース場（D328）
+      const R = CONFIG.track;
+      const race = state.race;
+      const today = isRaceDay(state);
+      const next = today ? dayOf(state.t) : nextRaceDay(state);
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${R.every}日ごと ${fmt(R.start)}から。${today ? '今日はレースの日' : `次は Day ${next}`}。見に来られるのは ${seatCount(b)}人</div>`;
+      if (race && race.day === dayOf(state.t) && state.t < race.end && state.t >= race.start) {
+        html += `<div class="now">走っている：${race.runners.map((x) => x.name + (x.own ? '' : '（島の外）')).join('・')}</div>`;
+      } else if (race) {
+        html += `<div class="now">前のレース（Day ${race.day}）：${race.order.slice(0, 3).map((id, i) => { const x = race.runners.find((y) => y.id === id); return `${i + 1}着 ${x.name}${x.own ? '' : '（島の外）'}`; }).join('、')}</div>`;
+      } else {
+        html += `<div class="now">島の家族のペットと、島の外から来る犬が走ります。3着までで賞金</div>`;
+      }
+      html += `<div>見ている：${who(b.seats.filter(Boolean))}</div>`;
     } else if (b.type === 'pool') {
       // プール（D319）：夏だけ開く
       const V = CONFIG.pool;
@@ -1040,6 +1065,24 @@ if (DEBUG) {
     fishing: () => fishingNow(),
     // スキー場の絵を見るため：席を住民で埋める（D318）
     advance: (m) => step(state, m),
+    selectedId: () => selected?.id || null,
+    raceDay: () => isRaceDay(state),
+    worldToClient: (x, y) => renderer.toClient(x, y),
+    stack: () => {
+      // 縦に2軒並べられる場所を探して建てる（D328 の確かめ用）
+      const spots = placements('house', state.buildings);
+      for (const p of spots) {
+        if (!canPlace('house', p.c, p.r + 1, state.buildings)) continue;
+        state.coin += 1000;
+        applyAction(state, 'house', p);
+        applyAction(state, 'house', { c: p.c, r: p.r + 1 });
+        const up = state.buildings.find((b) => b.type === 'house' && b.c === p.c && b.r === p.r);
+        const down = state.buildings.find((b) => b.type === 'house' && b.c === p.c && b.r === p.r + 1);
+        renderer.focus((p.c + 0.5) * T, (p.r + 1) * T);
+        return { c: p.c, r: p.r, up: up.id, down: down.id };
+      }
+      return null;
+    },
     // 見た目を並べて見るため（D325）：住民に 指定した名前の見た目をつけて、公園の前に並べて止める
     lineup: (names) => {
       const at = { x: (OX + 8) * T + 12, y: (OY + 11) * T + 14 };

@@ -203,6 +203,7 @@ export const CONFIG = {
     { id: 'pond', pop: 9, goal: '釣り堀をひらく', done: '釣り堀を建てられるようになりました', note: '釣り堀を建てられるようになります' },
     { id: 'super', pop: 12, goal: 'スーパーをひらく', done: 'スーパーを建てられるようになりました', note: 'スーパーを建てられるようになります' },
     { id: 'petshop', pets: 2, goal: 'ペットショップをひらく', done: 'ペットショップを建てられるようになりました', note: 'ペットショップを建てられるようになります' },
+    { id: 'track', pets: 3, goal: 'ドッグレース場をひらく', done: 'ドッグレース場を建てられるようになりました', note: '週に1回のドッグレース場を建てられるようになります' },
     { id: 'kinder', kids: 1, goal: '幼稚園をひらく', done: '幼稚園を建てられるようになりました', note: '幼稚園を建てられるようになります' },
     { id: 'planetarium', pop: 16, goal: 'プラネタリウムをひらく', done: 'プラネタリウムを建てられるようになりました', note: 'プラネタリウムを建てられるようになります' },
     { id: 'expand', pop: 21, goal: '島を広げる', done: '島を広げられるようになりました', note: '島を広げられるようになります' },
@@ -340,6 +341,31 @@ export const CONFIG = {
     rabbit: { day: 3, clock: 10 * 60, name: 'しろ', label: 'うさぎ', speed: 0.8, near: 'park', spots: ['lawn', 'garden', 'lawn'], nap: [30, 80] },
     fox: { day: 5, clock: 16 * 60, name: 'コン', label: 'キツネ', speed: 0.9, near: 'north', spots: ['north', 'north', 'bench'], nap: [50, 120] },
     raccoon: { day: 6, clock: 19 * 60, name: 'クー', label: 'アライグマ', speed: 0.7, near: 'cafe', spots: ['terrace', 'shopfront', 'plaza'], nap: [40, 100] },
+  },
+
+  // ---- ドッグレース場（D328）：週に1回（7日ごと）15:00 からレース。島のペットと、島の外から来る犬が走る。賭けは無し ----
+  // 13:40 から住民と観光客が見に来る（入場料）。島のペットが3着までに入ると賞金
+  track: {
+    every: 7,                   // 7日ごと（Day 7・14・21…）
+    open: 13 * 60 + 40,         // 観客が集まりはじめる（歩いて1時間かかる人もいるので、早めに声をかける）
+    start: 15 * 60,
+    length: 25,                 // レースの長さ（ゲームの分。現実の約12秒）
+    close: 15 * 60 + 40,
+    customerValue: 10,          // 入場料
+    stayMin: 60,
+    stayMax: 80,
+    maxQueue: 8,
+    rainLinger: 1,
+    pull: 80,                   // レースの日は強く呼ぶ
+    callChance: 0.6,            // 14:20 に 手のあいている人が見に行く割合
+    lanes: 5,                   // 走るのは5匹（島のペットが足りない分は、島の外の犬）
+    prizes: [300, 150, 80],     // 島のペットが1〜3着なら
+    levels: [
+      { level: 1, seats: 12, upkeep: 20 },
+      { level: 2, seats: 20, upkeep: 30, cost: 1200 },
+    ],
+    buildCost: 1600,
+    max: 1,
   },
 
   // ---- ペットショップ（D296）：ペットのいる家の人だけ。2日に1回 ----
