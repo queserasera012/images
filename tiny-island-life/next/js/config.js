@@ -110,6 +110,59 @@ export const CONFIG = {
     max: 1,
   },
 
+  // ---- 会社（D319）：住民（大人）が朝 出勤して、お昼に近くのカフェへ行き、17時まで働く ----
+  // 新しい困りごと：お昼のカフェが 会社の近くで混む（場所の問題が新しくなる）
+  company: {
+    go: 8 * 60 + 30,            // この時刻から出勤する
+    lunch: 12 * 60,             // お昼休み（ここから30分のあいだに順に出てくる）
+    close: 17 * 60,             // 仕事おわり
+    pay: 20,                    // 1人1日あたり、島に入る Coin
+    levels: [
+      { level: 1, seats: 6, upkeep: 0 },
+      { level: 2, seats: 10, upkeep: 0, cost: 2500 },
+    ],
+    buildCost: 3000,
+    max: 2,
+  },
+
+  // ---- 水族館（D319）：観光客が長くいる。雨の日の行き先 ----
+  aquarium: {
+    open: 10 * 60,
+    close: 18 * 60,
+    customerValue: 30,
+    stayMin: 50,
+    stayMax: 90,
+    maxQueue: 6,
+    rainLinger: 1,
+    touristPull: 50,            // 観光客の行きたさ（お土産屋より少し強い）
+    rainBoost: 2.2,
+    levels: [
+      { level: 1, seats: 8, upkeep: 40 },
+      { level: 2, seats: 12, upkeep: 60, cost: 2600 },
+    ],
+    buildCost: 3200,
+    max: 1,
+  },
+
+  // ---- プール（D319）：夏だけ開く。晴れた日に人が集まり、公園が空く。子どもは親と来る ----
+  pool: {
+    open: 10 * 60,
+    close: 17 * 60,
+    customerValue: 20,
+    stayMin: 40,
+    stayMax: 80,
+    maxQueue: 6,
+    rainLinger: 1,
+    pull: 34,
+    weather: { sunny: 1, cloudy: 0.5, rain: 0.1 },
+    levels: [
+      { level: 1, seats: 8, upkeep: 30 },
+      { level: 2, seats: 12, upkeep: 45, cost: 1800 },
+    ],
+    buildCost: 2200,
+    max: 1,
+  },
+
   // ---- 結婚・子ども（D297） ----
   family: {
     affinityNeed: 120,          // 同じ場所で一緒に過ごした時間（ゲーム内の分）がこれを超えると、結婚するかもしれない
@@ -146,6 +199,9 @@ export const CONFIG = {
     { id: 'kinder', kids: 1, goal: '幼稚園をひらく', done: '幼稚園を建てられるようになりました', note: '幼稚園を建てられるようになります' },
     { id: 'planetarium', pop: 14, goal: 'プラネタリウムをひらく', done: 'プラネタリウムを建てられるようになりました', note: 'プラネタリウムを建てられるようになります' },
     { id: 'expand', pop: 16, goal: '島を広げる', done: '島を広げられるようになりました', note: '島を広げられるようになります' },
+    { id: 'pool', pop: 18, goal: 'プールをひらく', done: 'プールを建てられるようになりました', note: '夏だけ開くプールを建てられるようになります' },
+    { id: 'aquarium', pop: 22, goal: '水族館をひらく', done: '水族館を建てられるようになりました', note: '水族館を建てられるようになります' },
+    { id: 'company', pop: 26, goal: '会社をひらく', done: '会社を建てられるようになりました', note: '住民が働きに行く会社を建てられるようになります' },
   ],
 
   // ---- 公園 ----

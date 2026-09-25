@@ -1946,6 +1946,194 @@ export function createRenderer(canvas) {
 
   // ---------------------------------------------------------------- 1コマ
 
+  // ---------------------------------------------------------------- 施設 第1弾（D319）
+
+  // 会社（3×2）：窓の並んだビル。中で働いている人がいると窓が明るい
+  function company(state, b) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.company.w * T;
+    paperShadow((shadow) => {
+      if (!shadow) ctx.fillStyle = '#e8edf2';
+      roundRect(ctx, x0 + 6, y0 - 10, w - 12, T + 30, 3);
+      ctx.fill();
+      if (!shadow) ctx.fillStyle = '#5b7190';
+      roundRect(ctx, x0 + 3, y0 - 14, w - 6, 7, 2);
+      ctx.fill();
+    });
+    const working = state.residents.filter((r) => r.state === 'WORK' && r.destId === b.id).length;
+    let k = 0;
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 5; col++) {
+        const lit = k < working * 2;
+        ctx.fillStyle = lit ? '#ffd66b' : '#9fc9d6';
+        ctx.fillRect(x0 + 13 + col * 14, y0 - 3 + row * 11, 8, 6);
+        k += 1;
+      }
+    }
+    ctx.fillStyle = PALETTE.ink;
+    roundRect(ctx, x0 + w / 2 - 7, y0 + T + 6, 14, 14, [3, 3, 0, 0]);
+    ctx.fill();
+    ctx.fillStyle = PALETTE.white;
+    roundRect(ctx, x0 + 8, y0 + T + 8, 24, 11, 3);
+    ctx.fill();
+    ctx.fillStyle = PALETTE.ink;
+    ctx.font = `700 8px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('会社', x0 + 20, y0 + T + 13.5);
+  }
+
+  // 水族館（3×3）：波の屋根と、魚の泳ぐ大きな窓
+  function aquarium(state, b, time) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.aquarium.w * T;
+    const top = y0 + 24; // 3段めまで使う（下の段が空き地に見えないように）
+    paperShadow((shadow) => {
+      if (!shadow) ctx.fillStyle = PALETTE.white;
+      roundRect(ctx, x0 + 6, top + 8, w - 12, 56, 4);
+      ctx.fill();
+      if (!shadow) ctx.fillStyle = '#2a7fa8';
+      ctx.beginPath();
+      ctx.moveTo(x0 + 2, top + 14);
+      for (let k = 0; k <= 4; k++) {
+        const x = x0 + 2 + ((w - 4) * k) / 4;
+        ctx.quadraticCurveTo(x - (w - 4) / 8, top - 6 - (k % 2) * 4, x, top + 2);
+      }
+      ctx.lineTo(x0 + w - 2, top + 14);
+      ctx.closePath();
+      ctx.fill();
+    });
+    // 窓の中を魚が泳ぐ
+    const wx = x0 + 14;
+    const wy = top + 16;
+    const ww = w - 28;
+    ctx.fillStyle = '#7fd0e0';
+    roundRect(ctx, wx, wy, ww, 24, 4);
+    ctx.fill();
+    ctx.save();
+    roundRect(ctx, wx, wy, ww, 24, 4);
+    ctx.clip();
+    for (let k = 0; k < 3; k++) {
+      const fx = wx + ((time * (8 + k * 3) + k * 23) % (ww + 20)) - 10;
+      const fy = wy + 6 + k * 6;
+      ctx.fillStyle = ['#f2b84b', '#f28aa0', '#ffffff'][k];
+      ctx.beginPath();
+      ctx.ellipse(fx, fy, 4, 2.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(fx - 4, fy);
+      ctx.lineTo(fx - 7, fy - 2.2);
+      ctx.lineTo(fx - 7, fy + 2.2);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+    ctx.fillStyle = PALETTE.ink;
+    ctx.font = `700 8px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('水族館', x0 + w / 2, top + 49);
+    roundRect(ctx, x0 + w / 2 - 6, top + 55, 12, 9, [3, 3, 0, 0]);
+    ctx.fill();
+  }
+
+  // プール（3×2）：夏だけ水が入る。ほかの季節はシートをかけてある
+  function pool(state, b, time, open) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.pool.w * T;
+    const h = SIZES.pool.h * T;
+    ctx.fillStyle = '#efe3cc';
+    roundRect(ctx, x0 + 2, y0 + 2, w - 4, h - 4, 5);
+    ctx.fill();
+    const px = x0 + 8;
+    const py = y0 + 8;
+    const pw = w - 16;
+    const ph = h - 18;
+    if (!open) {
+      ctx.fillStyle = '#8fa9bd';
+      roundRect(ctx, px, py, pw, ph, 4);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = 1;
+      for (let k = 1; k < 4; k++) {
+        ctx.beginPath();
+        ctx.moveTo(px + (pw * k) / 4, py);
+        ctx.lineTo(px + (pw * k) / 4, py + ph);
+        ctx.stroke();
+      }
+      ctx.fillStyle = PALETTE.white;
+      roundRect(ctx, x0 + w / 2 - 16, py + ph / 2 - 6, 32, 12, 3);
+      ctx.fill();
+      ctx.fillStyle = PALETTE.ink;
+      ctx.font = `700 8px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('夏だけ', x0 + w / 2, py + ph / 2 + 0.5);
+      return;
+    }
+    ctx.fillStyle = '#4fc3dc';
+    roundRect(ctx, px, py, pw, ph, 4);
+    ctx.fill();
+    // 水面のゆらぎ
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+    ctx.lineWidth = 1.2;
+    for (let k = 0; k < 4; k++) {
+      const y = py + 6 + k * 9;
+      ctx.beginPath();
+      for (let x = px + 4; x < px + pw - 4; x += 4) ctx.lineTo(x, y + Math.sin(time * 2 + x * 0.3 + k) * 1.2);
+      ctx.stroke();
+    }
+    // コースロープ
+    for (const k of [1, 2]) {
+      const y = py + (ph * k) / 3;
+      for (let x = px + 3; x < px + pw - 2; x += 5) {
+        ctx.fillStyle = (x / 5) % 2 < 1 ? '#e56b6f' : '#ffffff';
+        ctx.beginPath();
+        ctx.arc(x, y, 1.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    // パラソル
+    ctx.fillStyle = '#f2b84b';
+    ctx.beginPath();
+    ctx.arc(x0 + w - 10, y0 + h - 6, 7, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = PALETTE.ink;
+    ctx.fillRect(x0 + w - 10.5, y0 + h - 6, 1, 5);
+  }
+
+  // 泳いでいる人：水から頭と腕だけ
+  function swimmer(r, time) {
+    const look = lookOf(r);
+    const ph = phaseOf(r.id);
+    const bob = Math.sin(time * 3 + ph) * 1;
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.beginPath();
+    ctx.ellipse(r.x, r.y + 1, 6, 2.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = look.skin;
+    ctx.lineWidth = 1.6;
+    ctx.lineCap = 'round';
+    const arm = Math.sin(time * 4 + ph) * 3;
+    ctx.beginPath();
+    ctx.moveTo(r.x - 3, r.y);
+    ctx.lineTo(r.x - 6, r.y - 3 + arm);
+    ctx.moveTo(r.x + 3, r.y);
+    ctx.lineTo(r.x + 6, r.y - 3 - arm);
+    ctx.stroke();
+    ctx.fillStyle = look.skin;
+    ctx.beginPath();
+    ctx.arc(r.x, r.y - 2 + bob, 3.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = look.hair;
+    ctx.beginPath();
+    ctx.arc(r.x, r.y - 3 + bob, 3.2, Math.PI, 0);
+    ctx.fill();
+  }
+
   // ---------------------------------------------------------------- 山の島（D318）
 
   // 橋をかける前の山の島：海の向こうに うっすら見える（D317・オーナー案）
@@ -2116,6 +2304,7 @@ export function createRenderer(canvas) {
     decor(used, time);
 
     const cafeList = state.buildings.filter((b) => b.type === 'cafe');
+    const poolOpen = themeId() === 'natsu';
     let houseN = 0;
     // 奥（上）から順に描く
     for (const b of [...state.buildings].sort((a, c) => a.r - c.r)) {
@@ -2130,6 +2319,9 @@ export function createRenderer(canvas) {
       else if (b.type === 'pond') pond(state, b, time);
       else if (b.type === 'stand') stand(state, b, time);
       else if (b.type === 'ski') skiLodge(state, b, theme.snow);
+      else if (b.type === 'company') company(state, b);
+      else if (b.type === 'aquarium') aquarium(state, b, time);
+      else if (b.type === 'pool') pool(state, b, time, poolOpen);
     }
     if (theme.snow) for (const b of state.buildings) if (b.type === 'ski') skiSlope(state, b, time);
     for (const i of lamps()) lamp(i, false);
@@ -2169,7 +2361,10 @@ export function createRenderer(canvas) {
     if (night) for (const b of state.buildings) if (b.type === 'cafe' && b.bar) barLights(b, true, time);
     // 住民・観光客・ペットを、奥（上）から順に
     const things = [
-      ...everyone(state).filter((r) => r.visible).map((r) => ({ y: r.y, draw: () => drawResident(state, r, time, r.id === ui.selectedId) })),
+      ...everyone(state).filter((r) => r.visible).map((r) => ({
+        y: r.y,
+        draw: () => (r.state === 'SEATED' && state.buildings.find((b) => b.id === r.destId)?.type === 'pool' ? swimmer(r, time) : drawResident(state, r, time, r.id === ui.selectedId)),
+      })),
       ...(state.pets || []).map((p) => ({ y: p.y, draw: () => drawPet(state, p, time) })),
     ].sort((a, b) => a.y - b.y);
     for (const t of things) t.draw();

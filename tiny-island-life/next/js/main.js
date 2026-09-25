@@ -6,7 +6,7 @@ import {
   createGame, step, catchUp, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
   migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
-  labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter,
+  labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
   dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft, nameResident, placeLabel, seasonOf,
 } from './sim.js';
@@ -410,12 +410,26 @@ function renderCard() {
       html += `<div class="now">釣りをしている：${who(b.seats.filter(Boolean))}</div>`;
       html += `<div>あなたが釣った魚：${log.length ? log.join('・') : 'まだ いない'}</div>`;
       html += `<button id="btn-fish" class="card-act" type="button">${ICONS.fish}釣りをする<span class="cost">${left > 0 ? `今日の Coin あと ${left}回` : '今日の Coin は おしまい'}</span></button>`;
-    } else if (b.type === 'super' || b.type === 'planetarium' || b.type === 'petshop' || b.type === 'stand') {
+    } else if (b.type === 'company') {
+      // 会社（D319）
+      const C = CONFIG.company;
+      const inside = state.residents.filter((r) => r.state === 'WORK' && r.destId === b.id).map((r) => r.id);
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${seatCount(b)}人 が勤める（家の近い人から）。${fmt(C.go)}ごろ出勤、お昼は近くのカフェ、${fmt(C.close)}まで。1人 1日 ${C.pay} Coin</div>`;
+      html += `<div class="now">いま働いている：${who(inside)}</div>`;
+      html += `<div>勤めている人：${who(b.staff || [])}</div>`;
+    } else if (b.type === 'pool') {
+      // プール（D319）：夏だけ開く
+      const V = CONFIG.pool;
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">一度に ${seatCount(b)}人。夏だけ ${fmt(V.open)}から${fmt(V.close)}まで</div>`;
+      html += inSeason(state, 'pool')
+        ? `<div class="now">泳いでいる：${who(b.seats.filter(Boolean))}</div><div>外で待っている：${who(b.queue)}</div>`
+        : `<div class="now">いまは お休み。夏になると ひらきます（維持費も夏だけ）</div>`;
+    } else if (b.type === 'super' || b.type === 'planetarium' || b.type === 'petshop' || b.type === 'stand' || b.type === 'aquarium') {
       const V = CONFIG[b.type];
       const inside = b.seats.filter(Boolean);
       const unit = b.type === 'planetarium' ? `${seatCount(b)}席` : b.type === 'stand' ? '持ち帰り' : `一度に ${seatCount(b)}人 まで`;
       html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${unit}。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
-      html += `<div class="now">${{ planetarium: '星を見ている', stand: '注文している' }[b.type] || '買い物中'}：${who(inside)}</div>`;
+      html += `<div class="now">${{ planetarium: '星を見ている', stand: '注文している', aquarium: '魚を見ている' }[b.type] || '買い物中'}：${who(inside)}</div>`;
       html += `<div>外で待っている：${who(b.queue)}</div>`;
     } else if (b.type === 'ski') {
       // スキー場（D318）：冬だけ開く
@@ -1001,6 +1015,7 @@ function renderDebug() {
     <button data-dbg="unlock">釣り堀・スーパー・プラネタリウムをひらく</button>
     <button data-dbg="pets">ペットを全部 迷い込ませる</button>
     <button data-dbg="expand">島を広げられるようにする</button>
+    <button data-dbg="wave1">会社・水族館・プールをひらく</button>
     <button data-dbg="family">結婚と出産を早める（留守2回で子ども）</button>
     <button data-dbg="reset">最初からやり直す</button>
     <pre>画面をつけたまま：${{ on: 'オン', off: 'オフ', unsupported: 'この端末では使えない' }[awakeStatus()]}</pre>
@@ -1024,6 +1039,7 @@ if (DEBUG) {
     focusPier: (id) => renderer.focus(center(PIERS[id]).x + 40, center(PIERS[id]).y),
     fishing: () => fishingNow(),
     // スキー場の絵を見るため：席を住民で埋める（D318）
+    advance: (m) => step(state, m),
     fillSki: () => state.buildings.filter((b) => b.type === 'ski').forEach((b) => b.seats.forEach((_, k) => (b.seats[k] = state.residents[k % state.residents.length].id))),
     markRoom: () => {
       const h = houses(state).find((x) => state.residents.filter((r) => r.homeId === x.id).length >= capacityOf(x));
@@ -1057,6 +1073,10 @@ if (DEBUG) {
     }
     if (k === 'expand') {
       unlockNow(state, 'expand');
+      renderQuest();
+    }
+    if (k === 'wave1') {
+      for (const id of ['pool', 'aquarium', 'company']) unlockNow(state, id);
       renderQuest();
     }
     if (k === 'family') {

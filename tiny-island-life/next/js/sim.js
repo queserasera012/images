@@ -127,8 +127,14 @@ export const everyone = (state) => (state.visitors?.length ? state.residents.con
 export const personById = (state, id) => state.residents.find((r) => r.id === id) || state.visitors?.find((r) => r.id === id);
 
 // 席と列のある施設（カフェ・スーパー・プラネタリウム）。同じ仕組みで動く（D295）
-export const VENUE_TYPES = ['cafe', 'super', 'planetarium', 'petshop', 'pond', 'stand', 'ski'];
-export const VENUE_NAME = { cafe: 'カフェ', super: 'スーパー', planetarium: 'プラネタリウム', petshop: 'ペットショップ', pond: '釣り堀', stand: 'コーヒースタンド', ski: 'スキー場' };
+export const VENUE_TYPES = ['cafe', 'super', 'planetarium', 'petshop', 'pond', 'stand', 'ski', 'aquarium', 'pool'];
+export const VENUE_NAME = {
+  cafe: 'カフェ', super: 'スーパー', planetarium: 'プラネタリウム', petshop: 'ペットショップ', pond: '釣り堀', stand: 'コーヒースタンド', ski: 'スキー場',
+  aquarium: '水族館', pool: 'プール',
+};
+// 季節の施設（D318・D319）：その季節だけ開き、維持費もその季節だけ
+export const SEASONAL = { ski: 'yuki', pool: 'natsu' };
+export const inSeason = (state, type) => !SEASONAL[type] || seasonOf(state).id === SEASONAL[type];
 export const isVenue = (b) => VENUE_TYPES.includes(b.type);
 export const venues = (state) => state.buildings.filter(isVenue);
 export const ofType = (state, type) => state.buildings.filter((b) => b.type === type);
@@ -141,6 +147,7 @@ export const buildingById = (state, id) => state.buildings.find((b) => b.id === 
 function makeBuilding(state, type, c, r) {
   const b = { id: `b${state.nextId++}`, type, c, r, access: accessTile(type, c, r) };
   if (VENUE_TYPES.includes(type) || type === 'kinder') Object.assign(b, { level: 1, seats: new Array(CONFIG[type].levels[0].seats).fill(null), queue: [] });
+  if (type === 'company') Object.assign(b, { level: 1, staff: [] });
   if (type === 'park') b.roof = false;
   if (type === 'house') b.level = 1;
   if (type === 'shop') Object.assign(b, { level: 1, stock: CONFIG.shop.levels[0].stock });
@@ -159,6 +166,7 @@ export function houseDoor(h) {
 
 export function seatPositions(cafe) {
   if (cafe.type === 'pond') return pondSeats(cafe);
+  if (cafe.type === 'pool') return poolSeats(cafe);
   const x0 = cafe.c * T;
   const y0 = (cafe.r + 1) * T;
   const w = SIZES.cafe.w * T;
@@ -174,6 +182,15 @@ export function standFront(b) {
   const dx = Math.sign(b.c * T + T / 2 - a.x);
   const dy = Math.sign(b.r * T + T / 2 - a.y);
   return { x: a.x + dx * 8, y: a.y + dy * 8 + (dy ? 0 : 4) };
+}
+
+// プールの中で泳ぐ場所（D319）：水の中に 4×3 に散らす。真ん中から埋める
+function poolSeats(b) {
+  const x0 = b.c * T;
+  const y0 = b.r * T;
+  const pos = [];
+  for (let row = 0; row < 3; row++) for (let k = 0; k < 4; k++) pos.push({ x: x0 + 17 + k * 19 + (row % 2) * 6, y: y0 + 18 + row * 13 });
+  return [5, 6, 1, 2, 9, 10, 4, 7, 0, 3, 8, 11].map((i) => pos[i]);
 }
 
 // 釣り堀の釣り座：池の下のふちに並ぶ（池の方を向いて座る）
@@ -211,6 +228,7 @@ export function shopFront(shop, k = 0) {
 export function labelOf(state, b) {
   if (b.type === 'shop') return shopLabel(state, b);
   if (b.type === 'kinder') return '幼稚園';
+  if (b.type === 'company') return dirName(ofType(state, 'company'), b, '会社');
   if (!isVenue(b)) return b.type;
   return dirName(ofType(state, b.type), b, VENUE_NAME[b.type]);
 }
@@ -290,6 +308,7 @@ function freshToday() {
     kinder: { went: 0, missed: 0 },
     fishing: { plays: 0, rewarded: 0, coin: 0, caught: [] },
     ads: { bonus: 0, boat: 0, bait: 0 },
+    work: { workers: 0, income: 0 },
   };
 }
 
@@ -320,6 +339,7 @@ export function migrate(state) {
   state.today.kinder ||= { went: 0, missed: 0 };
   state.today.fishing ||= { plays: 0, rewarded: 0, coin: 0, caught: [] };
   state.today.ads ||= { bonus: 0, boat: 0, bait: 0 };
+  state.today.work ||= { workers: 0, income: 0 };
   state.fishLog ||= {};
   if (state.port.open) state.unlocked.port = true;
   for (const b of state.buildings) if (isVenue(b) && !b.queue) Object.assign(b, { seats: [], queue: [] });
@@ -465,6 +485,10 @@ function planDay(state, r) {
   r.visitedFun = false; // プラネタリウムも1日1回まで
   r.fished = false; // 釣り堀も1日1回まで
   r.skied = false; // スキーも1日1回まで
+  r.swam = false; // プールも1日1回まで
+  r.visitedAqua = false; // 水族館も1日1回まで
+  r.workedToday = false; // 会社（D319）
+  r.lunched = false;
   // ペットのいる家の人は、2日に1回 ペットショップへ（家ごとに曜日をずらす）
   r.needPet = ofType(state, 'petshop').length > 0 && householdHasPet(state, r) && (dayOf(state.t) + (r.look || 0)) % 2 === 0;
   r.wake = base + clockToInDay(6 * 60 + 30) + between(state, 0, 35);
@@ -582,7 +606,7 @@ function venueOpen(state, type, margin = 0) {
 // 建物ごとの閉店時刻（カフェ&バーは夜23時まで・D297）
 export const closeOf = (b) => (b.type === 'cafe' && b.bar ? CONFIG.cafe.bar.close : CONFIG[b.type].close);
 function buildingOpen(state, b, margin = 0) {
-  if (b.type === 'ski' && !isWinter(state)) return false;
+  if (!inSeason(state, b.type)) return false;
   const c = clockOf(state.t);
   return c >= CONFIG[b.type].open && c < closeOf(b) - margin;
 }
@@ -646,6 +670,107 @@ function skiChoices(state, r) {
   return ofType(state, 'ski').map((b) => ({ cafe: b, w: P.pull * weather * far(b) }));
 }
 
+// 水族館（D319）：観光客がよく行く（長くいる）。住民は1日1回まで。雨の日に人が集まる（屋内）
+function aquariumChoices(state, r) {
+  if (r.visitedAqua || !venueOpen(state, 'aquarium', 45)) return [];
+  const A = CONFIG.aquarium;
+  const weather = state.weather === 'rain' ? A.rainBoost : state.weather === 'cloudy' ? 1.3 : 1;
+  const pull = r.tourist ? A.touristPull : (r.prefs.fun ?? 12);
+  return ofType(state, 'aquarium').map((b) => ({ cafe: b, w: pull * weather * near(r, b.access) }));
+}
+
+// プール（D319）：夏だけ。晴れた日に集まる。大人と観光客が行き、子どもは親についてくる。1日1回まで
+function poolChoices(state, r) {
+  if (r.age || r.swam || !inSeason(state, 'pool') || !venueOpen(state, 'pool', 30)) return [];
+  const P = CONFIG.pool;
+  return ofType(state, 'pool').map((b) => ({ cafe: b, w: P.pull * P.weather[state.weather] * near(r, b.access) }));
+}
+
+// ---------------------------------------------------------------- 会社（D319）
+//
+// 会社には机の数だけ住民（大人）が勤める。家の近い人から。
+// 朝 8:30 から出勤し、12時にお昼を食べに近くのカフェへ出て、戻って17時まで働く。働いた人の数だけ Coin が入る
+
+// 勤める人を決める（毎朝と、会社を建てた・広げたとき）
+export function assignJobs(state) {
+  const cos = ofType(state, 'company');
+  const ids = new Set(state.residents.map((r) => r.id));
+  for (const r of state.residents) if (r.job && !cos.some((b) => b.id === r.job)) r.job = null;
+  for (const b of cos) {
+    b.staff = (b.staff || []).filter((id) => ids.has(id));
+    const free = seatCount(b) - b.staff.length;
+    if (free <= 0) continue;
+    const home = (r) => buildingById(state, r.homeId);
+    const cand = state.residents
+      .filter((r) => !r.age && !r.job && home(r))
+      .map((r) => ({ r, d: roadDistance(home(r).access, b.access) }))
+      .filter((x) => Number.isFinite(x.d))
+      .sort((a, c) => a.d - c.d)
+      .slice(0, free);
+    for (const { r } of cand) {
+      r.job = b.id;
+      b.staff.push(r.id);
+    }
+  }
+}
+
+// 今、会社へ行くべきか（行くなら その会社）
+function workDue(state, r) {
+  if (!r.job || r.tourist || r.age || r.workedToday) return null;
+  const C = CONFIG.company;
+  const c = clockOf(state.t);
+  if (c < C.go || c >= C.close - 30) return null;
+  return buildingById(state, r.job) || null;
+}
+
+function goWork(state, r, b) {
+  const a = center(b.access);
+  goTo(state, r, 'work', b.id, b.access, { x: a.x + (b.c * T + T - a.x) * 0.3, y: a.y + (b.r * T + T - a.y) * 0.3 });
+}
+
+function enterWork(state, r) {
+  const C = CONFIG.company;
+  const base = Math.floor(state.t / DAY) * DAY;
+  const c = clockOf(state.t);
+  if (c >= C.lunch + 60) r.lunched = true; // お昼を過ぎてから着いたら、お昼は外に出ない
+  r.state = 'WORK';
+  r.visible = false;
+  r.until = r.lunched ? base + clockToInDay(C.close) : base + clockToInDay(C.lunch) + between(state, 0, 30);
+  if (r.until <= state.t) r.until = state.t + 1;
+}
+
+function leaveWork(state, r, events) {
+  const C = CONFIG.company;
+  const b = buildingById(state, r.destId);
+  const a = b ? center(b.access) : { x: r.x, y: r.y };
+  r.visible = true;
+  r.x = r.tx = a.x;
+  r.y = r.ty = a.y;
+  if (b) r.at = b.access;
+  const c = clockOf(state.t);
+  if (!r.lunched && c < C.close - 60) {
+    // お昼：会社の近くのカフェへ（遠いところほど行きにくい。r.at が会社の前なので、近さは会社から）
+    r.lunched = true;
+    // お昼休みは短いので、遠さがふだんより効く（近さを もう一度かける）
+    const food = [...cafeChoices(state, r), ...standChoices(state, r)].map((f) => ({ ...f, w: f.w * near(r, f.cafe.access) }));
+    const sum = food.reduce((s, x) => s + x.w, 0);
+    if (sum > 0) {
+      let x = rand(state) * sum;
+      for (const f of food) if ((x -= f.w) < 0) return goCafe(state, r, f.cafe);
+      return goCafe(state, r, food[food.length - 1].cafe);
+    }
+    return enterWork(state, r); // 開いている店が無ければ、会社で食べる
+  }
+  // 仕事おわり
+  r.workedToday = true;
+  state.coin += C.pay;
+  state.today.work ||= { workers: 0, income: 0 };
+  state.today.work.workers += 1;
+  state.today.work.income += C.pay;
+  events.push({ type: 'worked', name: r.name });
+  afterActivity(state, r, 0.4);
+}
+
 // 釣り堀：住民だけ。晴れた日に のんびり。1日1回まで（D304）
 function pondChoices(state, r) {
   if (r.tourist || r.fished || !venueOpen(state, 'pond', 45)) return [];
@@ -669,10 +794,14 @@ function goCafe(state, r, cafe) {
 function decideNext(state, r, { noCafe = false, avoid = null } = {}) {
   if (state.t >= r.bed - 20) return goHome(state, r);
   if (r.age) return goHome(state, r); // 子どもは ひとりでは出かけない（親についていくか、幼稚園）
+  const job = workDue(state, r);
+  if (job) return goWork(state, r, job); // 勤めている人は、仕事の時間は会社へ（D319）
   const w = CONFIG.weatherWeights[state.weather];
   const park = parkOf(state);
   let parkW = 0;
-  if (park) {
+  // 勤めている人は、出勤の前に公園で長居しない（遅刻しない・D319）
+  const beforeWork = r.job && !r.workedToday && clockOf(state.t) < CONFIG.company.go;
+  if (park && !beforeWork) {
     const mult = state.weather === 'rain' && park.roof ? CONFIG.rainParkWithRoof : w.park;
     parkW = r.prefs.park * mult * near(r, park.access);
   }
@@ -683,6 +812,8 @@ function decideNext(state, r, { noCafe = false, avoid = null } = {}) {
     ...(avoid === 'petshop' ? [] : petshopChoices(state, r)),
     ...(avoid === 'pond' ? [] : pondChoices(state, r)),
     ...(avoid === 'ski' ? [] : skiChoices(state, r)),
+    ...(avoid === 'aquarium' ? [] : aquariumChoices(state, r)),
+    ...(avoid === 'pool' ? [] : poolChoices(state, r)),
   ];
   const shopList = shopChoices(state, r);
   const shopW = shopList.reduce((s, x) => s + x.w, 0);
@@ -728,6 +859,8 @@ function arrive(state, r, events) {
       return enterKinder(state, r, events);
     case 'escort':
       return afterActivity(state, r, 0.3);
+    case 'work':
+      return enterWork(state, r);
     case 'shop':
       r.state = 'SHOP';
       r.visitedShop = true;
@@ -837,6 +970,9 @@ function updateResident(state, r, h, events) {
     case 'KINDER':
       if (t >= r.until) leaveKinder(state, r);
       return;
+    case 'WORK':
+      if (t >= r.until) leaveWork(state, r, events);
+      return;
     case 'SHOP':
       moveToward(state, r, h);
       if (t >= r.until) buySouvenir(state, r, buildingById(state, r.destId), events);
@@ -867,6 +1003,8 @@ function buySouvenir(state, r, shop, events) {
 function afterActivity(state, r, homeChance, opts) {
   if (r.tourist) homeChance = 0.1; // 観光客は船の時間まで島を見て回る
   if (r.age) homeChance = 1; // 子どもは親と遊んだら家に帰る
+  const job = workDue(state, r);
+  if (job) return goWork(state, r, job); // お昼のあとは会社へ戻る（D319）
   if (state.t >= r.bed - 20 || rand(state) < homeChance) return goHome(state, r);
   return decideNext(state, r, opts);
 }
@@ -885,12 +1023,14 @@ function sit(state, r, b, seatIdx) {
   r.seat = seatIdx;
   if (b.type === 'pond') r.fished = true;
   if (b.type === 'ski') r.skied = true;
+  if (b.type === 'pool') r.swam = true;
+  if (b.type === 'aquarium') r.visitedAqua = true;
   if (b.type === 'stand') {
     // カウンターの前に立って待つ（見える）
     const f = standFront(b);
     r.tx = f.x;
     r.ty = f.y;
-  } else if (b.type === 'cafe' || b.type === 'pond') {
+  } else if (b.type === 'cafe' || b.type === 'pond' || b.type === 'pool') {
     const s = seatPositions(b)[seatIdx];
     r.tx = s.x;
     r.ty = s.y;
@@ -1033,6 +1173,11 @@ function rolloverDay(state, events) {
   if (bar?.served) lines.push({ kind: 'good', text: `夜のバーに ${bar.served}人 が来ました（+${bar.income} Coin）` });
   const stand = today.byType.stand;
   if (stand?.served) lines.push({ kind: 'good', text: `コーヒースタンドで ${stand.served}人 がコーヒーを買いました（+${stand.income} Coin）` });
+  if (today.work?.workers) lines.push({ kind: 'good', text: `会社で ${today.work.workers}人 が働きました（+${today.work.income} Coin）` });
+  const aq = today.byType.aquarium;
+  if (aq?.served) lines.push({ kind: 'good', text: `水族館に ${aq.served}人 が来ました（+${aq.income} Coin）` });
+  const pool = today.byType.pool;
+  if (pool?.served) lines.push({ kind: 'good', text: `プールに ${pool.served}人 が来ました（+${pool.income} Coin）` });
   const ski = today.byType.ski;
   if (ski?.served) lines.push({ kind: 'good', text: `山の島のスキー場に ${ski.served}人 が来ました（+${ski.income} Coin）` });
   const pond = today.byType.pond;
@@ -1095,7 +1240,7 @@ function rolloverDay(state, events) {
 
   // 維持費
   // スキー場は冬のあいだだけ維持費がかかる（開いていない季節に払わせない・D318）
-  const upkeep = venues(state).reduce((s, c) => s + (c.type === 'ski' && !isWinter(state) ? 0 : CONFIG[c.type].levels[c.level - 1].upkeep + (c.bar ? CONFIG.cafe.bar.upkeep : 0)), 0);
+  const upkeep = venues(state).reduce((s, c) => s + (!inSeason(state, c.type) ? 0 : CONFIG[c.type].levels[c.level - 1].upkeep + (c.bar ? CONFIG.cafe.bar.upkeep : 0)), 0);
   const onlyCafes = venues(state).every((v) => v.type === 'cafe');
   const shopUpkeep =
     shops(state).reduce((s, b) => s + CONFIG.shop.levels[b.level - 1].upkeep, 0) +
@@ -1153,7 +1298,8 @@ function rolloverDay(state, events) {
   const earned =
     Object.values(today.byType || {}).reduce((n, t) => n + (t.income || 0), 0) +
     (today.shopIncome || 0) +
-    (today.kinder?.went || 0) * CONFIG.kinder.fee;
+    (today.kinder?.went || 0) * CONFIG.kinder.fee +
+    (today.work?.income || 0);
   const entry = { day: endedDay, weather: state.weather, lines, read: false, earned };
   state.diary.push(entry);
   events.push({ type: 'newday', entry });
@@ -1162,6 +1308,7 @@ function rolloverDay(state, events) {
   state.weather = chooseWeather(state, dayOf(state.t));
   state.today = freshToday();
   for (const r of state.residents) planDay(state, r);
+  assignJobs(state);
   planBoats(state);
 }
 
@@ -1399,12 +1546,19 @@ export function actionsFor(state) {
       cost: S.buildCost, locked: fullS,
     });
   }
-  for (const type of ['pond', 'super', 'petshop', 'planetarium', 'kinder']) {
+  const NAME = { ...VENUE_NAME, kinder: '幼稚園', company: '会社' };
+  for (const type of ['pond', 'super', 'petshop', 'planetarium', 'kinder', 'pool', 'aquarium', 'company']) {
     const V = CONFIG[type];
     const u = CONFIG.unlocks.find((x) => x.id === type);
     const full = ofType(state, type).length >= V.max;
     const locked = !isUnlocked(state, type) || full;
-    const what = type === 'pond'
+    const what = type === 'company'
+      ? `住民 ${V.levels[0].seats}人 が朝 出勤して、お昼に近くのカフェへ行く。1人 1日 ${CONFIG.company.pay} Coin。場所を選べる`
+      : type === 'aquarium'
+      ? `観光客が長く過ごす。雨の日にも人が来る。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`
+      : type === 'pool'
+      ? `夏だけ開く（${fmtClock(V.open)}〜${fmtClock(V.close)}）。晴れた日に人が集まる。子どもは親と来る。${V.levels[0].seats}人。維持費は夏だけ 1日 ${V.levels[0].upkeep} Coin`
+      : type === 'pond'
       ? `住民が釣りに来る。あなたも釣りができる。釣り座 ${V.levels[0].seats}つ。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`
       : type === 'super'
       ? `住民が毎日 買い物に行く。一度に ${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`
@@ -1417,8 +1571,8 @@ export function actionsFor(state) {
       id: type,
       icon: `${type}_new`,
       place: type,
-      title: `${VENUE_NAME[type] || '幼稚園'}をつくる`,
-      detail: full ? `${VENUE_NAME[type] || '幼稚園'}は島に ${V.max}軒まで` : locked ? (u.pets ? `家族のペットが ${u.pets}匹 になると建てられます` : u.kids ? '島に子どもが生まれると建てられます' : `住民が ${u.pop}人 になると建てられます`) : what,
+      title: `${NAME[type]}をつくる`,
+      detail: full ? `${NAME[type]}は島に ${V.max}軒まで` : locked ? (u.pets ? `家族のペットが ${u.pets}匹 になると建てられます` : u.kids ? '島に子どもが生まれると建てられます' : `住民が ${u.pop}人 になると建てられます`) : what,
       cost: V.buildCost,
       locked,
     });
@@ -1446,10 +1600,10 @@ export function actionsFor(state) {
       cost: B.cost,
     });
   }
-  for (const c of [...venues(state), ...ofType(state, 'kinder')]) {
+  for (const c of [...venues(state), ...ofType(state, 'kinder'), ...ofType(state, 'company')]) {
     const next = CONFIG[c.type].levels[c.level];
     if (!next) continue;
-    const unit = c.type === 'kinder' ? '通える子' : c.type === 'super' ? '一度に入れる人' : '席';
+    const unit = c.type === 'kinder' ? '通える子' : c.type === 'company' ? '勤める人' : c.type === 'super' ? '一度に入れる人' : '席';
     list.push({
       id: `${c.type === 'cafe' ? 'cafe' : 'venue'}_upgrade:${c.id}`,
       icon: 'cafe_upgrade',
@@ -1562,10 +1716,12 @@ export function applyAction(state, id, place) {
     // スーパーを建てたら、その日から買い物に行く（翌朝まで待たせない）
     if (action.place === 'super') for (const r of state.residents) if (!r.carry) r.needShop = true;
     if (action.place === 'petshop') for (const r of state.residents) if (householdHasPet(state, r)) r.needPet = true;
+    if (action.place === 'company') assignJobs(state);
   } else if (id.startsWith('cafe_upgrade:') || id.startsWith('venue_upgrade:')) {
     const cafe = buildingById(state, id.split(':')[1]);
     cafe.level += 1;
-    while (cafe.seats.length < seatCount(cafe)) cafe.seats.push(null);
+    if (cafe.type === 'company') assignJobs(state);
+    else while (cafe.seats.length < seatCount(cafe)) cafe.seats.push(null);
   } else if (id.startsWith('cafe_bar:')) {
     buildingById(state, id.split(':')[1]).bar = true;
   } else if (id.startsWith('shop_upgrade:')) {
@@ -1781,7 +1937,7 @@ export function describeResident(state, r) {
       if (r.dest === 'cafe') return `${labelOf(state, buildingById(state, r.destId))}へ向かっている`;
       if (r.dest === 'shop') return `${shopLabel(state, buildingById(state, r.destId))}へ向かっている`;
       return (
-        { park: '公園へ向かっている', stroll: r.tourist ? '島を見て回っている' : 'ぶらぶら歩いている', home: '家へ帰るところ', boat: '港へ戻るところ', kinder: '幼稚園へ向かっている', escort: '子どもを幼稚園へ送っている' }[r.dest] ||
+        { park: '公園へ向かっている', stroll: r.tourist ? '島を見て回っている' : 'ぶらぶら歩いている', home: '家へ帰るところ', boat: '港へ戻るところ', kinder: '幼稚園へ向かっている', escort: '子どもを幼稚園へ送っている', work: '会社へ向かっている' }[r.dest] ||
         '歩いている'
       );
     }
@@ -1794,6 +1950,9 @@ export function describeResident(state, r) {
       if (b.type === 'pond') return '釣り堀で釣りをしている';
       if (b.type === 'stand') return 'コーヒースタンドで注文している';
       if (b.type === 'petshop') return 'ペットショップで買い物中';
+      if (b.type === 'aquarium') return '水族館で魚を見ている';
+      if (b.type === 'pool') return 'プールで泳いでいる';
+      if (b.type === 'ski') return 'スキーをしている';
       return isBarTime(state, b) ? `${labelOf(state, b)}で夜のひととき` : `${labelOf(state, b)}でひと休み中`;
     }
     case 'PARK':
@@ -1810,6 +1969,8 @@ export function describeResident(state, r) {
       return '家に帰るところ';
     case 'KINDER':
       return '幼稚園にいる';
+    case 'WORK':
+      return `${labelOf(state, buildingById(state, r.destId))}で働いている`;
     default:
       return '';
   }
@@ -1840,6 +2001,7 @@ const single = (r) => !r.age && !r.tourist && (!r.generic || r.named) && !r.spou
 function placeKey(r) {
   if (r.state === 'SEATED' || r.state === 'QUEUE') return `v:${r.destId}`;
   if (r.state === 'PARK') return `p:${r.destId}`;
+  if (r.state === 'WORK') return `w:${r.destId}`; // 同じ会社の人とも仲よくなる
   if (r.state === 'STROLL') return `s:${r.at}`;
   return null;
 }
@@ -2022,10 +2184,10 @@ function bringCompanions(state, r) {
   // （施設はどれも dest='cafe' で向かうので、行き先の建物の種類で見る）
   const where = r.dest === 'cafe' ? buildingById(state, r.destId)?.type : r.dest;
   const wants = (c) =>
-    ({ super: c.needShop, petshop: c.needPet, planetarium: !c.visitedFun, pond: !c.fished, ski: !c.skied && !c.age }[where] ?? true);
+    ({ super: c.needShop, petshop: c.needPet, planetarium: !c.visitedFun, pond: !c.fished, ski: !c.skied && !c.age, pool: !c.swam, aquarium: !c.visitedAqua, work: false }[where] ?? true);
   const spouse = r.spouseId && state.residents.find((x) => x.id === r.spouseId);
   if (awakeHome(spouse) && wants(spouse) && rand(state) < F.walkTogether) join(spouse);
-  if (r.dest === 'park' || r.dest === 'stroll') {
+  if (r.dest === 'park' || r.dest === 'stroll' || where === 'pool') {
     for (const kid of state.residents) {
       if (kid.age === 'kid' && kid.parents?.includes(r.id) && awakeHome(kid) && rand(state) < F.kidJoins) join(kid);
     }

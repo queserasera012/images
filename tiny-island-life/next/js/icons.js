@@ -116,6 +116,29 @@ export const ICONS = {
       `<path d="M3 15v4M6.5 15v4M10 15v4" stroke="${INK}" stroke-width="1.1" stroke-linecap="round"/>`,
     28,
   ),
+  // 会社（D319）：窓の並んだビル
+  company_new: svg(
+    `<rect x="5" y="4" width="14" height="16" rx="1.5" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<rect x="5" y="4" width="14" height="16" rx="1.5" fill="#fff" stroke="${INK}" stroke-width="1.3"/>` +
+      `<path d="M8 8h2M11 8h2M14 8h2M8 11.5h2M11 11.5h2M14 11.5h2" stroke="${SKY}" stroke-width="2"/>` +
+      `<rect x="10.5" y="15" width="3" height="5" rx="0.8" fill="${INK}"/>`,
+    28,
+  ),
+  // 水族館（D319）：波の屋根と魚
+  aquarium_new: svg(
+    `<path d="M3 10q3-5 6-1t6 0 6 1v10H3z" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<path d="M3 10q3-5 6-1t6 0 6 1v10H3z" fill="#fff" stroke="${INK}" stroke-width="1.3" stroke-linejoin="round"/>` +
+      `<ellipse cx="11" cy="15" rx="3.5" ry="2" fill="${MUSTARD}"/><path d="M14.5 15l2.5-1.8v3.6z" fill="${MUSTARD}"/>`,
+    28,
+  ),
+  // プール（D319）：水とコースロープ
+  pool_new: svg(
+    `<rect x="3" y="6" width="18" height="12" rx="3" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<rect x="3" y="6" width="18" height="12" rx="3" fill="#4fc3dc" stroke="${INK}" stroke-width="1.3"/>` +
+      `<path d="M4 10h16M4 14h16" stroke="#fff" stroke-width="1.2" stroke-dasharray="1.5 1.5"/>` +
+      `<circle cx="9" cy="12" r="1.6" fill="#f3cfb0"/>`,
+    28,
+  ),
   // スキー場（D318）：雪の山と、滑るあと
   ski_new: svg(
     `<path d="M3 19l8-13 5 7 2-2 3 8z" transform="translate(1 1)" fill="${SHADOW}"/>` +
