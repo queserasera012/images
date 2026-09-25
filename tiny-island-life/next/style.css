@@ -550,3 +550,51 @@ h3 .dot { width: 14px; height: 14px; }
   font-weight: 700;
 }
 .card-warn { margin-top: 4px; color: var(--problem, #c8553d); font-size: 13px; font-weight: 700; }
+
+/* リワード広告（D309）。見たい人だけが押す。おすすめに見えないよう、うすい色 */
+.ad-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 42px;
+  margin: 8px 0 12px;
+  border: 1.5px dashed #d9c38b;
+  border-radius: 12px;
+  background: #fff8e6;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+.ad-btn .icon, .card-act .icon { flex: none; }
+.game-bait { height: 40px; margin-top: 8px; display: flex; justify-content: center; }
+.bait-btn {
+  height: 36px;
+  padding: 0 14px;
+  border: 1.5px dashed #d9c38b;
+  border-radius: 18px;
+  background: #fff8e6;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+.bait-btn:disabled { opacity: 0.55; }
+.ad-mock { z-index: 30; }
+.ad-screen {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  border-radius: 14px;
+  background: repeating-linear-gradient(45deg, #eef3f6, #eef3f6 10px, #e4ebef 10px, #e4ebef 20px);
+  color: var(--muted);
+  font-weight: 700;
+}
+.ad-count { position: absolute; top: 8px; right: 12px; font-size: 18px; color: var(--ink); }
+.ad-buttons { gap: 10px; }
+.ad-buttons button { height: 42px; padding: 0 18px; border: 0; border-radius: 21px; font-size: 14px; font-weight: 700; }
+.ad-cancel { background: #e8eef2; color: var(--ink); }
+.ad-done { background: var(--ink); color: var(--paper); }
+.ad-done:disabled { opacity: 0.4; }

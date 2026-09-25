@@ -282,6 +282,7 @@ function freshToday() {
     byType: {},
     kinder: { went: 0, missed: 0 },
     fishing: { plays: 0, rewarded: 0, coin: 0, caught: [] },
+    ads: { bonus: 0, boat: 0, bait: 0 },
   };
 }
 
@@ -310,6 +311,7 @@ export function migrate(state) {
   state.naming ||= [];
   state.today.kinder ||= { went: 0, missed: 0 };
   state.today.fishing ||= { plays: 0, rewarded: 0, coin: 0, caught: [] };
+  state.today.ads ||= { bonus: 0, boat: 0, bait: 0 };
   state.fishLog ||= {};
   if (state.port.open) state.unlocked.port = true;
   for (const b of state.buildings) if (isVenue(b) && !b.queue) Object.assign(b, { seats: [], queue: [] });
@@ -1100,7 +1102,12 @@ function rolloverDay(state, events) {
     }
   }
 
-  const entry = { day: endedDay, weather: state.weather, lines, read: false };
+  // その日の売上（朝の日記の上乗せに使う・D309）
+  const earned =
+    Object.values(today.byType || {}).reduce((n, t) => n + (t.income || 0), 0) +
+    (today.shopIncome || 0) +
+    (today.kinder?.went || 0) * CONFIG.kinder.fee;
+  const entry = { day: endedDay, weather: state.weather, lines, read: false, earned };
   state.diary.push(entry);
   events.push({ type: 'newday', entry });
 
@@ -1277,11 +1284,27 @@ function updateOnePort(state, port, events) {
   });
 }
 
+// 描画用：いま海の上にいる船（いつもの船と臨時の船・D309）
+export function boatsNow(state, port = state.port) {
+  if (!port?.open) return [];
+  const S = CONFIG.port.sail;
+  const out = [];
+  for (const b of port.today) {
+    let p = null;
+    if (state.t >= b.arrive - S && state.t < b.arrive) p = { phase: 'arriving', k: (state.t - (b.arrive - S)) / S };
+    else if (state.t >= b.arrive && state.t < b.depart) p = { phase: 'docked', k: 1 };
+    else if (state.t >= b.depart && state.t < b.depart + S) p = { phase: 'leaving', k: 1 - (state.t - b.depart) / S };
+    if (p) out.push({ ...p, depart: b.depart, extra: !!b.extra });
+  }
+  return out;
+}
+
 // 描画用：いま船が海のどこにいるか（null＝見えない）
 export function boatNow(state, port = state.port) {
   if (!port?.open) return null;
   const S = CONFIG.port.sail;
   for (const b of port.today) {
+    if (b.extra) continue;
     if (state.t >= b.arrive - S && state.t < b.arrive) return { phase: 'arriving', k: (state.t - (b.arrive - S)) / S };
     if (state.t >= b.arrive && state.t < b.depart) return { phase: 'docked', k: 1, depart: b.depart };
     if (state.t >= b.depart && state.t < b.depart + S) return { phase: 'leaving', k: 1 - (state.t - b.depart) / S };
@@ -1505,12 +1528,15 @@ export function landFish(state, grade) {
   const f = state.today.fishing;
   f.plays += 1;
   if (grade !== 'perfect' && grade !== 'good') return { ok: true, fish: null, coin: 0, left: fishingLeft(state), grade };
-  const pool = G.fish.filter((x) => grade === 'perfect' || !x.big);
+  // 特別なエサ（D309）：つけていれば、釣れる魚は大物。使ったらなくなる（のがしたら残る）
+  const bait = state.bait > 0;
+  const pool = bait ? G.fish.filter((x) => x.big) : G.fish.filter((x) => grade === 'perfect' || !x.big);
+  if (bait) state.bait -= 1;
   let x = rand(state) * pool.reduce((s, y) => s + y.w, 0);
   const fish = pool.find((y) => (x -= y.w) < 0) || pool[0];
   let coin = 0;
   if (fishingLeft(state) > 0) {
-    coin = G.coin[grade];
+    coin = fish.big ? G.coin.big : G.coin[grade];
     f.rewarded += 1;
     f.coin += coin;
     state.coin += coin;
@@ -1529,6 +1555,62 @@ export function wantsRoomHouses(state) {
     const h = buildingById(state, id);
     return h && h.type === 'house' && roomIn(state, id) <= 0;
   });
+}
+
+// ---------------------------------------------------------------- リワード広告のおまけ（D309）
+//
+// 広告そのものは画面（ads.js）が出す。見終わったら、ここの関数でおまけを渡す。
+// どれも「島に見えるものが少し増える」。行列・上限・待ち時間は解かない（D303・D305）
+
+export function adsLeft(state, kind) {
+  return Math.max(0, CONFIG.ads[kind].perDay - (state.today.ads?.[kind] || 0));
+}
+const usedAd = (state, kind) => {
+  state.today.ads ||= { bonus: 0, boat: 0, bait: 0 };
+  state.today.ads[kind] += 1;
+};
+
+// 朝の日記：昨日の売上に上乗せ
+export function dailyBonus(state) {
+  const last = state.diary[state.diary.length - 1];
+  if (!last || adsLeft(state, 'bonus') <= 0) return 0;
+  const A = CONFIG.ads.bonus;
+  return Math.min(A.cap, Math.round((last.earned || 0) * A.rate));
+}
+export function claimDailyBonus(state) {
+  const coin = dailyBonus(state);
+  if (coin <= 0) return { ok: false, message: 'いまは もらえません' };
+  usedAd(state, 'bonus');
+  state.coin += coin;
+  return { ok: true, coin, message: `昨日の売上に +${coin} Coin` };
+}
+
+// 臨時の観光船：その港に、少しあとで船が着く
+export function canCallBoat(state, portId = 'main') {
+  const port = portById(state, portId);
+  if (!port?.open || adsLeft(state, 'boat') <= 0) return false;
+  const c = clockOf(state.t);
+  const A = CONFIG.ads.boat;
+  if (c < A.from || c >= A.until) return false;
+  // 臨時の船は桟橋の反対側に着くので、いつもの船とは重ならない。臨時の船どうしは1隻ずつ
+  return !port.today.some((b) => b.extra && state.t < b.depart + CONFIG.port.sail);
+}
+export function callExtraBoat(state, portId = 'main') {
+  if (!canCallBoat(state, portId)) return { ok: false, message: 'いまは船を呼べません' };
+  const P = CONFIG.port;
+  const port = portById(state, portId);
+  const arrive = Math.ceil(state.t + P.sail + 2);
+  port.today.push({ arrive, depart: arrive + P.stay, spawned: false, left: false, extra: true });
+  usedAd(state, 'boat');
+  return { ok: true, message: '臨時の船が、こちらへ向かっています' };
+}
+
+// 釣りの特別なエサ
+export function addBait(state) {
+  if (adsLeft(state, 'bait') <= 0) return { ok: false, message: '今日の特別なエサは おしまい' };
+  usedAd(state, 'bait');
+  state.bait = (state.bait || 0) + 1;
+  return { ok: true, message: '特別なエサをつけました' };
 }
 
 // 家を広げる（D303）。place ではなく家の id で選ぶ

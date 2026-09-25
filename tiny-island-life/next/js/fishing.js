@@ -4,7 +4,8 @@
 // 輪の真ん中ぴったりなら「ぴったり」（大物も釣れる）、輪の中なら「よい」、外なら のがす。
 // どの魚が釣れるか・Coin は sim.js（landFish）が決める。ここは判定と絵だけ。
 
-import { landFish, fishingLeft } from './sim.js';
+import { landFish, fishingLeft, addBait, adsLeft } from './sim.js';
+import { showRewardedAd } from './ads.js';
 
 export const RING = { r: 30, half: 7, perfect: 3 }; // 輪の真ん中の半径・幅の半分・ぴったりの幅
 export const START_R = 120;
@@ -39,6 +40,7 @@ export function openFishing({ getState, onChange, close: onClose }) {
     <canvas width="${SIZE}" height="${SIZE}"></canvas>
     <p class="game-msg"></p>
     <div class="game-buttons"><button class="game-again" type="button" hidden>もう一度</button></div>
+    <div class="game-bait"><button class="bait-btn" type="button"></button></div>
   </div>`;
   document.body.appendChild(root);
   const canvas = root.querySelector('canvas');
@@ -54,8 +56,14 @@ export function openFishing({ getState, onChange, close: onClose }) {
 
   const msg = (text) => (root.querySelector('.game-msg').textContent = text);
   const showLeft = () => {
-    const left = fishingLeft(getState());
+    const state = getState();
+    const left = fishingLeft(state);
     root.querySelector('.game-left').textContent = left > 0 ? `今日の Coin：あと ${left}回` : '今日の Coin は おしまい';
+    // 特別なエサ（リワード広告・D309）
+    const btn = root.querySelector('.bait-btn');
+    const baitLeft = adsLeft(state, 'bait');
+    btn.disabled = state.bait > 0 || baitLeft <= 0;
+    btn.textContent = state.bait > 0 ? '特別なエサをつけています（次は大物）' : baitLeft > 0 ? `▶ 広告を見て、特別なエサをつける（今日あと ${baitLeft}回）` : '特別なエサは 今日は おしまい';
   };
 
   function cast() {
@@ -110,6 +118,19 @@ export function openFishing({ getState, onChange, close: onClose }) {
 
   root.addEventListener('pointerdown', (ev) => {
     if (ev.target.closest('.game-x')) return close();
+    if (ev.target.closest('.bait-btn')) {
+      // 広告を見ているあいだは釣りを止める。見終わったら投げ直す
+      game.phase = 'paused';
+      showRewardedAd({
+        onReward: () => {
+          const res = addBait(getState());
+          onChange?.(res);
+          cast();
+        },
+        onCancel: () => game && cast(), // やめたときも投げ直す
+      });
+      return;
+    }
     if (ev.target.closest('.game-again')) return cast();
     if (ev.target === canvas) {
       ev.preventDefault();

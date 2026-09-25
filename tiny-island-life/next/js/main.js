@@ -8,12 +8,14 @@ import {
   migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
   labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
+  dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft,
 } from './sim.js';
 import { createRenderer, lookOf } from './render.js';
 import { ICONS } from './icons.js';
 import { currentStep, report, skipTutorial, busyCafeNow } from './tutorial.js';
 import { setupKeepAwake, awakeStatus } from './awake.js';
 import { openFishing, fishingNow } from './fishing.js';
+import { showRewardedAd } from './ads.js';
 
 // 🚨 前の版（3日テスト中）と同じサイトに置くので、保存の名前を分ける（D289）
 const SAVE_KEY = 'til.grid.save.v1';
@@ -278,6 +280,27 @@ function fmt(clock) {
 }
 
 let lastCardHtml = '';
+
+// リワード広告（D309）：臨時の観光船。呼べないときは理由を短く
+function boatAdRow(id) {
+  const left = adsLeft(state, 'boat');
+  if (canCallBoat(state, id)) {
+    return `<button id="btn-adboat" data-port="${id}" class="card-act" type="button">${ICONS.ad}広告を見て、臨時の船を呼ぶ<span class="cost">今日あと ${left}回</span></button>`;
+  }
+  const A = CONFIG.ads.boat;
+  const port = portById(state, id);
+  const coming = port?.today.some((b) => b.extra && state.t < b.depart);
+  const text = coming
+    ? `臨時の船が来ています（今日あと ${left}回 呼べる）`
+    : `臨時の船：${left ? `${fmt(A.from)}〜${fmt(A.until)}に呼べる` : '今日は おしまい'}`;
+  return `<div class="card-note">${text}</div>`;
+}
+
+// リワード広告（D309）：朝の日記の上乗せ
+function bonusRow() {
+  const coin = dailyBonus(state);
+  return coin > 0 ? `<button class="ad-btn" type="button" data-ad="bonus">${ICONS.ad}広告を見て、昨日の売上に +${coin} Coin</button>` : '';
+}
 function renderCard() {
   const card = $('card');
   let html = '';
@@ -328,6 +351,7 @@ function renderCard() {
     const pier = PIERS[port.id];
     const onIsland = state.visitors.filter((v) => v.visible && v.pier === pier).length;
     html = `<h3>${areaById(port.id).name}の港</h3><div class="sub">${sub}</div><div class="now">この港から来た観光客：${onIsland}人</div>`;
+    html += boatAdRow(port.id);
   } else if (selected.kind === 'port') {
     const N = CONFIG.port.unlockPopulation;
     if (!state.port.open) {
@@ -338,6 +362,7 @@ function renderCard() {
       const sub = b?.phase === 'docked' ? `船が来ています。${at(b.depart)}に出航` : next ? `次の船は ${at(next.arrive)}ごろ` : '今日の船は、もう来ません';
       const onIsland = state.visitors.filter((v) => v.visible).length;
       html = `<h3>港</h3><div class="sub">${sub}</div><div class="now">島にいる観光客：${onIsland}人</div><div>今日来た観光客：${state.today.tourists}人</div>`;
+      html += boatAdRow('main');
     }
   } else {
     const b = buildingById(state, selected.id);
@@ -406,6 +431,19 @@ function renderCard() {
 }
 
 $('card').addEventListener('click', (ev) => {
+  const adBoat = ev.target.closest('#btn-adboat');
+  if (adBoat) {
+    const id = adBoat.dataset.port;
+    showRewardedAd({
+      onReward: () => {
+        const res = callExtraBoat(state, id);
+        toast(res.message);
+        renderCard();
+        save();
+      },
+    });
+    return;
+  }
   if (ev.target.closest('#btn-fish')) {
     select(null);
     openFishing({
@@ -463,6 +501,18 @@ function openSheet(html) {
 $('sheet').addEventListener('click', (ev) => {
   if (ev.target.id === 'sheet' || ev.target.closest('.close')) {
     $('sheet').hidden = true;
+    return;
+  }
+  const adBonus = ev.target.closest('[data-ad="bonus"]');
+  if (adBonus) {
+    showRewardedAd({
+      onReward: () => {
+        const res = claimDailyBonus(state);
+        toast(res.message);
+        adBonus.remove();
+        save();
+      },
+    });
     return;
   }
   const tab = ev.target.closest('[data-tab]');
@@ -546,14 +596,14 @@ $('btn-diary').addEventListener('click', () => {
   for (const e of state.diary) e.read = true;
   const entries = [...state.diary].reverse().map(entryHtml).join('');
   if (state.diary.length) tutorial('read_diary');
-  openSheet(`<h2>島の日記</h2>${entries ? `<div class="notebook">${entries}</div>` : '<p class="lead">まだ日記はありません。1日が終わると、ここに届きます。</p>'}`);
+  openSheet(`<h2>島の日記</h2>${bonusRow()}${entries ? `<div class="notebook">${entries}</div>` : '<p class="lead">まだ日記はありません。1日が終わると、ここに届きます。</p>'}`);
 });
 
 function showMorning(entries) {
   for (const e of entries) e.read = true;
   tutorial('read_diary');
   $('diary-dot').hidden = true;
-  openSheet(`<div class="morning">${ICONS.sunrise}<h2>おはようございます</h2><p class="lead">昨日の島では、こんなことがありました</p></div><div class="notebook">${entries.map(entryHtml).join('')}</div>`);
+  openSheet(`<div class="morning">${ICONS.sunrise}<h2>おはようございます</h2><p class="lead">昨日の島では、こんなことがありました</p></div>${bonusRow()}<div class="notebook">${entries.map(entryHtml).join('')}</div>`);
 }
 
 // ---------------------------------------------------------------- 建てる場所を選ぶ

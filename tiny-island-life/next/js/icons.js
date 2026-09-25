@@ -140,6 +140,10 @@ export const ICONS = {
       `<path d="M14 16.5h3v3h-3z" fill="#8b5e3c"/>`,
     28,
   ),
+  ad: svg(
+    `<rect x="3" y="5" width="18" height="14" rx="4" fill="${MUSTARD}"/>` + `<path d="M10 9l5 3-5 3z" fill="#fff"/>`,
+    18,
+  ),
   harbor: svg(
     `<path d="M4 15h16l-2.5 4h-11z" transform="translate(1 1)" fill="${SHADOW}"/>` +
       `<path d="M4 15h16l-2.5 4h-11z" fill="#fff" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"/>` +

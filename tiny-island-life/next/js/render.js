@@ -5,7 +5,7 @@ import {
   T, COLS, ROWS, WORLD, SIZES, HOUSE_FLOOR, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, landBounds, shapesOf, islandRadius, idx, center, neighbors, isRoad, occupied,
 } from './grid.js';
 import { CONFIG } from './config.js';
-import { wantsRoomHouses, clockOf, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf } from './sim.js';
+import { wantsRoomHouses, boatsNow, clockOf, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf } from './sim.js';
 
 export const FONT = '"Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif';
 
@@ -1039,10 +1039,16 @@ export function createRenderer(canvas) {
 
   // 船：南の桟橋の横に着く
   function boat(state, port, time) {
-    const b = boatNow(state, port);
-    if (!b) return;
+    for (const b of boatsNow(state, port)) boatOne(port, b, time);
+  }
+
+  // 1隻の船。臨時の船（広告のおまけ・D309）は桟橋の反対側に着く
+  function boatOne(port, b, time) {
     const pier = center(PIERS[port.id]);
-    const { dx, dy, px, py } = pierGeom(port.id);
+    const { dx, dy } = pierGeom(port.id);
+    const side = b.extra ? -1 : 1;
+    const px = pierGeom(port.id).px * side;
+    const py = pierGeom(port.id).py * side;
     const dock = { x: pier.x + dx * 46 + px * 34, y: pier.y + dy * 46 + py * 34 };
     const from = { x: dock.x + dx * 150 + px * 90, y: dock.y + dy * 150 + py * 90 };
     const e = 1 - Math.pow(1 - b.k, 2); // 着く前にゆっくりになる

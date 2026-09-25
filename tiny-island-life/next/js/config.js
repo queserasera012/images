@@ -186,7 +186,7 @@ export const CONFIG = {
     // プレイヤーの釣り（ミニゲーム）。遊ぶのは何回でも、Coin が出るのは1日 rewardsPerDay 回まで（D303）
     game: {
       rewardsPerDay: 3,
-      coin: { perfect: 50, good: 20 },
+      coin: { perfect: 50, good: 20, big: 80 }, // 大物は80（D309）
       // 魚。big は「ぴったり」のときだけ釣れる
       fish: [
         { id: 'funa', name: 'フナ', w: 5 },
@@ -197,6 +197,13 @@ export const CONFIG = {
         { id: 'ookoi', name: '大きなコイ', w: 1, big: true },
       ],
     },
+  },
+
+  // ---- リワード広告（D309）：見たい人が見ると、島に見えるものが少し増える。困りごとは解かない ----
+  ads: {
+    bonus: { perDay: 1, rate: 0.3, cap: 300 }, // 朝の日記：昨日の売上に +30%（上限300）
+    boat: { perDay: 3, from: 8 * 60, until: 16 * 60 }, // 臨時の観光船（観光客が帰りの船に間に合う時間だけ）
+    bait: { perDay: 3 },                        // 釣りの特別なエサ：次に釣れる魚が大物になる
   },
 
   // ---- 島を広げる（D298） ----
