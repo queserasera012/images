@@ -73,6 +73,14 @@ export const AREAS = [
     // [行, 始めの列, 終わりの列] / [列, 始めの行, 終わりの行]
     roads: { rows: [[26, 30, 43], [29, 34, 40]], cols: [[32, 21, 26], [34, 26, 29], [40, 26, 29], [42, 22, 26]] },
   },
+  // 山の島を広げる（D321）：北東のふもと。山の島の東の道（42列）を北へ延ばしてつなぐ。
+  // 山の島には3×3のカフェが建つ場所が無かった（冬のスキー客のカフェが要るのに）
+  {
+    id: 'mountain_ne', name: '山の島', parent: 'mountain', island: true, ph: 5.1,
+    cx: 42.2 * T, cy: 16.4 * T, rx: 4.6 * T, ry: 4.8 * T,
+    neck: { cx: 42.4 * T, cy: 20.6 * T, rx: 3 * T, ry: 2.6 * T },
+    roads: { rows: [[15, 38, 46], [19, 39, 45]], cols: [[42, 12, 22]] }, // 3×3 のカフェが建つように、区画を3マス幅にする
+  },
 ];
 // 土地を形づくる楕円（本体と、つなぎ目）
 export const shapesOf = (area) => (area.neck ? [area, { ...area.neck, ph: area.ph + 0.7 }] : [area]);
@@ -184,7 +192,7 @@ function buildMap(ids) {
         kind[i] = 'mountain';
         continue;
       }
-      const isle = areas.find((a) => a.roads && tileFactor(a, c, r) <= 1);
+      const isle = areas.find((a) => a.roads && shapesOf(a).some((sh) => tileFactor(sh, c, r) <= 1));
       const onLine = isle
         ? isle.roads.rows.some(([rr, c0, c1]) => r === rr && c >= c0 && c <= c1) || isle.roads.cols.some(([cc, r0, r1]) => c === cc && r >= r0 && r <= r1)
         : ROAD_COLS.includes(c) || ROAD_ROWS.includes(r);
@@ -235,9 +243,10 @@ function buildMap(ids) {
     if (a.pier.col !== undefined) for (let r = 0; r < ROWS; r++) line.push(idx(a.pier.col, r));
     else for (let c = 0; c < COLS; c++) line.push(idx(c, a.pier.row));
     if (dc + dr < 0) line.reverse();
-    // 進む向きで いちばん先の道（新しい土地の中）
+    // 進む向きで いちばん先の道（その土地の中。D321：同じ線の上の ほかの土地の道を拾わない）
+    const own = (i) => shapesOf(a).some((sh) => tileFactor(sh, colOf(i), rowOf(i)) <= 1);
     let start = null;
-    for (const i of line) if (kind[i] === 'road' && fresh.has(i)) start = i;
+    for (const i of line) if (kind[i] === 'road' && fresh.has(i) && own(i)) start = i;
     if (start === null) continue;
     let cur = start;
     for (;;) {
@@ -287,7 +296,8 @@ export const isRoad = (i) => MAP[i] === 'road';
 export function areaAt(c, r) {
   const k = MAIN_KIND[idx(c, r)];
   if (k === 'land' || k === 'road') return 'main';
-  for (const a of AREAS) if (a.island && tileFactor(a, c, r) <= 1) return a.id;
+  // 橋の向こうの島（広げたふもとも、同じ島として呼ぶ・D321）
+  for (const a of AREAS) if (a.island && shapesOf(a).some((sh) => tileFactor(sh, c, r) <= 1)) return a.parent || a.id;
   let best = 'main';
   let bestF = Infinity;
   for (const a of AREAS) {
@@ -304,7 +314,7 @@ export function areaAt(c, r) {
 // ひらいた土地が収まる範囲（px）。カメラが動ける範囲と、地面の絵の大きさに使う
 // teaser：まだ橋をかけていない島も入れる（海の向こうに見えるように・D317）
 export function landBounds(ids = ['main'], { teaser = false } = {}) {
-  const list = AREAS.filter((a) => a.id === 'main' || ids.includes(a.id) || (teaser && a.island));
+  const list = AREAS.filter((a) => a.id === 'main' || ids.includes(a.id) || (teaser && a.island && (!a.parent || ids.includes(a.parent))));
   const pad = 1.05;
   return {
     left: Math.max(0, Math.min(...list.map((a) => a.cx - a.rx * pad))),

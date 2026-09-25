@@ -1014,7 +1014,7 @@ function renderDebug() {
     <button data-dbg="port">港をひらく</button>
     <button data-dbg="unlock">釣り堀・スーパー・プラネタリウムをひらく</button>
     <button data-dbg="pets">ペットを全部 迷い込ませる</button>
-    <button data-dbg="expand">島を広げられるようにする</button>
+    <button data-dbg="expand">島を広げられるようにする（山の島の橋も）</button>
     <button data-dbg="wave1">会社・水族館・プールをひらく</button>
     <button data-dbg="family">結婚と出産を早める（留守2回で子ども）</button>
     <button data-dbg="reset">最初からやり直す</button>
@@ -1073,6 +1073,7 @@ if (DEBUG) {
     }
     if (k === 'expand') {
       unlockNow(state, 'expand');
+      unlockNow(state, 'bridge');
       renderQuest();
     }
     if (k === 'wave1') {

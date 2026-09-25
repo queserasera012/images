@@ -2137,9 +2137,26 @@ export function createRenderer(canvas) {
   // ---------------------------------------------------------------- 山の島（D318）
 
   // 橋をかける前の山の島：海の向こうに うっすら見える（D317・オーナー案）
+  // 広げられるふもと（D321）も、山の島に橋をかけたら うっすら見せる
   function teaser(state) {
+    const opened = state.areas || [];
     for (const a of AREAS) {
-      if (!a.island || (state.areas || []).includes(a.id)) continue;
+      if (!a.island || opened.includes(a.id)) continue;
+      if (a.parent) {
+        if (!opened.includes(a.parent)) continue;
+        ctx.save();
+        ctx.globalAlpha = 0.4;
+        for (const sh of shapesOf(a)) {
+          ctx.fillStyle = PALETTE.sand;
+          islandPath(ctx, sh, 1, 4);
+          ctx.fill();
+          ctx.fillStyle = PALETTE.grass;
+          islandPath(ctx, sh, 0.885);
+          ctx.fill();
+        }
+        ctx.restore();
+        continue;
+      }
       ctx.save();
       ctx.globalAlpha = 0.55;
       ctx.fillStyle = PALETTE.seaDeep;

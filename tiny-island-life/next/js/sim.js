@@ -1661,6 +1661,19 @@ export function actionsFor(state) {
   for (const a of AREAS) {
     if (a.id === 'main' || state.areas.includes(a.id)) continue;
     // 橋でつなぐ別の島（D318）。つなぎ方も値段も、となりの土地をひらくのとは別
+    // 山の島を広げる（D321）：橋をかけたあと。北東のふもとに土地が増え、カフェも建てられるようになる
+    if (a.parent) {
+      if (!state.areas.includes(a.parent)) continue;
+      list.push({
+        id: `expand:${a.id}`,
+        tab: 'island',
+        icon: 'expand_mountain',
+        title: `${areaById(a.parent).name}を広げる`,
+        detail: `北東のふもとに 建てられる土地が ${landTilesOf(a.id)}マス 増える。カフェも建てられる広さ`,
+        cost: CONFIG.expand.mountainFoot,
+      });
+      continue;
+    }
     // 橋は「島を広げる」とは別の目標（D320）
     if (a.island) {
       const ub = CONFIG.unlocks.find((x) => x.id === 'bridge');
