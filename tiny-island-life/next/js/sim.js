@@ -1522,6 +1522,15 @@ export function landFish(state, grade) {
   return { ok: true, fish, coin, left: fishingLeft(state), grade, first };
 }
 
+// 「もう少し広い家に住みたい」家族が住んでいる家（D307）。日記に書いた家のうち、まだ空きが無いものだけ
+// 目印は「起きていること」（日記と同じ）。どうすればよいかは出さない
+export function wantsRoomHouses(state) {
+  return (state.wantsRoom || []).filter((id) => {
+    const h = buildingById(state, id);
+    return h && h.type === 'house' && roomIn(state, id) <= 0;
+  });
+}
+
 // 家を広げる（D303）。place ではなく家の id で選ぶ
 function upgradeHouse(state, id) {
   const h = buildingById(state, id);
@@ -1733,6 +1742,7 @@ function familyEvents(state, day, events) {
   const F = CONFIG.family;
   const lines = [];
   const byId = (id) => state.residents.find((x) => x.id === id);
+  state.wantsRoom = []; // 「もう少し広い家に住みたい」家族の家（D307：家に目印を出す）
 
   // 赤ちゃん → 歩けるように
   for (const r of state.residents) {
@@ -1783,6 +1793,7 @@ function familyEvents(state, day, events) {
     if (kids.length >= F.maxKids) continue;
     if (roomIn(state, a.homeId) <= 0) {
       lines.push({ kind: 'problem', text: `${a.name}と${b.name}は、もう少し広い家に住みたいようです` });
+      state.wantsRoom.push(a.homeId);
       continue;
     }
     const used = new Set(state.residents.map((x) => x.name));

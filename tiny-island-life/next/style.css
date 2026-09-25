@@ -549,3 +549,4 @@ h3 .dot { width: 14px; height: 14px; }
   font-size: 15px;
   font-weight: 700;
 }
+.card-warn { margin-top: 4px; color: var(--problem, #c8553d); font-size: 13px; font-weight: 700; }

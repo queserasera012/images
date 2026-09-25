@@ -5,7 +5,7 @@ import {
   T, COLS, ROWS, WORLD, SIZES, HOUSE_FLOOR, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, landBounds, shapesOf, islandRadius, idx, center, neighbors, isRoad, occupied,
 } from './grid.js';
 import { CONFIG } from './config.js';
-import { clockOf, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf } from './sim.js';
+import { wantsRoomHouses, clockOf, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf } from './sim.js';
 
 export const FONT = '"Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif';
 
@@ -1507,6 +1507,26 @@ export function createRenderer(canvas) {
         ctx.arc(cx + dx, cy + 1, 1.3, 0, Math.PI * 2);
         ctx.fill();
       }
+    } else if (kind === 'room') {
+      // 小さな家と、外向きの矢印（もう少し広い家に住みたい）
+      ctx.fillStyle = PALETTE.ink;
+      ctx.beginPath();
+      ctx.moveTo(cx - 4.5, cy);
+      ctx.lineTo(cx - 1, cy - 3.5);
+      ctx.lineTo(cx + 2.5, cy);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillRect(cx - 3.5, cy, 5, 3.5);
+      ctx.strokeStyle = PALETTE.mustard;
+      ctx.lineWidth = 1.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx + 3.5, cy - 2);
+      ctx.lineTo(cx + 6, cy - 4.5);
+      ctx.moveTo(cx + 4, cy - 4.5);
+      ctx.lineTo(cx + 6, cy - 4.5);
+      ctx.lineTo(cx + 6, cy - 2.5);
+      ctx.stroke();
     } else if (kind === 'closed') {
       ctx.strokeStyle = PALETTE.ink;
       ctx.lineWidth = 1.6;
@@ -1808,6 +1828,11 @@ export function createRenderer(canvas) {
     ].sort((a, b) => a.y - b.y);
     for (const t of things) t.draw();
     drawSleep(state, time);
+    // 「もう少し広い家に住みたい」家族の家の上に、ふきだし（D307）
+    for (const id of wantsRoomHouses(state)) {
+      const b = state.buildings.find((x) => x.id === id);
+      bubble('room', b.c * T + T / 2 + 8, b.r * T - (floorsOf(b) - 1) * HOUSE_FLOOR - 4 + Math.sin(time * 2 + b.c) * 1.2);
+    }
 
     ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
     if (state.weather === 'rain') {

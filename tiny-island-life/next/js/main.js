@@ -7,7 +7,7 @@ import {
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
   migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
   labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding,
-  capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft,
+  capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
 } from './sim.js';
 import { createRenderer, lookOf } from './render.js';
 import { ICONS } from './icons.js';
@@ -384,6 +384,7 @@ function renderCard() {
       const kind = { 1: '家', 2: '2階建ての家', 3: 'アパート' }[b.level || 1];
       html = `<h3>${kind}</h3><div class="sub">${free > 0 ? `あと ${free}人 住める` : '満室'}${steps !== null ? `。カフェまで道で ${steps}マス` : ''}</div>`;
       html += `<div class="now">住んでいる：${who(living)}</div>`;
+      if (wantsRoomHouses(state).includes(b.id)) html += `<div class="card-warn">この家の家族は、もう少し広い家に住みたいようです</div>`;
     }
   }
   if (selected.kind === 'building') html += `<button id="btn-move" class="card-btn" type="button">${ICONS.move}動かす</button>`;
@@ -780,6 +781,11 @@ if (DEBUG) {
     pier: (id) => renderer.toClient(center(PIERS[id]).x, center(PIERS[id]).y),
     focusPier: (id) => renderer.focus(center(PIERS[id]).x + 40, center(PIERS[id]).y),
     fishing: () => fishingNow(),
+    markRoom: () => {
+      const h = houses(state).find((x) => state.residents.filter((r) => r.homeId === x.id).length >= capacityOf(x));
+      if (h) state.wantsRoom = [h.id];
+      return h && renderer.toClient((h.c + 0.5) * T, (h.r + 0.5) * T);
+    },
     zoom: (f) => renderer.zoomAt(f, innerWidth / 2, innerHeight / 2),
     dogState: () => state.pets.find((p) => p.kind === 'dog')?.state,
     setStock: (n) => state.buildings.filter((b) => b.type === 'shop').forEach((b) => (b.stock = n)),
