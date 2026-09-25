@@ -1661,17 +1661,20 @@ export function actionsFor(state) {
   for (const a of AREAS) {
     if (a.id === 'main' || state.areas.includes(a.id)) continue;
     // 橋でつなぐ別の島（D318）。つなぎ方も値段も、となりの土地をひらくのとは別
+    // 橋は「島を広げる」とは別の目標（D320）
     if (a.island) {
+      const ub = CONFIG.unlocks.find((x) => x.id === 'bridge');
+      const bridgeLocked = !isUnlocked(state, 'bridge');
       list.push({
         id: `expand:${a.id}`,
         tab: 'island',
         icon: `expand_${a.id}`,
         title: `${a.name}に橋をかける`,
-        detail: expandLocked
-          ? `住民が ${u.pop}人 になると橋をかけられます`
+        detail: bridgeLocked
+          ? `住民が ${ub.pop}人 になると橋をかけられます`
           : `海の向こうの島。建てられる土地が ${landTilesOf(a.id)}マス。山は冬にスキー場になる`,
         cost: CONFIG.expand.bridge,
-        locked: expandLocked,
+        locked: bridgeLocked,
       });
       continue;
     }
