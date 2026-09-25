@@ -6,7 +6,7 @@ import {
   createGame, step, catchUp, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
   migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
-  labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding,
+  labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
   dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft, nameResident, placeLabel, seasonOf,
 } from './sim.js';
@@ -417,6 +417,14 @@ function renderCard() {
       html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${unit}。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
       html += `<div class="now">${{ planetarium: '星を見ている', stand: '注文している' }[b.type] || '買い物中'}：${who(inside)}</div>`;
       html += `<div>外で待っている：${who(b.queue)}</div>`;
+    } else if (b.type === 'ski') {
+      // スキー場（D318）：冬だけ開く
+      const V = CONFIG.ski;
+      const winter = isWinter(state);
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">一度に ${seatCount(b)}人。冬だけ ${fmt(V.open)}から${fmt(V.close)}まで</div>`;
+      html += winter
+        ? `<div class="now">滑っている：${who(b.seats.filter(Boolean))}</div><div>外で待っている：${who(b.queue)}</div>`
+        : `<div class="now">いまは お休み。冬になると 山が雪で白くなり、ひらきます（維持費も冬だけ）</div>`;
     } else if (b.type === 'kinder') {
       const K = CONFIG.kinder;
       html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${seatCount(b)}人まで。朝 ${fmt(K.open)}から${fmt(K.close)}まで。1人 ${K.fee} Coin</div>`;
@@ -1015,6 +1023,8 @@ if (DEBUG) {
     focusTile: (c, r) => renderer.focus((c + 0.5) * T, (r + 0.5) * T),
     focusPier: (id) => renderer.focus(center(PIERS[id]).x + 40, center(PIERS[id]).y),
     fishing: () => fishingNow(),
+    // スキー場の絵を見るため：席を住民で埋める（D318）
+    fillSki: () => state.buildings.filter((b) => b.type === 'ski').forEach((b) => b.seats.forEach((_, k) => (b.seats[k] = state.residents[k % state.residents.length].id))),
     markRoom: () => {
       const h = houses(state).find((x) => state.residents.filter((r) => r.homeId === x.id).length >= capacityOf(x));
       if (h) state.wantsRoom = [h.id];

@@ -2,7 +2,7 @@
 // 見た目の方針は docs/DESIGN.md（切り絵のジオラマ・絵文字は使わない）。格子版（D289）。
 
 import {
-  T, COLS, ROWS, WORLD, SIZES, HOUSE_FLOOR, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, landBounds, shapesOf, islandRadius, idx, center, neighbors, isRoad, occupied,
+  T, COLS, ROWS, WORLD, SIZES, HOUSE_FLOOR, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, landBounds, shapesOf, islandRadius, idx, center, neighbors, isRoad, occupied, BRIDGES,
 } from './grid.js';
 import { CONFIG } from './config.js';
 import { wantsRoomHouses, boatsNow, clockOf, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf } from './sim.js';
@@ -161,6 +161,91 @@ function islandPath(ctx, area, k = 1, grow = 0, dx = 0, dy = 0) {
   ctx.closePath();
 }
 
+// 山（D318）：紙を切り抜いたような山。ふもとは山のマスの下の端、頂上は島の上に はみ出す
+const MOUNTAIN_LOOK = {
+  default: { body: '#8fb07a', shade: 'rgba(40, 70, 50, 0.16)', cap: '#ffffff', tree: '#4f8a55' },
+  sakura: { body: '#9fc68c', shade: 'rgba(40, 70, 50, 0.14)', cap: '#ffffff', tree: '#5e9c57' },
+  natsu: { body: '#6fae6a', shade: 'rgba(30, 70, 40, 0.18)', cap: null, tree: '#2f8a4c' },
+  koyo: { body: '#c08a4f', shade: 'rgba(90, 50, 20, 0.18)', cap: '#ffffff', tree: '#c9503f' },
+  yuki: { body: '#f3f6f9', shade: 'rgba(60, 90, 130, 0.16)', cap: null, tree: '#4f7f5a' },
+};
+export function mountainGeom(m) {
+  const foot = m.cy + m.ry * 0.75;
+  return { foot, peak: { x: m.cx - m.rx * 0.12, y: foot - m.ry * 2.3 }, left: m.cx - m.rx, right: m.cx + m.rx };
+}
+function mountainPath(g, m, dx = 0, dy = 0) {
+  const { cx, rx, ry } = m;
+  const by = mountainGeom(m).foot + dy;
+  const bx = cx + dx;
+  g.beginPath();
+  g.moveTo(bx - rx, by);
+  g.quadraticCurveTo(bx - rx * 0.55, by - ry * 0.9, bx - rx * 0.12, by - ry * 2.3);
+  g.quadraticCurveTo(bx + rx * 0.08, by - ry * 2.05, bx + rx * 0.3, by - ry * 1.7);
+  g.quadraticCurveTo(bx + rx * 0.4, by - ry * 1.95, bx + rx * 0.5, by - ry * 1.78);
+  g.quadraticCurveTo(bx + rx * 0.82, by - ry * 0.8, bx + rx, by);
+  g.quadraticCurveTo(bx, by + ry * 0.3, bx - rx, by);
+  g.closePath();
+}
+function drawMountain(g, m, themeKey) {
+  const look = MOUNTAIN_LOOK[themeKey] || MOUNTAIN_LOOK.default;
+  const { foot, peak } = mountainGeom(m);
+  g.fillStyle = PALETTE.shadow;
+  mountainPath(g, m, 5, 5);
+  g.fill();
+  g.fillStyle = look.body;
+  mountainPath(g, m);
+  g.fill();
+  g.save();
+  mountainPath(g, m);
+  g.clip();
+  // 右の斜面は かげ
+  g.fillStyle = look.shade;
+  g.beginPath();
+  g.moveTo(peak.x, peak.y - 4);
+  g.lineTo(peak.x + m.rx * 0.25, foot + m.ry);
+  g.lineTo(m.cx + m.rx * 1.3, foot + m.ry);
+  g.lineTo(m.cx + m.rx * 1.3, peak.y - 10);
+  g.closePath();
+  g.fill();
+  // 頂上の雪（夏は無い。冬は山ぜんぶが白い）
+  if (look.cap) {
+    g.fillStyle = look.cap;
+    const y = peak.y + m.ry * 0.62;
+    g.beginPath();
+    g.moveTo(m.cx - m.rx, peak.y - 10);
+    g.lineTo(m.cx + m.rx, peak.y - 10);
+    g.lineTo(m.cx + m.rx, y - 6);
+    for (let k = 8; k >= 0; k--) {
+      const x = m.cx - m.rx + (k / 8) * m.rx * 2;
+      g.lineTo(x, y + (k % 2 ? 5 : -3));
+    }
+    g.closePath();
+    g.fill();
+  }
+  g.restore();
+  // ふもとの木
+  for (let k = 0; k < 6; k++) {
+    const x = m.cx - m.rx * 0.78 + k * m.rx * 0.31;
+    const y = foot - 4 + ((k * 7) % 5);
+    g.fillStyle = look.tree;
+    g.beginPath();
+    g.moveTo(x, y - 13);
+    g.lineTo(x - 5, y);
+    g.lineTo(x + 5, y);
+    g.closePath();
+    g.fill();
+    if (themeKey === 'yuki') {
+      g.fillStyle = '#ffffff';
+      g.beginPath();
+      g.moveTo(x, y - 13);
+      g.lineTo(x - 2.5, y - 7);
+      g.lineTo(x + 2.5, y - 7);
+      g.closePath();
+      g.fill();
+    }
+  }
+}
+
 // 桟橋の向き。船は桟橋の先の、少し横に着く
 function pierGeom(id) {
   const [dx, dy] = areaById(id).pier.dir;
@@ -182,7 +267,8 @@ export function createRenderer(canvas) {
   let groundKey = null;
   let groundRect = null;
   let pokes = null; // タップされた住民（id → タップした時刻）。ぴょんと跳ねて ハートを出す
-  const GROUND_RES = 3; // 地面は一度だけ高い解像度で描いておく
+  // 地面は一度だけ高い解像度で描いておく。島が広くなったら少し下げる（大きすぎる絵は iPhone で描けない）
+  const groundRes = (rect) => Math.min(3, Math.sqrt(9e6 / (rect.w * rect.h)));
 
   const maxZoom = 1.7;
 
@@ -193,7 +279,7 @@ export function createRenderer(canvas) {
     const key = `${(state.areas || ['main']).join('+')}|${(state.harbors || []).map((h) => h.id).join('+')}`;
     if (key === boundsKey) return;
     boundsKey = key;
-    const b = landBounds(state.areas || ['main']);
+    const b = landBounds(state.areas || ['main'], { teaser: true });
     const has = (id) => (state.harbors || []).some((h) => h.id === id);
     Object.assign(BOUNDS, {
       left: b.left - 20 - (has('west') ? 170 : 0),
@@ -276,10 +362,11 @@ export function createRenderer(canvas) {
     rect.w = Math.ceil(lb.right + m) - rect.x;
     rect.h = Math.ceil(lb.bottom + m) - rect.y;
     const off = document.createElement('canvas');
-    off.width = rect.w * GROUND_RES;
-    off.height = rect.h * GROUND_RES;
+    const res = groundRes(rect);
+    off.width = Math.round(rect.w * res);
+    off.height = Math.round(rect.h * res);
     const g = off.getContext('2d');
-    g.scale(GROUND_RES, GROUND_RES);
+    g.scale(res, res);
     g.translate(-rect.x, -rect.y);
 
     // 島の影（ずらした紙）→ 浅瀬 → 砂 → 芝。どの層も、土地ぜんぶを描いてから次の層へ
@@ -338,6 +425,28 @@ export function createRenderer(canvas) {
     };
     band(PALETTE.sandDark, 2);
     band(PALETTE.sand, 0);
+    // 橋（D318）：海の上の道は 板をわたした橋にする
+    for (const i of BRIDGES) {
+      const p = center(i);
+      g.fillStyle = PALETTE.shadow;
+      g.fillRect(p.x - T / 2, p.y - 8, T, 22);
+      g.fillStyle = '#c49a6c';
+      g.fillRect(p.x - T / 2, p.y - 11, T, 22);
+      g.strokeStyle = 'rgba(80,50,30,0.28)';
+      g.lineWidth = 1;
+      for (let k = 0; k < T; k += 6) {
+        g.beginPath();
+        g.moveTo(p.x - T / 2 + k, p.y - 11);
+        g.lineTo(p.x - T / 2 + k, p.y + 11);
+        g.stroke();
+      }
+      g.fillStyle = '#8d6a4f';
+      g.fillRect(p.x - T / 2, p.y - 13, T, 3);
+      g.fillRect(p.x - T / 2, p.y + 10, T, 3);
+      g.fillRect(p.x - T / 2, p.y - 16, 3, 6);
+      g.fillRect(p.x - T / 2, p.y + 10, 3, 7);
+    }
+    for (const a of areas) if (a.mountain) drawMountain(g, a.mountain, themeId());
     groundRect = rect;
     return off;
   }
@@ -1837,6 +1946,139 @@ export function createRenderer(canvas) {
 
   // ---------------------------------------------------------------- 1コマ
 
+  // ---------------------------------------------------------------- 山の島（D318）
+
+  // 橋をかける前の山の島：海の向こうに うっすら見える（D317・オーナー案）
+  function teaser(state) {
+    for (const a of AREAS) {
+      if (!a.island || (state.areas || []).includes(a.id)) continue;
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = PALETTE.seaDeep;
+      islandPath(ctx, a, 1, 10, 6, 8);
+      ctx.fill();
+      ctx.fillStyle = PALETTE.sand;
+      islandPath(ctx, a, 1, 4);
+      ctx.fill();
+      ctx.fillStyle = PALETTE.grass;
+      islandPath(ctx, a, 0.885);
+      ctx.fill();
+      if (a.mountain) drawMountain(ctx, a.mountain, themeId());
+      ctx.restore();
+      // 名札
+      const y = a.cy + a.ry * 0.5;
+      ctx.font = `700 12px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const w = ctx.measureText(a.name).width + 18;
+      ctx.fillStyle = 'rgba(255,255,255,0.82)';
+      roundRect(ctx, a.cx - w / 2, y - 11, w, 22, 11);
+      ctx.fill();
+      ctx.fillStyle = PALETTE.ink;
+      ctx.fillText(a.name, a.cx, y + 0.5);
+    }
+  }
+
+  // スキー場のロッジ（2×2）。冬のほかは「冬だけ」の札
+  function skiLodge(state, b, open) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.ski.w * T;
+    paperShadow((shadow) => {
+      if (!shadow) ctx.fillStyle = '#a0714f';
+      roundRect(ctx, x0 + 6, y0 + 12, w - 12, T + 8, 3);
+      ctx.fill();
+      if (!shadow) ctx.fillStyle = theme.snow ? '#ffffff' : '#c8553d';
+      ctx.beginPath();
+      ctx.moveTo(x0 + 1, y0 + 16);
+      ctx.lineTo(x0 + w / 2, y0 - 8);
+      ctx.lineTo(x0 + w - 1, y0 + 16);
+      ctx.closePath();
+      ctx.fill();
+    });
+    ctx.fillStyle = '#f7e3b5';
+    ctx.fillRect(x0 + w / 2 - 5, y0 + 4, 10, 7);
+    ctx.fillStyle = PALETTE.ink;
+    roundRect(ctx, x0 + w / 2 - 5, y0 + T + 4, 10, 16, [5, 5, 0, 0]);
+    ctx.fill();
+    // 立てかけたスキー板
+    ctx.strokeStyle = '#e56b6f';
+    ctx.lineWidth = 2;
+    for (const dx of [0, 4]) {
+      ctx.beginPath();
+      ctx.moveTo(x0 + w - 12 + dx, y0 + 2 * T - 6);
+      ctx.lineTo(x0 + w - 8 + dx, y0 + T + 2);
+      ctx.stroke();
+    }
+    ctx.fillStyle = PALETTE.ink;
+    ctx.font = `700 8px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(open ? 'スキー' : '冬だけ', x0 + 16, y0 + 2 * T - 5);
+  }
+
+  // 冬のスキー場：山にコースとリフト。滑っている人（席についた人）が、頂上から ふもとへ
+  function skiSlope(state, b, time) {
+    const a = AREAS.find((x) => x.mountain);
+    const m = a.mountain;
+    const { foot, peak } = mountainGeom(m);
+    const lodge = { x: b.c * T + T, y: b.r * T + T / 2 };
+    // リフト：ロッジから頂上へ
+    ctx.strokeStyle = 'rgba(61, 90, 128, 0.55)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(lodge.x, lodge.y - 6);
+    ctx.lineTo(peak.x + 6, peak.y + 10);
+    ctx.stroke();
+    for (let k = 1; k < 5; k++) {
+      const x = lodge.x + ((peak.x + 6 - lodge.x) * k) / 5;
+      const y = lodge.y - 6 + ((peak.y + 10 - lodge.y + 6) * k) / 5;
+      ctx.fillStyle = PALETTE.ink;
+      ctx.fillRect(x - 0.8, y, 1.6, 6);
+    }
+    // コース（2本）
+    const trail = (k, u) => ({
+      x: peak.x + Math.sin(u * Math.PI * 3 + k * 2.1) * m.rx * 0.32 * u + (k ? m.rx * 0.28 : -m.rx * 0.3) * u,
+      y: peak.y + 8 + (foot - 6 - peak.y - 8) * u,
+    });
+    ctx.strokeStyle = 'rgba(98, 182, 203, 0.45)';
+    ctx.lineWidth = 3;
+    for (const k of [0, 1]) {
+      ctx.beginPath();
+      for (let s = 0; s <= 24; s++) {
+        const p = trail(k, s / 24);
+        if (s === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+    }
+    // 滑る人
+    b.seats.forEach((id, k) => {
+      if (!id) return;
+      const r = everyone(state).find((x) => x.id === id);
+      const u = (time * 0.06 + k * 0.29) % 1;
+      const p = trail(k % 2, u);
+      const look = r ? lookOf(r) : { shirt: '#e56b6f', skin: '#f3cfb0' };
+      ctx.fillStyle = 'rgba(20,60,70,0.25)';
+      ctx.beginPath();
+      ctx.ellipse(p.x + 2, p.y + 3, 4, 1.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = PALETTE.ink;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(p.x - 4, p.y + 2);
+      ctx.lineTo(p.x + 4, p.y + 1);
+      ctx.stroke();
+      ctx.fillStyle = look.shirt;
+      roundRect(ctx, p.x - 2.5, p.y - 6, 5, 7, 2);
+      ctx.fill();
+      ctx.fillStyle = look.skin;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y - 8, 2.3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
   function draw(state, time, ui = {}) {
     pokes = ui.pokes || null;
     setBounds(state);
@@ -1860,6 +2102,7 @@ export function createRenderer(canvas) {
       ctx.arc(x, y, 7, Math.PI * 1.15, Math.PI * 1.85);
       ctx.stroke();
     }
+    teaser(state);
     const gk = `${MAP_KEY}|${(state.harbors || []).map((h) => h.id).join('+')}|${themeId()}`;
     if (gk !== groundKey) {
       ground = buildGround(state);
@@ -1886,7 +2129,9 @@ export function createRenderer(canvas) {
       else if (b.type === 'kinder') kinder(state, b, time);
       else if (b.type === 'pond') pond(state, b, time);
       else if (b.type === 'stand') stand(state, b, time);
+      else if (b.type === 'ski') skiLodge(state, b, theme.snow);
     }
+    if (theme.snow) for (const b of state.buildings) if (b.type === 'ski') skiSlope(state, b, time);
     for (const i of lamps()) lamp(i, false);
     for (const b of state.buildings) if (b.type === 'cafe' && b.bar && !night) barLights(b, false, time);
     for (const port of [state.port, ...(state.harbors || [])]) boat(state, port, time);

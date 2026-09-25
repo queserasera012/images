@@ -90,6 +90,26 @@ export const CONFIG = {
     max: 1,
   },
 
+  // ---- スキー場（D318）：山の島だけ・冬だけ開く。橋をわたって人が集まる ----
+  ski: {
+    open: 9 * 60,
+    close: 16 * 60,
+    customerValue: 30,
+    stayMin: 60,
+    stayMax: 100,
+    maxQueue: 6,
+    rainLinger: 1,
+    pull: 60,                   // 冬のあいだは強く呼ぶ（1週間しか開かない）
+    farReach: 3,                // 遠くても行く：遠さが効くのは ふつうの店の 1/3
+    rainPull: 0.5,              // 雪の日（天気は雨）は少し減る
+    levels: [
+      { level: 1, seats: 6, upkeep: 40 },
+      { level: 2, seats: 10, upkeep: 60, cost: 2400 },
+    ],
+    buildCost: 2600,
+    max: 1,
+  },
+
   // ---- 結婚・子ども（D297） ----
   family: {
     affinityNeed: 120,          // 同じ場所で一緒に過ごした時間（ゲーム内の分）がこれを超えると、結婚するかもしれない
@@ -221,6 +241,7 @@ export const CONFIG = {
   // 北の丘・東の岬・西の森。どこからでも ひらける。ひらくたびに高くなる
   expand: {
     costs: [2500, 3500, 5000],
+    bridge: 8000, // 山の島に橋をかける（D318）。となりの土地の値段の並びとは別
   },
   // 広げた土地の港。本島の港とは別の時刻に船が来る
   harbor: {

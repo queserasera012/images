@@ -11,7 +11,7 @@
 import { CONFIG } from './config.js';
 import {
   T, SIZES, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, center, roadPath, roadDistance, accessTile, canPlace, isRoad, idx,
-  useAreas, landTilesOf, placements, HOUSE_FLOOR, areaAt,
+  useAreas, landTilesOf, placements, HOUSE_FLOOR, areaAt, COLS, OLD_COLS_2,
 } from './grid.js';
 
 const DAY = 1440;
@@ -127,8 +127,8 @@ export const everyone = (state) => (state.visitors?.length ? state.residents.con
 export const personById = (state, id) => state.residents.find((r) => r.id === id) || state.visitors?.find((r) => r.id === id);
 
 // 席と列のある施設（カフェ・スーパー・プラネタリウム）。同じ仕組みで動く（D295）
-export const VENUE_TYPES = ['cafe', 'super', 'planetarium', 'petshop', 'pond', 'stand'];
-export const VENUE_NAME = { cafe: 'カフェ', super: 'スーパー', planetarium: 'プラネタリウム', petshop: 'ペットショップ', pond: '釣り堀', stand: 'コーヒースタンド' };
+export const VENUE_TYPES = ['cafe', 'super', 'planetarium', 'petshop', 'pond', 'stand', 'ski'];
+export const VENUE_NAME = { cafe: 'カフェ', super: 'スーパー', planetarium: 'プラネタリウム', petshop: 'ペットショップ', pond: '釣り堀', stand: 'コーヒースタンド', ski: 'スキー場' };
 export const isVenue = (b) => VENUE_TYPES.includes(b.type);
 export const venues = (state) => state.buildings.filter(isVenue);
 export const ofType = (state, type) => state.buildings.filter((b) => b.type === type);
@@ -231,6 +231,8 @@ function dirName(list, b, base) {
 // 本島の真ん中から見た方角。D311：島を広げたとき（D298）に本島を (OX, OY) ずらしたのに、ここだけ前の真ん中のままで、
 // ほとんどのカフェが「東のカフェ」になっていた
 function cafeLabel0(b) {
+  const isle = areaAt(b.c, b.r);
+  if (areaById(isle).island) return areaById(isle).name; // 橋の向こうの島は、島の名前で呼ぶ（D318）
   const s = SIZES[b.type];
   const dx = b.c + s.w / 2 - (OX + 8.5);
   const dy = b.r + s.h / 2 - (OY + 12.5);
@@ -259,7 +261,7 @@ export function createGame(seed = Date.now()) {
     port: { id: 'main', open: false, today: [] },
     harbors: [], // 広げた土地の港（D298）
     areas: ['main'], // ひらいた土地（D298）
-    grid: 2, // 地図の版（2＝島を広げられる版。1＝本島だけの 17×25）
+    grid: 3, // 地図の版（3＝山の島のある 48×33。2＝34×31。1＝本島だけの 17×25）
     pets: [],
     petsSpawned: { cat: false, dog: false },
     unlocked: {},
@@ -299,6 +301,7 @@ export function migrate(state) {
   state.harbors ||= [];
   state.areas ||= ['main'];
   if (!state.grid) shiftOldGrid(state);
+  else if (state.grid === 2) widenGrid(state);
   syncMap(state);
   state.today.boats ||= 0;
   state.today.tourists ||= 0;
@@ -353,7 +356,24 @@ function shiftOldGrid(state) {
   walk(state.residents);
   walk(state.visitors);
   walk(state.pets);
-  state.grid = 2;
+  state.grid = 3;
+}
+
+// 山の島の前の地図（34列）のセーブを、広げた地図（48列）に移す（D318）。
+// マスの位置は変わらない。マスの番号（行 × 列の数 ＋ 列）だけ 数え直す
+function widenGrid(state) {
+  const remap = (i) => (typeof i === 'number' && i >= 0 ? (i % OLD_COLS_2) + Math.floor(i / OLD_COLS_2) * COLS : i);
+  const walk = (o) => {
+    if (Array.isArray(o)) return o.forEach(walk);
+    if (!o || typeof o !== 'object') return;
+    for (const k of ['at', 'nextAt', 'pier', 'access']) if (k in o) o[k] = remap(o[k]);
+    for (const v of Object.values(o)) if (v && typeof v === 'object') walk(v);
+  };
+  walk(state.buildings);
+  walk(state.residents);
+  walk(state.visitors);
+  walk(state.pets);
+  state.grid = 3;
 }
 
 // 夫婦の住む家の空きは、生まれてくる子どもの分。新しい住民には貸さない（D297）
@@ -444,6 +464,7 @@ function planDay(state, r) {
   r.needShop = ofType(state, 'super').length > 0; // スーパーがあれば、毎日1回 買い物に行きたい
   r.visitedFun = false; // プラネタリウムも1日1回まで
   r.fished = false; // 釣り堀も1日1回まで
+  r.skied = false; // スキーも1日1回まで
   // ペットのいる家の人は、2日に1回 ペットショップへ（家ごとに曜日をずらす）
   r.needPet = ofType(state, 'petshop').length > 0 && householdHasPet(state, r) && (dayOf(state.t) + (r.look || 0)) % 2 === 0;
   r.wake = base + clockToInDay(6 * 60 + 30) + between(state, 0, 35);
@@ -561,6 +582,7 @@ function venueOpen(state, type, margin = 0) {
 // 建物ごとの閉店時刻（カフェ&バーは夜23時まで・D297）
 export const closeOf = (b) => (b.type === 'cafe' && b.bar ? CONFIG.cafe.bar.close : CONFIG[b.type].close);
 function buildingOpen(state, b, margin = 0) {
+  if (b.type === 'ski' && !isWinter(state)) return false;
   const c = clockOf(state.t);
   return c >= CONFIG[b.type].open && c < closeOf(b) - margin;
 }
@@ -613,6 +635,17 @@ function planetariumChoices(state, r) {
   return ofType(state, 'planetarium').map((b) => ({ cafe: b, w: (r.prefs.fun ?? 12) * weather * night * near(r, b.access) }));
 }
 
+// スキー場（D318）：冬だけ開く。山の島まで橋をわたって行く。観光客も行く。大人だけ・1日1回まで
+export const isWinter = (state) => seasonOf(state).id === 'yuki';
+function skiChoices(state, r) {
+  if (r.age || r.skied || !isWinter(state) || !venueOpen(state, 'ski', 45)) return [];
+  const P = CONFIG.ski;
+  const weather = state.weather === 'rain' ? P.rainPull : 1;
+  // 遠くても行く（わざわざ橋をわたって行く所）。遠さが効くのは ふつうの店の 1/3
+  const far = (b) => 1 / (1 + roadDistance(r.at, b.access) / (CONFIG.distanceHalf * P.farReach));
+  return ofType(state, 'ski').map((b) => ({ cafe: b, w: P.pull * weather * far(b) }));
+}
+
 // 釣り堀：住民だけ。晴れた日に のんびり。1日1回まで（D304）
 function pondChoices(state, r) {
   if (r.tourist || r.fished || !venueOpen(state, 'pond', 45)) return [];
@@ -649,6 +682,7 @@ function decideNext(state, r, { noCafe = false, avoid = null } = {}) {
     ...(avoid === 'planetarium' ? [] : planetariumChoices(state, r)),
     ...(avoid === 'petshop' ? [] : petshopChoices(state, r)),
     ...(avoid === 'pond' ? [] : pondChoices(state, r)),
+    ...(avoid === 'ski' ? [] : skiChoices(state, r)),
   ];
   const shopList = shopChoices(state, r);
   const shopW = shopList.reduce((s, x) => s + x.w, 0);
@@ -850,6 +884,7 @@ function sit(state, r, b, seatIdx) {
   r.state = 'SEATED';
   r.seat = seatIdx;
   if (b.type === 'pond') r.fished = true;
+  if (b.type === 'ski') r.skied = true;
   if (b.type === 'stand') {
     // カウンターの前に立って待つ（見える）
     const f = standFront(b);
@@ -998,6 +1033,8 @@ function rolloverDay(state, events) {
   if (bar?.served) lines.push({ kind: 'good', text: `夜のバーに ${bar.served}人 が来ました（+${bar.income} Coin）` });
   const stand = today.byType.stand;
   if (stand?.served) lines.push({ kind: 'good', text: `コーヒースタンドで ${stand.served}人 がコーヒーを買いました（+${stand.income} Coin）` });
+  const ski = today.byType.ski;
+  if (ski?.served) lines.push({ kind: 'good', text: `山の島のスキー場に ${ski.served}人 が来ました（+${ski.income} Coin）` });
   const pond = today.byType.pond;
   if (pond?.served) lines.push({ kind: 'good', text: `釣り堀に ${pond.served}人 が来ました（+${pond.income} Coin）` });
   const me = today.fishing;
@@ -1057,7 +1094,8 @@ function rolloverDay(state, events) {
   }
 
   // 維持費
-  const upkeep = venues(state).reduce((s, c) => s + CONFIG[c.type].levels[c.level - 1].upkeep + (c.bar ? CONFIG.cafe.bar.upkeep : 0), 0);
+  // スキー場は冬のあいだだけ維持費がかかる（開いていない季節に払わせない・D318）
+  const upkeep = venues(state).reduce((s, c) => s + (c.type === 'ski' && !isWinter(state) ? 0 : CONFIG[c.type].levels[c.level - 1].upkeep + (c.bar ? CONFIG.cafe.bar.upkeep : 0)), 0);
   const onlyCafes = venues(state).every((v) => v.type === 'cafe');
   const shopUpkeep =
     shops(state).reduce((s, b) => s + CONFIG.shop.levels[b.level - 1].upkeep, 0) +
@@ -1385,6 +1423,18 @@ export function actionsFor(state) {
       locked,
     });
   }
+  // スキー場（D318）：山の島に橋をかけたら。冬だけ開く
+  if (state.areas.includes('mountain')) {
+    const K = CONFIG.ski;
+    const full = ofType(state, 'ski').length >= K.max;
+    list.push({
+      id: 'ski', icon: 'ski_new', place: 'ski', title: 'スキー場をつくる',
+      detail: full
+        ? `スキー場は島に ${K.max}軒まで`
+        : `山の島にだけ建てられる。冬のあいだ（${fmtClock(K.open)}〜${fmtClock(K.close)}）住民と観光客が滑りに来る。一度に ${K.levels[0].seats}人。維持費は冬だけ 1日 ${K.levels[0].upkeep} Coin`,
+      cost: K.buildCost, locked: full,
+    });
+  }
   for (const c of cafes(state)) {
     if (c.bar) continue;
     const B = CONFIG.cafe.bar;
@@ -1453,9 +1503,24 @@ export function actionsFor(state) {
   // 島を広げる（D298）：「島」のタブ
   const u = CONFIG.unlocks.find((x) => x.id === 'expand');
   const expandLocked = !isUnlocked(state, 'expand');
-  const opened = state.areas.length - 1;
+  const opened = state.areas.filter((id) => id !== 'main' && !areaById(id).island).length;
   for (const a of AREAS) {
     if (a.id === 'main' || state.areas.includes(a.id)) continue;
+    // 橋でつなぐ別の島（D318）。つなぎ方も値段も、となりの土地をひらくのとは別
+    if (a.island) {
+      list.push({
+        id: `expand:${a.id}`,
+        tab: 'island',
+        icon: `expand_${a.id}`,
+        title: `${a.name}に橋をかける`,
+        detail: expandLocked
+          ? `住民が ${u.pop}人 になると橋をかけられます`
+          : `海の向こうの島。建てられる土地が ${landTilesOf(a.id)}マス。山は冬にスキー場になる`,
+        cost: CONFIG.expand.bridge,
+        locked: expandLocked,
+      });
+      continue;
+    }
     list.push({
       id: `expand:${a.id}`,
       tab: 'island',
@@ -1467,7 +1532,7 @@ export function actionsFor(state) {
     });
   }
   for (const id of state.areas) {
-    if (id === 'main' || portById(state, id)) continue;
+    if (id === 'main' || !areaById(id).pier || portById(state, id)) continue;
     const H = CONFIG.harbor;
     list.push({
       id: `harbor:${id}`,
@@ -1957,7 +2022,7 @@ function bringCompanions(state, r) {
   // （施設はどれも dest='cafe' で向かうので、行き先の建物の種類で見る）
   const where = r.dest === 'cafe' ? buildingById(state, r.destId)?.type : r.dest;
   const wants = (c) =>
-    ({ super: c.needShop, petshop: c.needPet, planetarium: !c.visitedFun, pond: !c.fished }[where] ?? true);
+    ({ super: c.needShop, petshop: c.needPet, planetarium: !c.visitedFun, pond: !c.fished, ski: !c.skied && !c.age }[where] ?? true);
   const spouse = r.spouseId && state.residents.find((x) => x.id === r.spouseId);
   if (awakeHome(spouse) && wants(spouse) && rand(state) < F.walkTogether) join(spouse);
   if (r.dest === 'park' || r.dest === 'stroll') {

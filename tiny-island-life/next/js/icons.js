@@ -107,6 +107,23 @@ export const ICONS = {
   expand_north: expandIcon(12, 6.5, 12, 14.5),
   expand_east: expandIcon(17.5, 10, 10, 13),
   expand_west: expandIcon(6.5, 14, 14, 11),
+  // 山の島に橋をかける（D318）：海の向こうの山と、そこへ渡る橋
+  expand_mountain: svg(
+    `<path d="M11 18l5-9 5 9z" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<path d="M11 18l5-9 5 9z" fill="#8fb07a" stroke="${INK}" stroke-width="1.3" stroke-linejoin="round"/>` +
+      `<path d="M14.3 12l1.7-3 1.7 3-1 .8-.7-.6-.8.6z" fill="#fff"/>` +
+      `<path d="M2 17h10" stroke="#b98b5e" stroke-width="3" stroke-linecap="round"/>` +
+      `<path d="M3 15v4M6.5 15v4M10 15v4" stroke="${INK}" stroke-width="1.1" stroke-linecap="round"/>`,
+    28,
+  ),
+  // スキー場（D318）：雪の山と、滑るあと
+  ski_new: svg(
+    `<path d="M3 19l8-13 5 7 2-2 3 8z" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<path d="M3 19l8-13 5 7 2-2 3 8z" fill="#fff" stroke="${INK}" stroke-width="1.3" stroke-linejoin="round"/>` +
+      `<path d="M9 9c2 2-2 4 0 6s-1 3 1 4" stroke="${SKY}" stroke-width="1.4" fill="none" stroke-linecap="round"/>` +
+      `<circle cx="15" cy="15" r="1.6" fill="#e56b6f"/>`,
+    28,
+  ),
   move: svg(
     `<path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3" stroke="${INK}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
     18,

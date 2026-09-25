@@ -6,10 +6,12 @@
 //
 // 🔑 広げても本島のマスは1つも変えない（家の前の空き地に いきなり道が通ったりしない）。
 //    新しい道は、新しく陸になったマスにだけ通す。
+// 海の向こうの「山の島」は、橋でつなぐ別の島（D318）。地図を東と南に広げて置いた（34×31 → 48×33）
 
 export const T = 30; // 1マスの大きさ（論理座標）
-export const COLS = 34;
-export const ROWS = 31;
+export const COLS = 48;
+export const ROWS = 33;
+export const OLD_COLS_2 = 34; // 山の島の前の地図の幅（セーブを移すため）
 export const WORLD = { w: COLS * T, h: ROWS * T };
 
 // 本島の左上のマス。前の版（17×25 の本島だけの地図）の (0,0) がここになる
@@ -33,6 +35,7 @@ export const SIZES = {
   kinder: { w: 3, h: 2 }, // 幼稚園
   stand: { w: 1, h: 1 }, // コーヒースタンド
   pond: { w: 3, h: 2 }, // 釣り堀（上の段と下の段の半分が池、下のふちに釣り座）
+  ski: { w: 2, h: 2 }, // スキー場のロッジ（山の島だけ・D318）。滑る人は山の上に描く
 };
 
 // 島の土地。本島と、あとからつなげる3つ。
@@ -57,6 +60,15 @@ export const AREAS = [
   {
     id: 'west', name: '西の森', ph: 1.3, cx: 6.4 * T, cy: 21.4 * T, rx: 5.2 * T, ry: 5.8 * T, pier: { row: 22, dir: [-1, 0] },
     neck: { cx: 9.8 * T, cy: 21 * T, rx: 3.2 * T, ry: 6 * T },
+  },
+  // 山の島（D318）：本島の南東の海の向こう。橋でつなぐ。港は無い。まんなかに山（建てられない。冬はスキー場）
+  {
+    id: 'mountain', name: '山の島', ph: 3.3, island: true, cx: 37 * T, cy: 25.6 * T, rx: 7 * T, ry: 6.2 * T,
+    mountain: { cx: 38 * T, cy: 23.2 * T, rx: 3.4 * T, ry: 2.5 * T },
+    bridgeRow: 26,
+    // 道は碁盤の目から作らず、ここで決める（山をぐるりと回る。行き止まりの切れ端を作らない）
+    // [行, 始めの列, 終わりの列] / [列, 始めの行, 終わりの行]
+    roads: { rows: [[26, 30, 43], [29, 34, 40]], cols: [[32, 21, 26], [34, 26, 29], [40, 26, 29], [42, 22, 26]] },
   },
 ];
 // 土地を形づくる楕円（本体と、つなぎ目）
@@ -90,6 +102,12 @@ function edgeFactor(area, x, y) {
   return Math.hypot(dx / area.rx, dy / area.ry) / islandRadius(a, area.ph);
 }
 const tileFactor = (area, c, r) => edgeFactor(area, c * T + T / 2, r * T + T / 2);
+
+// 山のマス（建てられない・道も通らない）
+const MOUNTAIN_EDGE = 1.08; // 絵の山より少し広く（ふもとの家が 山に めり込まないように）
+export function isMountainTile(c, r) {
+  return AREAS.some((a) => a.mountain && tileFactor({ ...a.mountain, ph: a.ph }, c, r) <= MOUNTAIN_EDGE);
+}
 
 export function neighbors(i) {
   const c = colOf(i);
@@ -145,8 +163,10 @@ function buildMap(ids) {
   const areas = AREAS.filter((a) => a.id !== 'main' && ids.includes(a.id));
   const kind = MAIN_KIND.slice();
   const piers = { main: MAIN_PIER };
-  if (!areas.length) return { kind, piers };
+  const bridges = new Set();
+  if (!areas.length) return { kind, piers, bridges };
   const fresh = new Set(); // 新しく陸になったマス
+  const planned = new Set(); // 道を決めてある島のマス（行き止まりでも消さない）
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const i = idx(c, r);
@@ -157,8 +177,34 @@ function buildMap(ids) {
         kind[i] = 'beach';
         continue;
       }
-      kind[i] = ROAD_COLS.includes(c) || ROAD_ROWS.includes(r) ? 'road' : 'land';
+      if (isMountainTile(c, r)) {
+        kind[i] = 'mountain';
+        continue;
+      }
+      const isle = areas.find((a) => a.roads && tileFactor(a, c, r) <= 1);
+      const onLine = isle
+        ? isle.roads.rows.some(([rr, c0, c1]) => r === rr && c >= c0 && c <= c1) || isle.roads.cols.some(([cc, r0, r1]) => c === cc && r >= r0 && r <= r1)
+        : ROAD_COLS.includes(c) || ROAD_ROWS.includes(r);
+      kind[i] = onLine ? 'road' : 'land';
       fresh.add(i);
+      if (isle) planned.add(i);
+    }
+  }
+  // 橋（D318）：本島の横の道の東の端から、海をわたって島の道まで
+  for (const a of areas) {
+    if (!a.bridgeRow) continue;
+    const r = a.bridgeRow;
+    let c = OX + MAIN_COLS - 1;
+    while (c > OX && MAIN_KIND[idx(c, r)] !== 'road') c -= 1;
+    const span = [];
+    for (c += 1; c < COLS; c++) {
+      const i = idx(c, r);
+      if (kind[i] === 'road' && fresh.has(i)) break;
+      span.push(i);
+    }
+    for (const i of span) {
+      if (kind[i] === 'sea') bridges.add(i);
+      kind[i] = 'road';
     }
   }
   // 本島の道とつながらない新しい道は、土地に戻す
@@ -175,11 +221,12 @@ function buildMap(ids) {
   for (const i of fresh) if (kind[i] === 'road' && !reach.has(i)) kind[i] = 'land';
   // 新しい道の短い行き止まり（2マスまで）は土地に戻す
   for (let pass = 0; pass < 2; pass++) {
-    const ends = [...fresh].filter((i) => kind[i] === 'road' && neighbors(i).filter((j) => kind[j] === 'road').length <= 1);
+    const ends = [...fresh].filter((i) => !planned.has(i) && kind[i] === 'road' && neighbors(i).filter((j) => kind[j] === 'road').length <= 1);
     for (const i of ends) kind[i] = 'land';
   }
   // 港の桟橋：線の上の いちばん外側の道から、浜を海まで延ばす
   for (const a of areas) {
+    if (!a.pier) continue;
     const [dc, dr] = a.pier.dir;
     const line = [];
     if (a.pier.col !== undefined) for (let r = 0; r < ROWS; r++) line.push(idx(a.pier.col, r));
@@ -202,7 +249,7 @@ function buildMap(ids) {
     }
     piers[a.id] = cur;
   }
-  return { kind, piers };
+  return { kind, piers, bridges };
 }
 
 // いまの地図。useAreas で切り替える（ES モジュールの let は、読み込んだ側にも切り替えが見える）
@@ -211,6 +258,7 @@ export let MAP_KEY = 'main';
 export let MAP = MAIN_KIND;
 export let PIER = MAIN_PIER; // 本島の桟橋（新しい住民が現れる場所）
 export let PIERS = { main: MAIN_PIER };
+export let BRIDGES = new Set(); // 橋のマス（海の上の道）
 let pathCache = new Map();
 const pathCaches = new Map([['main', pathCache]]);
 
@@ -223,11 +271,12 @@ export function useAreas(ids = ['main']) {
   MAP = m.kind;
   PIERS = m.piers;
   PIER = m.piers.main;
+  BRIDGES = m.bridges;
   if (!pathCaches.has(key)) pathCaches.set(key, new Map());
   pathCache = pathCaches.get(key);
 }
 useAreas(['main']);
-MAPS.set('main', { kind: MAIN_KIND, piers: { main: MAIN_PIER } });
+MAPS.set('main', { kind: MAIN_KIND, piers: { main: MAIN_PIER }, bridges: new Set() });
 
 export const isRoad = (i) => MAP[i] === 'road';
 
@@ -235,6 +284,7 @@ export const isRoad = (i) => MAP[i] === 'road';
 export function areaAt(c, r) {
   const k = MAIN_KIND[idx(c, r)];
   if (k === 'land' || k === 'road') return 'main';
+  for (const a of AREAS) if (a.island && tileFactor(a, c, r) <= 1) return a.id;
   let best = 'main';
   let bestF = Infinity;
   for (const a of AREAS) {
@@ -249,8 +299,9 @@ export function areaAt(c, r) {
 }
 
 // ひらいた土地が収まる範囲（px）。カメラが動ける範囲と、地面の絵の大きさに使う
-export function landBounds(ids = ['main']) {
-  const list = AREAS.filter((a) => a.id === 'main' || ids.includes(a.id));
+// teaser：まだ橋をかけていない島も入れる（海の向こうに見えるように・D317）
+export function landBounds(ids = ['main'], { teaser = false } = {}) {
+  const list = AREAS.filter((a) => a.id === 'main' || ids.includes(a.id) || (teaser && a.island));
   const pad = 1.05;
   return {
     left: Math.max(0, Math.min(...list.map((a) => a.cx - a.rx * pad))),
@@ -279,7 +330,7 @@ export function landTilesOf(id) {
 // 道のマス a から b までのマスの列（a と b を含む）。つながっていなければ null
 export function roadPath(a, b) {
   if (a === b) return [a];
-  const key = a * 10000 + b;
+  const key = a * 100000 + b;
   if (pathCache.has(key)) return pathCache.get(key);
   const prev = new Map([[a, -1]]);
   const queue = [a];
@@ -345,6 +396,9 @@ export function accessTile(type, c, r) {
   return ok.length ? idx(...ok[0]) : null;
 }
 
+// その土地にしか建てられない建物（スキー場は山の島だけ・D318）
+export const ONLY_ON = { ski: 'mountain' };
+
 // その場所に建てられるか
 export function canPlace(type, c, r, buildings) {
   const s = SIZES[type];
@@ -352,6 +406,7 @@ export function canPlace(type, c, r, buildings) {
   const used = occupied(buildings);
   for (const t of footprint(type, c, r)) {
     if (MAP[t] !== 'land' || used.has(t)) return false;
+    if (ONLY_ON[type] && areaAt(colOf(t), rowOf(t)) !== ONLY_ON[type]) return false;
   }
   return accessTile(type, c, r) !== null;
 }
