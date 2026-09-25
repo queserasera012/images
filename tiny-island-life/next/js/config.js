@@ -199,6 +199,17 @@ export const CONFIG = {
     },
   },
 
+  // ---- 季節（D313）：島のテーマは買うものではなく、Day で自動で変わる ----
+  seasons: {
+    length: 7, // 1つの季節の日数
+    order: [
+      { id: 'sakura', name: '春' },
+      { id: 'natsu', name: '夏' },
+      { id: 'koyo', name: '秋' },
+      { id: 'yuki', name: '冬' },
+    ],
+  },
+
   // ---- リワード広告（D309）：見たい人が見ると、島に見えるものが少し増える。困りごとは解かない ----
   ads: {
     bonus: { perDay: 1, rate: 0.3, cap: 300 }, // 朝の日記：昨日の売上に +30%（上限300）

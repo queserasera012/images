@@ -8,7 +8,7 @@ import {
   migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
   labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
-  dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft, nameResident, placeLabel,
+  dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft, nameResident, placeLabel, seasonOf,
 } from './sim.js';
 import { createRenderer, lookOf, setTheme } from './render.js';
 import { ICONS } from './icons.js';
@@ -140,7 +140,8 @@ function updateHud() {
     $('weather').innerHTML = ICONS[state.weather];
     shownWeather = state.weather;
   }
-  $('day').textContent = `Day ${dayOf(state.t)}`;
+  $('day').textContent = `Day ${dayOf(state.t)}・${seasonOf(state).name}`;
+  syncTheme();
   $('clock').textContent = formatClock(state.t);
   $('coin').textContent = state.coin.toLocaleString();
   // いま住んでいる人の数（D310）。引っ越してくる途中の人は数えない
@@ -1034,8 +1035,17 @@ window.addEventListener('pagehide', save);
 setInterval(save, 5000);
 
 $('coin-icon').innerHTML = ICONS.coin;
-// 島のテーマ（D312）。いまは見本を見るため URL の ?theme= だけ（sakura / natsu / koyo / yuki）
-setTheme(new URLSearchParams(location.search).get('theme') || state.theme || 'default');
+// 島のテーマ（D312）は季節で自動に変わる（D313）。URL の ?theme= があれば、そちらを見本として使う
+const THEME_PARAM = new URLSearchParams(location.search).get('theme');
+let shownTheme = null;
+function syncTheme() {
+  const id = THEME_PARAM || seasonOf(state).id;
+  if (id !== shownTheme) {
+    setTheme(id);
+    shownTheme = id;
+  }
+}
+syncTheme();
 $('pop-icon').innerHTML = ICONS.people;
 document.querySelector('#btn-build .i').innerHTML = ICONS.build;
 document.querySelector('#btn-diary .i').innerHTML = ICONS.diary;

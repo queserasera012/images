@@ -1099,6 +1099,10 @@ function rolloverDay(state, events) {
     else if (names.length) lines.push({ kind: 'good', text: `今日、新しい住民が ${names.length}人 引っ越してくるそうです` });
   }
 
+  // 季節が変わる朝（D313）
+  const nextSeason = seasonOf(endedDay + 1);
+  if (nextSeason.id !== seasonOf(endedDay).id) lines.push({ kind: 'good', text: `島に${nextSeason.name}が来ました` });
+
   // 家族：結婚・引っ越し・赤ちゃん・歩けるようになる（D297）
   for (const l of familyEvents(state, endedDay, events)) lines.push(l);
 
@@ -1564,6 +1568,13 @@ export function wantsRoomHouses(state) {
     const h = buildingById(state, id);
     return h && h.type === 'house' && roomIn(state, id) <= 0;
   });
+}
+
+// ---------------------------------------------------------------- 季節（D313）
+export function seasonOf(stateOrDay) {
+  const day = typeof stateOrDay === 'number' ? stateOrDay : dayOf(stateOrDay.t);
+  const S = CONFIG.seasons;
+  return S.order[Math.floor((day - 1) / S.length) % S.order.length];
 }
 
 // ---------------------------------------------------------------- リワード広告のおまけ（D309）
