@@ -341,6 +341,10 @@ export function migrate(state) {
   state.today.ads ||= { bonus: 0, boat: 0, bait: 0 };
   state.today.work ||= { workers: 0, income: 0 };
   state.fishLog ||= {};
+  // 「島の人」のままの住民に名前をつける（D326）
+  for (const r of state.residents) {
+    if (r.generic && r.name === '島の人') r.name = freshName(state);
+  }
   if (state.port.open) state.unlocked.port = true;
   for (const b of state.buildings) if (isVenue(b) && !b.queue) Object.assign(b, { seats: [], queue: [] });
   for (const b of state.buildings) if (b.type === 'house') b.level ||= 1;
@@ -417,10 +421,40 @@ function freeHouse(state) {
   return houses(state).find((h) => openRoom(state, h) > 0);
 }
 
-// 名前のある住民（10人）のあとは「島の人」が住む（v0.3 §16 の一般住民・D295）
+// 名前のある住民（10人）のあとに住む人（v0.3 §16 の一般住民・D295）。
+// D326：前は みな「島の人」だったが、全員に名前をつける（オーナー「島の人表記は もやもやする」）。見た目は人ごとに混ぜたもの（generic）
+// 結婚するのは今までどおり、はじめの10人と、プレイヤーが名前を変えた人だけ（named）。
+// みな結婚できるようにすると、Day 40 で夫婦が 5組 → 15〜18組、子どもが 5人 → 15〜17人 になる（遊び方が大きく変わるので、オーナーが決める）
+const GIVEN_NAMES = [
+  'ユイ', 'ハルト', 'ハナ', 'リク', 'サキ', 'ユウト', 'メイ', 'ソウタ', 'リナ', 'ハヤト',
+  'エマ', 'レン', 'アオイ', 'コウ', 'ヒナ', 'タクミ', 'ミオ', 'カイト', 'ナナ', 'シュン',
+  'サクラ', 'ユウキ', 'ユナ', 'ダイキ', 'カナ', 'ケンタ', 'マイ', 'リョウ', 'モモ', 'ショウタ',
+  'アミ', 'ツバサ', 'リサ', 'カズキ', 'ミク', 'ヒロト', 'チヒロ', 'マサト', 'ユリ', 'タツヤ',
+  'サラ', 'ユウスケ', 'ノア', 'ケイ', 'アカネ', 'ジュン', 'カエデ', 'トオル', 'シオリ', 'マコト',
+  'ツムギ', 'ゴロウ', 'コハル', 'ヒロシ', 'ヒマリ', 'タケシ', 'ミユ', 'オサム', 'ナツミ', 'イサム',
+  'マナ', 'ススム', 'レナ', 'ノボル', 'アンナ', 'カツミ', 'ユキ', 'ヨウスケ', 'ミサキ', 'アキラ',
+  'ホノカ', 'テツ', 'カオリ', 'ゲン', 'アスカ', 'ジロウ', 'チカ', 'シンジ', 'エリ', 'コウキ',
+  'マリ', 'ナオキ', 'ルナ', 'ヒデキ', 'スズ', 'マモル', 'ミホ', 'ミノル', 'ナオ', 'ワタル',
+  'ユウカ', 'リュウ', 'アユミ', 'ソウマ', 'トモミ', 'アラタ', 'ケイコ', 'イツキ', 'ヨシコ', 'カナタ',
+  'フミ', 'ハジメ', 'キョウコ', 'タイチ', 'アイ', 'ユズル', 'エミ', 'ショウ', 'マユ', 'リョウタ',
+  'ミキ', 'ヤマト', 'サヤ', 'コタロウ', 'ナギ', 'ハヤテ', 'イロハ', 'シゲル', 'スミレ', 'トシオ',
+];
+function freshName(state) {
+  const used = new Set([...state.residents.map((r) => r.name), ...RESIDENT_POOL.map((p) => p.name)]);
+  state.nameIndex ||= 0;
+  for (let k = 0; k < GIVEN_NAMES.length; k++) {
+    const n = GIVEN_NAMES[(state.nameIndex + k) % GIVEN_NAMES.length];
+    if (used.has(n)) continue;
+    state.nameIndex = (state.nameIndex + k + 1) % GIVEN_NAMES.length;
+    return n;
+  }
+  // 使い切ったら 番号をつける
+  for (let i = 2; ; i++) for (const b of GIVEN_NAMES) if (!used.has(`${b}${i}`)) return `${b}${i}`;
+}
+
 function genericResident(state) {
   return {
-    name: '島の人',
+    name: freshName(state),
     generic: true,
     prefs: { cafe: between(state, 8, 28), park: between(state, 8, 30), stroll: between(state, 8, 26), fun: between(state, 6, 22) },
     coffee: between(state, 0.2, 0.9),
@@ -442,6 +476,7 @@ function makeResident(state, base, home, arriving) {
     id: `r${state.nextId++}`,
     name: base.name,
     generic: !!base.generic,
+    named: !!base.named,
     age: base.age || null, // null＝大人／'baby'／'kid'（D297）
     parents: base.parents || null,
     bornOn: base.bornOn || null,
@@ -1274,8 +1309,7 @@ function rolloverDay(state, events) {
       r.arriveAt = Math.floor(state.t / DAY) * DAY + clockToInDay(8 * 60) + between(state, 0, 120);
       names.push(r);
     }
-    if (names.length === 1 && !names[0].generic) lines.push({ kind: 'good', text: `今日、${names[0].name}が島に引っ越してくるそうです` });
-    else if (names.length) lines.push({ kind: 'good', text: `今日、新しい住民が ${names.length}人 引っ越してくるそうです` });
+    if (names.length) lines.push({ kind: 'good', text: `今日、${names.map((r) => r.name).join('と')}が島に引っ越してくるそうです` });
   }
 
   // 季節が変わる朝（D313）
