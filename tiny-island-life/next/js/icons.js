@@ -119,6 +119,19 @@ export const ICONS = {
       `<path d="M19.5 3.5v5M17 6h5" stroke="${MUSTARD}" stroke-width="2" stroke-linecap="round"/>`,
     28,
   ),
+  pond_new: svg(
+    `<rect x="3" y="6" width="18" height="12" rx="5" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<rect x="3" y="6" width="18" height="12" rx="5" fill="${SKY}" stroke="${INK}" stroke-width="1.4"/>` +
+      `<path d="M7 11c1-1 2-1 3 0M13 13c1-1 2-1 3 0" stroke="#fff" stroke-width="1.2" fill="none" stroke-linecap="round"/>` +
+      `<rect x="4" y="16" width="16" height="3" rx="1" fill="#c9a27a"/>`,
+    28,
+  ),
+  fish: svg(
+    `<ellipse cx="11" cy="12" rx="7" ry="4.2" fill="${MUSTARD}" stroke="${INK}" stroke-width="1.3"/>` +
+      `<path d="M17 12l4-3.5v7z" fill="${MUSTARD}" stroke="${INK}" stroke-width="1.3" stroke-linejoin="round"/>` +
+      `<circle cx="8" cy="11" r="1" fill="${INK}"/>`,
+    22,
+  ),
   harbor: svg(
     `<path d="M4 15h16l-2.5 4h-11z" transform="translate(1 1)" fill="${SHADOW}"/>` +
       `<path d="M4 15h16l-2.5 4h-11z" fill="#fff" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"/>` +

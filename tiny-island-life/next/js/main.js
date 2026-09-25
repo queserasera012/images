@@ -7,12 +7,13 @@ import {
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
   migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
   labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding,
-  capacityOf, houseUpgradeCost, houseLift, houses,
+  capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft,
 } from './sim.js';
 import { createRenderer, lookOf } from './render.js';
 import { ICONS } from './icons.js';
 import { currentStep, report, skipTutorial, busyCafeNow } from './tutorial.js';
 import { setupKeepAwake, awakeStatus } from './awake.js';
+import { openFishing, fishingNow } from './fishing.js';
 
 // 🚨 前の版（3日テスト中）と同じサイトに置くので、保存の名前を分ける（D289）
 const SAVE_KEY = 'til.grid.save.v1';
@@ -346,6 +347,15 @@ function renderCard() {
       html = `<h3>${cafeLabel(state, b)} Lv${b.level}</h3><div class="sub">席は ${seatCount(b)} つ。${hours}</div>`;
       html += `<div class="now">座っている：${who(seated)}</div>`;
       html += `<div>外で待っている：${who(b.queue)}</div>`;
+    } else if (b.type === 'pond') {
+      // 釣り堀（D304）：住民の様子と、あなたの釣り
+      const V = CONFIG.pond;
+      const left = fishingLeft(state);
+      const log = CONFIG.pond.game.fish.filter((f) => state.fishLog?.[f.id]).map((f) => `${f.name} ${state.fishLog[f.id]}`);
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">釣り座 ${seatCount(b)}つ。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
+      html += `<div class="now">釣りをしている：${who(b.seats.filter(Boolean))}</div>`;
+      html += `<div>あなたが釣った魚：${log.length ? log.join('・') : 'まだ いない'}</div>`;
+      html += `<button id="btn-fish" class="card-act" type="button">${ICONS.fish}釣りをする<span class="cost">${left > 0 ? `今日の Coin あと ${left}回` : '今日の Coin は おしまい'}</span></button>`;
     } else if (b.type === 'super' || b.type === 'planetarium' || b.type === 'petshop') {
       const V = CONFIG[b.type];
       const inside = b.seats.filter(Boolean);
@@ -395,6 +405,15 @@ function renderCard() {
 }
 
 $('card').addEventListener('click', (ev) => {
+  if (ev.target.closest('#btn-fish')) {
+    select(null);
+    openFishing({
+      getState: () => state,
+      onChange: () => save(),
+      close: () => save(),
+    });
+    return;
+  }
   if (ev.target.closest('#btn-upgrade')) {
     const res = applyAction(state, 'house_upgrade', { id: selected?.id });
     toast(res.message);
@@ -737,7 +756,7 @@ function renderDebug() {
     <button data-dbg="rain">今日を雨にする</button>
     <button data-dbg="coin">Coin +500</button>
     <button data-dbg="port">港をひらく</button>
-    <button data-dbg="unlock">スーパーとプラネタリウムをひらく</button>
+    <button data-dbg="unlock">釣り堀・スーパー・プラネタリウムをひらく</button>
     <button data-dbg="pets">ペットを全部 迷い込ませる</button>
     <button data-dbg="expand">島を広げられるようにする</button>
     <button data-dbg="family">結婚と出産を早める（留守2回で子ども）</button>
@@ -760,6 +779,7 @@ if (DEBUG) {
     building: (type) => state.buildings.filter((b) => b.type === type).map((b) => renderer.toClient((b.c + SIZES[b.type].w / 2) * T, (b.r + SIZES[b.type].h / 2) * T)),
     pier: (id) => renderer.toClient(center(PIERS[id]).x, center(PIERS[id]).y),
     focusPier: (id) => renderer.focus(center(PIERS[id]).x + 40, center(PIERS[id]).y),
+    fishing: () => fishingNow(),
     zoom: (f) => renderer.zoomAt(f, innerWidth / 2, innerHeight / 2),
     dogState: () => state.pets.find((p) => p.kind === 'dog')?.state,
     setStock: (n) => state.buildings.filter((b) => b.type === 'shop').forEach((b) => (b.stock = n)),
@@ -797,6 +817,7 @@ if (DEBUG) {
     }
     if (k === 'unlock') {
       unlockNow(state, 'port');
+      unlockNow(state, 'pond');
       unlockNow(state, 'super');
       unlockNow(state, 'planetarium');
       renderQuest();

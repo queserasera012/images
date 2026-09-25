@@ -868,6 +868,88 @@ export function createRenderer(canvas) {
     ctx.fill();
   }
 
+  // 釣り堀（D304）：池と、下のふちの板の釣り座
+  function pond(state, b, time) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.pond.w * T;
+    const h = SIZES.pond.h * T;
+    // 池（紙を1枚へこませた感じ：外側に濃い縁）
+    ctx.fillStyle = '#4f9fb0';
+    roundRect(ctx, x0 + 3, y0 + 3, w - 6, h - 16, 14);
+    ctx.fill();
+    ctx.fillStyle = '#6cc3d5';
+    roundRect(ctx, x0 + 5, y0 + 5, w - 10, h - 20, 12);
+    ctx.fill();
+    // さざなみ
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 1.3;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 4; i++) {
+      const x = x0 + 14 + ((i * 23 + time * 4) % (w - 28));
+      const y = y0 + 12 + ((i * 11) % (h - 34));
+      ctx.beginPath();
+      ctx.arc(x, y, 4, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.stroke();
+    }
+    // 蓮の葉
+    ctx.fillStyle = '#6a994e';
+    for (const [dx, dy, r] of [[12, 12, 4.5], [w - 16, 16, 3.8]]) {
+      ctx.beginPath();
+      ctx.moveTo(x0 + dx, y0 + dy);
+      ctx.arc(x0 + dx, y0 + dy, r, 0.4, Math.PI * 2 - 0.1);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // 板の釣り座
+    paperShadow((shadow) => {
+      if (!shadow) ctx.fillStyle = '#c9a27a';
+      roundRect(ctx, x0 + 4, y0 + h - 16, w - 8, 9, 2);
+      ctx.fill();
+    });
+    ctx.strokeStyle = 'rgba(80,50,30,0.25)';
+    ctx.lineWidth = 1;
+    for (let x = x0 + 12; x < x0 + w - 6; x += 8) {
+      ctx.beginPath();
+      ctx.moveTo(x, y0 + h - 16);
+      ctx.lineTo(x, y0 + h - 7);
+      ctx.stroke();
+    }
+    // 看板
+    ctx.fillStyle = PALETTE.white;
+    roundRect(ctx, x0 + w / 2 - 17, y0 - 4, 34, 11, 5);
+    ctx.fill();
+    ctx.fillStyle = PALETTE.ink;
+    ctx.font = `700 8px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('釣り堀', x0 + w / 2, y0 + 1.5);
+  }
+
+  // 釣りをしている人の竿と浮き
+  function rod(r, time) {
+    const ph = phaseOf(r.id);
+    const tipX = r.x + 9;
+    const tipY = r.y - 34;
+    ctx.strokeStyle = '#8a6a4a';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(r.x + 3, r.y - 12);
+    ctx.lineTo(tipX, tipY);
+    ctx.stroke();
+    const by = r.y - 22 + Math.sin(time * 2 + ph) * 1.2;
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+    ctx.lineWidth = 0.7;
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(tipX + 2, by);
+    ctx.stroke();
+    ctx.fillStyle = '#e76f51';
+    ctx.beginPath();
+    ctx.arc(tipX + 2, by, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   // カフェ&バー：テラスの上の電球かざり（夜は灯る）
   function barLights(b, lit, time) {
     const x0 = b.c * T + 6;
@@ -1465,6 +1547,7 @@ export function createRenderer(canvas) {
       ctx.restore();
     } else {
       person(r, r.x, r.y, { bob, stride, facing, seated: r.state === 'SEATED' });
+      if (r.state === 'SEATED' && state.buildings.find((b) => b.id === r.destId)?.type === 'pond') rod(r, time);
     }
     if (r.carry === 'groceries') {
       // スーパーの買い物袋（ねぎが のぞいている）
@@ -1642,6 +1725,7 @@ export function createRenderer(canvas) {
       else if (b.type === 'planetarium') planetarium(state, b, time);
       else if (b.type === 'petshop') petshop(state, b);
       else if (b.type === 'kinder') kinder(state, b, time);
+      else if (b.type === 'pond') pond(state, b, time);
     }
     for (const i of lamps()) lamp(i, false);
     for (const b of state.buildings) if (b.type === 'cafe' && b.bar && !night) barLights(b, false, time);

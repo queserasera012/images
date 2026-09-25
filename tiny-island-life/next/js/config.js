@@ -104,6 +104,7 @@ export const CONFIG = {
   // ---- 段階的な解放（D295）。住民の人数で順番にひらく。いつも「次の目標」が1つ見える ----
   unlocks: [
     { id: 'port', pop: 7, goal: '港をひらく', done: '港に船が来るようになりました', note: '港に船が来るようになります' },
+    { id: 'pond', pop: 8, goal: '釣り堀をひらく', done: '釣り堀を建てられるようになりました', note: '釣り堀を建てられるようになります' },
     { id: 'super', pop: 10, goal: 'スーパーをひらく', done: 'スーパーを建てられるようになりました', note: 'スーパーを建てられるようになります' },
     { id: 'petshop', pets: 2, goal: 'ペットショップをひらく', done: 'ペットショップを建てられるようになりました', note: 'ペットショップを建てられるようになります' },
     { id: 'kinder', kids: 1, goal: '幼稚園をひらく', done: '幼稚園を建てられるようになりました', note: '幼稚園を建てられるようになります' },
@@ -148,6 +149,38 @@ export const CONFIG = {
     sail: 20,                   // 来るとき・帰るときに海の上にいる時間
     tourists: { sunny: [3, 5], cloudy: [2, 4], rain: [1, 2] }, // 1便あたりの人数
     leaveBefore: 25,            // 出航の何分前に港へ戻りはじめるか
+  },
+
+  // ---- 釣り堀（D304）：住民が釣りに来る。プレイヤーも釣りができる（ミニゲーム） ----
+  pond: {
+    open: 6 * 60,
+    close: 18 * 60,
+    customerValue: 10,          // 住民の釣り代
+    stayMin: 60,
+    stayMax: 120,               // のんびり長くいる
+    maxQueue: 2,
+    pull: 24,                   // 行きたさ（晴れの日）。池に誰もいない時間が長いと寂しいので強め
+    rainPull: 0.25,             // 雨の日は あまり来ない
+    levels: [
+      { level: 1, seats: 4, upkeep: 5 },
+      { level: 2, seats: 6, upkeep: 10, cost: 600 },
+    ],
+    buildCost: 700,
+    max: 1,
+    // プレイヤーの釣り（ミニゲーム）。遊ぶのは何回でも、Coin が出るのは1日 rewardsPerDay 回まで（D303）
+    game: {
+      rewardsPerDay: 3,
+      coin: { perfect: 50, good: 20 },
+      // 魚。big は「ぴったり」のときだけ釣れる
+      fish: [
+        { id: 'funa', name: 'フナ', w: 5 },
+        { id: 'kingyo', name: '金魚', w: 3 },
+        { id: 'koi', name: 'コイ', w: 3 },
+        { id: 'nijimasu', name: 'ニジマス', w: 2 },
+        { id: 'namazu', name: 'ナマズ', w: 2, big: true },
+        { id: 'ookoi', name: '大きなコイ', w: 1, big: true },
+      ],
+    },
   },
 
   // ---- 島を広げる（D298） ----
