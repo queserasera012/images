@@ -111,7 +111,17 @@ export const lookOf = (r) =>
     ? { shirt: TOURIST_SHIRTS[r.look % TOURIST_SHIRTS.length], hair: '#e8c170', style: 'hat', skin: TOURIST_SKINS[r.look % TOURIST_SKINS.length], camera: true }
     : LOOKS[r.lookName || r.name] || (r.look !== undefined ? mixedLook(r.look) : DEFAULT_LOOK);
 
-const ROOF_COLORS = ['#3d5a80', '#f2b84b', '#2a9d8f', '#9c89b8'];
+// 家の色（D314・見た目の単発購入の1つ目）。屋根・壁・戸の色のセット。家ごとに順番に使う
+export const HOUSE_SKINS = {
+  default: { name: 'いつもの家', roofs: ['#3d5a80', '#f2b84b', '#2a9d8f', '#9c89b8'], walls: ['#ffffff'], door: '#3d5a80' },
+  hokuo: { name: '北欧', roofs: ['#3f4a5a', '#a3413b', '#2f5d62', '#6b5b4b'], walls: ['#f4d6c8', '#d7e6ef', '#f6ecd0', '#dfe8d6'], door: '#3f4a5a' },
+  minami: { name: '南の島', roofs: ['#ff8a7a', '#2ec4b6', '#ffbf69', '#5fb7e5'], walls: ['#ffffff', '#fff6e8'], door: '#2a9d8f' },
+  wafu: { name: '和風', roofs: ['#4a4e57', '#5c5f66', '#3f4349'], walls: ['#f3ead8', '#efe3cc'], door: '#7a5a3c' },
+};
+let houseSkin = HOUSE_SKINS.default;
+export function setHouseSkin(id) {
+  houseSkin = HOUSE_SKINS[id] || HOUSE_SKINS.default;
+}
 
 function phaseOf(id) {
   let h = 0;
@@ -419,9 +429,10 @@ export function createRenderer(canvas) {
     const lv = floorsOf(b);
     const lift = (lv - 1) * HOUSE_FLOOR;
     const w = lv >= 3 ? 26 : 24;
-    const roof = ROOF_COLORS[n % ROOF_COLORS.length];
+    const roof = houseSkin.roofs[n % houseSkin.roofs.length];
+    const wall = houseSkin.walls[n % houseSkin.walls.length];
     paperShadow((shadow) => {
-      if (!shadow) ctx.fillStyle = PALETTE.white;
+      if (!shadow) ctx.fillStyle = wall;
       roundRect(ctx, x - w / 2, y - lift, w, 18 + lift, 2);
       ctx.fill();
       if (!shadow) ctx.fillStyle = roof;
@@ -446,7 +457,7 @@ export function createRenderer(canvas) {
       ctx.fillStyle = roof;
       ctx.fillRect(x - w / 2, y + 1, w, 2);
     }
-    ctx.fillStyle = PALETTE.ink;
+    ctx.fillStyle = houseSkin.door;
     roundRect(ctx, x - 3, y + 8, 6, 10, [3, 3, 0, 0]);
     ctx.fill();
   }

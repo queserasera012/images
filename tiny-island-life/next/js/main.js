@@ -10,7 +10,8 @@ import {
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
   dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft, nameResident, placeLabel, seasonOf,
 } from './sim.js';
-import { createRenderer, lookOf, setTheme } from './render.js';
+import { createRenderer, lookOf, setTheme, setHouseSkin, HOUSE_SKINS } from './render.js';
+import { owns, buy, chosenHouseSkin, chooseHouseSkin } from './purchases.js';
 import { ICONS } from './icons.js';
 import { currentStep, report, skipTutorial, busyCafeNow } from './tutorial.js';
 import { setupKeepAwake, awakeStatus } from './awake.js';
@@ -142,6 +143,8 @@ function updateHud() {
   }
   $('day').textContent = `Day ${dayOf(state.t)}・${seasonOf(state).name}`;
   syncTheme();
+// 家の色（D314）。?house= があれば見本として使う
+setHouseSkin(new URLSearchParams(location.search).get('house') || chosenHouseSkin());
   $('clock').textContent = formatClock(state.t);
   $('coin').textContent = state.coin.toLocaleString();
   // いま住んでいる人の数（D310）。引っ越してくる途中の人は数えない
@@ -550,6 +553,28 @@ $('sheet').addEventListener('click', (ev) => {
     $('sheet').hidden = true;
     return;
   }
+  const use = ev.target.closest('[data-skin-use]');
+  if (use) {
+    chooseHouseSkin(use.dataset.skinUse);
+    setHouseSkin(use.dataset.skinUse);
+    return openBuild();
+  }
+  const buySkin = ev.target.closest('[data-skin-buy]');
+  if (buySkin) {
+    const id = buySkin.dataset.skinBuy;
+    buy({
+      id: `house:${id}`,
+      title: `家の色「${HOUSE_SKINS[id].name}」`,
+      price: SKIN_PRICE,
+      onDone: () => {
+        chooseHouseSkin(id);
+        setHouseSkin(id);
+        toast(`家の色を「${HOUSE_SKINS[id].name}」にしました`);
+        openBuild();
+      },
+    });
+    return;
+  }
   const home = ev.target.closest('[data-house]');
   if (home) {
     // その家へ移動して、家のカードを開く
@@ -602,6 +627,34 @@ $('sheet').addEventListener('click', (ev) => {
 });
 
 $('btn-build').addEventListener('click', () => openBuild());
+
+// 見た目（D314）：家の色。買ったものは島をやり直しても残る
+const SKIN_PRICE = '¥160（仮）';
+function miniHouse(skin) {
+  return `<svg viewBox="0 0 64 30" width="64" height="30" aria-hidden="true">${[0, 1, 2]
+    .map((k) => {
+      const x = 4 + k * 20;
+      const roof = skin.roofs[k % skin.roofs.length];
+      const wall = skin.walls[k % skin.walls.length];
+      return `<rect x="${x}" y="13" width="16" height="14" rx="1.5" fill="${wall}" stroke="rgba(61,90,128,.25)"/><path d="M${x - 2} 14 L${x + 8} 5 L${x + 18} 14 Z" fill="${roof}"/><rect x="${x + 6}" y="19" width="4" height="8" rx="2" fill="${skin.door}"/>`;
+    })
+    .join('')}</svg>`;
+}
+function lookHtml() {
+  const now = chosenHouseSkin();
+  const rows = Object.entries(HOUSE_SKINS)
+    .map(([id, skin]) => {
+      const key = `house:${id}`;
+      const btn = now === id
+        ? '<span class="skin-now">使っている</span>'
+        : owns(key)
+          ? `<button class="skin-use" type="button" data-skin-use="${id}">使う</button>`
+          : `<button class="skin-buy" type="button" data-skin-buy="${id}">${SKIN_PRICE}</button>`;
+      return `<div class="skin-row">${miniHouse(skin)}<span class="skin-name">${skin.name}</span>${btn}</div>`;
+    })
+    .join('');
+  return `<p class="lead">家の屋根・壁・戸の色。島の家が みんな変わる。買った色は、島をやり直しても残る</p><div class="skins">${rows}</div>`;
+}
 
 // 住民の一覧（D311・ご家族の声「どの家に誰が住んでいるか分かると見やすい」「その家をタップすると そこへジャンプ」）
 const HOUSE_KIND = { 1: '家', 2: '2階建て', 3: 'アパート' };
@@ -659,10 +712,12 @@ function openBuild(focusId) {
   const count = (tab) => all.filter((a) => tabOf(a) === tab && !a.locked).length;
   const badge = (tab) => (count(tab) ? `<span class="n">${count(tab)}</span>` : '');
   const tabs = `<div class="tabs" role="tablist">
-    <button type="button" role="tab" data-tab="new" aria-selected="${buildTab === 'new'}">新しく建てる</button>
+    <button type="button" role="tab" data-tab="new" aria-selected="${buildTab === 'new'}">建てる</button>
     <button type="button" role="tab" data-tab="grow" aria-selected="${buildTab === 'grow'}">広げる${badge('grow')}</button>
     <button type="button" role="tab" data-tab="island" aria-selected="${buildTab === 'island'}">島${badge('island')}</button>
+    <button type="button" role="tab" data-tab="look" aria-selected="${buildTab === 'look'}">見た目</button>
   </div>`;
+  if (buildTab === 'look') return openSheet(`<h2>つくる</h2>${tabs}${lookHtml()}`);
   const empty = { new: 'いま建てられるものはありません', grow: 'まだ広げられるものはありません', island: '島は これ以上 広げられません' }[buildTab];
   openSheet(`<h2>つくる</h2>${tabs}${items || `<p class="lead">${empty}</p>`}`);
   if (focusId) {

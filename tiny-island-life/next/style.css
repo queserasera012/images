@@ -658,3 +658,14 @@ h3 .dot { width: 14px; height: 14px; }
 .ad-cancel { background: #e8eef2; color: var(--ink); }
 .ad-done { background: var(--ink); color: var(--paper); }
 .ad-done:disabled { opacity: 0.4; }
+
+/* 見た目（D314）：家の色 */
+.skins { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.skin-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; background: #f4f7f9; }
+.skin-name { flex: 1; font-size: 15px; font-weight: 700; }
+.skin-now { color: var(--muted); font-size: 13px; font-weight: 700; }
+.skin-use, .skin-buy { height: 34px; padding: 0 14px; border: 0; border-radius: 17px; font-size: 13px; font-weight: 700; }
+.skin-use { background: #e8eef2; color: var(--ink); }
+.skin-buy { background: #fff8e6; color: var(--ink); border: 1.5px solid #d9c38b; }
+.buy-title { margin: 18px 0 4px; font-size: 16px; font-weight: 700; }
+.buy-price { margin: 0 0 8px; font-size: 22px; font-weight: 700; }
