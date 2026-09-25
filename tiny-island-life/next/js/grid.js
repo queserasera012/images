@@ -74,6 +74,20 @@ export const AREAS = [
     // [行, 始めの列, 終わりの列] / [列, 始めの行, 終わりの行]
     roads: { rows: [[26, 30, 43], [29, 34, 40]], cols: [[32, 21, 26], [34, 26, 29], [40, 26, 29], [42, 22, 26]] },
   },
+  // 本島を広げる 2周目（D329）：北西の丘・南西の浜。本島の横の道（12行目・26行目）の西の端から浜を通してつなぐ。
+  // 今ある土地のマスは1つも変えない（late）。区画は3マス以上（3×3の施設が建つ）
+  {
+    id: 'northwest', name: '北西の丘', ph: 3.9, late: true, cost: 10000, unlock: 'expand3',
+    cx: 5 * T, cy: 8 * T, rx: 4.8 * T, ry: 5.7 * T,
+    neck: { cx: 8.6 * T, cy: 11.6 * T, rx: 2.4 * T, ry: 1.8 * T },
+    roads: { rows: [[12, 1, 10], [7, 1, 8]], cols: [[5, 3, 12]] },
+  },
+  {
+    id: 'southwest', name: '南西の浜', ph: 0.6, late: true, cost: 6000, unlock: 'expand2',
+    cx: 5.4 * T, cy: 29.7 * T, rx: 5.4 * T, ry: 3 * T,
+    neck: { cx: 9.4 * T, cy: 27.3 * T, rx: 2.2 * T, ry: 1.5 * T },
+    roads: { rows: [[26, 6, 10], [30, 1, 10]], cols: [[8, 26, 30]] },
+  },
   // 山の島を広げる（D321）：北東のふもと。山の島の東の道（42列）を北へ延ばしてつなぐ。
   // 山の島には3×3のカフェが建つ場所が無かった（冬のスキー客のカフェが要るのに）
   {
@@ -171,7 +185,43 @@ const MAIN_PIER = (() => {
   return null;
 })();
 
+// あとから足す土地（late・D329）：今ある地図（ほかの土地）を1マスも変えずに、海と浜の上にだけ重ねる。
+// 道は決めてあり（roads）、今ある道の端の となりの浜から つなぐ
 function buildMap(ids) {
+  const late = AREAS.filter((a) => a.late && ids.includes(a.id));
+  const m = buildBase(ids.filter((id) => !late.some((a) => a.id === id)));
+  if (!late.length) return m;
+  const kind = m.kind.slice();
+  const added = new Set();
+  for (const a of late) {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const i = idx(c, r);
+        if (kind[i] !== 'sea' && kind[i] !== 'beach') continue;
+        const f = Math.min(...shapesOf(a).map((sh) => tileFactor(sh, c, r)));
+        if (f > 1) continue;
+        const onLine = a.roads.rows.some(([rr, c0, c1]) => r === rr && c >= c0 && c <= c1) || a.roads.cols.some(([cc, r0, r1]) => c === cc && r >= r0 && r <= r1);
+        kind[i] = onLine ? 'road' : f > 0.86 ? 'beach' : 'land';
+        if (kind[i] !== 'beach') added.add(i);
+      }
+    }
+  }
+  // 本島の道とつながらない道は土地に（決めた道なので ふつうは起きない）
+  const reach = new Set([MAIN_PIER]);
+  const queue = [MAIN_PIER];
+  while (queue.length) {
+    const cur = queue.shift();
+    for (const n of neighbors(cur)) {
+      if (kind[n] !== 'road' || reach.has(n)) continue;
+      reach.add(n);
+      queue.push(n);
+    }
+  }
+  for (const i of added) if (kind[i] === 'road' && !reach.has(i)) kind[i] = 'land';
+  return { kind, piers: m.piers, bridges: m.bridges };
+}
+
+function buildBase(ids) {
   const areas = AREAS.filter((a) => a.id !== 'main' && ids.includes(a.id));
   const kind = MAIN_KIND.slice();
   const piers = { main: MAIN_PIER };

@@ -1126,6 +1126,8 @@ if (DEBUG) {
     if (k === 'expand') {
       unlockNow(state, 'expand');
       unlockNow(state, 'bridge');
+      unlockNow(state, 'expand2');
+      unlockNow(state, 'expand3');
       renderQuest();
     }
     if (k === 'wave1') {

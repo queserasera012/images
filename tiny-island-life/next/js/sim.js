@@ -1807,7 +1807,7 @@ export function actionsFor(state) {
   // 島を広げる（D298）：「島」のタブ
   const u = CONFIG.unlocks.find((x) => x.id === 'expand');
   const expandLocked = !isUnlocked(state, 'expand');
-  const opened = state.areas.filter((id) => id !== 'main' && !areaById(id).island).length;
+  const opened = state.areas.filter((id) => id !== 'main' && !areaById(id).island && !areaById(id).late).length;
   for (const a of AREAS) {
     if (a.id === 'main' || state.areas.includes(a.id)) continue;
     // 橋でつなぐ別の島（D318）。つなぎ方も値段も、となりの土地をひらくのとは別
@@ -1821,6 +1821,21 @@ export function actionsFor(state) {
         title: `${areaById(a.parent).name}を広げる`,
         detail: `北東のふもとに 建てられる土地が ${landTilesOf(a.id)}マス 増える。カフェも建てられる広さ`,
         cost: CONFIG.expand.mountainFoot,
+      });
+      continue;
+    }
+    // 本島を広げる 2周目（D329）：南西の浜・北西の丘。それぞれ別の目標（住民の人数）と値段
+    if (a.late) {
+      const ul = CONFIG.unlocks.find((x) => x.id === a.unlock);
+      const lateLocked = !isUnlocked(state, a.unlock);
+      list.push({
+        id: `expand:${a.id}`,
+        tab: 'island',
+        icon: `expand_${a.id}`,
+        title: `${a.name}をひらく`,
+        detail: lateLocked ? `住民が ${ul.pop}人 になると広げられます` : `本島の となりに 建てられる土地が ${landTilesOf(a.id)}マス 増える。道も通る`,
+        cost: a.cost,
+        locked: lateLocked,
       });
       continue;
     }
