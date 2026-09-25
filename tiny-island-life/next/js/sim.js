@@ -212,25 +212,21 @@ export function labelOf(state, b) {
   if (b.type === 'shop') return shopLabel(state, b);
   if (b.type === 'kinder') return '幼稚園';
   if (!isVenue(b)) return b.type;
-  const list = ofType(state, b.type);
-  const base = VENUE_NAME[b.type];
-  if (list.length <= 1) return base;
-  const dir = cafeLabel0(b);
-  const same = list.filter((x) => x !== b && cafeLabel0(x) === dir);
-  return same.length && list.indexOf(b) > list.indexOf(same[0]) ? `${dir}の${base}2` : `${dir}の${base}`;
+  return dirName(ofType(state, b.type), b, VENUE_NAME[b.type]);
 }
 
 export function cafeLabel(state, cafe) {
   if (cafe.type !== 'cafe') return labelOf(state, cafe);
-  const list = cafes(state);
-  if (list.length <= 1) return 'カフェ';
-  const cx = cafe.c + 1;
-  const cy = cafe.r + 1;
-  const dx = cx - 8;
-  const dy = cy - 12;
-  const dir = Math.abs(dx) > Math.abs(dy) * 0.8 ? (dx > 0 ? '東' : '西') : dy > 0 ? '南' : '北';
-  const same = list.filter((b) => b !== cafe && cafeLabel0(b) === dir);
-  return same.length && list.indexOf(cafe) > list.indexOf(same[0]) ? `${dir}のカフェ2` : `${dir}のカフェ`;
+  return dirName(cafes(state), cafe, 'カフェ');
+}
+
+// 同じ種類が2軒以上なら方角をつける。同じ方角に何軒もあれば 2・3 と番号（D315：前は3軒目が1軒目と同じ名前になった）
+function dirName(list, b, base) {
+  if (list.length <= 1) return base;
+  const dir = cafeLabel0(b);
+  const same = list.filter((x) => cafeLabel0(x) === dir);
+  const k = same.indexOf(b);
+  return k > 0 ? `${dir}の${base}${k + 1}` : `${dir}の${base}`;
 }
 // 本島の真ん中から見た方角。D311：島を広げたとき（D298）に本島を (OX, OY) ずらしたのに、ここだけ前の真ん中のままで、
 // ほとんどのカフェが「東のカフェ」になっていた
