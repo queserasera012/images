@@ -98,7 +98,7 @@ export function openFishing({ getState, onChange, close: onClose }) {
     if (game.phase === 'wait' && now - game.t0 >= game.waitMs) {
       game.phase = 'bite';
       game.t0 = now;
-      msg('かかった！ 円が明るい輪に重なったら タップ');
+      msg('かかった！ 輪に重なったらタップ');
     }
     if (game.phase === 'bite') {
       const k = (now - game.t0) / game.dur;

@@ -535,8 +535,10 @@ h3 .dot { width: 14px; height: 14px; }
   font-weight: 700;
 }
 .game canvas { display: block; margin: 0 auto; border-radius: 18px; touch-action: none; }
-.game-msg { min-height: 2.6em; margin: 10px 0 4px; font-size: 14px; font-weight: 700; line-height: 1.4; }
-.game-buttons { display: flex; justify-content: center; }
+/* 文の長さやボタンの有無で紙の大きさが変わらないよう、高さを決めておく（D306） */
+.game-msg { height: 2.8em; margin: 10px 0 4px; font-size: 14px; font-weight: 700; line-height: 1.4; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.game-buttons { display: flex; justify-content: center; height: 42px; }
+.game-again[hidden] { display: block !important; visibility: hidden; }
 .game-again {
   height: 42px;
   padding: 0 28px;
