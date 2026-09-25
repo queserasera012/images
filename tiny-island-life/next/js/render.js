@@ -296,7 +296,13 @@ export function createRenderer(canvas) {
     const hh = view.h / 2 / cam.zoom;
     const clampAxis = (v, half, lo, hi) => (hi - lo <= half * 2 ? (lo + hi) / 2 : Math.max(lo + half, Math.min(hi - half, v)));
     cam.x = clampAxis(cam.x, hw, BOUNDS.left, BOUNDS.right);
-    cam.y = clampAxis(cam.y, hh, BOUNDS.top, BOUNDS.bottom);
+    // 上は、画面の上の表示（日付・目標の紙）の下まで島を下げられるように（D323：島の上の端が見えなかった）
+    cam.y = clampAxis(cam.y, hh, BOUNDS.top - topInset / cam.zoom, BOUNDS.bottom);
+  }
+  let topInset = 0;
+  function setTopInset(px) {
+    topInset = Math.max(0, px);
+    clampCam();
   }
 
   function resize() {
@@ -2422,5 +2428,5 @@ export function createRenderer(canvas) {
     return { x: rect.left + ox() + x * cam.zoom, y: rect.top + oy() + y * cam.zoom };
   }
 
-  return { resize, draw, toWorld, toClient, tileAt, panBy, zoomAt, focus };
+  return { resize, draw, toWorld, toClient, tileAt, panBy, zoomAt, focus, setTopInset };
 }

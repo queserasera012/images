@@ -1107,6 +1107,18 @@ if (DEBUG) {
 // ---------------------------------------------------------------- 起動
 
 window.addEventListener('resize', () => renderer.resize());
+// 画面の上の表示（日付・目標の紙）の高さだけ、カメラが島を下げられるようにする（D323）
+function measureTopInset() {
+  const q = $('quest');
+  const el = q.hidden ? $('hud') : q;
+  renderer.setTopInset(el.getBoundingClientRect().bottom - $('island').getBoundingClientRect().top + 8);
+}
+if (typeof ResizeObserver !== 'undefined') {
+  const ro = new ResizeObserver(measureTopInset);
+  ro.observe($('quest'));
+  ro.observe($('hud'));
+}
+window.addEventListener('resize', measureTopInset);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     hiddenAt = Date.now();

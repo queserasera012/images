@@ -218,7 +218,7 @@ export const CONFIG = {
   // 家。軒数の上限は無い。建てられるのは空いている土地の分だけ（D300）
   // 広げると住める人が増える（D303）。土地を使わずに人を増やせる代わりに、1人あたりは高くつく
   house: {
-    cost: 450,
+    cost: 350,                  // D323：450 → 350（序盤の Coin が貯まりにくかった。家が序盤の売上の半分を使っていた）
     levels: [
       { level: 1, capacity: 3 },
       { level: 2, capacity: 5, cost: 600 },  // 2階建て
@@ -359,5 +359,5 @@ export const CONFIG = {
   },
 
   nightOwls: 0.3,               // 夜ふかしの住民の割合（寝るのが1時間半おそい・D297）
-  startCoin: 200,
+  startCoin: 400,              // D323：200 → 400
 };
