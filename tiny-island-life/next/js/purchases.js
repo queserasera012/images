@@ -29,6 +29,9 @@ export function chooseHouseSkin(id) {
   write(v);
 }
 
+// アプリの1回目のビルドには課金の部品が入っていない（D317）。アプリの中では まだ買えない
+export const canBuy = () => !(typeof window !== 'undefined' && window.__TIL_NATIVE);
+
 export function buy({ id, title, price, onDone }) {
   const root = document.createElement('div');
   root.className = 'game ad-mock';

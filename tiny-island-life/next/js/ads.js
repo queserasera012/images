@@ -5,7 +5,30 @@
 
 const WAIT_SEC = 3;
 
+// アプリの中（WebView）で動いているとき：アプリ側に広告を頼み、答えを待つ（D317）
+export const inApp = () => typeof window !== 'undefined' && !!window.__TIL_NATIVE && !!window.ReactNativeWebView;
+let nextId = 1;
+const waiting = new Map();
+if (typeof window !== 'undefined') {
+  window.__tilNativeReply = (id, result) => {
+    const done = waiting.get(id);
+    waiting.delete(id);
+    done?.(result);
+  };
+}
+export function askApp(type, payload = {}) {
+  return new Promise((resolve) => {
+    const id = `m${nextId++}`;
+    waiting.set(id, resolve);
+    window.ReactNativeWebView.postMessage(JSON.stringify({ id, type, ...payload }));
+  });
+}
+
 export function showRewardedAd({ onReward, onCancel }) {
+  if (inApp()) {
+    askApp('rewarded').then((ok) => (ok ? onReward() : onCancel?.()));
+    return;
+  }
   const root = document.createElement('div');
   root.className = 'game ad-mock';
   root.innerHTML = `<div class="game-card" role="dialog" aria-label="広告">

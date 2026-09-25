@@ -11,7 +11,7 @@ import {
   dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft, nameResident, placeLabel, seasonOf,
 } from './sim.js';
 import { createRenderer, lookOf, setTheme, setHouseSkin, HOUSE_SKINS } from './render.js';
-import { owns, buy, chosenHouseSkin, chooseHouseSkin } from './purchases.js';
+import { owns, buy, chosenHouseSkin, chooseHouseSkin, canBuy } from './purchases.js';
 import { ICONS } from './icons.js';
 import { currentStep, report, skipTutorial, busyCafeNow } from './tutorial.js';
 import { setupKeepAwake, awakeStatus } from './awake.js';
@@ -649,7 +649,9 @@ function lookHtml() {
         ? '<span class="skin-now">使っている</span>'
         : owns(key)
           ? `<button class="skin-use" type="button" data-skin-use="${id}">使う</button>`
-          : `<button class="skin-buy" type="button" data-skin-buy="${id}">${SKIN_PRICE}</button>`;
+          : canBuy()
+            ? `<button class="skin-buy" type="button" data-skin-buy="${id}">${SKIN_PRICE}</button>`
+            : '<span class="skin-now">準備中</span>';
       return `<div class="skin-row">${miniHouse(skin)}<span class="skin-name">${skin.name}</span>${btn}</div>`;
     })
     .join('');
