@@ -144,6 +144,11 @@ export const ICONS = {
     `<rect x="3" y="5" width="18" height="14" rx="4" fill="${MUSTARD}"/>` + `<path d="M10 9l5 3-5 3z" fill="#fff"/>`,
     18,
   ),
+  people: svg(
+    `<circle cx="9" cy="8" r="3.2" fill="${INK}"/><path d="M3.5 19c0-3.3 2.5-5.5 5.5-5.5s5.5 2.2 5.5 5.5z" fill="${INK}"/>` +
+      `<circle cx="16.5" cy="9" r="2.6" fill="${SKY}"/><path d="M13.5 19c.3-2.6 1.4-4.4 3-4.4 2.2 0 4 1.8 4 4.4z" fill="${SKY}"/>`,
+    20,
+  ),
   harbor: svg(
     `<path d="M4 15h16l-2.5 4h-11z" transform="translate(1 1)" fill="${SHADOW}"/>` +
       `<path d="M4 15h16l-2.5 4h-11z" fill="#fff" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"/>` +

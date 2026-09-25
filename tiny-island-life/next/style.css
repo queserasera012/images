@@ -73,6 +73,23 @@ button:focus-visible { outline: 3px solid var(--mustard); outline-offset: 2px; }
 #clock { color: var(--muted); min-width: 3.2em; }
 .pill .icon { display: block; }
 
+.hud-right { display: flex; gap: 8px; }
+#hud-pop { padding: 0 12px 0 8px; }
+#hud-pop .icon { width: 20px; height: 20px; }
+
+/* ホーム画面から開いたとき、時計と電池（白い文字）の下に薄い影（D310） */
+#app::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(env(safe-area-inset-top) + 6px);
+  background: linear-gradient(rgba(20, 40, 60, 0.5), rgba(20, 40, 60, 0));
+  pointer-events: none;
+  z-index: 2;
+}
+
 /* ---- やること（チュートリアル） ---- */
 
 #quest {
@@ -102,6 +119,24 @@ button:focus-visible { outline: 3px solid var(--mustard); outline-offset: 2px; }
 }
 .quest-head .reward .icon { width: 15px; height: 15px; }
 #quest p { margin: 2px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+/* たためる（D310）。たたむと見出しの1行だけ */
+#quest .fold {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin: -4px -4px -4px 0;
+  border: 0;
+  border-radius: 13px;
+  background: #eef3f6;
+  color: var(--muted);
+  transition: transform 0.2s;
+}
+#quest.folded { padding-bottom: 9px; }
+#quest.folded .fold { transform: rotate(-90deg); }
+#quest.folded p, #quest.folded .choices, #quest.folded .skip { display: none; }
+#quest.folded .quest-head b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #quest .choices { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 #quest .choices button {
   height: 42px;

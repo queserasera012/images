@@ -8,7 +8,7 @@ import {
   migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
   labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
-  dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft,
+  dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft, nameResident,
 } from './sim.js';
 import { createRenderer, lookOf } from './render.js';
 import { ICONS } from './icons.js';
@@ -142,6 +142,8 @@ function updateHud() {
   $('day').textContent = `Day ${dayOf(state.t)}`;
   $('clock').textContent = formatClock(state.t);
   $('coin').textContent = state.coin.toLocaleString();
+  // いま住んでいる人の数（D310）。引っ越してくる途中の人は数えない
+  $('pop').textContent = `${state.residents.filter((r) => r.state !== 'PENDING').length}人`;
 }
 
 // ---------------------------------------------------------------- 指の操作（ドラッグで動かす・2本指で拡大縮小・タップ）
@@ -235,6 +237,17 @@ function tap(clientX, clientY) {
 const HIT_PAD = 10;
 const ROOF_PAD = 16;
 function buildingAt(p) {
+  // まず、指の下に「描かれている」建物（屋根・看板の はみ出しを含む）。重なったら手前（下）に描かれた方
+  // D310：前は余白込みの範囲で「真ん中が近い方」を選んでいて、釣り堀のふちを押すと隣の家が選ばれた
+  let hit = null;
+  for (const b of state.buildings) {
+    const s = SIZES[b.type];
+    const top = b.type === 'house' ? 14 + houseLift(b) : 8;
+    if (p.x < b.c * T || p.x > (b.c + s.w) * T || p.y < b.r * T - top || p.y > (b.r + s.h) * T) continue;
+    if (!hit || b.r + s.h > hit.r + SIZES[hit.type].h) hit = b;
+  }
+  if (hit) return hit;
+  // 何も描かれていないところは、少し広めに拾う（指は30pxのマスには小さすぎる）
   let best = null;
   for (const b of state.buildings) {
     const s = SIZES[b.type];
@@ -334,6 +347,16 @@ function renderCard() {
     html = `<h3>${pet.name}</h3><div class="sub">${owner ? `${owner.name}の家の${label}` : label}</div><div class="now">いまは、${describePet(state, pet)}</div>`;
   } else if (selected.kind === 'resident') {
     const r = personById(state, selected.id);
+    if (r && selected.renaming) {
+      // 名前を変える（D310）。入力中は描き直さない
+      if (card.dataset.stray === `rename:${r.id}`) return;
+      card.dataset.stray = `rename:${r.id}`;
+      lastCardHtml = '';
+      card.innerHTML = `<h3>${dot(r)}名前を変える</h3><div class="sub">いまの名前：${r.name}</div>
+        <div class="adopt"><input id="res-name" type="text" maxlength="8" value="${r.name}" aria-label="名前" />
+        <button id="btn-rename" type="button">この名前にする</button></div>`;
+      return;
+    }
     if (!r || !r.visible) return select(null);
     const parents = parentsOf(state, r);
     const spouse = r.spouseId && personById(state, r.spouseId);
@@ -343,6 +366,7 @@ function renderCard() {
         ? `${parents[0].name}と${parents[1].name}の子ども`
         : favoriteText(r) + (spouse ? `。${spouse.name}と結婚している` : '');
     html = `<h3>${dot(r)}${r.name}</h3><div class="sub">${sub}</div><div class="now">いまは、${describeResident(state, r)}</div>`;
+    if (!r.tourist) html += `<button id="btn-rename-open" class="card-btn" type="button">名前を変える</button>`;
   } else if (selected.kind === 'port' && selected.id && selected.id !== 'main') {
     const port = portById(state, selected.id);
     const b = boatNow(state, port);
@@ -402,6 +426,9 @@ function renderCard() {
       const here = state.residents.filter((r) => r.state === 'PARK' && r.destId === b.id).map((r) => r.id);
       html = `<h3>公園</h3><div class="sub">${b.roof ? '東屋がある' : '屋根はない'}</div>`;
       html += `<div class="now">いま：${who(here)}</div>`;
+    } else if (b.type !== 'house') {
+      // 知らない種類の建物を「家」と出さない（D310）
+      html = `<h3>${labelOf(state, b)}</h3>`;
     } else {
       const living = state.residents.filter((r) => r.homeId === b.id && r.state !== 'PENDING').map((r) => r.id);
       const free = capacityOf(b) - state.residents.filter((r) => r.homeId === b.id).length;
@@ -420,7 +447,8 @@ function renderCard() {
     const next = CONFIG.house.levels[h.level || 1];
     html += cost === null
       ? `<div class="card-note">これ以上は広げられない（${capacityOf(h)}人まで）</div>`
-      : `<button id="btn-upgrade" class="card-act" type="button" ${state.coin < cost ? 'disabled' : ''}>${ICONS.house_up}${next.level === 3 ? 'アパートにする' : '2階建てにする'}（${next.capacity}人まで）<span class="cost">${ICONS.coin}${cost.toLocaleString()}</span></button>`;
+      : `<button id="btn-upgrade" class="card-act" type="button" ${state.coin < cost ? 'disabled' : ''}>${ICONS.house_up}${next.level === 3 ? 'アパートにする' : '2階建てにする'}（${next.capacity}人まで）<span class="cost">${ICONS.coin}${cost.toLocaleString()}</span></button>` +
+        (state.coin < cost ? `<div class="card-note">Coin が あと ${(cost - state.coin).toLocaleString()} 足りません</div>` : '');
   }
   delete card.dataset.stray;
   // 前に書いた文字列と比べる（SVG は innerHTML で読み直すと書き方が変わり、毎コマ描き直してボタンが押せなくなる）
@@ -431,6 +459,23 @@ function renderCard() {
 }
 
 $('card').addEventListener('click', (ev) => {
+  if (ev.target.closest('#btn-rename-open')) {
+    selected = { ...selected, renaming: true };
+    renderCard();
+    $('res-name')?.focus();
+    return;
+  }
+  if (ev.target.closest('#btn-rename')) {
+    const res = nameResident(state, selected.id, $('res-name').value);
+    toast(res.message);
+    if (res.ok) {
+      selected = { kind: 'resident', id: selected.id };
+      delete $('card').dataset.stray;
+      renderCard();
+      save();
+    }
+    return;
+  }
   const adBoat = ev.target.closest('#btn-adboat');
   if (adBoat) {
     const id = adBoat.dataset.port;
@@ -644,6 +689,21 @@ function beginPlacing(p, spots, title, okLabel) {
 }
 
 function tapWhilePlacing(clientX, clientY) {
+  if (placing.pick) {
+    // 広げる家を選ぶ：屋根を押しても選べるように、島の上の建物の当たり判定を使う（D310）
+    const hb = buildingAt(renderer.toWorld(clientX, clientY));
+    const h = hb && placing.pick.find((x) => x.id === hb.id);
+    if (!h) {
+      placing.ghost = null;
+      $('place-ok').disabled = true;
+      return toast('明るい家をタップしてください');
+    }
+    const cost = houseUpgradeCost(hb);
+    placing.ghost = h;
+    $('place-ok').disabled = state.coin < cost;
+    $('place-ok').innerHTML = state.coin < cost ? `Coin が あと ${(cost - state.coin).toLocaleString()} 足りません` : `広げる ${ICONS.coin}${cost.toLocaleString()}`;
+    return;
+  }
   const { c, r } = renderer.tileAt(clientX, clientY);
   const s = SIZES[placing.type];
   // タップしたマスが建物の真ん中に来る置き方を優先し、だめなら そのマスを含む置き方を探す
@@ -739,8 +799,9 @@ function renderQuest() {
       el.hidden = true;
       return;
     }
-    el.innerHTML = `<div class="quest-head"><b>目標：${g.goal}</b><span class="reward">${g.now} / ${g.need}${g.unit}</span></div><p>${g.what}が ${g.need}${g.unit} になると、${g.note}</p>`;
+    el.innerHTML = `<div class="quest-head"><b>目標：${g.goal}</b><span class="reward">${g.now} / ${g.need}${g.unit}</span>${FOLD}</div><p>${g.what}が ${g.need}${g.unit} になると、${g.note}</p>`;
     el.hidden = false;
+    applyFold();
     return;
   }
   if (step.id === 'busy_cafe' && busyStage === null) {
@@ -748,7 +809,7 @@ function renderQuest() {
     return;
   }
   const reward = step.reward ? `<span class="reward">${ICONS.coin}+${step.reward}</span>` : '';
-  let html = `<div class="quest-head"><b>${step.title}</b>${reward}</div>`;
+  let html = `<div class="quest-head"><b>${step.title}</b>${reward}${FOLD}</div>`;
   if (step.id === 'busy_cafe' && busyStage === 'ask') {
     html += `<p>${step.ask}</p><div class="choices">${step.choices.map((c) => `<button type="button" data-choice="${c.id}">${c.label}</button>`).join('')}</div>`;
   } else {
@@ -757,9 +818,33 @@ function renderQuest() {
   if (step.id !== 'busy_cafe') html += `<button class="skip" type="button">とばす</button>`;
   el.innerHTML = html;
   el.hidden = false;
+  applyFold();
+}
+
+// やること・目標の紙は たためる（D310：「チュートリアルが邪魔」）。たたむと1行だけ。開いた・たたんだは覚えておく
+const FOLD_KEY = 'til.grid.questFold.v1';
+const FOLD = '<button class="fold" type="button" aria-label="たたむ・ひらく"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
+let questFolded = false;
+try {
+  questFolded = localStorage.getItem(FOLD_KEY) === '1';
+} catch {
+  questFolded = false;
+}
+function applyFold() {
+  $('quest').classList.toggle('folded', questFolded);
 }
 
 $('quest').addEventListener('click', (ev) => {
+  if (ev.target.closest('.fold') || (questFolded && ev.target.closest('.quest-head'))) {
+    questFolded = !questFolded;
+    try {
+      localStorage.setItem(FOLD_KEY, questFolded ? '1' : '0');
+    } catch {
+      /* 保存できなくても たためる */
+    }
+    applyFold();
+    return;
+  }
   if (ev.target.closest('.skip')) {
     skipTutorial(state);
     renderQuest();
@@ -829,6 +914,7 @@ if (DEBUG) {
     kids: () => state.residents.filter((r) => r.age).map((r) => ({ name: r.name, age: r.age, state: r.state, visible: r.visible, ...renderer.toClient(r.x, r.y - 10) })),
     building: (type) => state.buildings.filter((b) => b.type === type).map((b) => renderer.toClient((b.c + SIZES[b.type].w / 2) * T, (b.r + SIZES[b.type].h / 2) * T)),
     pier: (id) => renderer.toClient(center(PIERS[id]).x, center(PIERS[id]).y),
+    focusTile: (c, r) => renderer.focus((c + 0.5) * T, (r + 0.5) * T),
     focusPier: (id) => renderer.focus(center(PIERS[id]).x + 40, center(PIERS[id]).y),
     fishing: () => fishingNow(),
     markRoom: () => {
@@ -908,6 +994,7 @@ window.addEventListener('pagehide', save);
 setInterval(save, 5000);
 
 $('coin-icon').innerHTML = ICONS.coin;
+$('pop-icon').innerHTML = ICONS.people;
 document.querySelector('#btn-build .i').innerHTML = ICONS.build;
 document.querySelector('#btn-diary .i').innerHTML = ICONS.diary;
 setupKeepAwake();

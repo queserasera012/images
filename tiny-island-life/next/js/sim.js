@@ -1753,7 +1753,8 @@ export function nearestCafeSteps(state, house) {
 
 const pairKey = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`);
 // 結婚するのは名前のある住民だけ（「島の人と島の人が結婚しました」では誰の話か分からない）
-const single = (r) => !r.age && !r.tourist && !r.generic && !r.spouseId && r.state !== 'PENDING';
+// 名前をつけた「島の人」も結婚する（D310：名前があれば誰の話か分かる）
+const single = (r) => !r.age && !r.tourist && (!r.generic || r.named) && !r.spouseId && r.state !== 'PENDING';
 
 function placeKey(r) {
   if (r.state === 'SEATED' || r.state === 'QUEUE') return `v:${r.destId}`;
@@ -2014,9 +2015,25 @@ export function nameBaby(state, id, name) {
   const r = state.residents.find((x) => x.id === id);
   state.naming = state.naming.filter((x) => x !== id);
   if (!r) return { ok: false };
-  const n = (name || '').trim().slice(0, 8);
+  const n = cleanName(name);
   if (n) r.name = n;
   return { ok: true, message: `${r.name}、ようこそ` };
+}
+
+// 名前に使えない文字（画面の HTML に入るので < > & " ' は落とす）。8文字まで
+export const cleanName = (name) => (name || '').replace(/[<>&"']/g, '').trim().slice(0, 8);
+
+// 住民の名前を変える（D310）。見た目は変えない（名前で見た目を決めている人は、最初の名前を覚えておく）
+export function nameResident(state, id, name) {
+  const r = state.residents.find((x) => x.id === id);
+  const n = cleanName(name);
+  if (!r || r.tourist) return { ok: false, message: 'いまは できません' };
+  if (!n) return { ok: false, message: '名前を入れてください' };
+  if (n === r.name) return { ok: true, message: `${r.name}のままです` };
+  r.lookName ||= r.name;
+  r.name = n;
+  if (r.generic) r.named = true;
+  return { ok: true, message: `これからは「${n}」` };
 }
 
 export const parentsOf = (state, r) => (r.parents || []).map((id) => state.residents.find((x) => x.id === id)).filter(Boolean);
@@ -2097,7 +2114,7 @@ export function adoptPet(state, petId, name) {
   });
   const owner = state.residents.find((r) => r.homeId === home.id && r.state !== 'PENDING');
   pet.adopted = true;
-  pet.name = (name || '').trim().slice(0, 8) || CONFIG.pets[pet.kind].name;
+  pet.name = cleanName(name) || CONFIG.pets[pet.kind].name;
   pet.homeId = home.id;
   pet.ownerId = owner.id;
   pet.state = 'WANDER';

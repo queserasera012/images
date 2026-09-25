@@ -4,6 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
   <meta name="theme-color" content="#3aa6b9" />
+  <!-- ホーム画面から開いたときも、上の時計と電池が見えるように（D310）。白い文字で出し、下に薄い影を敷く -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Tiny Island" />
   <title>Tiny Island Life</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,7 +19,10 @@
   <div id="app">
     <header id="hud">
       <div class="pill" id="hud-time"><span id="weather"></span><b id="day">Day 1</b><span id="clock">6:30</span></div>
-      <div class="pill" id="hud-coin"><span id="coin-icon"></span><b id="coin">0</b></div>
+      <div class="hud-right">
+        <div class="pill" id="hud-pop"><span id="pop-icon"></span><b id="pop">0人</b></div>
+        <div class="pill" id="hud-coin"><span id="coin-icon"></span><b id="coin">0</b></div>
+      </div>
     </header>
 
     <!-- はじめの数分の「やること」（D290） -->

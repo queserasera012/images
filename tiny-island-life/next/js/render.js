@@ -45,17 +45,19 @@ const TOURIST_SKINS = ['#f6d6bb', '#e9bf99', '#d9a982', '#f3cfb0'];
 const GENERIC_SHIRTS = ['#4f6d7a', '#c06c84', '#6c8ead', '#e0a458', '#7a9e7e', '#b5838d', '#577590', '#d4a373'];
 const GENERIC_HAIR = ['#3b2a20', '#2b2b33', '#6b3f2a', '#a0522d', '#c9c4cf'];
 const GENERIC_STYLES = ['short', 'long', 'bob', 'short', 'bun', 'cap'];
+const mixedLook = (look) => ({
+  shirt: GENERIC_SHIRTS[look % GENERIC_SHIRTS.length],
+  hair: GENERIC_HAIR[Math.floor(look / 8) % GENERIC_HAIR.length],
+  style: GENERIC_STYLES[Math.floor(look / 40) % GENERIC_STYLES.length],
+  skin: ['#f6d6bb', '#e9bf99', '#d9a982', '#f3cfb0'][Math.floor(look / 7) % 4],
+});
+// 名前を変えても見た目は変わらない（lookName＝最初の名前・D310）。島で生まれた子も人ごとに違う見た目
 export const lookOf = (r) =>
   r.generic
-    ? {
-        shirt: GENERIC_SHIRTS[r.look % GENERIC_SHIRTS.length],
-        hair: GENERIC_HAIR[Math.floor(r.look / 8) % GENERIC_HAIR.length],
-        style: GENERIC_STYLES[Math.floor(r.look / 40) % GENERIC_STYLES.length],
-        skin: ['#f6d6bb', '#e9bf99', '#d9a982', '#f3cfb0'][Math.floor(r.look / 7) % 4],
-      }
+    ? mixedLook(r.look)
     : r.tourist
     ? { shirt: TOURIST_SHIRTS[r.look % TOURIST_SHIRTS.length], hair: '#e8c170', style: 'hat', skin: TOURIST_SKINS[r.look % TOURIST_SKINS.length], camera: true }
-    : LOOKS[r.name] || DEFAULT_LOOK;
+    : LOOKS[r.lookName || r.name] || (r.look !== undefined ? mixedLook(r.look) : DEFAULT_LOOK);
 
 const ROOF_COLORS = ['#3d5a80', '#f2b84b', '#2a9d8f', '#9c89b8'];
 
