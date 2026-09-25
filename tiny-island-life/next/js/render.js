@@ -24,6 +24,58 @@ export const PALETTE = {
   problem: '#c8553d',
 };
 
+// ---------------------------------------------------------------- 島のテーマ（D312・見た目の単発購入の1つ目）
+//
+// 海・砂・芝・木・花の色だけを入れ替える。建物と人の色は変えない（どのテーマでも、島の住民は同じ）
+const BASE = { ...PALETTE };
+export const THEMES = {
+  default: {
+    name: 'いつもの島',
+    palette: {},
+    leaves: [['#5e9c57', '#7db86e']],
+    shrub: '#5e9c57',
+    flowers: ['#f28aa0', '#ffffff'],
+  },
+  sakura: {
+    name: '桜',
+    palette: { sea: '#4fb3c4', seaDeep: '#3a98ab', sand: '#f6e0b8', sandDark: '#e8cc98', grass: '#a3cf8a', grassDark: '#86b872', grassLight: '#bfe0a6' },
+    leaves: [['#f2a7bb', '#f9cad7'], ['#eb9bb0', '#f6bfce'], ['#f2a7bb', '#f9cad7'], ['#5e9c57', '#7db86e']],
+    shrub: '#7cb46a',
+    flowers: ['#f7b7c8', '#ffffff', '#f28aa0'],
+    petals: '#f7c1cf',
+  },
+  natsu: {
+    name: '南の島',
+    palette: { sea: '#1fb5c4', seaDeep: '#128fa0', sand: '#fbe9c4', sandDark: '#f0d49e', grass: '#79c677', grassDark: '#58a95e', grassLight: '#98d98f' },
+    leaves: [['#3f9a5a', '#5cb872'], ['#2f8a4c', '#4caa63']],
+    shrub: '#3f9a5a',
+    flowers: ['#ff6b81', '#ffd166', '#ffffff'],
+  },
+  koyo: {
+    name: '紅葉',
+    palette: { sea: '#3897a6', seaDeep: '#2b7d8c', sand: '#ecd3a0', sandDark: '#d9b983', grass: '#b4b670', grassDark: '#989b58', grassLight: '#c9cb8c' },
+    leaves: [['#e07a3f', '#f0a15c'], ['#c9503f', '#e0715c'], ['#f2b84b', '#f7cf7a'], ['#e07a3f', '#f0a15c'], ['#7d8f45', '#9aac5a']],
+    shrub: '#b8703c',
+    flowers: ['#f2b84b', '#e07a3f'],
+    petals: '#e8894a',
+  },
+  yuki: {
+    name: '雪',
+    palette: { sea: '#4a8db0', seaDeep: '#3a7396', sand: '#d3cdc3', sandDark: '#bdb5a8', grass: '#e9eff4', grassDark: '#c8d6e1', grassLight: '#f7fafc' },
+    leaves: [['#4f7f5a', '#5f9468']],
+    shrub: '#6b8f72',
+    flowers: [],
+    snow: true,
+  },
+};
+let theme = THEMES.default;
+export function setTheme(id) {
+  theme = THEMES[id] || THEMES.default;
+  Object.assign(PALETTE, BASE, theme.palette);
+  return theme;
+}
+export const themeId = () => Object.keys(THEMES).find((k) => THEMES[k] === theme);
+
 // 住民の見た目（名前ごと）。ルールには関係ないので sim.js ではなくここに置く
 export const LOOKS = {
   ユウタ: { shirt: '#3d5a80', hair: '#3b2a20', style: 'short', skin: '#f3cfb0' },
@@ -290,14 +342,24 @@ export function createRenderer(canvas) {
     ctx.fill();
     ctx.fillStyle = '#8d6a4f';
     ctx.fillRect(x - 1.5, y - r * 0.6, 3, r * 0.6);
-    ctx.fillStyle = '#5e9c57';
+    // 木ごとに葉の色を選ぶ（紅葉は赤・橙・黄が まざる）
+    const [leaf, light] = theme.leaves[Math.floor(Math.abs(x * 7 + y * 13)) % theme.leaves.length];
+    ctx.fillStyle = leaf;
     ctx.beginPath();
     ctx.arc(x + s, y - r * 0.9, r, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#7db86e';
+    ctx.fillStyle = light;
     ctx.beginPath();
     ctx.arc(x + s - r * 0.28, y - r * 1.12, r * 0.55, 0, Math.PI * 2);
     ctx.fill();
+    if (theme.snow) {
+      // 雪の帽子
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(x + s, y - r * 1.25, r * 0.78, Math.PI * 1.05, Math.PI * 1.95);
+      ctx.closePath();
+      ctx.fill();
+    }
   }
 
   function shrub(x, y, r, time) {
@@ -306,12 +368,18 @@ export function createRenderer(canvas) {
     ctx.beginPath();
     ctx.ellipse(x + 3, y + 2, r, r * 0.5, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#5e9c57';
+    ctx.fillStyle = theme.shrub;
     ctx.beginPath();
     ctx.arc(x - r * 0.45 + s, y - r * 0.4, r * 0.7, 0, Math.PI * 2);
     ctx.arc(x + r * 0.45 + s, y - r * 0.4, r * 0.7, 0, Math.PI * 2);
     ctx.arc(x + s, y - r * 0.8, r * 0.75, 0, Math.PI * 2);
     ctx.fill();
+    if (theme.snow) {
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(x + s, y - r * 1.05, r * 0.6, Math.PI, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   // 空いている土地の飾り（建物を建てると消える）
@@ -323,7 +391,8 @@ export function createRenderer(canvas) {
       if (h < 0.16) tree(p.x + (h - 0.08) * 60, p.y + 8, 9 + h * 20, time);
       else if (h < 0.3) shrub(p.x - 4 + h * 20, p.y + 6, 7, time);
       else if (h < 0.5) {
-        ctx.fillStyle = h < 0.4 ? '#f28aa0' : '#ffffff';
+        if (!theme.flowers.length) continue;
+        ctx.fillStyle = theme.flowers[Math.floor(h * 100) % theme.flowers.length];
         for (let k = 0; k < 3; k++) {
           ctx.beginPath();
           ctx.arc(p.x - 6 + k * 6, p.y - 4 + ((k * 7) % 9), 1.7, 0, Math.PI * 2);
@@ -418,7 +487,8 @@ export function createRenderer(canvas) {
     roundRect(ctx, x0 + 3, y0 + 3, w - 6, h - 6, 16);
     ctx.fill();
     for (let k = 0; k < 12; k++) {
-      ctx.fillStyle = k % 3 === 0 ? '#f28aa0' : k % 3 === 1 ? '#ffffff' : '#f2b84b';
+      if (!theme.flowers.length) break;
+      ctx.fillStyle = theme.flowers[k % theme.flowers.length];
       ctx.beginPath();
       ctx.arc(x0 + 14 + ((k * 37) % (w - 28)), y0 + 16 + ((k * 53) % (h - 30)), 1.7, 0, Math.PI * 2);
       ctx.fill();
@@ -1779,7 +1849,7 @@ export function createRenderer(canvas) {
       ctx.arc(x, y, 7, Math.PI * 1.15, Math.PI * 1.85);
       ctx.stroke();
     }
-    const gk = `${MAP_KEY}|${(state.harbors || []).map((h) => h.id).join('+')}`;
+    const gk = `${MAP_KEY}|${(state.harbors || []).map((h) => h.id).join('+')}|${themeId()}`;
     if (gk !== groundKey) {
       ground = buildGround(state);
       groundKey = gk;
@@ -1855,6 +1925,20 @@ export function createRenderer(canvas) {
     }
 
     ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+    if (state.weather !== 'rain' && (theme.petals || theme.snow)) {
+      // 桜・紅葉は花びらと葉が ひらひら、雪は ゆっくり降る（D312）
+      for (const [i, d] of drops.entries()) {
+        if (i % 3) continue;
+        const fall = theme.snow ? 22 : 16;
+        const y = (d.y * view.h + time * fall * d.s) % view.h;
+        const x = (d.x * view.w + Math.sin(time * 0.8 + i) * 14 + time * 6 * d.s) % view.w;
+        ctx.fillStyle = theme.snow ? 'rgba(255,255,255,0.9)' : theme.petals;
+        ctx.beginPath();
+        if (theme.snow) ctx.arc(x, y, 1.6 + d.s, 0, Math.PI * 2);
+        else ctx.ellipse(x, y, 2.6, 1.5, time * 1.5 + i, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
     if (state.weather === 'rain') {
       ctx.strokeStyle = 'rgba(235, 245, 255, 0.6)';
       ctx.lineWidth = 1.3;

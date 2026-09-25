@@ -10,7 +10,7 @@ import {
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
   dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft, nameResident, placeLabel,
 } from './sim.js';
-import { createRenderer, lookOf } from './render.js';
+import { createRenderer, lookOf, setTheme } from './render.js';
 import { ICONS } from './icons.js';
 import { currentStep, report, skipTutorial, busyCafeNow } from './tutorial.js';
 import { setupKeepAwake, awakeStatus } from './awake.js';
@@ -1034,6 +1034,8 @@ window.addEventListener('pagehide', save);
 setInterval(save, 5000);
 
 $('coin-icon').innerHTML = ICONS.coin;
+// 島のテーマ（D312）。いまは見本を見るため URL の ?theme= だけ（sakura / natsu / koyo / yuki）
+setTheme(new URLSearchParams(location.search).get('theme') || state.theme || 'default');
 $('pop-icon').innerHTML = ICONS.people;
 document.querySelector('#btn-build .i').innerHTML = ICONS.build;
 document.querySelector('#btn-diary .i').innerHTML = ICONS.diary;
