@@ -311,6 +311,59 @@ export function areaAt(c, r) {
   return best;
 }
 
+// そこが陸（または山）か（px）。まだひらいていない土地も陸とみなす（船がその上を通らないように・D322）
+export function onLand(x, y, grow = 1.02) {
+  for (const a of AREAS) {
+    if (shapesOf(a).some((sh) => edgeFactor(sh, x, y) <= grow)) return true;
+    const m = a.mountain;
+    if (m) {
+      // 絵の山は島の上に はみ出す（頂上は ふもとから ry×2.3 上）
+      const foot = m.cy + m.ry * 0.75;
+      if (x >= m.cx - m.rx && x <= m.cx + m.rx && y >= foot - m.ry * 2.3 - 12 && y <= foot) return true;
+    }
+  }
+  return false;
+}
+
+// 船の通り道（D322）：桟橋の先に着く場所（dock）と、沖から来るところ（from）。
+// はじめは沖から斜めに来る。その線が陸（まだひらいていない土地・山も）にかかるなら、かからない向きを選ぶ。
+// side：1＝いつもの船、-1＝臨時の船（桟橋の反対側に着く）
+const routes = new Map();
+export function boatRoute(id, side = 1) {
+  const key = `${MAP_KEY}|${id}|${side}`;
+  if (routes.has(key)) return routes.get(key);
+  const pier = center(PIERS[id]);
+  const [dx, dy] = areaById(id).pier.dir;
+  const [px, py] = dx ? [0, side] : [side, 0];
+  const dock = { x: pier.x + dx * 46 + px * 34, y: pier.y + dy * 46 + py * 34 };
+  const base = Math.atan2(dy, dx);
+  const toward = Math.sign(Math.sin(Math.atan2(py, px) - base)) || 1; // 船が着く側へ回す
+  const clear = (v) => {
+    for (let t = 0.3; t <= 1.0001; t += 0.05) {
+      const x = dock.x + v.x * t;
+      const y = dock.y + v.y * t;
+      for (const hx of [-24, 0, 24]) for (const hy of [-14, 8]) if (onLand(x + hx, y + hy)) return false;
+    }
+    return true;
+  };
+  let v = null;
+  for (const deg of [31, 0, -31, 50, -50, 70, -70]) {
+    for (const len of [175, 130]) {
+      const a = base + (toward * deg * Math.PI) / 180;
+      const cand = { x: Math.cos(a) * len, y: Math.sin(a) * len };
+      if (clear(cand)) {
+        v = cand;
+        break;
+      }
+    }
+    if (v) break;
+  }
+  v ||= { x: dx * 150 + px * 90, y: dy * 150 + py * 90 };
+  const route = { dock, from: { x: dock.x + v.x, y: dock.y + v.y }, clear: clear(v) };
+  routes.set(key, route);
+  return route;
+}
+
 // ひらいた土地が収まる範囲（px）。カメラが動ける範囲と、地面の絵の大きさに使う
 // teaser：まだ橋をかけていない島も入れる（海の向こうに見えるように・D317）
 export function landBounds(ids = ['main'], { teaser = false } = {}) {
