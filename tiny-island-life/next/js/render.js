@@ -104,7 +104,9 @@ const mixedLook = (look) => ({
   skin: ['#f6d6bb', '#e9bf99', '#d9a982', '#f3cfb0'][Math.floor(look / 7) % 4],
 });
 // 名前を変えても見た目は変わらない（lookName＝最初の名前・D310）。島で生まれた子も人ごとに違う見た目
-export const lookOf = (r) =>
+// 老人（D349）は 白い髪
+export const lookOf = (r) => (r.elder ? { ...lookBase(r), hair: '#dcd8d2' } : lookBase(r));
+const lookBase = (r) =>
   r.generic
     ? mixedLook(r.look)
     : r.tourist
@@ -1096,6 +1098,43 @@ export function createRenderer(canvas) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('だいがく', x0 + w / 2, y0 + 11);
+    void time;
+  }
+
+  // 病院（D349）：白い建物に 緑の十字とハート（赤十字の しるしは 使わない）
+  function hospital(state, b, time) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.hospital.w * T;
+    paperShadow((shadow) => {
+      if (!shadow) ctx.fillStyle = '#ffffff';
+      roundRect(ctx, x0 + 4, y0 + 4, w - 8, 2 * T - 10, 3);
+      ctx.fill();
+      if (!shadow) ctx.fillStyle = '#7fc8a9';
+      roundRect(ctx, x0 + 2, y0 + 1, w - 4, 6, 2);
+      ctx.fill();
+    });
+    // 緑の十字
+    const cx = x0 + w / 2;
+    const cy = y0 + 17;
+    ctx.fillStyle = '#4caf82';
+    ctx.fillRect(cx - 2.5, cy - 7, 5, 14);
+    ctx.fillRect(cx - 7, cy - 2.5, 14, 5);
+    // 窓
+    const inside = b.seats.filter(Boolean).length;
+    for (let i = 0; i < 4; i++) {
+      const wx = i < 2 ? x0 + 10 + i * 12 : x0 + w - 32 + (i - 2) * 12;
+      ctx.fillStyle = inside > i ? '#fff1c1' : '#cfe6ee';
+      ctx.fillRect(wx, y0 + 12, 8, 7);
+    }
+    ctx.fillStyle = '#8ecae6';
+    roundRect(ctx, cx - 7, y0 + 2 * T - 20, 14, 14, [2, 2, 0, 0]);
+    ctx.fill();
+    ctx.fillStyle = PALETTE.ink;
+    ctx.font = `700 7px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('びょういん', cx, y0 + 30);
     void time;
   }
 
@@ -2778,6 +2817,7 @@ export function createRenderer(canvas) {
       else if (b.type === 'kinder') kinder(state, b, time);
       else if (b.type === 'school') school(state, b, time);
       else if (b.type === 'college') college(state, b, time);
+      else if (b.type === 'hospital') hospital(state, b, time);
       else if (b.type === 'pond') pond(state, b, time);
       else if (b.type === 'stand') stand(state, b, time);
       else if (b.type === 'ski') skiLodge(state, b, theme.snow);

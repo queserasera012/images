@@ -387,7 +387,7 @@ function renderCard() {
       ? `船で来た人。${at(r.departAt)}の船で帰る`
       : r.age && parents.length === 2
         ? `${parents[0].name}と${parents[1].name}の子ども（${{ baby: '赤ちゃん', kid: '幼稚園', pupil: '小学生', student: '学生' }[r.age]}）`
-        : favoriteText(r) + (spouse ? `。${spouse.name}と結婚している` : '') + (parents.length === 2 ? `。${parents[0].name}と${parents[1].name}の子` : '');
+        : (r.elder ? 'お年寄り。' : '') + favoriteText(r) + (spouse ? `。${spouse.name}と結婚している` : '') + (parents.length === 2 ? `。${parents[0].name}と${parents[1].name}の子` : '');
     html = `<h3>${dot(r)}${r.name}</h3><div class="sub">${sub}</div><div class="now">いまは、${describeResident(state, r)}</div>`;
     // お願い（D335）：何をすれば かなうかも出す
     const wish = wishOf(state, r.id);
@@ -471,12 +471,13 @@ function renderCard() {
       html += inSeason(state, 'pool')
         ? `<div class="now">泳いでいる：${who(b.seats.filter(Boolean))}</div><div>外で待っている：${who(b.queue)}</div>`
         : `<div class="now">いまは お休み。夏になると ひらきます（維持費も夏だけ）</div>`;
-    } else if (b.type === 'super' || b.type === 'planetarium' || b.type === 'petshop' || b.type === 'stand' || b.type === 'aquarium') {
+    } else if (b.type === 'super' || b.type === 'planetarium' || b.type === 'petshop' || b.type === 'stand' || b.type === 'aquarium' || b.type === 'hospital') {
       const V = CONFIG[b.type];
       const inside = b.seats.filter(Boolean);
       const unit = b.type === 'planetarium' ? `${seatCount(b)}席` : b.type === 'stand' ? '持ち帰り' : `一度に ${seatCount(b)}人 まで`;
       html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${unit}。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
-      html += `<div class="now">${{ planetarium: '星を見ている', stand: '注文している', aquarium: '魚を見ている' }[b.type] || '買い物中'}：${who(inside)}</div>`;
+      if (b.type === 'hospital') html += `<div>お年寄りが ときどき 診てもらいに来る</div>`;
+      html += `<div class="now">${{ planetarium: '星を見ている', stand: '注文している', aquarium: '魚を見ている', hospital: '診てもらっている' }[b.type] || '買い物中'}：${who(inside)}</div>`;
       html += `<div>外で待っている：${who(b.queue)}</div>`;
     } else if (b.type === 'ski') {
       // スキー場（D318）：冬だけ開く
@@ -763,7 +764,7 @@ function openResidents() {
     const here = state.residents.filter((r) => r.homeId === h.id);
     const names = here
       .map((r) => {
-        const tag = r.state === 'PENDING' ? '（今日 引っ越してくる）' : r.age === 'baby' ? '（赤ちゃん）' : r.age === 'kid' ? '（幼稚園）' : r.age === 'pupil' ? '（小学生）' : r.age === 'student' ? '（学生）' : '';
+        const tag = r.state === 'PENDING' ? '（今日 引っ越してくる）' : r.age === 'baby' ? '（赤ちゃん）' : r.age === 'kid' ? '（幼稚園）' : r.age === 'pupil' ? '（小学生）' : r.age === 'student' ? '（学生）' : r.elder ? '（お年寄り）' : '';
         return `<span>${dot(r)}${r.name}<i class="tag">${tag}</i></span>`;
       })
       .join('');

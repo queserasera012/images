@@ -95,6 +95,14 @@ export const ICONS = {
       `<rect x="6.5" y="14" width="3" height="6" rx="1" fill="${INK}"/>`,
     28,
   ),
+  // 病院（D349）：緑の十字（赤十字の しるしは 使わない）
+  hospital_new: svg(
+    `<rect x="3" y="7" width="18" height="13" rx="2" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<rect x="3" y="7" width="18" height="13" rx="2" fill="#fff" stroke="${INK}" stroke-width="1.3"/>` +
+      `<rect x="3" y="6" width="18" height="3" rx="1" fill="#7fc8a9"/>` +
+      `<path d="M12 10.5v6M9 13.5h6" stroke="#4caf82" stroke-width="2.4" stroke-linecap="round"/>`,
+    28,
+  ),
   // 小学校・大学（D347）
   school_new: svg(
     `<rect x="3" y="8" width="18" height="12" rx="1" transform="translate(1 1)" fill="${SHADOW}"/>` +

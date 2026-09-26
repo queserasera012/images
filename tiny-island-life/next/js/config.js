@@ -177,6 +177,13 @@ export const CONFIG = {
     kinderDays: 5,
     pupilDays: 6,
     studentDays: 7,
+    // 老いる・旅立つ（D349）：生まれて45日で老人（仕事をやめて のんびり）。60〜90日で旅立つ（人ごとに ばらす）
+    elderAt: 45,
+    lifeMin: 60,
+    lifeMax: 90,
+    // はじめからいる人・引っ越してくる人の年齢（20〜30日の大人。一度に老いない・旅立たないよう ばらす）
+    arriveAgeMin: 20,
+    arriveAgeMax: 30,
     maxKids: 2,                 // 1組あたり
     walkTogether: 0.35,         // 夫婦で出かける確率
     kidJoins: 0.6,              // 親が公園や散歩に行くとき、子どもがついていく確率
@@ -233,6 +240,25 @@ export const CONFIG = {
     perArea: 1,
   },
 
+  // ---- 病院（D349）：老人が ときどき通う（ほかの人も たまに）。屋内 ----
+  hospital: {
+    open: 9 * 60,
+    close: 17 * 60,
+    customerValue: 20,
+    stayMin: 40,
+    stayMax: 90,
+    maxQueue: 6,
+    rainLinger: 1,
+    elderVisit: 0.35,           // 老人が その日に行く気になる確率
+    levels: [
+      { level: 1, seats: 6, upkeep: 30 },
+      { level: 2, seats: 12, upkeep: 50, cost: 2400 },
+    ],
+    buildCost: 3500,
+    max: 1,
+    perArea: 1,
+  },
+
   // ---- 段階的な解放（D295）。住民の人数で順番にひらく。いつも「次の目標」が1つ見える ----
   // 解放の順（D320）：島民は1日1〜2人ふえる。目標の間が2〜5日になるように、後ろほど間をあける。
   // 値段とあわせて tools/econ-sim.mjs で確かめた（docs/UNLOCKS.md）
@@ -248,6 +274,8 @@ export const CONFIG = {
       wish: 'うちの子、もうすぐ小学生。近くに小学校があったらなあ' },
     { id: 'college', stage: 'student', goal: '大学をひらく', done: '大学を建てられるようになりました', note: '大学を建てられるようになります',
       wish: 'もうすぐ小学校を卒業。この島で大学に行きたいな', kid: true },
+    { id: 'hospital', stage: 'elder', goal: '病院をひらく', done: '病院を建てられるようになりました', note: '病院を建てられるようになります',
+      wish: '最近 体調が よくなくてね。島に病院があったら安心なんだけど', kid: true },
     { id: 'planetarium', pop: 16, goal: 'プラネタリウムをひらく', done: 'プラネタリウムを建てられるようになりました', note: 'プラネタリウムを建てられるようになります' },
     { id: 'arcade', pop: 19, goal: 'ゲームセンターをひらく', done: 'ゲームセンターを建てられるようになりました', note: 'あなたも遊べるゲームセンターを建てられるようになります' },
     { id: 'expand', pop: 21, goal: '島を広げる', done: '島を広げられるようになりました', note: '島を広げられるようになります' },

@@ -43,6 +43,7 @@ export const SIZES = {
   arcade: { w: 3, h: 2 }, // ゲームセンター（D331）
   school: { w: 3, h: 2 }, // 小学校（D347）
   college: { w: 3, h: 3 }, // 大学（D347）
+  hospital: { w: 3, h: 2 }, // 病院（D349）
   // 飾り（D334）
   flowerbed: { w: 1, h: 1 },
   bench: { w: 1, h: 1 },
