@@ -489,8 +489,10 @@ function renderCard() {
     } else if (b.type === 'school' || b.type === 'college') {
       // 小学校・大学（D347）
       const V = CONFIG[b.type];
-      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${seatCount(b)}人まで。${fmt(V.start)}から${fmt(V.close)}まで。1人 ${V.fee} Coin</div>`;
-      html += `<div class="now">いま：${who(b.seats.filter(Boolean))}</div>`;
+      const inside = b.seats.filter(Boolean);
+      const what = b.type === 'school' ? '小学生が おべんきょうをするところ' : '学生が むずかしい おべんきょうをするところ';
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${what}。${fmt(V.start)}〜${fmt(V.close)}。${seatCount(b)}人まで。1人 ${V.fee} Coin</div>`;
+      html += `<div class="now">いま ${inside.length}人 が${b.type === 'school' ? '' : ' むずかしい'} おべんきょうをしている${inside.length ? `：${who(inside)}` : ''}</div>`;
       html += `<div>今日 来た${b.type === 'school' ? '子' : '学生'}：${state.today[b.type]?.went || 0}人</div>`;
     } else if (b.type === 'kinder') {
       const K = CONFIG.kinder;

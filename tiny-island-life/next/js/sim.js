@@ -1176,7 +1176,11 @@ function updateResident(state, r, h, events) {
       if (r.age === 'baby') return; // 赤ちゃんは家の中
       if (r.age === 'kid') return kidAtHome(state, r, events);
       if (r.age === 'pupil') return void goClass(state, r, 'school'); // 小学生：朝は ひとりで小学校へ。それ以外は家（親についていく）
-      if (r.age === 'student' && goClass(state, r, 'college')) return; // 学生：朝は ひとりで大学へ
+      // 学生：朝は ひとりで大学へ。大学があるなら、行く時刻までは 家で待つ（朝のカフェに出て 行きそびれていた・D348）
+      if (r.age === 'student' && ofType(state, 'college').length && !r.classToday && clockOf(t) < CONFIG.college.goUntil) {
+        goClass(state, r, 'college');
+        return;
+      }
       if (t < r.until) return;
       if (waitingForKid(state, r)) return; // 幼稚園に送るまで、親のどちらかは家にいる
       {
@@ -1585,7 +1589,7 @@ function rolloverDay(state, events) {
   for (const u of CONFIG.unlocks) {
     const on = u.id === 'port' ? state.port.openedOn ?? state.unlockedOn.port : state.unlockedOn[u.id];
     if (on === endedDay) {
-      const why = u.pets ? `家族のペットが ${u.pets}匹 になって` : u.kids ? '島に子どもが生まれて' : `住民が ${u.pop}人 になって`;
+      const why = u.pets ? `家族のペットが ${u.pets}匹 になって` : u.kids ? '島に子どもが生まれて' : u.stage ? `もうすぐ${u.stage === 'pupil' ? '小学生' : '学生'}になる子がいて` : `住民が ${u.pop}人 になって`;
       lines.push({ kind: 'good', text: `${why}、${u.done}` });
     }
   }
@@ -2348,7 +2352,7 @@ export function describeResident(state, r) {
     case 'KINDER':
       return '幼稚園にいる';
     case 'CLASS':
-      return r.age === 'pupil' ? '小学校で勉強している' : '大学で勉強している';
+      return r.age === 'pupil' ? '小学校で おべんきょうをしている' : '大学で むずかしい おべんきょうをしている';
     case 'WORK':
       return `${labelOf(state, buildingById(state, r.destId))}で働いている`;
     default:
@@ -2676,7 +2680,9 @@ function enterClass(state, r, events) {
   r.seat = seat;
   r.state = 'CLASS';
   r.visible = false;
-  r.until = Math.floor(state.t / DAY) * DAY + clockToInDay(CONFIG[type].close) + between(state, 0, 8);
+  // 決まった時刻まで。遠くて遅く着いた日も、少なくとも minStay は いる（D348）。寝る時間の1時間前には出る
+  const close = Math.floor(state.t / DAY) * DAY + clockToInDay(CONFIG[type].close) + between(state, 0, 8);
+  r.until = Math.min(Math.max(close, state.t + CONFIG[type].minStay), r.bed - 60);
   state.coin += CONFIG[type].fee;
   state.today[type].went += 1;
   events.push({ type: 'class', school: type, name: r.name });

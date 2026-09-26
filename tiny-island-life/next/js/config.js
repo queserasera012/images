@@ -205,6 +205,7 @@ export const CONFIG = {
     goUntil: 8 * 60 + 30,
     start: 8 * 60,              // 授業（カードに出す）
     close: 15 * 60,
+    minStay: 5 * 60,            // 遅く着いても 5時間は いる（遠いと着くのが昼すぎで、すぐ帰るように見えた・D348）
     fee: 20,
     levels: [
       { level: 1, seats: 6, upkeep: 25 },
@@ -220,6 +221,7 @@ export const CONFIG = {
     goUntil: 9 * 60 + 30,
     start: 9 * 60,
     close: 19 * 60,
+    minStay: 6 * 60,
     fee: 30,
     levels: [
       { level: 1, seats: 8, upkeep: 40 },
