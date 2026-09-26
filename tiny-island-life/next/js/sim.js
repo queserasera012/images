@@ -371,7 +371,11 @@ function freshToday() {
 // 古いセーブ（港が無かった頃）を今の形にそろえる
 export function migrate(state) {
   // 年齢（D349）：前のセーブの住民にも、20〜30日の大人として年齢と旅立つ日をつける（一度に老いない）
-  for (const r of state.residents || []) giveAge(state, r);
+  for (const r of state.residents || []) {
+    giveAge(state, r);
+    // D351：老人になる日を 45 → 55日にした。まだ55日になっていない老人は もとに戻す（仕事は次の割り当てで）
+    if (r.elder && r.bornOn != null && dayOf(state.t) - r.bornOn < CONFIG.family.elderAt) r.elder = false;
+  }
   state.visitors ||= [];
   state.port ||= { open: false, today: [] };
   state.port.id = 'main';
