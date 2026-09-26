@@ -18,6 +18,7 @@ import { setupKeepAwake, awakeStatus } from './awake.js';
 import { openFishing, fishingNow } from './fishing.js';
 import { openArcade, arcadeNow } from './arcade.js';
 import { wishOf, wishList } from './wishes.js';
+import { diaryView } from './diary.js';
 import { showRewardedAd, adsOn } from './ads.js';
 
 // 🚨 前の版（3日テスト中）と同じサイトに置くので、保存の名前を分ける（D289）
@@ -823,9 +824,18 @@ function openBuild(focusId) {
   }
 }
 
+// 日記の1日（D353）：島のできごと → 困りごと → お店と施設（たたむ）→ 島のようす（たたむ）。同じ種類はまとめる（js/diary.js）
 function entryHtml(e) {
-  const lines = e.lines.map((l) => `<p class="${l.kind}">${l.text}</p>`).join('');
-  return `<div class="entry"><h3>Day ${e.day}${ICONS[e.weather]}${WEATHER_LABEL[e.weather]}</h3>${lines}</div>`;
+  const v = diaryView(e);
+  const p = (l) => `<p class="${l.kind}">${l.text}</p>`;
+  // 売上は見出しの下の1行（見出しの右だと、日記を閉じる × に隠れた）
+  const earn = v.earned ? `<p class="d-earn">売上 +${v.earned.toLocaleString()} Coin${v.upkeep ? `（維持費 −${v.upkeep.toLocaleString()}）` : ''}</p>` : '';
+  let html = `<div class="entry"><h3>Day ${e.day}${ICONS[e.weather]}${WEATHER_LABEL[e.weather]}</h3>${earn}`;
+  if (v.events.length) html += `<p class="d-head">島のできごと</p>${v.events.map(p).join('')}`;
+  html += v.problems.length ? `<p class="d-head problem">困りごと（${v.problems.length}）</p>${v.problems.map(p).join('')}` : '<p class="d-head">困りごとは ありませんでした</p>';
+  if (v.money.length) html += `<details class="d-more"><summary>お店と施設（${v.places}か所・+${v.earned.toLocaleString()} Coin）</summary>${v.money.map(p).join('')}</details>`;
+  if (v.scene.length) html += `<details class="d-more"><summary>島のようす（${v.scene.length}）</summary>${v.scene.map(p).join('')}</details>`;
+  return `${html}</div>`;
 }
 
 $('btn-diary').addEventListener('click', () => {

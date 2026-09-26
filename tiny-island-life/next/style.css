@@ -498,6 +498,15 @@ h3 .dot { width: 14px; height: 14px; }
 .entry p { margin: 0; }
 .entry p.problem { color: var(--problem); }
 .entry + .entry { margin-top: 30px; }
+/* 日記の見出しと、たたむ欄（D353）。ノートの罫線（30px）に合わせる */
+.entry .d-earn { color: var(--muted); font-size: 13px; font-weight: 600; }
+.entry .d-head { font-weight: 700; }
+.entry .d-head::before { content: '■ '; font-size: 11px; }
+.entry .d-more summary { list-style: none; color: var(--ink); font-weight: 700; cursor: pointer; }
+.entry .d-more summary::-webkit-details-marker { display: none; }
+.entry .d-more summary::before { content: '▶ '; display: inline-block; font-size: 10px; transition: transform 0.15s; }
+.entry .d-more[open] summary::before { transform: rotate(90deg); }
+.entry .d-more p { padding-left: 1em; }
 
 .morning { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 4px; }
 .morning h2 { margin: 0; }
