@@ -954,7 +954,7 @@ export function createRenderer(canvas) {
       if (!shadow) ctx.fillStyle = PALETTE.white;
       roundRect(ctx, x0 + 4, y0 + 8, w - 8, T + 12, 3);
       ctx.fill();
-      if (!shadow) ctx.fillStyle = '#f4a259';
+      if (!shadow) ctx.fillStyle = b.breeder ? '#7cb87a' : '#f4a259'; // ブリーダーは 緑の屋根（D356）
       ctx.beginPath();
       ctx.moveTo(x0 + 1, y0 + 10);
       ctx.lineTo(x0 + w / 2, y0 - 4);
@@ -982,8 +982,65 @@ export function createRenderer(canvas) {
     ctx.fillStyle = PALETTE.ink;
     roundRect(ctx, x0 + 9, y0 + 22, 10, T - 6, [5, 5, 0, 0]);
     ctx.fill();
-    // ペットショップ&ブリーダー（D355）：店先に 売っている子が並ぶ（子犬・子猫・子うさぎ）
-    if (b.breeder && b.pets?.length) {
+    // ペットショップ&ブリーダー（D356）：緑の屋根・屋根にハート・店先に白い柵。柵の中に 売っている子が並ぶ（D355）
+    if (b.breeder) {
+      ctx.fillStyle = '#4f8a4d';
+      ctx.font = `700 5.5px ${FONT}`;
+      ctx.fillText('&ブリーダー', px - 1, py + 19);
+      ctx.fillStyle = PALETTE.white;
+      heart(x0 + w / 2, y0 + 4, 2.6);
+      const fx0 = x0 + w / 2 - 17;
+      const fx1 = x0 + w / 2 + 23;
+      const fy = y0 + 2 * T - 2;
+      // 柵の中（草）
+      ctx.fillStyle = 'rgba(124,184,122,0.35)';
+      roundRect(ctx, fx0, fy - 9, fx1 - fx0, 9, 2);
+      ctx.fill();
+      breederPets(b, x0, y0, w);
+      // 柵（手前）：子の足もとを隠す
+      ctx.fillStyle = PALETTE.white;
+      ctx.strokeStyle = 'rgba(61,90,128,0.55)';
+      ctx.lineWidth = 0.7;
+      for (let x = fx0; x <= fx1; x += 5) {
+        ctx.beginPath();
+        ctx.moveTo(x - 1.1, fy + 1);
+        ctx.lineTo(x - 1.1, fy - 5);
+        ctx.lineTo(x, fy - 6.5);
+        ctx.lineTo(x + 1.1, fy - 5);
+        ctx.lineTo(x + 1.1, fy + 1);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+      for (const ry of [fy - 4, fy - 1]) {
+        ctx.fillRect(fx0, ry - 0.7, fx1 - fx0, 1.4);
+        ctx.strokeRect(fx0, ry - 0.7, fx1 - fx0, 1.4);
+      }
+      return;
+    }
+    // 店先の骨
+    ctx.fillStyle = PALETTE.white;
+    const bx = x0 + w / 2;
+    const by = y0 + 2 * T - 7;
+    ctx.fillRect(bx - 5, by - 1.2, 10, 2.4);
+    for (const dx of [-5, 5]) for (const dy of [-1.4, 1.4]) {
+      ctx.beginPath();
+      ctx.arc(bx + dx, by + dy, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function heart(cx, cy, r) {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + r * 1.2);
+    ctx.bezierCurveTo(cx - r * 2, cy - r * 0.2, cx - r * 0.9, cy - r * 1.5, cx, cy - r * 0.5);
+    ctx.bezierCurveTo(cx + r * 0.9, cy - r * 1.5, cx + r * 2, cy - r * 0.2, cx, cy + r * 1.2);
+    ctx.fill();
+  }
+
+  // ブリーダーの店先の子（子犬・子猫・子うさぎ・D355）
+  function breederPets(b, x0, y0, w) {
+    if (b.pets?.length) {
       b.pets.forEach((kind, i) => {
         const ax = x0 + w / 2 - 9 + i * 16;
         const ay = y0 + 2 * T - 9;
@@ -1026,17 +1083,6 @@ export function createRenderer(canvas) {
           ctx.fill();
         }
       });
-      return;
-    }
-    // 店先の骨
-    ctx.fillStyle = PALETTE.white;
-    const bx = x0 + w / 2;
-    const by = y0 + 2 * T - 7;
-    ctx.fillRect(bx - 5, by - 1.2, 10, 2.4);
-    for (const dx of [-5, 5]) for (const dy of [-1.4, 1.4]) {
-      ctx.beginPath();
-      ctx.arc(bx + dx, by + dy, 1.5, 0, Math.PI * 2);
-      ctx.fill();
     }
   }
 
