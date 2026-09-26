@@ -11,7 +11,7 @@
 import { CONFIG } from './config.js';
 import {
   T, SIZES, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, center, roadPath, roadDistance, accessTile, canPlace, isRoad, idx,
-  useAreas, landTilesOf, placements, HOUSE_FLOOR, areaAt, COLS, OLD_COLS_2, DECO, footprint,
+  useAreas, landTilesOf, placements, HOUSE_FLOOR, areaAt, COLS, OLD_COLS_2, DECO, footprint, occupied, neighbors, ROWS,
 } from './grid.js';
 import { morningWishes, checkWishes, bigWish } from './wishes.js';
 
@@ -486,8 +486,16 @@ function vacancy(state) {
   return houses(state).reduce((n, h) => n + openRoom(state, h), 0);
 }
 
+// ひとりで住む人（引っ越してくる人・家を出る人）の家。空きの いちばん少ない家から（D358：
+// 広い家を ひとりが先に取ると、「広い家に住みたい」家族が 引っ越せなかった）
 function freeHouse(state) {
-  return houses(state).find((h) => openRoom(state, h) > 0);
+  let best = null;
+  let room = Infinity;
+  for (const h of houses(state)) {
+    const n = openRoom(state, h);
+    if (n > 0 && n < room) (best = h), (room = n);
+  }
+  return best;
 }
 
 // 名前のある住民（10人）のあとに住む人（v0.3 §16 の一般住民・D295）。
@@ -2955,13 +2963,108 @@ const PET_SPOT_LABEL = {
 export const PET_KINDS = Object.keys(CONFIG.pets);
 
 function landPoint(state, around, radius) {
+  const free = petFree(state);
   for (let k = 0; k < 12; k++) {
     const x = around.x + between(state, -radius, radius);
     const y = around.y + between(state, -radius, radius);
-    const i = idx(Math.floor(x / T), Math.floor(y / T));
-    if (MAP[i] === 'land' || MAP[i] === 'road') return { x, y };
+    if (free(tileAt(x, y))) return { x, y }; // 施設の上には行かない（D358）
   }
   return { x: around.x, y: around.y };
+}
+
+// ---- ペットの歩くところ（D358）：道と 建物の無い地面（と 公園）だけ。施設の上は 通らない
+// 行き先（屋根・テラス・ベンチ・家の戸口）は 建物の中でもよい。そこへは となりの空いたマスから入る
+
+const tileAt = (x, y) => {
+  const c = Math.floor(x / T);
+  const r = Math.floor(y / T);
+  return c >= 0 && c < COLS && r >= 0 && r < ROWS ? idx(c, r) : -1;
+};
+
+function petFree(state) {
+  const occ = occupied(state.buildings.filter((b) => b.type !== 'park')); // 公園の芝生は 歩いてよい
+  return (i) => i >= 0 && (MAP[i] === 'land' || MAP[i] === 'road') && !occ.has(i);
+}
+
+// まっすぐ行けるか：途中のマスが すべて空いている（出るマス・着くマスは 建物の中でもよい）
+function clearLine(x0, y0, x1, y1, free) {
+  const a = tileAt(x0, y0);
+  const b = tileAt(x1, y1);
+  const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 5);
+  for (let k = 1; k < n; k++) {
+    const i = tileAt(x0 + ((x1 - x0) * k) / n, y0 + ((y1 - y0) * k) / n);
+    if (i !== a && i !== b && !free(i)) return false;
+  }
+  return true;
+}
+
+// いちばん近い 空いたマス（建物の上にいるときは そこから出る）
+function nearestFree(i, free) {
+  if (i < 0) return -1;
+  const seen = new Set([i]);
+  let ring = [i];
+  for (let d = 0; d < 6 && ring.length; d++) {
+    const hit = ring.find(free);
+    if (hit !== undefined) return hit;
+    const next = [];
+    for (const j of ring) for (const n of neighbors(j)) if (!seen.has(n)) seen.add(n), next.push(n);
+    ring = next;
+  }
+  return -1;
+}
+
+function freePath(a, b, free) {
+  const prev = new Map([[a, -1]]);
+  const queue = [a];
+  for (let q = 0; q < queue.length; q++) {
+    const cur = queue[q];
+    if (cur === b) break;
+    for (const n of neighbors(cur)) {
+      if (prev.has(n) || !free(n)) continue;
+      prev.set(n, cur);
+      queue.push(n);
+    }
+  }
+  if (!prev.has(b)) return null;
+  const out = [];
+  for (let cur = b; cur !== -1; cur = prev.get(cur)) out.push(cur);
+  return out.reverse();
+}
+
+// ペットの行き先を決める。まっすぐ行けなければ 空いたマスをたどる。tol：行き先が これだけ動くまでは 道を引き直さない
+function petGo(state, pet, x, y, tol = 1) {
+  if (pet.goal && Math.hypot(pet.goal.x - x, pet.goal.y - y) <= tol) return;
+  pet.goal = { x, y };
+  pet.path = [];
+  pet.tx = x;
+  pet.ty = y;
+  const free = petFree(state);
+  if (clearLine(pet.x, pet.y, x, y, free)) return;
+  const a = nearestFree(tileAt(pet.x, pet.y), free);
+  const b = nearestFree(tileAt(x, y), free);
+  const tiles = a >= 0 && b >= 0 ? freePath(a, b, free) : null;
+  if (!tiles) return; // つながっていない（橋の向こうなど）：まっすぐ
+  const pts = [...tiles.map(center), { x, y }];
+  // まっすぐ行けるところは 角を切って（カクカク歩かない）
+  let from = { x: pet.x, y: pet.y };
+  for (let k = 0; k < pts.length; ) {
+    let far = k;
+    while (far + 1 < pts.length && clearLine(from.x, from.y, pts[far + 1].x, pts[far + 1].y, free)) far++;
+    pet.path.push(pts[far]);
+    from = pts[far];
+    k = far + 1;
+  }
+  const first = pet.path.shift();
+  pet.tx = first.x;
+  pet.ty = first.y;
+}
+
+// すぐ近くへ まっすぐ（飼い主の うしろ）
+function petAim(pet, x, y) {
+  pet.goal = null;
+  pet.path = [];
+  pet.tx = x;
+  pet.ty = y;
 }
 
 function spawnStrays(state, events) {
@@ -3028,9 +3131,17 @@ export function adoptPet(state, petId, name) {
 }
 
 function petMove(state, pet, h, speedMul) {
-  const dx = pet.tx - pet.x;
-  const dy = pet.ty - pet.y;
-  const d = Math.hypot(dx, dy);
+  let dx = pet.tx - pet.x;
+  let dy = pet.ty - pet.y;
+  let d = Math.hypot(dx, dy);
+  if (d < 0.5 && pet.path?.length) {
+    const next = pet.path.shift();
+    pet.tx = next.x;
+    pet.ty = next.y;
+    dx = pet.tx - pet.x;
+    dy = pet.ty - pet.y;
+    d = Math.hypot(dx, dy);
+  }
   if (d < 0.5) return true;
   const stepLen = Math.min(d, CONFIG.walkSpeed * speedMul * h);
   pet.x += (dx / d) * stepLen;
@@ -3080,8 +3191,7 @@ function updatePet(state, pet, h) {
     // 迷い込んだ子：見つけた場所のまわりを うろうろ
     if (petMove(state, pet, h, kind.speed) && state.t >= pet.until) {
       const p = landPoint(state, pet.anchor, 40);
-      pet.tx = p.x;
-      pet.ty = p.y;
+      petGo(state, pet, p.x, p.y);
       pet.state = rand(state) < 0.5 ? 'SIT' : 'WANDER';
       pet.until = state.t + between(state, 5, 20);
     }
@@ -3099,8 +3209,7 @@ function updatePet(state, pet, h) {
       if (b) {
         const door = queueSlot(b, 0);
         pet.state = 'WAIT';
-        pet.tx = door.x + 30;
-        pet.ty = door.y + 4;
+        petGo(state, pet, door.x + 30, door.y + 4);
         petMove(state, pet, h, 1.2);
         return;
       }
@@ -3109,25 +3218,25 @@ function updatePet(state, pet, h) {
     if (out) {
       // 飼い主の うしろを ついて歩く
       pet.state = 'FOLLOW';
-      pet.tx = owner.x - owner.facing * 13;
-      pet.ty = owner.y + 3;
-      const far = Math.hypot(pet.tx - pet.x, pet.ty - pet.y) > 40;
+      const fx = owner.x - owner.facing * 13;
+      const fy = owner.y + 3;
+      const far = Math.hypot(fx - pet.x, fy - pet.y) > 40;
+      if (far) petGo(state, pet, fx, fy, 24); // 離れたら 建物をよけて追いかける（D358）
+      else petAim(pet, fx, fy);
       petMove(state, pet, h, far ? 1.6 : 1.05);
       if (owner.state === 'WALK') state.today.petWalk[pet.id] = (state.today.petWalk[pet.id] || 0) + h;
       return;
     }
     if (night) {
       // 家の前に着いてから寝る（着くまでは歩いて帰る・D302）
-      pet.tx = door.x + 14;
-      pet.ty = door.y + 2;
+      petGo(state, pet, door.x + 14, door.y + 2);
       pet.state = petMove(state, pet, h, 1) ? 'SLEEP' : 'BEDTIME';
       return;
     }
     if (pet.state === 'FOLLOW' || pet.state === 'SLEEP' || pet.state === 'BEDTIME') pet.until = state.t;
     if (petMove(state, pet, h, 0.9) && state.t >= pet.until) {
       const p = landPoint(state, door, 36);
-      pet.tx = p.x;
-      pet.ty = p.y;
+      petGo(state, pet, p.x, p.y);
       pet.state = rand(state) < 0.4 ? 'SIT' : 'WANDER';
       pet.until = state.t + between(state, 6, 25);
     }
@@ -3138,8 +3247,7 @@ function updatePet(state, pet, h) {
   // アライグマは夜の方が元気（21時まで起きている）
   const sleepy = pet.kind === 'raccoon' ? clock >= 23 * 60 || clock < 9 * 60 : night;
   if (sleepy) {
-    pet.tx = door.x - 14;
-    pet.ty = door.y + 1;
+    petGo(state, pet, door.x - 14, door.y + 1);
     pet.state = petMove(state, pet, h, kind.speed) ? 'SLEEP' : 'BEDTIME';
     return;
   }
@@ -3148,8 +3256,7 @@ function updatePet(state, pet, h) {
     // 雨の日は、家の軒下で雨宿り
     pet.state = 'SHELTER';
     pet.spot = null;
-    pet.tx = door.x - 12;
-    pet.ty = door.y - 2;
+    petGo(state, pet, door.x - 12, door.y - 2);
   }
   if (pet.state === 'SHELTER') {
     petMove(state, pet, h, kind.speed * 1.3);
@@ -3162,8 +3269,7 @@ function updatePet(state, pet, h) {
     if (state.t >= pet.until) {
       pet.state = 'WANDER';
       const p = landPoint(state, { x: pet.x, y: pet.y + 12 }, 30);
-      pet.tx = p.x;
-      pet.ty = p.y;
+      petGo(state, pet, p.x, p.y);
       pet.until = state.t + between(state, 10, 30);
     }
     return;
@@ -3181,8 +3287,7 @@ function updatePet(state, pet, h) {
     const spots = petSpots(state, pet, home);
     const spot = pick(state, spots);
     pet.spot = spot.key;
-    pet.tx = spot.x;
-    pet.ty = spot.y;
+    petGo(state, pet, spot.x, spot.y);
     pet.state = 'GOING';
   }
 }
