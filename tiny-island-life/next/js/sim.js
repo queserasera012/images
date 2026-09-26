@@ -2386,6 +2386,14 @@ function kidAtHome(state, r, events) {
   if (!parent) return;
   r.kinderToday = true;
   goTo(state, r, 'kinder', kinder.id, kinder.access, kinderFront(kinder));
+  // きょうだいも一緒に連れていく（D330：親が1人だと、2人目が毎朝 家に残っていた）
+  for (const sib of state.residents) {
+    if (sib === r || sib.age !== 'kid' || sib.kinderToday || sib.homeId !== r.homeId || sib.state !== 'HOME') continue;
+    if (!sib.parents?.includes(parent.id) || state.t < sib.wake) continue;
+    sib.kinderToday = true;
+    sib.at = r.at;
+    goTo(state, sib, 'kinder', kinder.id, kinder.access, { x: kinderFront(kinder).x - 8, y: kinderFront(kinder).y + 2 });
+  }
   parent.at = r.at;
   goTo(state, parent, 'escort', kinder.id, kinder.access, { x: kinderFront(kinder).x + 10, y: kinderFront(kinder).y + 2 });
   void events;
