@@ -689,7 +689,12 @@ export function createRenderer(canvas) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const stars = b.level > 1 ? ' ' + '★'.repeat(b.level - 1) : '';
-    ctx.fillText(b.bar ? `CAFE&BAR${stars}` : `CAFE${stars}`, x0 + w / 2 + 8, y0 + 22);
+    const sign = b.bar ? `RESTAURANT${stars}` : `CAFE${stars}`;
+    // 戸（左）にかからないよう、戸の右から端までに収める。長い RESTAURANT は字を小さく（D343）
+    const room = w - 30;
+    const width = ctx.measureText(sign).width;
+    if (width > room) ctx.font = `700 ${Math.floor((11 * room) / width * 10) / 10}px ${FONT}`;
+    ctx.fillText(sign, b.bar ? x0 + 24 + room / 2 : x0 + w / 2 + 8, y0 + 22);
     ctx.fillStyle = PALETTE.ink;
     roundRect(ctx, x0 + 10, y0 + 16, 11, T - 12, [5, 5, 0, 0]);
     ctx.fill();
@@ -1188,7 +1193,7 @@ export function createRenderer(canvas) {
     ctx.fill();
   }
 
-  // カフェ&バー：テラスの上の電球かざり（夜は灯る）
+  // レストラン（旧 カフェ&バー・D343）：テラスの上の電球かざり（夜は灯る）
   function barLights(b, lit, time) {
     const x0 = b.c * T + 6;
     const x1 = (b.c + SIZES.cafe.w) * T - 6;

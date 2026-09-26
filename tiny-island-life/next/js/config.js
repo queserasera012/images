@@ -33,7 +33,7 @@ export const CONFIG = {
     buildCost: 900,             // 2軒目のカフェ
     max: 3,                     // 本島で3軒。島を1か所広げるごとに perArea 軒ふえる（D305）
     perArea: 1,
-    bar: { cost: 1000, upkeep: 15, close: 23 * 60, nightValue: 30 }, // カフェ&バー（D297）：夜23時まで。夜は1人30 Coin
+    bar: { cost: 1000, upkeep: 15, close: 23 * 60, nightValue: 30 }, // カフェをレストランに（D297 → D343：「バー」はやめた＝年齢区分）：夜23時まで。夜は1人30 Coin。コードの名前（bar）はセーブのため そのまま
     rainBoost: null,            // カフェの雨の倍率は weatherWeights.rain.cafe
   },
 

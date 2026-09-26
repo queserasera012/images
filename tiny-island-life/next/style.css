@@ -69,11 +69,19 @@ button:focus-visible { outline: 3px solid var(--mustard); outline-offset: 2px; }
   font-size: 15px;
   font-variant-numeric: tabular-nums;
 }
+.pill { white-space: nowrap; } /* 1行に（390px の iPhone で Day・人数が2行になっていた・D343） */
 .pill b { font-weight: 700; }
 #clock { color: var(--muted); min-width: 3.2em; }
 .pill .icon { display: block; }
 
 .hud-right { display: flex; gap: 8px; }
+#hud { gap: 8px; }
+@media (max-width: 400px) {
+  #hud { padding-left: 10px; padding-right: 10px; gap: 6px; }
+  .hud-right { gap: 6px; }
+  .pill, #hud-pop { gap: 4px; padding: 0 10px 0 8px; font-size: 13.5px; }
+  #clock { min-width: 2.9em; }
+}
 #hud-pop { padding: 0 12px 0 8px; border: 0; color: var(--ink); font: inherit; font-size: 15px; pointer-events: auto; cursor: pointer; }
 
 /* 住民の一覧（D311）：家ごとに、誰が住んでいるか。押すと その家へ */

@@ -243,11 +243,13 @@ export const ICONS = {
       `<path d="M2 21.5c2 0 2-1 4-1s2 1 4 1 2-1 4-1 2 1 4 1 2-1 4-1" stroke="${SKY}" stroke-width="1.4" fill="none" stroke-linecap="round"/>`,
     28,
   ),
+  // レストラン（D343：お酒の絵はやめた）：お皿とフォーク・ナイフ
   bar: svg(
-    `<path d="M6 5h12l-6 8z" transform="translate(1 1)" fill="${SHADOW}"/>` +
-      `<path d="M6 5h12l-6 8z" fill="#fff" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"/>` +
-      `<path d="M12 13v6M8.5 19.5h7" stroke="${INK}" stroke-width="1.6" stroke-linecap="round"/>` +
-      `<circle cx="15" cy="7" r="1.4" fill="${MUSTARD}"/><path d="M3 4.5q2 1.5 4 0" stroke="#f28aa0" stroke-width="1.4" fill="none" stroke-linecap="round"/>`,
+    `<circle cx="13" cy="13" r="7" fill="${SHADOW}"/>` +
+      `<circle cx="12" cy="12" r="7" fill="#fff" stroke="${INK}" stroke-width="1.4"/>` +
+      `<circle cx="12" cy="12" r="4" fill="none" stroke="${MUSTARD}" stroke-width="1.2"/>` +
+      `<path d="M3 5v5M2 5v3q0 2 1 2M4 5v3q0 2-1 2M3 10v9" stroke="${INK}" stroke-width="1.1" stroke-linecap="round" fill="none"/>` +
+      `<path d="M21 5q-2 3 0 7v7" stroke="${INK}" stroke-width="1.3" stroke-linecap="round" fill="none"/>`,
     28,
   ),
   park_roof: svg(

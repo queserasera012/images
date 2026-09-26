@@ -251,7 +251,7 @@ export function labelOf(state, b) {
 
 export function cafeLabel(state, cafe) {
   if (cafe.type !== 'cafe') return labelOf(state, cafe);
-  return dirName(cafes(state), cafe, 'カフェ');
+  return dirName(cafes(state), cafe, cafe.bar ? 'レストラン' : 'カフェ');
 }
 
 // 同じ種類が2軒以上なら方角をつける。同じ方角に何軒もあれば 2・3 と番号（D315：前は3軒目が1軒目と同じ名前になった）
@@ -663,7 +663,7 @@ function venueOpen(state, type, margin = 0) {
   return c >= CONFIG[type].open && c < CONFIG[type].close - margin;
 }
 
-// 建物ごとの閉店時刻（カフェ&バーは夜23時まで・D297）
+// 建物ごとの閉店時刻（レストランにしたカフェは夜23時まで・D297・D343）
 export const closeOf = (b) => (b.type === 'cafe' && b.bar ? CONFIG.cafe.bar.close : CONFIG[b.type].close);
 function buildingOpen(state, b, margin = 0) {
   if (!inSeason(state, b.type)) return false;
@@ -680,7 +680,7 @@ function cafeChoices(state, r) {
   const w = CONFIG.weatherWeights[state.weather].cafe;
   return cafes(state)
     .filter((c) => buildingOpen(state, c, 30))
-    // 夜のバーに行くのは大人だけ
+    // 夜のレストランに行くのは大人だけ（子どもは寝る時間・観光客は船で帰る）
     .filter((c) => !(isBarTime(state, c) && (r.tourist || r.age)))
     .map((c) => ({ cafe: c, w: r.prefs.cafe * w * near(r, c.access) * (isBarTime(state, c) ? 1.4 : 1) }));
 }
@@ -1285,7 +1285,7 @@ function sit(state, r, b, seatIdx) {
   // ドッグレースは、レースが終わるまで見る
   if (b.type === 'track') r.until = Math.floor(state.t / DAY) * DAY + clockToInDay(V.start + V.length) + between(state, 1, 5);
   const closeAt = Math.floor(state.t / DAY) * DAY + clockToInDay(closeOf(b));
-  // カフェは閉店後も飲み終わるまで居てよい。ただしバーは23時で閉める
+  // カフェは閉店後も飲み終わるまで居てよい。ただしレストランは23時で閉める
   if (b.type !== 'cafe' || isBarTime(state, b)) r.until = Math.min(r.until, Math.max(state.t + 5, closeAt));
   if (r.tourist) r.until = Math.min(r.until, r.bed);
 }
@@ -1412,7 +1412,7 @@ function rolloverDay(state, events) {
   const fun = today.byType.planetarium;
   if (fun?.served) lines.push({ kind: 'good', text: `プラネタリウムに ${fun.served}人 が来ました（+${fun.income} Coin）` });
   const bar = today.byType.bar;
-  if (bar?.served) lines.push({ kind: 'good', text: `夜のバーに ${bar.served}人 が来ました（+${bar.income} Coin）` });
+  if (bar?.served) lines.push({ kind: 'good', text: `夜のレストランに ${bar.served}人 が来ました（+${bar.income} Coin）` });
   const stand = today.byType.stand;
   if (stand?.served) lines.push({ kind: 'good', text: `コーヒースタンドで ${stand.served}人 がコーヒーを買いました（+${stand.income} Coin）` });
   if (today.race) {
@@ -1862,8 +1862,8 @@ export function actionsFor(state) {
     list.push({
       id: `cafe_bar:${c.id}`,
       icon: 'bar',
-      title: `${cafeLabel(state, c)}を カフェ&バーにする`,
-      detail: `夜 ${fmtClock(B.close)} まで開く。維持費 1日 +${B.upkeep} Coin`,
+      title: `${cafeLabel(state, c)}を レストランにする`,
+      detail: `夜 ${fmtClock(B.close)} まで開く（夜ごはん）。維持費 1日 +${B.upkeep} Coin`,
       cost: B.cost,
     });
   }

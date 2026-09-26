@@ -417,7 +417,7 @@ function renderCard() {
     const b = buildingById(state, selected.id);
     if (b.type === 'cafe') {
       const seated = b.seats.filter(Boolean);
-      const hours = b.bar ? `${fmt(CONFIG.cafe.open)}から${fmt(closeOf(b))}まで（${fmt(CONFIG.cafe.close)}からはバー）` : `${fmt(CONFIG.cafe.open)}から${fmt(closeOf(b))}まで`;
+      const hours = b.bar ? `${fmt(CONFIG.cafe.open)}から${fmt(closeOf(b))}まで（${fmt(CONFIG.cafe.close)}からは夜のレストラン）` : `${fmt(CONFIG.cafe.open)}から${fmt(closeOf(b))}まで`;
       html = `<h3>${cafeLabel(state, b)} Lv${b.level}</h3><div class="sub">席は ${seatCount(b)} つ。${hours}</div>`;
       html += `<div class="now">座っている：${who(seated)}</div>`;
       html += `<div>外で待っている：${who(b.queue)}</div>`;
@@ -775,6 +775,7 @@ const tabOf = (a) => a.tab || (a.place ? 'new' : 'grow');
 
 function openBuild(focusId) {
   if (placing) return;
+  if (buildTab === 'look' && !canBuy()) buildTab = 'new'; // アプリの最初の版は課金なし＝見た目のタブを出さない（D341）
   const all = actionsFor(state);
   if (focusId) {
     const target = all.find((a) => a.id.startsWith(focusId));
@@ -800,7 +801,7 @@ function openBuild(focusId) {
     <button type="button" role="tab" data-tab="deco" aria-selected="${buildTab === 'deco'}">飾り${state.decoTickets ? '<span class="n">券</span>' : ''}</button>
     <button type="button" role="tab" data-tab="grow" aria-selected="${buildTab === 'grow'}">広げる${badge('grow')}</button>
     <button type="button" role="tab" data-tab="island" aria-selected="${buildTab === 'island'}">島${badge('island')}</button>
-    <button type="button" role="tab" data-tab="look" aria-selected="${buildTab === 'look'}">見た目</button>
+    ${canBuy() ? `<button type="button" role="tab" data-tab="look" aria-selected="${buildTab === 'look'}">見た目</button>` : ''}
   </div>`;
   if (buildTab === 'look') return openSheet(`<h2>つくる</h2>${tabs}${lookHtml()}`);
   const empty = { deco: '置ける飾りはありません', new: 'いま建てられるものはありません', grow: 'まだ広げられるものはありません', island: '島は これ以上 広げられません' }[buildTab];
