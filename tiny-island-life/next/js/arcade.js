@@ -234,7 +234,8 @@ export function openArcade({ getState, onChange, close: onClose }) {
   function mole() {
     const NEED = 8;
     const SEC = 15;
-    stage.innerHTML = `<div class="mole">${Array.from({ length: 9 }, (_, i) => `<button type="button" data-i="${i}"><span></span></button>`).join('')}</div>`;
+    // もぐらは はじめから全部の穴に入れておき、見せる・隠すだけ（中身が変わると穴の大きさが変わっていた・D331）
+    stage.innerHTML = `<div class="mole">${Array.from({ length: 9 }, (_, i) => `<button type="button" data-i="${i}"><span>🐹</span></button>`).join('')}</div>`;
     const holes = [...stage.querySelectorAll('[data-i]')];
     let hits = 0;
     const end = performance.now() + SEC * 1000;
@@ -252,7 +253,6 @@ export function openArcade({ getState, onChange, close: onClose }) {
       const h = free[Math.floor(Math.random() * free.length)];
       if (h) {
         h.classList.add('up');
-        h.firstChild.textContent = '🐹';
         later(() => h.classList.remove('up'), 850);
       }
       later(pop, 520 + Math.random() * 260);

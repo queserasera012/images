@@ -694,7 +694,8 @@ h3 .dot { width: 14px; height: 14px; }
 .memory button.match { background: #e3f4dc; }
 .memory { grid-template-rows: repeat(4, 1fr); } /* 3×4（D331） */
 .memory button { font-size: 32px; }
-.mole button { border: 0; border-radius: 50%; background: radial-gradient(#6b4a33 55%, #8d6a4f 56%); font-size: 40px; }
+.mole { grid-template-rows: repeat(3, 1fr); } /* 行の高さを決めておく（もぐらが出ると 穴の大きさが変わっていた） */
+.mole button { min-height: 0; padding: 0; overflow: hidden; line-height: 1; border: 0; border-radius: 50%; background: radial-gradient(#6b4a33 55%, #8d6a4f 56%); font-size: 40px; }
 .mole button span { visibility: hidden; }
 .mole button.up span { visibility: visible; }
 .janken { display: flex; flex-direction: column; justify-content: space-between; height: 100%; }
