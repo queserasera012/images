@@ -249,9 +249,11 @@ export function labelOf(state, b) {
   return dirName(ofType(state, b.type), b, VENUE_NAME[b.type]);
 }
 
-export function cafeLabel(state, cafe) {
+// long：カードの見出しなど 字数に余裕があるところ。夜もあけたカフェは「カフェ&レストラン」（昼はカフェのまま・D344）
+// 島の上の名札は短く「レストラン」
+export function cafeLabel(state, cafe, long = false) {
   if (cafe.type !== 'cafe') return labelOf(state, cafe);
-  return dirName(cafes(state), cafe, cafe.bar ? 'レストラン' : 'カフェ');
+  return dirName(cafes(state), cafe, cafe.bar ? (long ? 'カフェ&レストラン' : 'レストラン') : 'カフェ');
 }
 
 // 同じ種類が2軒以上なら方角をつける。同じ方角に何軒もあれば 2・3 と番号（D315：前は3軒目が1軒目と同じ名前になった）
@@ -1862,8 +1864,8 @@ export function actionsFor(state) {
     list.push({
       id: `cafe_bar:${c.id}`,
       icon: 'bar',
-      title: `${cafeLabel(state, c)}を レストランにする`,
-      detail: `夜 ${fmtClock(B.close)} まで開く（夜ごはん）。維持費 1日 +${B.upkeep} Coin`,
+      title: `${cafeLabel(state, c)}を カフェ&レストランにする`,
+      detail: `昼はカフェのまま、夜は ${fmtClock(B.close)} までレストラン（夜ごはん）。維持費 1日 +${B.upkeep} Coin`,
       cost: B.cost,
     });
   }

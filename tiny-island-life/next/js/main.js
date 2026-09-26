@@ -419,8 +419,8 @@ function renderCard() {
     const b = buildingById(state, selected.id);
     if (b.type === 'cafe') {
       const seated = b.seats.filter(Boolean);
-      const hours = b.bar ? `${fmt(CONFIG.cafe.open)}から${fmt(closeOf(b))}まで（${fmt(CONFIG.cafe.close)}からは夜のレストラン）` : `${fmt(CONFIG.cafe.open)}から${fmt(closeOf(b))}まで`;
-      html = `<h3>${cafeLabel(state, b)} Lv${b.level}</h3><div class="sub">席は ${seatCount(b)} つ。${hours}</div>`;
+      const hours = b.bar ? `${fmt(CONFIG.cafe.open)}〜${fmt(CONFIG.cafe.close)} はカフェ、${fmt(closeOf(b))} までは夜のレストラン` : `${fmt(CONFIG.cafe.open)}から${fmt(closeOf(b))}まで`;
+      html = `<h3>${cafeLabel(state, b, true)} Lv${b.level}</h3><div class="sub">席は ${seatCount(b)} つ。${hours}</div>`;
       html += `<div class="now">座っている：${who(seated)}</div>`;
       html += `<div>外で待っている：${who(b.queue)}</div>`;
     } else if (b.type === 'pond') {
