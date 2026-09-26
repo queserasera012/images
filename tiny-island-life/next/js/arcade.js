@@ -1,6 +1,6 @@
 // ゲームセンター（D331）。ゲームセンターのカードの「ゲームで遊ぶ」から開く。
 //
-// 4つのゲーム：神経衰弱（3×3）・クレーンゲーム・じゃんけん・もぐらたたき。どれも簡単で、子どもも遊べる。
+// 4つのゲーム：神経衰弱（3×4・6組）・クレーンゲーム・じゃんけん・もぐらたたき。どれも簡単で、子どもも遊べる。
 // 遊ぶのは無料。勝つと Coin（4つ合わせて1日3回まで・sim.js の playArcade）。クレーンゲームは景品を集める。
 // 紙の大きさは どのゲームでも同じ（D306：大きさが変わるとストレス）
 
@@ -80,12 +80,11 @@ export function openArcade({ getState, onChange, close: onClose }) {
     showLeft();
   }
 
-  // ---------------------------------------------------------------- 神経衰弱（3×3）：4組と、まんなかの星1まい
+  // ---------------------------------------------------------------- 神経衰弱（3×4）：6組・12まい（オーナー：3×3 は奇数で1まい余っていた）
   function memory() {
-    const pics = ['🐶', '🐱', '🐰', '🦊'];
+    const pics = ['🐶', '🐱', '🐰', '🦊', '🐻', '🐼'];
     const cards = [...pics, ...pics].sort(() => Math.random() - 0.5);
-    cards.splice(4, 0, '⭐'); // まんなかは星（めくるだけ）
-    stage.innerHTML = `<div class="memory">${cards.map((c, i) => `<button type="button" data-i="${i}" class="${c === '⭐' ? 'star' : ''}"><span>${c}</span></button>`).join('')}</div>`;
+    stage.innerHTML = `<div class="memory">${cards.map((c, i) => `<button type="button" data-i="${i}"><span>${c}</span></button>`).join('')}</div>`;
     const open = [];
     let pairs = 0;
     let busy = false;
@@ -94,7 +93,6 @@ export function openArcade({ getState, onChange, close: onClose }) {
       const b = ev.target.closest('[data-i]');
       if (!b || busy || cur.phase === 'done' || b.classList.contains('up')) return;
       b.classList.add('up');
-      if (b.classList.contains('star')) return;
       open.push(b);
       if (open.length < 2) return;
       const [x, y] = open.splice(0);
@@ -102,10 +100,7 @@ export function openArcade({ getState, onChange, close: onClose }) {
         pairs += 1;
         x.classList.add('match');
         y.classList.add('match');
-        if (pairs === pics.length) {
-          stage.querySelector('.star')?.classList.add('up');
-          finish(true, 'ぜんぶ そろった！');
-        }
+        if (pairs === pics.length) finish(true, 'ぜんぶ そろった！');
         else msg(`そろった！ あと ${pics.length - pairs}組`);
         return;
       }

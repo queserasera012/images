@@ -692,7 +692,8 @@ h3 .dot { width: 14px; height: 14px; }
 .memory button.up { background: #fff; }
 .memory button.up span { visibility: visible; }
 .memory button.match { background: #e3f4dc; }
-.memory button.star.up { background: #fff3d6; }
+.memory { grid-template-rows: repeat(4, 1fr); } /* 3×4（D331） */
+.memory button { font-size: 32px; }
 .mole button { border: 0; border-radius: 50%; background: radial-gradient(#6b4a33 55%, #8d6a4f 56%); font-size: 40px; }
 .mole button span { visibility: hidden; }
 .mole button.up span { visibility: visible; }
