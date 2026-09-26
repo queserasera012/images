@@ -13,7 +13,7 @@ import {
 import { createRenderer, lookOf, setTheme, setHouseSkin, HOUSE_SKINS } from './render.js';
 import { owns, buy, chosenHouseSkin, chooseHouseSkin, canBuy } from './purchases.js';
 import { ICONS } from './icons.js';
-import { currentStep, report, skipTutorial, busyCafeNow } from './tutorial.js';
+import { currentStep, report, skipTutorial, busyCafeNow, placeTip } from './tutorial.js';
 import { setupKeepAwake, awakeStatus } from './awake.js';
 import { openFishing, fishingNow } from './fishing.js';
 import { openArcade, arcadeNow } from './arcade.js';
@@ -917,6 +917,9 @@ function beginPlacing(p, spots, title, okLabel) {
   placing = { ...p, cells: [...cells], ghost: null, okLabel };
   select(null);
   $('place-title').textContent = title;
+  const tip = placeTip(p.type);
+  $('place-tip').textContent = tip || '';
+  $('place-tip').hidden = !tip;
   $('place-ok').disabled = true;
   $('place-ok').textContent = okLabel;
   $('placebar').hidden = false;
@@ -1246,6 +1249,8 @@ if (DEBUG) {
       unlockNow(state, 'bridge');
       unlockNow(state, 'expand2');
       unlockNow(state, 'expand3');
+      unlockNow(state, 'expand4');
+      unlockNow(state, 'expand5');
       renderQuest();
     }
     if (k === 'wave1') {

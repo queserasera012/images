@@ -133,6 +133,11 @@ export const ICONS = {
   expand_northwest: expandIcon(6.5, 7, 14, 13), // D329
   expand_southwest: expandIcon(7, 17.5, 14, 10),
   expand_northeast: expandIcon(17.5, 6.5, 10, 14), // D350
+  // D359：入り江を埋める
+  expand_bay_w: expandIcon(6, 13.5, 13.5, 14),
+  expand_bay_nw: expandIcon(9, 6, 15, 15),
+  expand_bay_n: expandIcon(18, 6, 11, 15),
+  expand_bay_e: expandIcon(18.5, 13, 11, 14),
   // 山の島に橋をかける（D318）：海の向こうの山と、そこへ渡る橋
   expand_mountain: svg(
     `<path d="M11 18l5-9 5 9z" transform="translate(1 1)" fill="${SHADOW}"/>` +

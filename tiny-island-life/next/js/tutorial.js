@@ -77,3 +77,10 @@ export function skipTutorial(state) {
 export function busyCafeNow(state) {
   return state.buildings.some((b) => b.type === 'cafe' && b.queue.length >= 2);
 }
+
+// 建てる場所を選ぶときの「しくみのひとこと」（D359）。
+// 🔒 どこが正しいかは言わない。住民がどう動くか（sim.js に書いてあること）だけを書く
+export const PLACE_TIPS = {
+  company: 'お昼は 近くのカフェ・レストランへ 食べに出ます。遠い店ほど 行きにくい。勤めるのは 家が近い人から',
+};
+export const placeTip = (type) => PLACE_TIPS[type] || null;

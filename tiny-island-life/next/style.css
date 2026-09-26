@@ -313,6 +313,7 @@ h3 .dot { width: 14px; height: 14px; }
   z-index: 4;
 }
 #place-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+#place-tip { font-size: 12px; line-height: 1.5; color: var(--muted); margin: -4px 0 10px; }
 .place-buttons { display: flex; gap: 10px; }
 .place-buttons button {
   flex: 1;

@@ -758,8 +758,11 @@ function standChoices(state, r) {
 export const cafeMax = (state) => maxOf(state, 'cafe');
 // 施設の軒数の上限（D327）：本島で max 軒。島を1か所ひらくごとに perArea 軒ふえる（カフェと同じ考え・D305）。
 // 名所（プラネタリウム・水族館・プール・スキー場）は perArea なし＝島に1つ
-export const maxOf = (state, type) => CONFIG[type].max + ((state.areas?.length || 1) - 1) * (CONFIG[type].perArea || 0);
-const moreLandNote = (state, type) => (CONFIG[type].perArea && state.areas.length < AREAS.length ? '（島を広げると1軒ずつ増える）' : '');
+// 入り江を埋めた土地（fill・D359）は 上限を増やさない（小さいので。置く場所が増えるだけ）
+const areasForMax = (state) => (state.areas || ['main']).filter((id) => !areaById(id)?.fill).length;
+const AREAS_FOR_MAX = AREAS.filter((a) => !a.fill).length;
+export const maxOf = (state, type) => CONFIG[type].max + (areasForMax(state) - 1) * (CONFIG[type].perArea || 0);
+const moreLandNote = (state, type) => (CONFIG[type].perArea && areasForMax(state) < AREAS_FOR_MAX ? '（島を広げると1軒ずつ増える）' : '');
 
 // スーパー：住民だけ。1日1回。夕方に行きたくなる
 function superChoices(state, r) {
@@ -1917,7 +1920,7 @@ export function actionsFor(state) {
   list.push({ id: 'house', icon: 'house_build', place: 'house', title: '家を建てる', detail: `${CONFIG.house.levels[0].capacity}人まで住める。場所を選べる`, cost: CONFIG.house.cost });
   // 軒数に上限のある施設は、上限に達しても一覧から消さない（消えると理由が分からない・D300）
   const full = cafes(state).length >= cafeMax(state);
-  const moreLand = state.areas.length < AREAS.length;
+  const moreLand = areasForMax(state) < AREAS_FOR_MAX;
   list.push({
     id: 'cafe', icon: 'cafe_new', place: 'cafe', title: 'カフェをもう1軒つくる',
     detail: full
@@ -2110,7 +2113,8 @@ export function actionsFor(state) {
       // つなぎのマス（D350）に 前のセーブの建物があると 道が通せない
       const linkSet = new Set((a.link || []).map(([c, r]) => idx(c, r)));
       const blocker = linkSet.size ? state.buildings.find((b) => footprint(b.type, b.c, b.r).some((t) => linkSet.has(t))) : null;
-      const needs = a.needs && !state.areas.includes(a.needs) ? areaById(a.needs) : null;
+      const needId = [].concat(a.needs || []).find((n) => !state.areas.includes(n)); // D359：2つ要る土地もある
+      const needs = needId ? areaById(needId) : null;
       const lateLocked = !isUnlocked(state, a.unlock) || !!blocker || !!needs;
       list.push({
         id: `expand:${a.id}`,

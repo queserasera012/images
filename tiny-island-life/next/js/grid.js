@@ -111,6 +111,38 @@ export const AREAS = [
     link: [[21, 7]],
     needs: 'north', // 北の丘の道からつなぐので、北の丘が先
   },
+  // 本島を広げる 3周目（D359）：土地と土地のあいだに残った 海の切れこみを埋める（fill）。
+  // どれも 今ある道の端から道を延ばしてつなぐ。今ある土地のマスは1つも変えない（東の入り江の つなぎの1マスだけ D350 と同じ link）。
+  // needs が2つある土地は、両どなりが ひらいてから（道の両端・形の両側）
+  {
+    id: 'bay_w', name: '西の入り江', ph: 4.7, fill: true, late: true, cost: 12000, unlock: 'expand5',
+    cx: 5.2 * T, cy: 14.9 * T, rx: 4.5 * T, ry: 2.8 * T,
+    neck: { cx: 9.2 * T, cy: 14.3 * T, rx: 1.6 * T, ry: 2.1 * T },
+    roads: { rows: [], cols: [[4, 13, 16]] }, // 北西の丘の道（12行目）と 西の森の道（17行目）を 縦につなぐ
+    needs: ['northwest', 'west'],
+  },
+  {
+    id: 'bay_nw', name: '北西の浜', ph: 1.9, fill: true, late: true, cost: 10000, unlock: 'expand5',
+    cx: 9.4 * T, cy: 4 * T, rx: 3 * T, ry: 3 * T,
+    neck: [{ cx: 10 * T, cy: 7.2 * T, rx: 1.6 * T, ry: 1.5 * T }, { cx: 9.9 * T, cy: 9.4 * T, rx: 1.6 * T, ry: 2.3 * T }],
+    roads: { rows: [[7, 9, 10]], cols: [[10, 3, 7]] }, // 北西の丘の道（7行目）を東へ延ばして、北へ折れる
+    needs: ['northwest', 'north'],
+  },
+  {
+    id: 'bay_n', name: '北の浜', ph: 5.6, fill: true, late: true, cost: 10000, unlock: 'expand5',
+    cx: 24.2 * T, cy: 2.7 * T, rx: 3.7 * T, ry: 2.4 * T,
+    neck: [{ cx: 28 * T, cy: 2.4 * T, rx: 1.8 * T, ry: 1.6 * T }, { cx: 22.5 * T, cy: 4.4 * T, rx: 1.6 * T, ry: 2.3 * T }],
+    roads: { rows: [[1, 21, 28]], cols: [[28, 1, 2]] }, // 北東の入り江の道（28列）を北の端から 浜ぞいに西へ（下に3マスの区画が残る）
+    needs: ['northeast'],
+  },
+  {
+    id: 'bay_e', name: '東の入り江', ph: 0.9, fill: true, late: true, cost: 12000, unlock: 'expand5',
+    cx: 28.6 * T, cy: 9.9 * T, rx: 5.8 * T, ry: 2.3 * T,
+    neck: { cx: 23 * T, cy: 9.5 * T, rx: 2.8 * T, ry: 2.8 * T },
+    roads: { rows: [[10, 23, 28]], cols: [[28, 8, 10]] }, // 北東の入り江の道（28列）を南へ延ばして、東の岬の道（12行目）までつなぐ
+    link: [[28, 11]],
+    needs: ['northeast', 'east'],
+  },
   // 山の島を広げる（D321）：北東のふもと。山の島の東の道（42列）を北へ延ばしてつなぐ。
   // 山の島には3×3のカフェが建つ場所が無かった（冬のスキー客のカフェが要るのに）
   {
@@ -121,7 +153,8 @@ export const AREAS = [
   },
 ];
 // 土地を形づくる楕円（本体と、つなぎ目）
-export const shapesOf = (area) => (area.neck ? [area, { ...area.neck, ph: area.ph + 0.7 }] : [area]);
+// neck は2つ以上のこともある（D359：切れこみの すみまで埋める）
+export const shapesOf = (area) => [area, ...[].concat(area.neck || []).map((n, k) => ({ ...n, ph: area.ph + 0.7 * (k + 1) }))];
 export const areaById = (id) => AREAS.find((a) => a.id === id);
 export const MAIN = AREAS[0];
 
@@ -377,10 +410,11 @@ export function areaAt(c, r) {
   if (k === 'land' || k === 'road') return 'main';
   // 橋の向こうの島（広げたふもとも、同じ島として呼ぶ・D321）
   for (const a of AREAS) if (a.island && shapesOf(a).some((sh) => tileFactor(sh, c, r) <= 1)) return a.parent || a.id;
+  // 切れこみを埋めた土地（fill・D359）は あとから。今ある土地のマスの呼び名（「北の丘の家」）を変えない
   let best = 'main';
   let bestF = Infinity;
-  for (const a of AREAS) {
-    if (a.id === 'main') continue;
+  for (const a of [...AREAS.filter((x) => !x.fill), ...AREAS.filter((x) => x.fill)]) {
+    if (a.id === 'main' || (a.fill && bestF <= 1)) continue;
     const f = Math.min(...shapesOf(a).map((s) => tileFactor(s, c, r)));
     if (f < bestF) {
       bestF = f;
