@@ -1968,6 +1968,48 @@ export function createRenderer(canvas) {
 
   // ---------------------------------------------------------------- 1コマ
 
+  // ---------------------------------------------------------------- ゲームセンター（D331）
+
+  // 3×2：紫の建物に「GAME」の看板。夜は看板の電球がまたたく
+  function arcade(state, b, time) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.arcade.w * T;
+    paperShadow((shadow) => {
+      if (!shadow) ctx.fillStyle = '#9c89b8';
+      roundRect(ctx, x0 + 5, y0 + 6, w - 10, T + 18, 4);
+      ctx.fill();
+      if (!shadow) ctx.fillStyle = '#6d5a8c';
+      roundRect(ctx, x0 + 2, y0 + 2, w - 4, 9, 3);
+      ctx.fill();
+    });
+    // 看板
+    ctx.fillStyle = '#2b2b33';
+    roundRect(ctx, x0 + w / 2 - 24, y0 + 13, 48, 15, 4);
+    ctx.fill();
+    ctx.font = `800 10px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const letters = ['G', 'A', 'M', 'E'];
+    const colors = ['#f2b84b', '#e56b6f', '#62b6cb', '#7fbf6f'];
+    letters.forEach((l, k) => {
+      ctx.fillStyle = colors[(k + Math.floor(time * 2)) % colors.length];
+      ctx.fillText(l, x0 + w / 2 - 15 + k * 10, y0 + 21);
+    });
+    // 入口と窓
+    ctx.fillStyle = PALETTE.ink;
+    roundRect(ctx, x0 + w / 2 - 6, y0 + T + 8, 12, 16, [5, 5, 0, 0]);
+    ctx.fill();
+    ctx.fillStyle = '#ffd66b';
+    for (const dx of [-30, 20]) {
+      roundRect(ctx, x0 + w / 2 + dx, y0 + T + 8, 10, 9, 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = PALETTE.ink;
+    ctx.font = `700 7.5px ${FONT}`;
+    ctx.fillText('ゲームセンター', x0 + w / 2, y0 + 2 * T - 4);
+  }
+
   // ---------------------------------------------------------------- ドッグレース（D328）
 
   const RACE_SHOW_AFTER = 20; // ゴールのあと、何分 コースに残って見せるか
@@ -2484,6 +2526,7 @@ export function createRenderer(canvas) {
       else if (b.type === 'aquarium') aquarium(state, b, time);
       else if (b.type === 'pool') pool(state, b, time, poolOpen);
       else if (b.type === 'track') track(state, b, time);
+      else if (b.type === 'arcade') arcade(state, b, time);
     }
     for (const b of state.buildings) if (b.type === 'track') raceRunners(state, b, time);
     if (theme.snow) for (const b of state.buildings) if (b.type === 'ski') skiSlope(state, b, time);

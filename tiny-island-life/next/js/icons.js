@@ -118,6 +118,14 @@ export const ICONS = {
       `<path d="M3 15v4M6.5 15v4M10 15v4" stroke="${INK}" stroke-width="1.1" stroke-linecap="round"/>`,
     28,
   ),
+  // ゲームセンター（D331）：ゲーム機
+  arcade_new: svg(
+    `<rect x="4" y="6" width="16" height="12" rx="4" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<rect x="4" y="6" width="16" height="12" rx="4" fill="#fff" stroke="${INK}" stroke-width="1.3"/>` +
+      `<path d="M8 10v4M6 12h4" stroke="${INK}" stroke-width="1.6" stroke-linecap="round"/>` +
+      `<circle cx="15" cy="11" r="1.3" fill="#e56b6f"/><circle cx="17" cy="13.5" r="1.3" fill="${MUSTARD}"/>`,
+    28,
+  ),
   // ドッグレース場（D328）：楕円のコースと旗
   track_new: svg(
     `<ellipse cx="12" cy="13" rx="9.5" ry="6.5" transform="translate(1 1)" fill="${SHADOW}"/>` +

@@ -6,7 +6,7 @@ import {
   createGame, step, catchUp, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
   migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
-  labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay,
+  labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
   dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft, nameResident, placeLabel, seasonOf,
 } from './sim.js';
@@ -16,6 +16,7 @@ import { ICONS } from './icons.js';
 import { currentStep, report, skipTutorial, busyCafeNow } from './tutorial.js';
 import { setupKeepAwake, awakeStatus } from './awake.js';
 import { openFishing, fishingNow } from './fishing.js';
+import { openArcade, arcadeNow } from './arcade.js';
 import { showRewardedAd } from './ads.js';
 
 // 🚨 前の版（3日テスト中）と同じサイトに置くので、保存の名前を分ける（D289）
@@ -313,7 +314,7 @@ let lastCardHtml = '';
 function boatAdRow(id) {
   const left = adsLeft(state, 'boat');
   if (canCallBoat(state, id)) {
-    return `<button id="btn-adboat" data-port="${id}" class="card-act" type="button">${ICONS.ad}広告を見て、臨時の船を呼ぶ<span class="cost">今日あと ${left}回</span></button>`;
+    return `<button id="btn-adboat" data-port="${id}" class="card-act go" type="button">${ICONS.ad}広告を見て、臨時の船を呼ぶ<span class="cost">今日あと ${left}回</span></button>`;
   }
   const A = CONFIG.ads.boat;
   const port = portById(state, id);
@@ -419,7 +420,7 @@ function renderCard() {
       html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">釣り座 ${seatCount(b)}つ。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
       html += `<div class="now">釣りをしている：${who(b.seats.filter(Boolean))}</div>`;
       html += `<div>あなたが釣った魚：${log.length ? log.join('・') : 'まだ いない'}</div>`;
-      html += `<button id="btn-fish" class="card-act" type="button">${ICONS.fish}釣りをする<span class="cost">${left > 0 ? `今日の Coin あと ${left}回` : '今日の Coin は おしまい'}</span></button>`;
+      html += `<button id="btn-fish" class="card-act go" type="button">${ICONS.fish}釣りをする<span class="cost">${left > 0 ? `今日の Coin あと ${left}回` : '今日の Coin は おしまい'}</span></button>`;
     } else if (b.type === 'company') {
       // 会社（D319）
       const C = CONFIG.company;
@@ -427,6 +428,15 @@ function renderCard() {
       html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${seatCount(b)}人 が勤める（家の近い人から）。${fmt(C.go)}ごろ出勤、お昼は近くのカフェ、${fmt(C.close)}まで。1人 1日 ${C.pay} Coin</div>`;
       html += `<div class="now">いま働いている：${who(inside)}</div>`;
       html += `<div>勤めている人：${who(b.staff || [])}</div>`;
+    } else if (b.type === 'arcade') {
+      // ゲームセンター（D331）：住民の様子と、あなたのゲーム
+      const V = CONFIG.arcade;
+      const left = arcadeLeft(state);
+      const got = V.game.prizes.filter((p) => state.prizes?.[p.id]).map((p) => p.icon).join('');
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">一度に ${seatCount(b)}人。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
+      html += `<div class="now">遊んでいる：${who(b.seats.filter(Boolean))}</div>`;
+      html += `<div>クレーンゲームの景品：${got || 'まだ ない'}</div>`;
+      html += `<button id="btn-arcade" class="card-act go" type="button">🎮 ゲームで遊ぶ<span class="cost">${left > 0 ? `今日の Coin あと ${left}回` : '今日の Coin は おしまい'}</span></button>`;
     } else if (b.type === 'track') {
       // ドッグレース場（D328）
       const R = CONFIG.track;
@@ -538,6 +548,15 @@ $('card').addEventListener('click', (ev) => {
         renderCard();
         save();
       },
+    });
+    return;
+  }
+  if (ev.target.closest('#btn-arcade')) {
+    select(null);
+    openArcade({
+      getState: () => state,
+      onChange: () => save(),
+      close: () => save(),
     });
     return;
   }
@@ -1063,6 +1082,7 @@ if (DEBUG) {
     focusTile: (c, r) => renderer.focus((c + 0.5) * T, (r + 0.5) * T),
     focusPier: (id) => renderer.focus(center(PIERS[id]).x + 40, center(PIERS[id]).y),
     fishing: () => fishingNow(),
+    arcade: () => arcadeNow(),
     // スキー場の絵を見るため：席を住民で埋める（D318）
     advance: (m) => step(state, m),
     selectedId: () => selected?.id || null,
@@ -1131,7 +1151,7 @@ if (DEBUG) {
       renderQuest();
     }
     if (k === 'wave1') {
-      for (const id of ['pool', 'aquarium', 'company']) unlockNow(state, id);
+      for (const id of ['pool', 'aquarium', 'company', 'arcade']) unlockNow(state, id);
       renderQuest();
     }
     if (k === 'family') {

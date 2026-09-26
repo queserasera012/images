@@ -206,6 +206,7 @@ export const CONFIG = {
     { id: 'track', pets: 3, goal: 'ドッグレース場をひらく', done: 'ドッグレース場を建てられるようになりました', note: '週に1回のドッグレース場を建てられるようになります' },
     { id: 'kinder', kids: 1, goal: '幼稚園をひらく', done: '幼稚園を建てられるようになりました', note: '幼稚園を建てられるようになります' },
     { id: 'planetarium', pop: 16, goal: 'プラネタリウムをひらく', done: 'プラネタリウムを建てられるようになりました', note: 'プラネタリウムを建てられるようになります' },
+    { id: 'arcade', pop: 19, goal: 'ゲームセンターをひらく', done: 'ゲームセンターを建てられるようになりました', note: 'あなたも遊べるゲームセンターを建てられるようになります' },
     { id: 'expand', pop: 21, goal: '島を広げる', done: '島を広げられるようになりました', note: '島を広げられるようになります' },
     { id: 'pool', pop: 26, goal: 'プールをひらく', done: 'プールを建てられるようになりました', note: '夏だけ開くプールを建てられるようになります' },
     { id: 'aquarium', pop: 32, goal: '水族館をひらく', done: '水族館を建てられるようになりました', note: '水族館を建てられるようになります' },
@@ -343,6 +344,38 @@ export const CONFIG = {
     rabbit: { day: 3, clock: 10 * 60, name: 'しろ', label: 'うさぎ', speed: 0.8, near: 'park', spots: ['lawn', 'garden', 'lawn'], nap: [30, 80] },
     fox: { day: 5, clock: 16 * 60, name: 'コン', label: 'キツネ', speed: 0.9, near: 'north', spots: ['north', 'north', 'bench'], nap: [50, 120] },
     raccoon: { day: 6, clock: 19 * 60, name: 'クー', label: 'アライグマ', speed: 0.7, near: 'cafe', spots: ['terrace', 'shopfront', 'plaza'], nap: [40, 100] },
+  },
+
+  // ---- ゲームセンター（D331）：住民と観光客が遊びに来る（屋内・雨の日に増える）。あなたも4つのゲームで遊べる ----
+  // 遊ぶのは無料。勝つと Coin（4つ合わせて1日 rewardsPerDay 回まで・釣りと同じ考え）。Coin を払って Coin を当てる形は作らない（賭け事をまねない）
+  arcade: {
+    open: 10 * 60,
+    close: 22 * 60,
+    customerValue: 15,
+    stayMin: 30,
+    stayMax: 60,
+    maxQueue: 6,
+    rainLinger: 1.3,
+    rainBoost: 2,
+    levels: [
+      { level: 1, seats: 6, upkeep: 25 },
+      { level: 2, seats: 10, upkeep: 40, cost: 1400 },
+    ],
+    buildCost: 1800,
+    max: 1,
+    game: {
+      rewardsPerDay: 3,
+      coin: 30,
+      // クレーンゲームの景品（Coin ではなく集める）
+      prizes: [
+        { id: 'bear', name: 'くまのぬいぐるみ', icon: '🧸' },
+        { id: 'dog', name: 'いぬのぬいぐるみ', icon: '🐶' },
+        { id: 'cat', name: 'ねこのぬいぐるみ', icon: '🐱' },
+        { id: 'rabbit', name: 'うさぎのぬいぐるみ', icon: '🐰' },
+        { id: 'penguin', name: 'ペンギンのぬいぐるみ', icon: '🐧' },
+        { id: 'whale', name: 'くじらのぬいぐるみ', icon: '🐳' },
+      ],
+    },
   },
 
   // ---- ドッグレース場（D328）：週に1回（7日ごと）15:00 からレース。島のペットと、島の外から来る犬が走る。賭けは無し ----

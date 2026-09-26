@@ -127,10 +127,10 @@ export const everyone = (state) => (state.visitors?.length ? state.residents.con
 export const personById = (state, id) => state.residents.find((r) => r.id === id) || state.visitors?.find((r) => r.id === id);
 
 // 席と列のある施設（カフェ・スーパー・プラネタリウム）。同じ仕組みで動く（D295）
-export const VENUE_TYPES = ['cafe', 'super', 'planetarium', 'petshop', 'pond', 'stand', 'ski', 'aquarium', 'pool', 'track'];
+export const VENUE_TYPES = ['cafe', 'super', 'planetarium', 'petshop', 'pond', 'stand', 'ski', 'aquarium', 'pool', 'track', 'arcade'];
 export const VENUE_NAME = {
   cafe: 'カフェ', super: 'スーパー', planetarium: 'プラネタリウム', petshop: 'ペットショップ', pond: '釣り堀', stand: 'コーヒースタンド', ski: 'スキー場',
-  aquarium: '水族館', pool: 'プール', track: 'ドッグレース場',
+  aquarium: '水族館', pool: 'プール', track: 'ドッグレース場', arcade: 'ゲームセンター',
 };
 // 季節の施設（D318・D319）：その季節だけ開き、維持費もその季節だけ
 export const SEASONAL = { ski: 'yuki', pool: 'natsu' };
@@ -324,6 +324,7 @@ function freshToday() {
     ads: { bonus: 0, boat: 0, bait: 0 },
     work: { workers: 0, income: 0 },
     race: null,
+    arcade: { plays: 0, rewarded: 0, coin: 0 },
   };
 }
 
@@ -355,6 +356,8 @@ export function migrate(state) {
   state.today.fishing ||= { plays: 0, rewarded: 0, coin: 0, caught: [] };
   state.today.ads ||= { bonus: 0, boat: 0, bait: 0 };
   state.today.work ||= { workers: 0, income: 0 };
+  state.today.arcade ||= { plays: 0, rewarded: 0, coin: 0 };
+  state.prizes ||= {};
   state.fishLog ||= {};
   // 「島の人」のままの住民に名前をつける（D326）
   for (const r of state.residents) {
@@ -538,6 +541,7 @@ function planDay(state, r) {
   r.swam = false; // プールも1日1回まで
   r.visitedAqua = false; // 水族館も1日1回まで
   r.watchedRace = false; // ドッグレース
+  r.played = false; // ゲームセンターも1日1回まで
   r.workedToday = false; // 会社（D319）
   r.lunched = false;
   // ペットのいる家の人は、2日に1回 ペットショップへ（家ごとに曜日をずらす）
@@ -734,6 +738,40 @@ function aquariumChoices(state, r) {
   const weather = state.weather === 'rain' ? A.rainBoost : state.weather === 'cloudy' ? 1.3 : 1;
   const pull = r.tourist ? A.touristPull : (r.prefs.fun ?? 12);
   return ofType(state, 'aquarium').map((b) => ({ cafe: b, w: pull * weather * near(r, b.access) }));
+}
+
+// ゲームセンター（D331）：大人と観光客が1日1回まで。雨の日に増える（屋内）。子どもは親と来る
+function arcadeChoices(state, r) {
+  if (r.age || r.played || !venueOpen(state, 'arcade', 20)) return [];
+  const A = CONFIG.arcade;
+  const weather = state.weather === 'rain' ? A.rainBoost : 1;
+  return ofType(state, 'arcade').map((b) => ({ cafe: b, w: (r.prefs.fun ?? 12) * weather * near(r, b.access) }));
+}
+
+// あなたのゲーム（D331）：勝つと Coin（1日 rewardsPerDay 回まで）。クレーンゲームは景品を集める
+export function arcadeLeft(state) {
+  return Math.max(0, CONFIG.arcade.game.rewardsPerDay - (state.today.arcade?.rewarded || 0));
+}
+export function playArcade(state, gameId, won, prizeId = null) {
+  const G = CONFIG.arcade.game;
+  state.today.arcade ||= { plays: 0, rewarded: 0, coin: 0 };
+  const a = state.today.arcade;
+  a.plays += 1;
+  let coin = 0;
+  let prize = null;
+  if (won && prizeId) {
+    prize = G.prizes.find((p) => p.id === prizeId) || null;
+    if (prize) {
+      state.prizes ||= {};
+      state.prizes[prize.id] = (state.prizes[prize.id] || 0) + 1;
+    }
+  } else if (won && arcadeLeft(state) > 0) {
+    coin = G.coin;
+    a.rewarded += 1;
+    a.coin += coin;
+    state.coin += coin;
+  }
+  return { ok: true, game: gameId, won, coin, prize, left: arcadeLeft(state) };
 }
 
 // プール（D319）：夏だけ。晴れた日に集まる。大人と観光客が行き、子どもは親についてくる。1日1回まで
@@ -946,6 +984,7 @@ function decideNext(state, r, { noCafe = false, avoid = null } = {}) {
     ...(avoid === 'aquarium' ? [] : aquariumChoices(state, r)),
     ...(avoid === 'pool' ? [] : poolChoices(state, r)),
     ...(avoid === 'track' ? [] : trackChoices(state, r)),
+    ...(avoid === 'arcade' ? [] : arcadeChoices(state, r)),
   ];
   const shopList = shopChoices(state, r);
   const shopW = shopList.reduce((s, x) => s + x.w, 0);
@@ -1157,6 +1196,7 @@ function sit(state, r, b, seatIdx) {
   if (b.type === 'ski') r.skied = true;
   if (b.type === 'pool') r.swam = true;
   if (b.type === 'track') r.watchedRace = true;
+  if (b.type === 'arcade') r.played = true;
   if (b.type === 'aquarium') r.visitedAqua = true;
   if (b.type === 'stand') {
     // カウンターの前に立って待つ（見える）
@@ -1322,6 +1362,9 @@ function rolloverDay(state, events) {
   if (aq?.served) lines.push({ kind: 'good', text: `水族館に ${aq.served}人 が来ました（+${aq.income} Coin）` });
   const pool = today.byType.pool;
   if (pool?.served) lines.push({ kind: 'good', text: `プールに ${pool.served}人 が来ました（+${pool.income} Coin）` });
+  const arc = today.byType.arcade;
+  if (arc?.served) lines.push({ kind: 'good', text: `ゲームセンターに ${arc.served}人 が来ました（+${arc.income} Coin）` });
+  if (today.arcade?.plays) lines.push({ kind: 'good', text: `あなたはゲームセンターで ${today.arcade.plays}回 遊びました${today.arcade.coin ? `（+${today.arcade.coin} Coin）` : ''}` });
   const ski = today.byType.ski;
   if (ski?.served) lines.push({ kind: 'good', text: `山の島のスキー場に ${ski.served}人 が来ました（+${ski.income} Coin）` });
   const pond = today.byType.pond;
@@ -1695,12 +1738,14 @@ export function actionsFor(state) {
     });
   }
   const NAME = { ...VENUE_NAME, kinder: '幼稚園', company: '会社' };
-  for (const type of ['pond', 'super', 'petshop', 'track', 'planetarium', 'kinder', 'pool', 'aquarium', 'company']) {
+  for (const type of ['pond', 'super', 'petshop', 'track', 'planetarium', 'arcade', 'kinder', 'pool', 'aquarium', 'company']) {
     const V = CONFIG[type];
     const u = CONFIG.unlocks.find((x) => x.id === type);
     const full = ofType(state, type).length >= maxOf(state, type);
     const locked = !isUnlocked(state, type) || full;
-    const what = type === 'track'
+    const what = type === 'arcade'
+      ? `住民と観光客が遊びに来る（雨の日に増える）。あなたも4つのゲームで遊べる。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} Coin`
+      : type === 'track'
       ? `${CONFIG.track.every}日ごと（Day ${CONFIG.track.every}・${CONFIG.track.every * 2}…）の ${fmtClock(CONFIG.track.start)} から、島のペットと島の外の犬がレース。住民と観光客が見に来る（入場料）。3着までで賞金。維持費 1日 ${V.levels[0].upkeep} Coin`
       : type === 'company'
       ? `住民 ${V.levels[0].seats}人 が朝 出勤して、お昼に近くのカフェへ行く。1人 1日 ${CONFIG.company.pay} Coin。場所を選べる`
@@ -2135,6 +2180,7 @@ export function describeResident(state, r) {
       if (b.type === 'pool') return 'プールで泳いでいる';
       if (b.type === 'ski') return 'スキーをしている';
       if (b.type === 'track') return 'ドッグレースを見ている';
+      if (b.type === 'arcade') return 'ゲームセンターで遊んでいる';
       return isBarTime(state, b) ? `${labelOf(state, b)}で夜のひととき` : `${labelOf(state, b)}でひと休み中`;
     }
     case 'PARK':
@@ -2366,10 +2412,10 @@ function bringCompanions(state, r) {
   // （施設はどれも dest='cafe' で向かうので、行き先の建物の種類で見る）
   const where = r.dest === 'cafe' ? buildingById(state, r.destId)?.type : r.dest;
   const wants = (c) =>
-    ({ super: c.needShop, petshop: c.needPet, planetarium: !c.visitedFun, pond: !c.fished, ski: !c.skied && !c.age, pool: !c.swam, aquarium: !c.visitedAqua, track: !c.watchedRace, work: false }[where] ?? true);
+    ({ super: c.needShop, petshop: c.needPet, planetarium: !c.visitedFun, pond: !c.fished, ski: !c.skied && !c.age, pool: !c.swam, aquarium: !c.visitedAqua, track: !c.watchedRace, arcade: !c.played, work: false }[where] ?? true);
   const spouse = r.spouseId && state.residents.find((x) => x.id === r.spouseId);
   if (awakeHome(spouse) && wants(spouse) && rand(state) < F.walkTogether) join(spouse);
-  if (r.dest === 'park' || r.dest === 'stroll' || where === 'pool' || where === 'track') {
+  if (r.dest === 'park' || r.dest === 'stroll' || where === 'pool' || where === 'track' || where === 'arcade') {
     for (const kid of state.residents) {
       if (kid.age === 'kid' && kid.parents?.includes(r.id) && awakeHome(kid) && rand(state) < F.kidJoins) join(kid);
     }
