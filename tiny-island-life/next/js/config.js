@@ -173,6 +173,10 @@ export const CONFIG = {
     minDay: 3,                  // 3日目から
     birthAfterDays: 2,          // 結婚して2日で赤ちゃん（家に空きがあれば）
     babyDays: 2,                // 赤ちゃんは2日で歩けるようになる
+    // 育つ（D347）：赤ちゃん2 → 幼稚園5 → 小学生6 → 学生7 → 大人（生まれて20日）
+    kinderDays: 5,
+    pupilDays: 6,
+    studentDays: 7,
     maxKids: 2,                 // 1組あたり
     walkTogether: 0.35,         // 夫婦で出かける確率
     kidJoins: 0.6,              // 親が公園や散歩に行くとき、子どもがついていく確率
@@ -195,6 +199,38 @@ export const CONFIG = {
     perArea: 1,                 // D327：島を1か所ひらくごとに1軒ふえる
   },
 
+  // ---- 小学校・大学（D347）：小学生・学生が ひとりで通う。幼稚園と同じ考え（1人1日の授業料・席の数）----
+  school: {
+    open: 7 * 60 + 40,          // 家を出る時刻（ここから goUntil まで）
+    goUntil: 8 * 60 + 30,
+    start: 8 * 60,              // 授業（カードに出す）
+    close: 15 * 60,
+    fee: 20,
+    levels: [
+      { level: 1, seats: 6, upkeep: 25 },
+      { level: 2, seats: 12, upkeep: 40, cost: 1200 },
+      { level: 3, seats: 18, upkeep: 60, cost: 2000 },
+    ],
+    buildCost: 1500,
+    max: 1,
+    perArea: 1,
+  },
+  college: {
+    open: 8 * 60 + 30,
+    goUntil: 9 * 60 + 30,
+    start: 9 * 60,
+    close: 19 * 60,
+    fee: 30,
+    levels: [
+      { level: 1, seats: 8, upkeep: 40 },
+      { level: 2, seats: 16, upkeep: 60, cost: 2200 },
+      { level: 3, seats: 24, upkeep: 90, cost: 3500 },
+    ],
+    buildCost: 3000,
+    max: 1,
+    perArea: 1,
+  },
+
   // ---- 段階的な解放（D295）。住民の人数で順番にひらく。いつも「次の目標」が1つ見える ----
   // 解放の順（D320）：島民は1日1〜2人ふえる。目標の間が2〜5日になるように、後ろほど間をあける。
   // 値段とあわせて tools/econ-sim.mjs で確かめた（docs/UNLOCKS.md）
@@ -205,6 +241,11 @@ export const CONFIG = {
     { id: 'petshop', pets: 2, goal: 'ペットショップをひらく', done: 'ペットショップを建てられるようになりました', note: 'ペットショップを建てられるようになります' },
     { id: 'track', pets: 3, goal: 'ドッグレース場をひらく', done: 'ドッグレース場を建てられるようになりました', note: '週に1回のドッグレース場を建てられるようになります' },
     { id: 'kinder', kids: 1, goal: '幼稚園をひらく', done: '幼稚園を建てられるようになりました', note: '幼稚園を建てられるようになります' },
+    // 育つ（D347）：その段階になる子が出る1日前に ひらく。親から「大事なお願い」が届く（住民の人数のはしごには出さない）
+    { id: 'school', stage: 'pupil', goal: '小学校をひらく', done: '小学校を建てられるようになりました', note: '小学校を建てられるようになります',
+      wish: 'うちの子、もうすぐ小学生。近くに小学校があったらなあ' },
+    { id: 'college', stage: 'student', goal: '大学をひらく', done: '大学を建てられるようになりました', note: '大学を建てられるようになります',
+      wish: 'もうすぐ小学校を卒業。この島で大学に行きたいな', kid: true },
     { id: 'planetarium', pop: 16, goal: 'プラネタリウムをひらく', done: 'プラネタリウムを建てられるようになりました', note: 'プラネタリウムを建てられるようになります' },
     { id: 'arcade', pop: 19, goal: 'ゲームセンターをひらく', done: 'ゲームセンターを建てられるようになりました', note: 'あなたも遊べるゲームセンターを建てられるようになります' },
     { id: 'expand', pop: 21, goal: '島を広げる', done: '島を広げられるようになりました', note: '島を広げられるようになります' },
@@ -308,13 +349,13 @@ export const CONFIG = {
   // ---- 島の人のお願い（D335）：住民が ときどき お願いする。かなえると お礼（Coin は島の大きさに合わせる・minigame.per）
   wishes: {
     pop: 9, // 住民9人から
-    max: 2, // 一度に2つまで
+    max: 1, // 小さなお願いは一度に1つまで（D347：2つだと何からやればよいか迷う）。⭐大事なお願い（施設をひらく）は別に数える
     chance: 0.7, // 朝、新しいお願いが来る確率
     days: 5, // 5日 かなえられなければ 取り下げ
     near: 3, // 「家の近く」は 3マス以内
     cafeSteps: 6, // 「会社の近く」は 道で6マス以内
     fountainPop: 20,
-    coin: { deco: 60, fountain: 150, cafeNearWork: 150, fish: 80, prize: 80, upgrade: 100 },
+    coin: { deco: 60, fountain: 150, cafeNearWork: 150, fish: 80, prize: 80, upgrade: 100, facility: 150 },
   },
 
   // ---- ミニゲームの Coin（D333）：島の大きさに合わせる。住民 per 人ごとに1倍ずつ（1〜max 倍）

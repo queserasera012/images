@@ -6,7 +6,7 @@ import {
   createGame, step, catchUp, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
   migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
-  labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft, decoType,
+  labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft, decoType, isChild,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
   dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft, nameResident, placeLabel, seasonOf,
 } from './sim.js';
@@ -386,8 +386,8 @@ function renderCard() {
     const sub = r.tourist
       ? `船で来た人。${at(r.departAt)}の船で帰る`
       : r.age && parents.length === 2
-        ? `${parents[0].name}と${parents[1].name}の子ども`
-        : favoriteText(r) + (spouse ? `。${spouse.name}と結婚している` : '');
+        ? `${parents[0].name}と${parents[1].name}の子ども（${{ baby: '赤ちゃん', kid: '幼稚園', pupil: '小学生', student: '学生' }[r.age]}）`
+        : favoriteText(r) + (spouse ? `。${spouse.name}と結婚している` : '') + (parents.length === 2 ? `。${parents[0].name}と${parents[1].name}の子` : '');
     html = `<h3>${dot(r)}${r.name}</h3><div class="sub">${sub}</div><div class="now">いまは、${describeResident(state, r)}</div>`;
     // お願い（D335）：何をすれば かなうかも出す
     const wish = wishOf(state, r.id);
@@ -486,6 +486,12 @@ function renderCard() {
       html += winter
         ? `<div class="now">滑っている：${who(b.seats.filter(Boolean))}</div><div>外で待っている：${who(b.queue)}</div>`
         : `<div class="now">いまは お休み。冬になると 山が雪で白くなり、ひらきます（維持費も冬だけ）</div>`;
+    } else if (b.type === 'school' || b.type === 'college') {
+      // 小学校・大学（D347）
+      const V = CONFIG[b.type];
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${seatCount(b)}人まで。${fmt(V.start)}から${fmt(V.close)}まで。1人 ${V.fee} Coin</div>`;
+      html += `<div class="now">いま：${who(b.seats.filter(Boolean))}</div>`;
+      html += `<div>今日 来た${b.type === 'school' ? '子' : '学生'}：${state.today[b.type]?.went || 0}人</div>`;
     } else if (b.type === 'kinder') {
       const K = CONFIG.kinder;
       html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${seatCount(b)}人まで。朝 ${fmt(K.open)}から${fmt(K.close)}まで。1人 ${K.fee} Coin</div>`;
@@ -755,7 +761,7 @@ function openResidents() {
     const here = state.residents.filter((r) => r.homeId === h.id);
     const names = here
       .map((r) => {
-        const tag = r.state === 'PENDING' ? '（今日 引っ越してくる）' : r.age === 'baby' ? '（赤ちゃん）' : r.age === 'kid' ? '（子ども）' : '';
+        const tag = r.state === 'PENDING' ? '（今日 引っ越してくる）' : r.age === 'baby' ? '（赤ちゃん）' : r.age === 'kid' ? '（幼稚園）' : r.age === 'pupil' ? '（小学生）' : r.age === 'student' ? '（学生）' : '';
         return `<span>${dot(r)}${r.name}<i class="tag">${tag}</i></span>`;
       })
       .join('');
@@ -983,14 +989,14 @@ function renderQuest() {
     const wishes = wishList(state)
       .map((w) => ({ w, r: state.residents.find((x) => x.id === w.who) }))
       .filter((x) => x.r)
-      .map(({ w, r }) => `<button class="wish" type="button" data-wish="${r.id}"><b>${r.name}</b>「${w.short}」</button>`)
+      .map(({ w, r }) => `<button class="wish${w.big ? ' big' : ''}" type="button" data-wish="${r.id}">${w.big ? '⭐ ' : ''}<b>${r.name}</b>「${w.short}」</button>`)
       .join('');
     if (!g && !wishes) {
       el.hidden = true;
       return;
     }
     el.innerHTML = g
-      ? `<div class="quest-head"><b>目標：${g.goal}</b><span class="reward">${g.now} / ${g.need}${g.unit}</span>${FOLD}</div><p>${g.what}が ${g.need}${g.unit} になると、${g.note}</p>${wishes ? `<div class="wishes"><small>お願い</small>${wishes}</div>` : ''}`
+      ? `<div class="quest-head"><b>目標：${g.goal}</b><span class="reward">${g.now} / ${g.need}${g.unit}</span>${FOLD}</div><p>${g.what}が ${g.need}${g.unit} になると、${g.note}${g.unit === '人' && state.residents.some(isChild) ? '（小学生までの子どもは数えない）' : ''}</p>${wishes ? `<div class="wishes"><small>お願い</small>${wishes}</div>` : ''}`
       : `<div class="quest-head"><b>島の人のお願い</b><span class="reward">かなえた ${state.wishDone || 0}</span>${FOLD}</div><div class="wishes">${wishes}</div>`;
     el.hidden = false;
     applyFold();

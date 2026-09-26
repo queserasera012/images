@@ -630,6 +630,7 @@ h3 .dot { width: 14px; height: 14px; }
 #quest .wishes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
 #quest .wishes small { color: var(--muted); font-size: 11px; font-weight: 700; }
 #quest .wish { border: 0; border-radius: 999px; padding: 4px 10px; background: #fff6df; color: var(--ink); font-size: 12px; box-shadow: 1px 1.5px 0 var(--shadow); }
+#quest .wish.big { background: var(--mustard); font-weight: 700; } /* ⭐ 大事なお願い（D347） */
 #quest.folded .wishes { display: none; }
 .card-warn { margin-top: 4px; color: var(--problem, #c8553d); font-size: 13px; font-weight: 700; }
 

@@ -95,6 +95,21 @@ export const ICONS = {
       `<rect x="6.5" y="14" width="3" height="6" rx="1" fill="${INK}"/>`,
     28,
   ),
+  // 小学校・大学（D347）
+  school_new: svg(
+    `<rect x="3" y="8" width="18" height="12" rx="1" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<rect x="3" y="8" width="18" height="12" rx="1" fill="#fbf3e4" stroke="${INK}" stroke-width="1.3"/>` +
+      `<rect x="9" y="3" width="6" height="6" rx="1" fill="#fbf3e4" stroke="${INK}" stroke-width="1.2"/><circle cx="12" cy="6" r="1.6" fill="#fff" stroke="${INK}" stroke-width="0.8"/>` +
+      `<path d="M6 11h2M10 11h1M13 11h1M16 11h2M6 14h2M16 14h2" stroke="#8ecae6" stroke-width="1.8"/><rect x="10.5" y="14" width="3" height="6" fill="#8b5e3c"/>`,
+    28,
+  ),
+  college_new: svg(
+    `<path d="M3 10L12 4l9 6z" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<path d="M3 10L12 4l9 6z" fill="${INK}"/>` +
+      `<rect x="4" y="10" width="16" height="9" fill="#eef1f4" stroke="${INK}" stroke-width="1.2"/>` +
+      `<path d="M7 11v7M10.5 11v7M13.5 11v7M17 11v7" stroke="#fff" stroke-width="1.6"/><rect x="3" y="19" width="18" height="2" rx="0.5" fill="${INK}"/>`,
+    28,
+  ),
   kinder_new: svg(
     `<rect x="4" y="10" width="16" height="10" rx="1" transform="translate(1 1)" fill="${SHADOW}"/>` +
       `<rect x="4" y="10" width="16" height="10" rx="1" fill="#fff6ea" stroke="${INK}" stroke-width="1.4"/>` +

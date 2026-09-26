@@ -8,7 +8,7 @@
 
 import { CONFIG } from './config.js';
 import { SIZES, roadDistance, placements, idx } from './grid.js';
-import { ofType, buildingById, cafes, cafeMax, labelOf, gameCoin, decoType, dayOf } from './sim.js';
+import { ofType, buildingById, cafes, cafeMax, labelOf, gameCoin, decoType, dayOf, stageSoon } from './sim.js';
 
 const W = () => CONFIG.wishes;
 
@@ -136,7 +136,26 @@ const KINDS = {
       return !b || b.level > w.level;
     },
   },
+
+  // ⭐ 大事なお願い（D347）：施設をひらいたときに出す（朝のお願いには出てこない）。建てれば かなう
+  facility: {
+    make: () => null,
+    done: (state, w) => ofType(state, w.type).length > 0,
+  },
 };
+
+// ⭐ 大事なお願い（D347）：小学校・大学などが ひらいたとき。親（大学なら本人）から。期限なし・小さなお願いとは別に数える
+export function bigWish(state, u) {
+  const kid = u.stage ? stageSoon(state, u.stage) : null;
+  const who = kid && (u.kid ? kid : state.residents.find((p) => kid.parents?.includes(p.id))) || kid;
+  if (!who) return null;
+  const name = { school: '小学校', college: '大学', hospital: '病院' }[u.id] || u.goal;
+  state.wishSeq = (state.wishSeq || 0) + 1;
+  const w = { id: `w${state.wishSeq}`, kind: 'facility', big: true, type: u.id, who: who.id, day: dayOf(state.t), text: u.wish, short: `${name}をつくる`, hint: `${name}を建てる（つくる → 建てる）` };
+  state.wishes ||= [];
+  state.wishes.push(w);
+  return w;
+}
 
 // ---------------------------------------------------------------- 朝：新しいお願い・取り下げ（日記に書く）
 
@@ -144,12 +163,12 @@ export function morningWishes(state, endedDay, today, lines) {
   state.wishes ||= [];
   // 長く かなえられなかったお願いは、取り下げる（責めない）
   for (const w of [...state.wishes]) {
-    if (endedDay - w.day + 1 < W().days) continue;
+    if (w.big || endedDay - w.day + 1 < W().days) continue; // ⭐ 大事なお願いは 取り下げない
     state.wishes.splice(state.wishes.indexOf(w), 1);
     const r = state.residents.find((x) => x.id === w.who);
     if (r) lines.push({ kind: 'info', text: `${r.name}の お願い（${w.short}）は、また今度でいいそうです` });
   }
-  if (state.residents.length < W().pop || state.wishes.length >= W().max) return;
+  if (state.residents.length < W().pop || state.wishes.filter((w) => !w.big).length >= W().max) return;
   if (wrand(state, 1) >= W().chance) return;
   // 誰が・何を：候補を順に試して、出せるものを1つ
   const people = adults(state).filter((r) => !wishing(state, r.id));
@@ -191,4 +210,5 @@ export function checkWishes(state, events) {
 }
 
 export const wishOf = (state, id) => (state.wishes || []).find((w) => w.who === id) || null;
-export const wishList = (state) => state.wishes || [];
+// ⭐ 大事なお願いを先に（目標の紙の いちばん上・D347）
+export const wishList = (state) => [...(state.wishes || [])].sort((a, b) => Number(!!b.big) - Number(!!a.big));

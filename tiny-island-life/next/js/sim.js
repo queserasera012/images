@@ -13,7 +13,7 @@ import {
   T, SIZES, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, center, roadPath, roadDistance, accessTile, canPlace, isRoad, idx,
   useAreas, landTilesOf, placements, HOUSE_FLOOR, areaAt, COLS, OLD_COLS_2, DECO,
 } from './grid.js';
-import { morningWishes, checkWishes } from './wishes.js';
+import { morningWishes, checkWishes, bigWish } from './wishes.js';
 
 const DAY = 1440;
 
@@ -71,6 +71,20 @@ const pick = (state, arr) => arr[Math.floor(rand(state) * arr.length)];
 // ---------------------------------------------------------------- 時刻
 
 export const dayOf = (t) => Math.floor(t / DAY) + 1;
+
+// ---------------------------------------------------------------- 育つ（D347）
+// 赤ちゃん → 幼稚園の子（kid）→ 小学生（pupil）→ 学生（student）→ 大人（age なし）
+// 子ども（小学生まで）は ひとりで出かけない・はしごの人数に数えない。学生は大人と同じく出かける（働かない・結婚しない）
+export const isChild = (r) => r.age === 'baby' || r.age === 'kid' || r.age === 'pupil';
+export function stageDays() {
+  const F = CONFIG.family;
+  const kid = F.babyDays;
+  const pupil = kid + F.kinderDays;
+  const student = pupil + F.pupilDays;
+  return { kid, pupil, student, adult: student + F.studentDays };
+}
+// 解放のはしごに数える人（学生と大人・D347）
+export const countedPop = (state) => state.residents.filter((r) => !isChild(r)).length;
 export const inDay = (t) => ((t % DAY) + DAY) % DAY;
 export const clockOf = (t) => (inDay(t) + CONFIG.dayStartClock) % DAY;
 const clockToInDay = (clock) => (clock - CONFIG.dayStartClock + DAY) % DAY;
@@ -147,7 +161,7 @@ export const buildingById = (state, id) => state.buildings.find((b) => b.id === 
 
 function makeBuilding(state, type, c, r) {
   const b = { id: `b${state.nextId++}`, type, c, r, access: accessTile(type, c, r) };
-  if (VENUE_TYPES.includes(type) || type === 'kinder') Object.assign(b, { level: 1, seats: new Array(CONFIG[type].levels[0].seats).fill(null), queue: [] });
+  if (VENUE_TYPES.includes(type) || type === 'kinder' || type === 'school' || type === 'college') Object.assign(b, { level: 1, seats: new Array(CONFIG[type].levels[0].seats).fill(null), queue: [] });
   if (type === 'company') Object.assign(b, { level: 1, staff: [] });
   if (type === 'park') b.roof = false;
   if (type === 'house') b.level = 1;
@@ -243,6 +257,8 @@ export function shopFront(shop, k = 0) {
 export function labelOf(state, b) {
   if (b.type === 'shop') return shopLabel(state, b);
   if (b.type === 'kinder') return dirName(ofType(state, 'kinder'), b, '幼稚園');
+  if (b.type === 'school') return dirName(ofType(state, 'school'), b, '小学校');
+  if (b.type === 'college') return dirName(ofType(state, 'college'), b, '大学');
   if (b.type === 'company') return dirName(ofType(state, 'company'), b, '会社');
   if (DECO.includes(b.type)) return decoType(b.type).name;
   if (!isVenue(b)) return b.type;
@@ -324,6 +340,8 @@ function freshToday() {
     boats: 0, tourists: 0, petWalk: {}, petNap: {}, shopSold: 0, shopIncome: 0, shopMissed: [],
     byType: {},
     kinder: { went: 0, missed: 0 },
+    school: { went: 0, missed: 0 },
+    college: { went: 0, missed: 0 },
     fishing: { plays: 0, rewarded: 0, coin: 0, caught: [] },
     ads: { bonus: 0, boat: 0, bait: 0 },
     work: { workers: 0, income: 0 },
@@ -358,6 +376,8 @@ export function migrate(state) {
   state.affinity ||= {};
   state.naming ||= [];
   state.today.kinder ||= { went: 0, missed: 0 };
+  state.today.school ||= { went: 0, missed: 0 };
+  state.today.college ||= { went: 0, missed: 0 };
   state.today.fishing ||= { plays: 0, rewarded: 0, coin: 0, caught: [] };
   state.today.ads ||= { bonus: 0, boat: 0, bait: 0 };
   state.today.work ||= { workers: 0, income: 0 };
@@ -556,8 +576,9 @@ function planDay(state, r) {
   // 夜ふかしの人（住民ごとに決まっている）は1時間半おそく寝る
   if (r.nightOwl === undefined) r.nightOwl = rand(state) < CONFIG.nightOwls;
   if (r.nightOwl && !r.tourist && !r.age) r.bed += 90;
-  if (r.age) r.bed = base + clockToInDay(20 * 60) + between(state, 0, 20); // 子どもは早寝
+  if (isChild(r)) r.bed = base + clockToInDay(20 * 60) + between(state, 0, 20); // 子どもは早寝
   r.kinderToday = false;
+  r.classToday = false;
 }
 
 // ---------------------------------------------------------------- 進める
@@ -683,7 +704,7 @@ function cafeChoices(state, r) {
   return cafes(state)
     .filter((c) => buildingOpen(state, c, 30))
     // 夜のレストランに行くのは大人だけ（子どもは寝る時間・観光客は船で帰る）
-    .filter((c) => !(isBarTime(state, c) && (r.tourist || r.age)))
+    .filter((c) => !(isBarTime(state, c) && (r.tourist || isChild(r))))
     .map((c) => ({ cafe: c, w: r.prefs.cafe * w * near(r, c.access) * (isBarTime(state, c) ? 1.4 : 1) }));
 }
 
@@ -729,7 +750,7 @@ function planetariumChoices(state, r) {
 // スキー場（D318）：冬だけ開く。山の島まで橋をわたって行く。観光客も行く。大人だけ・1日1回まで
 export const isWinter = (state) => seasonOf(state).id === 'yuki';
 function skiChoices(state, r) {
-  if (r.age || r.skied || !isWinter(state) || !venueOpen(state, 'ski', 45)) return [];
+  if (isChild(r) || r.skied || !isWinter(state) || !venueOpen(state, 'ski', 45)) return [];
   const P = CONFIG.ski;
   const weather = state.weather === 'rain' ? P.rainPull : 1;
   // 遠くても行く（わざわざ橋をわたって行く所）。遠さが効くのは ふつうの店の 1/3
@@ -748,7 +769,7 @@ function aquariumChoices(state, r) {
 
 // ゲームセンター（D331）：大人と観光客が1日1回まで。雨の日に増える（屋内）。子どもは親と来る
 function arcadeChoices(state, r) {
-  if (r.age || r.played || !venueOpen(state, 'arcade', 20)) return [];
+  if (isChild(r) || r.played || !venueOpen(state, 'arcade', 20)) return [];
   const A = CONFIG.arcade;
   const weather = state.weather === 'rain' ? A.rainBoost : 1;
   return ofType(state, 'arcade').map((b) => ({ cafe: b, w: (r.prefs.fun ?? 12) * weather * near(r, b.access) }));
@@ -832,7 +853,7 @@ export function playArcade(state, gameId, play = {}) {
 
 // プール（D319）：夏だけ。晴れた日に集まる。大人と観光客が行き、子どもは親についてくる。1日1回まで
 function poolChoices(state, r) {
-  if (r.age || r.swam || !inSeason(state, 'pool') || !venueOpen(state, 'pool', 30)) return [];
+  if (isChild(r) || r.swam || !inSeason(state, 'pool') || !venueOpen(state, 'pool', 30)) return [];
   const P = CONFIG.pool;
   return ofType(state, 'pool').map((b) => ({ cafe: b, w: P.pull * P.weather[state.weather] * near(r, b.access) }));
 }
@@ -848,7 +869,7 @@ export const GUEST_DOGS = ['コロ', 'ハチ', 'モカ', 'ラッキー', 'チョ
 const RUN_SPEED = { dog: 1, fox: 0.97, rabbit: 0.95, cat: 0.92, raccoon: 0.9 };
 
 function trackChoices(state, r) {
-  if (r.age || r.watchedRace || !isRaceDay(state)) return [];
+  if (isChild(r) || r.watchedRace || !isRaceDay(state)) return [];
   const R = CONFIG.track;
   const c = clockOf(state.t);
   if (c < R.open || c >= R.start + R.length - 5) return [];
@@ -867,7 +888,7 @@ function updateRace(state, events) {
     state.raceCalled = day;
     for (const r of everyone(state)) {
       const free = ['HOME', 'PARK', 'STROLL'].includes(r.state) || (r.state === 'WALK' && ['park', 'stroll', 'home'].includes(r.dest));
-      if (r.age || r.watchedRace || !free) continue;
+      if (isChild(r) || r.watchedRace || !free) continue;
       if (r.state === 'HOME' && (state.t < r.wake || state.t >= r.bed - 60)) continue;
       if (r.tourist && state.t >= r.bed - 30) continue;
       if (rand(state) > R.callChance) continue;
@@ -1018,7 +1039,7 @@ function goCafe(state, r, cafe) {
 
 function decideNext(state, r, { noCafe = false, avoid = null } = {}) {
   if (state.t >= r.bed - 20) return goHome(state, r);
-  if (r.age) return goHome(state, r); // 子どもは ひとりでは出かけない（親についていくか、幼稚園）
+  if (isChild(r)) return goHome(state, r); // 子どもは ひとりでは出かけない（親についていくか、幼稚園・小学校）
   const job = workDue(state, r);
   if (job) return goWork(state, r, job); // 勤めている人は、仕事の時間は会社へ（D319）
   const w = CONFIG.weatherWeights[state.weather];
@@ -1097,6 +1118,9 @@ function arrive(state, r, events) {
       return;
     case 'kinder':
       return enterKinder(state, r, events);
+    case 'school':
+    case 'college':
+      return enterClass(state, r, events);
     case 'escort':
       return afterActivity(state, r, 0.3);
     case 'work':
@@ -1151,6 +1175,8 @@ function updateResident(state, r, h, events) {
       }
       if (r.age === 'baby') return; // 赤ちゃんは家の中
       if (r.age === 'kid') return kidAtHome(state, r, events);
+      if (r.age === 'pupil') return void goClass(state, r, 'school'); // 小学生：朝は ひとりで小学校へ。それ以外は家（親についていく）
+      if (r.age === 'student' && goClass(state, r, 'college')) return; // 学生：朝は ひとりで大学へ
       if (t < r.until) return;
       if (waitingForKid(state, r)) return; // 幼稚園に送るまで、親のどちらかは家にいる
       {
@@ -1210,6 +1236,9 @@ function updateResident(state, r, h, events) {
     case 'KINDER':
       if (t >= r.until) leaveKinder(state, r);
       return;
+    case 'CLASS':
+      if (t >= r.until) leaveClass(state, r);
+      return;
     case 'WORK':
       if (t >= r.until) leaveWork(state, r, events);
       return;
@@ -1242,7 +1271,7 @@ function buySouvenir(state, r, shop, events) {
 
 function afterActivity(state, r, homeChance, opts) {
   if (r.tourist) homeChance = 0.1; // 観光客は船の時間まで島を見て回る
-  if (r.age) homeChance = 1; // 子どもは親と遊んだら家に帰る
+  if (isChild(r)) homeChance = 1; // 子どもは親と遊んだら家に帰る
   const job = workDue(state, r);
   if (job) return goWork(state, r, job); // お昼のあとは会社へ戻る（D319）
   if (state.t >= r.bed - 20 || rand(state) < homeChance) return goHome(state, r);
@@ -1465,6 +1494,12 @@ function rolloverDay(state, events) {
   const kg = today.kinder || { went: 0, missed: 0 };
   if (kg.went) lines.push({ kind: 'good', text: `幼稚園に ${kg.went}人 が通いました（+${kg.went * CONFIG.kinder.fee} Coin）` });
   if (kg.missed) lines.push({ kind: 'problem', text: `幼稚園がいっぱいで、${kg.missed}人 の子が家で過ごしました` });
+  for (const type of ['school', 'college']) {
+    const x = today[type];
+    const name = type === 'school' ? '小学校' : '大学';
+    if (x?.went) lines.push({ kind: 'good', text: `${name}に ${x.went}人 が通いました（+${x.went * CONFIG[type].fee} Coin）` });
+    if (x?.missed) lines.push({ kind: 'problem', text: `${name}がいっぱいで、${x.missed}人 が入れませんでした` });
+  }
   const petLine = petDiaryLine(state, endedDay);
   if (petLine) lines.push(petLine);
 
@@ -1501,7 +1536,7 @@ function rolloverDay(state, events) {
   const onlyCafes = venues(state).every((v) => v.type === 'cafe');
   const shopUpkeep =
     shops(state).reduce((s, b) => s + CONFIG.shop.levels[b.level - 1].upkeep, 0) +
-    ofType(state, 'kinder').reduce((s, b) => s + CONFIG.kinder.levels[b.level - 1].upkeep, 0);
+    ['kinder', 'school', 'college'].reduce((n, type) => n + ofType(state, type).reduce((s, b) => s + CONFIG[type].levels[b.level - 1].upkeep, 0), 0);
   const harborUpkeep = (state.harbors || []).length * CONFIG.harbor.upkeep;
   if (harborUpkeep > 0) {
     state.coin -= harborUpkeep;
@@ -1564,6 +1599,8 @@ function rolloverDay(state, events) {
     Object.values(today.byType || {}).reduce((n, t) => n + (t.income || 0), 0) +
     (today.shopIncome || 0) +
     (today.kinder?.went || 0) * CONFIG.kinder.fee +
+    (today.school?.went || 0) * CONFIG.school.fee +
+    (today.college?.went || 0) * CONFIG.college.fee +
     (today.work?.income || 0);
   const entry = { day: endedDay, weather: state.weather, lines, read: false, earned };
   state.diary.push(entry);
@@ -1622,6 +1659,7 @@ function checkUnlocks(state, events) {
       state.unlockedOn[u.id] = dayOf(state.t);
     }
     events.push({ type: 'unlock', id: u.id, done: u.done });
+    if (u.wish) bigWish(state, u); // ⭐ 大事なお願い（D347）：親（学生なら本人）から「〜があったらなあ」
   }
 }
 
@@ -1630,7 +1668,16 @@ const kidsCount = (state) => state.residents.filter((r) => r.age).length;
 function unlockMet(state, u) {
   if (u.pets) return adoptedPets(state) >= u.pets;
   if (u.kids) return kidsCount(state) >= u.kids;
-  return state.residents.length >= u.pop;
+  if (u.stage) return !!stageSoon(state, u.stage);
+  return countedPop(state) >= u.pop; // 学生と大人で数える（D347）
+}
+
+// その段階に あと1日で なる子（いちばん早い子）。小学校・大学は その子が なる1日前に ひらく（D347）
+const PREV = { pupil: 'kid', student: 'pupil' };
+export function stageSoon(state, stage) {
+  const at = stageDays()[stage];
+  const day = dayOf(state.t);
+  return state.residents.find((r) => r.age === PREV[stage] && r.bornOn != null && day - r.bornOn >= at - 1) || null;
 }
 
 export function isUnlocked(state, id) {
@@ -1640,12 +1687,13 @@ export function isUnlocked(state, id) {
 
 // 次の目標（まだひらいていない中で いちばん手前）
 export function nextGoal(state) {
-  const u = CONFIG.unlocks.find((x) => !isUnlocked(state, x.id));
+  // 育つ施設（小学校・大学）は ⭐ 大事なお願いで出すので、はしごには出さない（D347）
+  const u = CONFIG.unlocks.find((x) => !x.stage && !isUnlocked(state, x.id));
   if (!u) return null;
   if (u.kids) return { ...u, now: kidsCount(state), need: u.kids, unit: '人', what: '島の子ども' };
   return u.pets
     ? { ...u, now: adoptedPets(state), need: u.pets, unit: '匹', what: '家族のペット' }
-    : { ...u, now: state.residents.length, need: u.pop, unit: '人', what: '住民' };
+    : { ...u, now: countedPop(state), need: u.pop, unit: '人', what: '住民' };
 }
 
 // テストや ?debug 用：今すぐ解放する
@@ -1811,8 +1859,8 @@ export function actionsFor(state) {
       cost: S.buildCost, locked: fullS,
     });
   }
-  const NAME = { ...VENUE_NAME, kinder: '幼稚園', company: '会社' };
-  for (const type of ['pond', 'super', 'petshop', 'track', 'planetarium', 'arcade', 'kinder', 'pool', 'aquarium', 'company']) {
+  const NAME = { ...VENUE_NAME, kinder: '幼稚園', company: '会社', school: '小学校', college: '大学' };
+  for (const type of ['pond', 'super', 'petshop', 'track', 'planetarium', 'arcade', 'kinder', 'school', 'college', 'pool', 'aquarium', 'company']) {
     const V = CONFIG[type];
     const u = CONFIG.unlocks.find((x) => x.id === type);
     const full = ofType(state, type).length >= maxOf(state, type);
@@ -1833,6 +1881,10 @@ export function actionsFor(state) {
       ? `住民が毎日 買い物に行く。一度に ${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`
       : type === 'kinder'
         ? `子どもが朝 通って、15時に帰る。${V.levels[0].seats}人まで。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`
+      : type === 'school'
+        ? `小学生が朝 ひとりで通って、${fmtClock(V.close)}に帰る。${V.levels[0].seats}人まで。1人 1日 ${V.fee} Coin。維持費 1日 ${V.levels[0].upkeep} Coin`
+      : type === 'college'
+        ? `学生が朝 通って、${fmtClock(V.close)}まで勉強する。帰りに カフェやゲームセンターへ。${V.levels[0].seats}人まで。1人 1日 ${V.fee} Coin。維持費 1日 ${V.levels[0].upkeep} Coin`
       : type === 'petshop'
         ? `ペットのいる家の人が通う。一度に ${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`
         : `長く過ごせる屋内の施設。${V.levels[0].seats}席。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`;
@@ -1841,7 +1893,7 @@ export function actionsFor(state) {
       icon: `${type}_new`,
       place: type,
       title: `${NAME[type]}をつくる`,
-      detail: full ? `${NAME[type]}は いまの島に ${maxOf(state, type)}軒まで${moreLandNote(state, type)}` : locked ? (u.pets ? `家族のペットが ${u.pets}匹 になると建てられます` : u.kids ? '島に子どもが生まれると建てられます' : `住民が ${u.pop}人 になると建てられます`) : what,
+      detail: full ? `${NAME[type]}は いまの島に ${maxOf(state, type)}軒まで${moreLandNote(state, type)}` : locked ? (u.pets ? `家族のペットが ${u.pets}匹 になると建てられます` : u.kids ? '島に子どもが生まれると建てられます' : u.stage ? `もうすぐ${u.stage === 'pupil' ? '小学生' : '学生'}になる子がいると建てられます` : `住民が ${u.pop}人 になると建てられます`) : what,
       cost: V.buildCost,
       locked,
     });
@@ -1869,10 +1921,10 @@ export function actionsFor(state) {
       cost: B.cost,
     });
   }
-  for (const c of [...venues(state), ...ofType(state, 'kinder'), ...ofType(state, 'company')]) {
+  for (const c of [...venues(state), ...ofType(state, 'kinder'), ...ofType(state, 'school'), ...ofType(state, 'college'), ...ofType(state, 'company')]) {
     const next = CONFIG[c.type].levels[c.level];
     if (!next) continue;
-    const unit = c.type === 'kinder' ? '通える子' : c.type === 'company' ? '勤める人' : c.type === 'super' ? '一度に入れる人' : '席';
+    const unit = ['kinder', 'school', 'college'].includes(c.type) ? '通える子' : c.type === 'company' ? '勤める人' : c.type === 'super' ? '一度に入れる人' : '席';
     list.push({
       id: `${c.type === 'cafe' ? 'cafe' : 'venue'}_upgrade:${c.id}`,
       icon: 'cafe_upgrade',
@@ -2257,7 +2309,7 @@ export function describeResident(state, r) {
       if (r.dest === 'cafe') return `${labelOf(state, buildingById(state, r.destId))}へ向かっている`;
       if (r.dest === 'shop') return `${shopLabel(state, buildingById(state, r.destId))}へ向かっている`;
       return (
-        { park: '公園へ向かっている', stroll: r.tourist ? '島を見て回っている' : 'ぶらぶら歩いている', home: '家へ帰るところ', boat: '港へ戻るところ', kinder: '幼稚園へ向かっている', escort: '子どもを幼稚園へ送っている', work: '会社へ向かっている' }[r.dest] ||
+        { park: '公園へ向かっている', stroll: r.tourist ? '島を見て回っている' : 'ぶらぶら歩いている', home: '家へ帰るところ', boat: '港へ戻るところ', kinder: '幼稚園へ向かっている', school: '小学校へ向かっている', college: '大学へ向かっている', escort: '子どもを幼稚園へ送っている', work: '会社へ向かっている' }[r.dest] ||
         '歩いている'
       );
     }
@@ -2295,6 +2347,8 @@ export function describeResident(state, r) {
       return '家に帰るところ';
     case 'KINDER':
       return '幼稚園にいる';
+    case 'CLASS':
+      return r.age === 'pupil' ? '小学校で勉強している' : '大学で勉強している';
     case 'WORK':
       return `${labelOf(state, buildingById(state, r.destId))}で働いている`;
     default:
@@ -2322,12 +2376,15 @@ export function nearestCafeSteps(state, house) {
 const pairKey = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`);
 // 結婚するのは名前のある住民だけ（「島の人と島の人が結婚しました」では誰の話か分からない）
 // 名前をつけた「島の人」も結婚する（D310：名前があれば誰の話か分かる）
-const single = (r) => !r.age && !r.tourist && (!r.generic || r.named) && !r.spouseId && r.state !== 'PENDING';
+// D347：みんな結婚できる（名前の有無を問わない）。大人だけ。親子・きょうだいは結婚しない（related）
+const single = (r) => !r.age && !r.tourist && !r.spouseId && r.state !== 'PENDING';
+const related = (a, b) => a.parents?.includes(b.id) || b.parents?.includes(a.id) || !!(a.parents && b.parents && a.parents.some((p) => b.parents.includes(p)));
 
 function placeKey(r) {
   if (r.state === 'SEATED' || r.state === 'QUEUE') return `v:${r.destId}`;
   if (r.state === 'PARK') return `p:${r.destId}`;
   if (r.state === 'WORK') return `w:${r.destId}`; // 同じ会社の人とも仲よくなる
+  if (r.state === 'CLASS' && r.age === 'student') return `c:${r.destId}`; // 同じ大学の学生も（D347）
   if (r.state === 'STROLL') return r.destId ? `d:${r.destId}` : `s:${r.at}`; // 同じベンチ・噴水で仲よくなる（D334）
   return null;
 }
@@ -2396,12 +2453,29 @@ function familyEvents(state, day, events) {
   const byId = (id) => state.residents.find((x) => x.id === id);
   state.wantsRoom = []; // 「もう少し広い家に住みたい」家族の家（D307：家に目印を出す）
 
-  // 赤ちゃん → 歩けるように
+  // 育つ（D347）：赤ちゃん → 歩ける子（幼稚園）→ 小学生 → 学生 → 大人。日記に書く
+  // day は終わった日。次の朝の年齢（day + 1 − 生まれた日）で見る（小学校・大学は その1日前に ひらいている）
+  const at = stageDays();
+  const NEXT = { baby: ['kid', 'が歩けるようになりました'], kid: ['pupil', 'が小学生になりました'], pupil: ['student', 'が学生になりました'], student: [null, 'が大人になりました'] };
   for (const r of state.residents) {
-    if (r.age === 'baby' && day - r.bornOn >= F.babyDays) {
-      r.age = 'kid';
-      lines.push({ kind: 'good', text: `${r.name}が歩けるようになりました` });
-    }
+    if (!r.age || r.bornOn == null || !NEXT[r.age]) continue;
+    const [to, text] = NEXT[r.age];
+    if (day - r.bornOn < at[to || 'adult'] - (r.age === 'baby' ? 0 : 1)) continue;
+    r.age = to;
+    state.naming = state.naming.filter((id) => id !== r.id); // 名前をつけないまま育った子（名前はそのまま）
+    lines.push({ kind: 'good', text: `${r.name}${text}` });
+    if (!to) planDay(state, r); // 大人になったら 寝る時間なども大人と同じ
+  }
+
+  // 学生・大人になった子は、空き家があれば家を出る（なければ家族と住む・D347）
+  for (const r of state.residents) {
+    if (r.bornOn == null || isChild(r) || r.spouseId || r.state === 'PENDING') continue;
+    if (!state.residents.some((p) => r.parents?.includes(p.id) && p.homeId === r.homeId)) continue;
+    const to = freeHouse(state);
+    if (!to) continue;
+    r.homeId = to.id;
+    r.at = to.access;
+    lines.push({ kind: 'good', text: `${r.name}は、家を出て 新しい家で暮らしはじめました` });
   }
 
   // 別々に住んでいる夫婦は、空きができたら一緒に住む
@@ -2469,7 +2543,7 @@ function familyEvents(state, day, events) {
     const best = Object.entries(state.affinity)
       .filter(([, v]) => v >= F.affinityNeed)
       .map(([k, v]) => ({ ids: k.split('|'), v }))
-      .filter(({ ids }) => ids.every((id) => byId(id) && single(byId(id))))
+      .filter(({ ids }) => ids.every((id) => byId(id) && single(byId(id))) && !related(byId(ids[0]), byId(ids[1])))
       .sort((x, y) => y.v - x.v)[0];
     if (best && rand(state) < F.marryChance) {
       const [a, b] = best.ids.map(byId);
@@ -2515,7 +2589,7 @@ function bringCompanions(state, r) {
   if (awakeHome(spouse) && wants(spouse) && rand(state) < F.walkTogether) join(spouse);
   if (r.dest === 'park' || r.dest === 'stroll' || where === 'pool' || where === 'track' || where === 'arcade') {
     for (const kid of state.residents) {
-      if (kid.age === 'kid' && kid.parents?.includes(r.id) && awakeHome(kid) && rand(state) < F.kidJoins) join(kid);
+      if ((kid.age === 'kid' || kid.age === 'pupil') && kid.parents?.includes(r.id) && awakeHome(kid) && rand(state) < F.kidJoins) join(kid);
     }
   }
 }
@@ -2562,6 +2636,64 @@ function waitingForKid(state, r) {
   if (!kids.length) return false;
   const other = state.residents.find((p) => p.id === r.spouseId && p.homeId === r.homeId && p.state === 'HOME' && state.t >= p.wake);
   return !other;
+}
+
+// ---------------------------------------------------------------- 小学校・大学（D347）
+// 小学生・学生は ひとりで通う（親は送らない）。空きのある いちばん近いところへ。朝の決まった時間だけ家を出る
+function classFor(state, r, type) {
+  const list = ofType(state, type);
+  if (list.length <= 1) return list[0];
+  const home = buildingById(state, r.homeId);
+  const room = (b) => b.seats.filter((x) => x === null).length;
+  const byNear = [...list].sort((a, b) => roadDistance(home.access, a.access) - roadDistance(home.access, b.access));
+  return byNear.find((b) => room(b) > 0) || byNear[0];
+}
+export function classFront(b) {
+  return { x: (b.c + SIZES[b.type].w / 2) * T, y: (b.r + SIZES[b.type].h) * T - 6 };
+}
+function goClass(state, r, type) {
+  const V = CONFIG[type];
+  const c = clockOf(state.t);
+  if (r.classToday || c < V.open || c >= V.goUntil || state.t < r.wake) return false;
+  const b = classFor(state, r, type);
+  if (!b) return false;
+  r.classToday = true;
+  const p = classFront(b);
+  goTo(state, r, type, b.id, b.access, { x: p.x + between(state, -10, 10), y: p.y });
+  return true;
+}
+function enterClass(state, r, events) {
+  const b = buildingById(state, r.destId);
+  const type = b?.type;
+  const seat = b ? b.seats.findIndex((x) => x === null) : -1;
+  if (seat < 0) {
+    if (type) state.today[type].missed += 1;
+    r.bubble = 'lost';
+    r.bubbleUntil = state.t + 20;
+    return isChild(r) ? goHome(state, r) : decideNext(state, r);
+  }
+  b.seats[seat] = r.id;
+  r.seat = seat;
+  r.state = 'CLASS';
+  r.visible = false;
+  r.until = Math.floor(state.t / DAY) * DAY + clockToInDay(CONFIG[type].close) + between(state, 0, 8);
+  state.coin += CONFIG[type].fee;
+  state.today[type].went += 1;
+  events.push({ type: 'class', school: type, name: r.name });
+}
+function leaveClass(state, r) {
+  const b = buildingById(state, r.destId);
+  if (b) b.seats[r.seat] = null;
+  r.seat = -1;
+  r.visible = true;
+  if (b) {
+    const p = classFront(b);
+    r.x = r.tx = p.x + between(state, -10, 10);
+    r.y = r.ty = p.y;
+    r.at = b.access;
+  }
+  // 小学生は家へ。学生は 帰りに カフェやゲームセンターへ寄ることもある
+  return isChild(r) ? goHome(state, r) : decideNext(state, r);
 }
 
 export function kinderFront(k) {

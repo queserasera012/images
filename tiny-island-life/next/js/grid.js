@@ -41,6 +41,8 @@ export const SIZES = {
   pool: { w: 3, h: 2 }, // プール（夏だけ・D319）。泳ぐ人が見える
   track: { w: 3, h: 3 }, // ドッグレース場（D328）。まわりに観客が立つ
   arcade: { w: 3, h: 2 }, // ゲームセンター（D331）
+  school: { w: 3, h: 2 }, // 小学校（D347）
+  college: { w: 3, h: 3 }, // 大学（D347）
   // 飾り（D334）
   flowerbed: { w: 1, h: 1 },
   bench: { w: 1, h: 1 },

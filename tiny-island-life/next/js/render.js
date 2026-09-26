@@ -993,6 +993,112 @@ export function createRenderer(canvas) {
   }
 
   // 幼稚園：上の段が園舎（パステルの屋根）、下の段が園庭（すべり台と砂場）
+  // 小学校（D347）：校舎（時計）と 校庭（鉄棒）。中に子どもがいれば 窓に頭が見える
+  function school(state, b, time) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.school.w * T;
+    // 校庭
+    ctx.fillStyle = '#e9d9b8';
+    roundRect(ctx, x0 + 3, y0 + T + 2, w - 6, T - 6, 4);
+    ctx.fill();
+    ctx.strokeStyle = PALETTE.ink;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x0 + w - 26, y0 + 2 * T - 6);
+    ctx.lineTo(x0 + w - 26, y0 + 2 * T - 15);
+    ctx.lineTo(x0 + w - 12, y0 + 2 * T - 15);
+    ctx.lineTo(x0 + w - 12, y0 + 2 * T - 6);
+    ctx.stroke();
+    paperShadow((shadow) => {
+      if (!shadow) ctx.fillStyle = '#fbf3e4';
+      roundRect(ctx, x0 + 4, y0 + 2, w - 8, T + 2, 2);
+      ctx.fill();
+      if (!shadow) ctx.fillStyle = '#b5654a';
+      roundRect(ctx, x0 + 2, y0 - 1, w - 4, 5, 2);
+      ctx.fill();
+    });
+    // 時計塔
+    ctx.fillStyle = '#fbf3e4';
+    roundRect(ctx, x0 + w / 2 - 7, y0 - 9, 14, 12, [3, 3, 0, 0]);
+    ctx.fill();
+    ctx.fillStyle = PALETTE.white;
+    ctx.strokeStyle = PALETTE.ink;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.arc(x0 + w / 2, y0 - 3, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // 窓（2段）
+    const inside = b.seats.filter(Boolean).length;
+    let k = 0;
+    for (const wy of [y0 + 8, y0 + 18]) {
+      for (let i = 0; i < 5; i++) {
+        const wx = x0 + 10 + i * ((w - 20) / 4) - 3;
+        if (i === 2 && wy > y0 + 10) continue; // 入り口
+        ctx.fillStyle = '#cfe6ee';
+        ctx.fillRect(wx, wy, 6, 6);
+        if (inside > k++) {
+          ctx.fillStyle = 'rgba(61,90,128,0.55)';
+          ctx.beginPath();
+          ctx.arc(wx + 3 + Math.sin(time * 2 + k) * 0.8, wy + 5, 1.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+    ctx.fillStyle = '#8b5e3c';
+    roundRect(ctx, x0 + w / 2 - 5, y0 + 20, 10, T - 16, [4, 4, 0, 0]);
+    ctx.fill();
+    ctx.fillStyle = PALETTE.ink;
+    ctx.font = `700 7px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('しょうがっこう', x0 + w / 2, y0 + T + 9);
+  }
+
+  // 大学（D347）：柱のある建物と、前の芝生
+  function college(state, b, time) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.college.w * T;
+    // 芝生と小道
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    roundRect(ctx, x0 + 4, y0 + 2 * T - 2, w - 8, T - 4, 6);
+    ctx.fill();
+    ctx.fillStyle = '#e9d9b8';
+    ctx.fillRect(x0 + w / 2 - 5, y0 + 2 * T - 2, 10, T - 4);
+    paperShadow((shadow) => {
+      if (!shadow) ctx.fillStyle = '#eef1f4';
+      roundRect(ctx, x0 + 6, y0 + 14, w - 12, 2 * T - 16, 2);
+      ctx.fill();
+      // 三角の屋根
+      if (!shadow) ctx.fillStyle = '#3d5a80';
+      ctx.beginPath();
+      ctx.moveTo(x0 + 2, y0 + 16);
+      ctx.lineTo(x0 + w / 2, y0 + 1);
+      ctx.lineTo(x0 + w - 2, y0 + 16);
+      ctx.closePath();
+      ctx.fill();
+    });
+    // 柱
+    ctx.fillStyle = PALETTE.white;
+    for (let i = 0; i < 6; i++) ctx.fillRect(x0 + 12 + i * ((w - 28) / 5), y0 + 20, 4, 2 * T - 26);
+    ctx.fillStyle = '#d8dee6';
+    ctx.fillRect(x0 + 8, y0 + 2 * T - 6, w - 16, 4);
+    // 学生がいれば 窓の明かり
+    const inside = b.seats.filter(Boolean).length;
+    if (inside) {
+      ctx.fillStyle = 'rgba(255, 214, 107, 0.35)';
+      ctx.fillRect(x0 + 14, y0 + 24, w - 28, 10);
+    }
+    ctx.fillStyle = PALETTE.white;
+    ctx.font = `700 7px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('だいがく', x0 + w / 2, y0 + 11);
+    void time;
+  }
+
   function kinder(state, b, time) {
     const x0 = b.c * T;
     const y0 = b.r * T;
@@ -1959,12 +2065,18 @@ export function createRenderer(canvas) {
     let facing = r.facing;
     if (!moving && Math.sin(time * 0.6 + ph * 3) > 0.9) facing = -facing;
 
-    if (r.age === 'kid') {
-      // 子どもは小さく描く（足もとを基準に縮める）
+    if (r.age === 'kid' || r.age === 'pupil') {
+      // 子どもは小さく描く（足もとを基準に縮める）。小学生は少し大きく、ランドセル（D347）
+      const k = r.age === 'pupil' ? 0.84 : 0.72;
       ctx.save();
       ctx.translate(r.x, r.y);
-      ctx.scale(0.72, 0.72);
+      ctx.scale(k, k);
       ctx.translate(-r.x, -r.y);
+      if (r.age === 'pupil') {
+        ctx.fillStyle = r.look % 2 ? '#c8553d' : '#3d5a80';
+        roundRect(ctx, r.x - facing * 7 - 4, r.y - bob - 22, 8, 9, 2);
+        ctx.fill();
+      }
       person(r, r.x, r.y, { bob, stride, facing, seated: false });
       ctx.restore();
     } else {
@@ -2664,6 +2776,8 @@ export function createRenderer(canvas) {
       else if (b.type === 'planetarium') planetarium(state, b, time);
       else if (b.type === 'petshop') petshop(state, b);
       else if (b.type === 'kinder') kinder(state, b, time);
+      else if (b.type === 'school') school(state, b, time);
+      else if (b.type === 'college') college(state, b, time);
       else if (b.type === 'pond') pond(state, b, time);
       else if (b.type === 'stand') stand(state, b, time);
       else if (b.type === 'ski') skiLodge(state, b, theme.snow);
