@@ -215,7 +215,7 @@ export function openArcade({ getState, onChange, close: onClose }) {
     const hands = [
       { id: 'g', icon: '✊', name: 'グー' },
       { id: 'c', icon: '✌️', name: 'チョキ' },
-      { id: 'p', icon: '✋', name: 'パー' },
+      { id: 'p', icon: '🖐️', name: 'パー' },
     ];
     const beats = { g: 'c', c: 'p', p: 'g' };
     const people = getState().residents.filter((r) => !r.age);
