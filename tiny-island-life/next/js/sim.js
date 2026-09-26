@@ -748,30 +748,59 @@ function arcadeChoices(state, r) {
   return ofType(state, 'arcade').map((b) => ({ cafe: b, w: (r.prefs.fun ?? 12) * weather * near(r, b.access) }));
 }
 
-// あなたのゲーム（D331）：勝つと Coin（1日 rewardsPerDay 回まで）。クレーンゲームは景品を集める
+// ミニゲームの Coin（D333）：島の大きさに合わせる。住民15人ごとに1倍（1〜8倍）。5 Coin きざみ
+export function gameScale(state) {
+  const M = CONFIG.minigame;
+  return Math.min(M.max, Math.max(1, state.residents.length / M.per));
+}
+export function gameCoin(state, base) {
+  return Math.round((base * gameScale(state)) / 5) * 5;
+}
+
+// あなたのゲーム（D331・D333）：Coin が出るのは「腕」が要るときだけ（1日 rewardsPerDay 回まで）
+// 神経衰弱は 12手以内・もぐらは 12ひき以上。じゃんけんは Coin ではなく スタンプ。クレーンゲームは景品を集める
+// play = { won, score, prizeId }。score は 神経衰弱なら手数・もぐらなら たたいた数
 export function arcadeLeft(state) {
   return Math.max(0, CONFIG.arcade.game.rewardsPerDay - (state.today.arcade?.rewarded || 0));
 }
-export function playArcade(state, gameId, won, prizeId = null) {
+export function arcadeSkilled(gameId, play) {
+  const S = CONFIG.arcade.game.skill;
+  if (!play.won) return false;
+  if (gameId === 'memory') return play.score <= S.memory;
+  if (gameId === 'mole') return play.score >= S.mole;
+  return false;
+}
+export function playArcade(state, gameId, play = {}) {
   const G = CONFIG.arcade.game;
   state.today.arcade ||= { plays: 0, rewarded: 0, coin: 0 };
   const a = state.today.arcade;
   a.plays += 1;
+  const won = !!play.won;
   let coin = 0;
   let prize = null;
-  if (won && prizeId) {
-    prize = G.prizes.find((p) => p.id === prizeId) || null;
+  let stamp = false;
+  let ticket = false;
+  if (won && gameId === 'crane' && play.prizeId) {
+    prize = G.prizes.find((p) => p.id === play.prizeId) || null;
     if (prize) {
       state.prizes ||= {};
       state.prizes[prize.id] = (state.prizes[prize.id] || 0) + 1;
     }
-  } else if (won && arcadeLeft(state) > 0) {
-    coin = G.coin;
+  } else if (won && gameId === 'janken') {
+    stamp = true;
+    state.stamps = (state.stamps || 0) + 1;
+    if (state.stamps >= G.stamps) {
+      state.stamps = 0;
+      state.decoTickets = (state.decoTickets || 0) + 1;
+      ticket = true;
+    }
+  } else if (arcadeSkilled(gameId, play) && arcadeLeft(state) > 0) {
+    coin = gameCoin(state, G.coin);
     a.rewarded += 1;
     a.coin += coin;
     state.coin += coin;
   }
-  return { ok: true, game: gameId, won, coin, prize, left: arcadeLeft(state) };
+  return { ok: true, game: gameId, won, coin, prize, stamp, stamps: state.stamps || 0, ticket, left: arcadeLeft(state) };
 }
 
 // プール（D319）：夏だけ。晴れた日に集まる。大人と観光客が行き、子どもは親についてくる。1日1回まで
@@ -1992,7 +2021,7 @@ export function landFish(state, grade) {
   const fish = pool.find((y) => (x -= y.w) < 0) || pool[0];
   let coin = 0;
   if (fishingLeft(state) > 0) {
-    coin = fish.big ? G.coin.big : G.coin[grade];
+    coin = gameCoin(state, fish.big ? G.coin.big : G.coin[grade]); // 島の大きさに合わせる（D333）
     f.rewarded += 1;
     f.coin += coin;
     state.coin += coin;

@@ -1,19 +1,22 @@
 // ゲームセンター（D331）。ゲームセンターのカードの「ゲームで遊ぶ」から開く。
 //
 // 4つのゲーム：神経衰弱（3×4・6組）・クレーンゲーム・じゃんけん・もぐらたたき。どれも簡単で、子どもも遊べる。
-// 遊ぶのは無料。勝つと Coin（4つ合わせて1日3回まで・sim.js の playArcade）。クレーンゲームは景品を集める。
+// 遊ぶのは無料。Coin が出るのは「腕」が要るときだけ（4つ合わせて1日3回まで・sim.js の playArcade・D333）：
+// 神経衰弱は 12手以内・もぐらは 12ひき以上。じゃんけんは スタンプ（10こで飾り券）。クレーンゲームは景品を集める。
 // 紙の大きさは どのゲームでも同じ（D306：大きさが変わるとストレス）
 
-import { playArcade, arcadeLeft } from './sim.js';
+import { playArcade, arcadeLeft, gameCoin } from './sim.js';
 import { CONFIG } from './config.js';
 
 const SIZE = 280;
+const SK = CONFIG.arcade.game.skill;
 const GAMES = [
-  { id: 'memory', name: '神経衰弱', icon: '🃏', note: '同じ絵を2まいそろえる' },
-  { id: 'crane', name: 'クレーンゲーム', icon: '🧸', note: 'ぬいぐるみをつかむ' },
-  { id: 'janken', name: 'じゃんけん', icon: '✊', note: '島の人と しょうぶ' },
-  { id: 'mole', name: 'もぐらたたき', icon: '🔨', note: '15びょうで 8ぴき' },
+  { id: 'memory', name: '神経衰弱', icon: '🃏', note: `${SK.memory}手以内で Coin` },
+  { id: 'crane', name: 'クレーンゲーム', icon: '🧸', note: 'ぬいぐるみを集める' },
+  { id: 'janken', name: 'じゃんけん', icon: '✊', note: '勝つと スタンプ' },
+  { id: 'mole', name: 'もぐらたたき', icon: '🔨', note: `${SK.mole}ひき以上で Coin` },
 ];
+const MOLE_CLEAR = 8; // クリア（Coin は SK.mole ひきから）
 
 let cur = null;
 
@@ -42,7 +45,7 @@ export function openArcade({ getState, onChange, close: onClose }) {
   const title = (text) => (root.querySelector('.arcade-title').textContent = text);
   const showLeft = () => {
     const left = arcadeLeft(getState());
-    root.querySelector('.game-left').textContent = left > 0 ? `今日の Coin：あと ${left}回` : '今日の Coin は おしまい';
+    root.querySelector('.game-left').textContent = left > 0 ? `今日の Coin（${gameCoin(getState(), CONFIG.arcade.game.coin)}）：あと ${left}回` : '今日の Coin は おしまい';
   };
   const buttons = (again, menu) => {
     root.querySelector('.game-again').hidden = !again;
@@ -56,10 +59,15 @@ export function openArcade({ getState, onChange, close: onClose }) {
   const later = (fn, ms) => cur.timers.push(setTimeout(() => cur && fn(), ms));
 
   // 勝ち負けを sim に渡す（Coin・景品）
-  function finish(won, text, prizeId = null) {
+  function finish(won, text, { score = null, prizeId = null, hint = '' } = {}) {
     cur.phase = 'done';
-    const res = playArcade(getState(), cur.game, won, prizeId);
-    const extra = res.prize ? `　${res.prize.name}を手に入れた！` : res.coin ? `　+${res.coin} Coin` : '';
+    const res = playArcade(getState(), cur.game, { won, score, prizeId });
+    const need = CONFIG.arcade.game.stamps;
+    const extra = res.prize ? `　${res.prize.name}を手に入れた！`
+      : res.ticket ? `　スタンプが ${need}こ たまった！ 飾り券を1まい もらった`
+      : res.stamp ? `　スタンプ ${res.stamps} / ${need}`
+      : res.coin ? `　+${res.coin} Coin`
+      : won && hint && res.left > 0 ? `　${hint}` : '';
     msg(`${text}${extra}`);
     showLeft();
     buttons(true, true);
@@ -74,8 +82,9 @@ export function openArcade({ getState, onChange, close: onClose }) {
     title('ゲームセンター');
     const prizes = getState().prizes || {};
     const got = CONFIG.arcade.game.prizes.filter((p) => prizes[p.id]).map((p) => p.icon).join('');
+    const stamps = getState().stamps || 0;
     stage.innerHTML = `<div class="arcade-menu">${GAMES.map((g) => `<button type="button" data-game="${g.id}"><span class="arcade-icon">${g.icon}</span><b>${g.name}</b><small>${g.note}</small></button>`).join('')}</div>`;
-    msg(got ? `集めた景品：${got}` : '遊ぶゲームを えらんでください');
+    msg(`${got ? `景品：${got}　` : ''}スタンプ ${stamps} / ${CONFIG.arcade.game.stamps}`);
     buttons(false, false);
     showLeft();
   }
@@ -87,8 +96,9 @@ export function openArcade({ getState, onChange, close: onClose }) {
     stage.innerHTML = `<div class="memory">${cards.map((c, i) => `<button type="button" data-i="${i}"><span>${c}</span></button>`).join('')}</div>`;
     const open = [];
     let pairs = 0;
+    let tries = 0;
     let busy = false;
-    msg('同じ絵を2まい めくってください');
+    msg(`同じ絵を2まい めくってください（${SK.memory}手以内で Coin）`);
     stage.onclick = (ev) => {
       const b = ev.target.closest('[data-i]');
       if (!b || busy || cur.phase === 'done' || b.classList.contains('up')) return;
@@ -96,14 +106,16 @@ export function openArcade({ getState, onChange, close: onClose }) {
       open.push(b);
       if (open.length < 2) return;
       const [x, y] = open.splice(0);
+      tries += 1;
       if (cards[x.dataset.i] === cards[y.dataset.i]) {
         pairs += 1;
         x.classList.add('match');
         y.classList.add('match');
-        if (pairs === pics.length) finish(true, 'ぜんぶ そろった！');
-        else msg(`そろった！ あと ${pics.length - pairs}組`);
+        if (pairs === pics.length) finish(true, `ぜんぶ そろった！（${tries}手）`, { score: tries, hint: `${SK.memory}手以内なら Coin` });
+        else msg(`そろった！ あと ${pics.length - pairs}組（${tries}手）`);
         return;
       }
+      msg(`ちがった… （${tries}手）`);
       busy = true;
       later(() => {
         x.classList.remove('up');
@@ -151,7 +163,7 @@ export function openArcade({ getState, onChange, close: onClose }) {
           s.phase = 'end';
           cancelAnimationFrame(cur.raf);
           draw();
-          if (s.got) finish(true, 'つかめた！', s.got.id);
+          if (s.got) finish(true, 'つかめた！', { prizeId: s.got.id });
           else finish(false, 'おしい！ つかめませんでした');
           return;
         }
@@ -230,9 +242,9 @@ export function openArcade({ getState, onChange, close: onClose }) {
     };
   }
 
-  // ---------------------------------------------------------------- もぐらたたき（3×3）：15秒で8ひき
+  // ---------------------------------------------------------------- もぐらたたき（3×3）：15秒で8ひきでクリア・12ひきで Coin
   function mole() {
-    const NEED = 8;
+    const NEED = MOLE_CLEAR;
     const SEC = 15;
     // もぐらは はじめから全部の穴に入れておき、見せる・隠すだけ（中身が変わると穴の大きさが変わっていた・D331）
     stage.innerHTML = `<div class="mole">${Array.from({ length: 9 }, (_, i) => `<button type="button" data-i="${i}"><span>🐹</span></button>`).join('')}</div>`;
@@ -245,7 +257,7 @@ export function openArcade({ getState, onChange, close: onClose }) {
       const left = Math.ceil((end - performance.now()) / 1000);
       if (left <= 0) {
         for (const h of holes) h.classList.remove('up');
-        if (hits >= NEED) finish(true, `${hits}ひき たたけた！`);
+        if (hits >= NEED) finish(true, `${hits}ひき たたけた！`, { score: hits, hint: `${SK.mole}ひきで Coin` });
         else finish(false, `${hits}ひき（あと ${NEED - hits}ひき）`);
         return;
       }

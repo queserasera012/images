@@ -436,6 +436,7 @@ function renderCard() {
       html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">一度に ${seatCount(b)}人。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
       html += `<div class="now">遊んでいる：${who(b.seats.filter(Boolean))}</div>`;
       html += `<div>クレーンゲームの景品：${got || 'まだ ない'}</div>`;
+      html += `<div>じゃんけんのスタンプ：${state.stamps || 0} / ${V.game.stamps}${state.decoTickets ? `（飾り券 ${state.decoTickets}まい）` : ''}</div>`;
       html += `<button id="btn-arcade" class="card-act go" type="button">🎮 ゲームで遊ぶ<span class="cost">${left > 0 ? `今日の Coin あと ${left}回` : '今日の Coin は おしまい'}</span></button>`;
     } else if (b.type === 'track') {
       // ドッグレース場（D328）
