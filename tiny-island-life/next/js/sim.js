@@ -389,6 +389,8 @@ export function migrate(state) {
   state.pets ||= [];
   state.petsSpawned ||= { cat: false, dog: false };
   state.petNaming ||= []; // D355：買われたペットに 名前をつける順番
+  // D357：名前の候補を使い切って「赤ちゃん」という名前になった子に、名前をつけ直す
+  for (const r of state.residents || []) if (r.name === '赤ちゃん') r.name = freshName(state);
   state.today.petWalk ||= {};
   state.today.petNap ||= {};
   state.today.shopSold ||= 0;
@@ -2632,8 +2634,8 @@ function familyEvents(state, day, events) {
       state.wantsRoom.push(a.homeId);
       continue;
     }
-    const used = new Set(state.residents.map((x) => x.name));
-    const name = F.kidNames.find((n) => !used.has(n)) || '赤ちゃん';
+    const used = new Set([...state.residents.map((x) => x.name), ...RESIDENT_POOL.map((x) => x.name)]); // あとから来る人と かぶらない
+    const name = F.kidNames.find((n) => !used.has(n)) || freshName(state); // D357：使い切っても「赤ちゃん」にしない
     const baby = makeResident(
       state,
       { name, age: 'baby', parents: [a.id, b.id], bornOn: day, prefs: { cafe: 0, park: 30, stroll: 20, fun: 0 }, coffee: 0 },
