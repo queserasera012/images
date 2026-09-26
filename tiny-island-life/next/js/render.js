@@ -982,6 +982,52 @@ export function createRenderer(canvas) {
     ctx.fillStyle = PALETTE.ink;
     roundRect(ctx, x0 + 9, y0 + 22, 10, T - 6, [5, 5, 0, 0]);
     ctx.fill();
+    // ペットショップ&ブリーダー（D355）：店先に 売っている子が並ぶ（子犬・子猫・子うさぎ）
+    if (b.breeder && b.pets?.length) {
+      b.pets.forEach((kind, i) => {
+        const ax = x0 + w / 2 - 9 + i * 16;
+        const ay = y0 + 2 * T - 9;
+        const col = { dog: '#c98b52', cat: '#f4a259', rabbit: '#ffffff' }[kind];
+        ctx.fillStyle = col;
+        ctx.strokeStyle = 'rgba(61,90,128,0.6)';
+        ctx.lineWidth = 0.8;
+        if (kind === 'rabbit') {
+          for (const dx of [-1.8, 1.8]) {
+            ctx.beginPath();
+            ctx.ellipse(ax + dx, ay - 6, 1.3, 3.2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          }
+        } else if (kind === 'cat') {
+          for (const dx of [-2.6, 2.6]) {
+            ctx.beginPath();
+            ctx.moveTo(ax + dx - 1.8, ay - 2);
+            ctx.lineTo(ax + dx, ay - 6);
+            ctx.lineTo(ax + dx + 1.8, ay - 2);
+            ctx.fill();
+          }
+        } else {
+          for (const dx of [-3.4, 3.4]) {
+            ctx.beginPath();
+            ctx.ellipse(ax + dx, ay - 1, 1.6, 2.8, 0, 0, Math.PI * 2);
+            ctx.fillStyle = '#8b5e3c';
+            ctx.fill();
+          }
+          ctx.fillStyle = col;
+        }
+        ctx.beginPath();
+        ctx.arc(ax, ay, 3.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = PALETTE.ink;
+        for (const dx of [-1.3, 1.3]) {
+          ctx.beginPath();
+          ctx.arc(ax + dx, ay - 0.4, 0.55, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+      return;
+    }
     // 店先の骨
     ctx.fillStyle = PALETTE.white;
     const bx = x0 + w / 2;

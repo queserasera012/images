@@ -6,7 +6,7 @@ import {
   createGame, step, catchUp, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
   migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
-  labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft, decoType, isChild,
+  labelOf, nextGoal, unlockNow, nameBaby, namePet, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft, decoType, isChild,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
   dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft, nameResident, placeLabel, seasonOf,
 } from './sim.js';
@@ -115,6 +115,8 @@ function frame(now) {
       // お願いをかなえた（D335）
       toast(`${e.name}「ありがとう！」　+${e.coin} Coin`);
       renderQuest();
+    } else if (e.type === 'petBought') {
+      toast(`${e.owner}の家に ${e.baby}が 来ました`);
     } else if (e.type === 'married') {
       toast(`${e.a}と${e.b}が結婚しました`);
     } else if (e.type === 'unlock' && e.id !== 'port') {
@@ -124,6 +126,8 @@ function frame(now) {
   }
   // 赤ちゃんが生まれていたら、名前をつけるカードを出す
   if (state.naming?.length && !selected && !placing && $('sheet').hidden) select({ kind: 'baby', id: state.naming[0] });
+  // 買われたペットに名前をつける（D355）
+  else if (state.petNaming?.length && !selected && !placing && $('sheet').hidden) select({ kind: 'petname', id: state.petNaming[0] });
   const quest = currentStep(state);
   if (quest?.id === 'busy_cafe') {
     if (busyStage === null && busyCafeNow(state)) {
@@ -354,6 +358,19 @@ function renderCard() {
       <button id="btn-baby" type="button" data-baby="${baby.id}">この名前にする</button></div>`;
     return;
   }
+  if (selected.kind === 'petname') {
+    // ペットショップ&ブリーダーで買われた子（D355）
+    const pet = state.pets.find((x) => x.id === selected.id);
+    if (!pet) return select(null);
+    if (card.dataset.stray === `pn:${pet.id}`) return; // 名前を入力中は描き直さない
+    card.dataset.stray = `pn:${pet.id}`;
+    const owner = state.residents.find((r) => r.id === pet.ownerId);
+    lastCardHtml = '';
+    card.innerHTML = `<h3>${owner ? `${owner.name}の家に` : ''} ${CONFIG.petshop.breeder.baby[pet.kind]}が来ました</h3><div class="sub">ペットショップ&ブリーダーから。名前をつけてください</div>
+      <div class="adopt"><input id="pet-new-name" type="text" maxlength="8" value="${pet.name}" aria-label="名前" />
+      <button id="btn-petname" type="button" data-pet="${pet.id}">この名前にする</button></div>`;
+    return;
+  }
   if (selected.kind === 'pet') {
     const pet = state.pets.find((x) => x.id === selected.id);
     if (!pet) return select(null);
@@ -478,6 +495,13 @@ function renderCard() {
       const unit = b.type === 'planetarium' ? `${seatCount(b)}席` : b.type === 'stand' ? '持ち帰り' : `一度に ${seatCount(b)}人 まで`;
       html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${unit}。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
       if (b.type === 'hospital') html += `<div>お年寄りが ときどき 診てもらいに来る</div>`;
+      if (b.type === 'petshop' && b.breeder) {
+        // ペットショップ&ブリーダー（D355）
+        const B = CONFIG.petshop.breeder;
+        html = html.replace(`<h3>${labelOf(state, b)}`, `<h3>${labelOf(state, b)}&ブリーダー`);
+        html += `<div>お店にいる子：${b.pets?.length ? b.pets.map((k) => B.baby[k]).join('・') : 'いない'}（${B.shelf}頭まで）</div>`;
+        html += `<div>次の入荷：Day ${b.nextPetDay}${b.pets?.length >= B.shelf ? '（お店がいっぱいなら入らない）' : ''}</div>`;
+      }
       html += `<div class="now">${{ planetarium: '星を見ている', stand: '注文している', aquarium: '魚を見ている', hospital: '診てもらっている' }[b.type] || '買い物中'}：${who(inside)}</div>`;
       html += `<div>外で待っている：${who(b.queue)}</div>`;
     } else if (b.type === 'ski') {
@@ -609,6 +633,15 @@ $('card').addEventListener('click', (ev) => {
   if (ev.target.closest('#btn-move')) {
     const b = buildingById(state, selected?.id);
     if (b) startMoving(b);
+    return;
+  }
+  const pn = ev.target.closest('#btn-petname');
+  if (pn) {
+    const res = namePet(state, pn.dataset.pet, $('pet-new-name').value);
+    toast(res.message);
+    pokes.set(pn.dataset.pet, performance.now() / 1000);
+    select(null);
+    save();
     return;
   }
   const nb = ev.target.closest('#btn-baby');

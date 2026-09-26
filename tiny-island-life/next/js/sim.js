@@ -388,6 +388,7 @@ export function migrate(state) {
   state.today.tourists ||= 0;
   state.pets ||= [];
   state.petsSpawned ||= { cat: false, dog: false };
+  state.petNaming ||= []; // D355：買われたペットに 名前をつける順番
   state.today.petWalk ||= {};
   state.today.petNap ||= {};
   state.today.shopSold ||= 0;
@@ -603,6 +604,8 @@ function planDay(state, r) {
   if (isChild(r)) r.bed = base + clockToInDay(20 * 60) + between(state, 0, 20); // 子どもは早寝
   r.kinderToday = false;
   r.classToday = false;
+  // ペットを飼いたいな（D355）：ペットのいない家の大人。ブリーダーの店に子がいる日だけ
+  r.wantsPet = !r.age && !r.tourist && breederStock(state) > 0 && !householdHasPet(state, r) && rand(state) < CONFIG.petshop.breeder.want;
   // 老人は ときどき病院へ行く気になる（D349）
   r.wantsDoctor = !!r.elder && ofType(state, 'hospital').length > 0 && rand(state) < CONFIG.hospital.elderVisit;
 }
@@ -758,9 +761,14 @@ function superChoices(state, r) {
 
 // ペットショップ：ペットのいる家の人だけ。2日に1回（needPet）
 function petshopChoices(state, r) {
-  if (r.tourist || !r.needPet || !venueOpen(state, 'petshop', 20)) return [];
-  return ofType(state, 'petshop').map((b) => ({ cafe: b, w: CONFIG.petshop.pull * near(r, b.access) }));
+  const buy = r.wantsPet && breederStock(state) > 0;
+  if (r.tourist || !(r.needPet || buy) || !venueOpen(state, 'petshop', 20)) return [];
+  // 飼いたい人は ブリーダーの店へ（子がいる店）
+  const list = buy ? ofType(state, 'petshop').filter((b) => b.breeder && b.pets?.length) : ofType(state, 'petshop');
+  return list.map((b) => ({ cafe: b, w: CONFIG.petshop.pull * (buy ? 2 : 1) * near(r, b.access) }));
 }
+// ブリーダーの店に いま いる子の数（D355）
+const breederStock = (state) => ofType(state, 'petshop').reduce((n, b) => n + (b.breeder ? b.pets?.length || 0 : 0), 0);
 
 const householdHasPet = (state, r) => (state.pets || []).some((p) => p.adopted && p.homeId === r.homeId);
 
@@ -1410,6 +1418,7 @@ function leaveVenue(state, r, events) {
   if (b.type === 'petshop') {
     r.needPet = false;
     r.carry = 'petfood';
+    if (r.wantsPet && b.breeder && b.pets?.length && !householdHasPet(state, r)) buyPet(state, r, b, events);
   }
   if (b.type === 'stand') r.carry = 'coffee'; // 持ち帰りのカップ
   events.push({ type: 'served', name: r.name, venue: b.type });
@@ -1574,7 +1583,7 @@ function rolloverDay(state, events) {
 
   // 維持費
   // スキー場は冬のあいだだけ維持費がかかる（開いていない季節に払わせない・D318）
-  const upkeep = venues(state).reduce((s, c) => s + (!inSeason(state, c.type) ? 0 : CONFIG[c.type].levels[c.level - 1].upkeep + (c.bar ? CONFIG.cafe.bar.upkeep : 0)), 0);
+  const upkeep = venues(state).reduce((s, c) => s + (!inSeason(state, c.type) ? 0 : CONFIG[c.type].levels[c.level - 1].upkeep + (c.bar ? CONFIG.cafe.bar.upkeep : 0) + (c.breeder ? CONFIG.petshop.breeder.upkeep : 0)), 0);
   const onlyCafes = venues(state).every((v) => v.type === 'cafe');
   const shopUpkeep =
     shops(state).reduce((s, b) => s + CONFIG.shop.levels[b.level - 1].upkeep, 0) +
@@ -1614,6 +1623,18 @@ function rolloverDay(state, events) {
   // レースの日の朝（D328）
   if (ofType(state, 'track').length && (endedDay + 1) % CONFIG.track.every === 0) {
     lines.push({ kind: 'info', text: `今日は ${fmtClock(CONFIG.track.start)} から ドッグレース` });
+  }
+
+  // ペットショップ&ブリーダー（D355）：売れた子・入荷した子
+  for (const x of today.petsSold || []) lines.push({ kind: 'good', text: `${x.owner}の家に ${x.baby}の ${x.name}が 家族になりました（+${x.price} Coin）` });
+  for (const p of ofType(state, 'petshop')) {
+    if (!p.breeder || endedDay + 1 < p.nextPetDay) continue;
+    const B = CONFIG.petshop.breeder;
+    p.nextPetDay = endedDay + 1 + B.every;
+    if (p.pets.length >= B.shelf) continue; // 店がいっぱいなら 入れない（急に増えないように）
+    const kind = pick(state, B.kinds);
+    p.pets.push(kind);
+    lines.push({ kind: 'good', text: `${labelOf(state, p)}に ${B.baby[kind]}が 入荷しました` });
   }
 
   // 季節が変わる朝（D313）
@@ -1956,6 +1977,20 @@ export function actionsFor(state) {
       cost: K.buildCost, locked: full,
     });
   }
+  // ペットショップ&ブリーダーにする（D355）
+  if (CONFIG.petshop.breeder.enabled) {
+    const B = CONFIG.petshop.breeder;
+    for (const p of ofType(state, 'petshop')) {
+      if (p.breeder) continue;
+      list.push({
+        id: `petshop_breeder:${p.id}`,
+        icon: 'petshop_new',
+        title: `${labelOf(state, p)}を ペットショップ&ブリーダーにする`,
+        detail: `${B.every}日ごとに 子犬・子猫・子うさぎが1頭 入る（店に${B.shelf}頭まで）。ペットのいない家の人が 買いに来る。名前は あなたがつける。維持費 1日 +${B.upkeep} Coin`,
+        cost: B.cost,
+      });
+    }
+  }
   for (const c of cafes(state)) {
     if (c.bar) continue;
     const B = CONFIG.cafe.bar;
@@ -2145,6 +2180,11 @@ export function applyAction(state, id, place) {
     else while (cafe.seats.length < seatCount(cafe)) cafe.seats.push(null);
   } else if (id.startsWith('cafe_bar:')) {
     buildingById(state, id.split(':')[1]).bar = true;
+  } else if (id.startsWith('petshop_breeder:')) {
+    const p = buildingById(state, id.split(':')[1]);
+    p.breeder = true;
+    p.pets = [];
+    p.nextPetDay = dayOf(state.t) + 1; // 最初の子は 次の朝
   } else if (id.startsWith('shop_upgrade:')) {
     const shop = buildingById(state, id.split(':')[1]);
     shop.level += 1;
@@ -2722,7 +2762,21 @@ function passAway(state, r) {
     spouse.spouseId = null;
     spouse.widowedOn = dayOf(state.t); // しばらく（10日）は 結婚しない
   }
-  for (const pet of state.pets || []) if (pet.ownerId === r.id) pet.ownerId = family[0]?.id || null;
+  // ペット：同じ家に ほかの大人がいれば その人が引き継ぐ。大人がいなければ 野に帰る（D355・日記に書くだけ）
+  const adult = family.find((x) => !x.age);
+  for (const pet of state.pets || []) {
+    if (pet.ownerId !== r.id) continue;
+    if (adult) {
+      pet.ownerId = adult.id;
+      continue;
+    }
+    pet.adopted = false;
+    pet.ownerId = null;
+    pet.homeId = null;
+    pet.state = 'WANDER';
+    pet.until = state.t;
+    lines.push({ kind: 'info', text: `${pet.name}は、野に帰っていきました` });
+  }
   state.wishes = (state.wishes || []).filter((w) => w.who !== r.id);
   state.naming = (state.naming || []).filter((id) => id !== r.id);
   for (const k of Object.keys(state.affinity || {})) if (k.split('|').includes(r.id)) delete state.affinity[k];
@@ -2730,6 +2784,39 @@ function passAway(state, r) {
   if (r.job) assignJobs(state);
   if (family.length) lines.push({ kind: 'info', text: `${family.length === 1 ? family[0].name : `${r.name}の家族`}は、しばらく さみしそうです` });
   return lines;
+}
+
+// ---------------------------------------------------------------- ペットショップ&ブリーダー（D355）
+// 飼いたい人が店に来て、店の子を1頭 家に連れて帰る。名前は あなたがつける（赤ちゃんと同じ）
+function buyPet(state, r, shop, events) {
+  const B = CONFIG.petshop.breeder;
+  const kind = shop.pets.shift();
+  const home = buildingById(state, r.homeId);
+  const door = houseDoor(home);
+  const used = new Set((state.pets || []).map((p) => p.name));
+  const name = B.names[kind].find((n) => !used.has(n)) || CONFIG.pets[kind].name;
+  const pet = {
+    id: `p${state.nextId++}`, kind, name, adopted: true, ownerId: r.id, homeId: home.id,
+    anchor: { x: door.x, y: door.y + 8 }, x: door.x, y: door.y + 8, tx: door.x, ty: door.y + 8,
+    state: 'WANDER', until: state.t, spot: null, facing: 1, bought: true,
+  };
+  state.pets.push(pet);
+  state.coin += B.price;
+  r.wantsPet = false;
+  (state.today.petsSold ||= []).push({ id: pet.id, owner: r.name, baby: B.baby[kind], name, price: B.price });
+  (state.petNaming ||= []).push(pet.id);
+  events.push({ type: 'petBought', id: pet.id, owner: r.name, baby: B.baby[kind] });
+}
+
+// 買われたペットに 名前をつける（プレイヤー）。空欄なら 最初の名前のまま
+export function namePet(state, id, name) {
+  const pet = state.pets.find((p) => p.id === id);
+  state.petNaming = (state.petNaming || []).filter((x) => x !== id);
+  if (!pet) return { ok: false };
+  const n = cleanName(name);
+  if (n) pet.name = n;
+  for (const x of state.today.petsSold || []) if (x.id === id) x.name = pet.name; // 日記にも この名前で
+  return { ok: true, message: `${pet.name}、ようこそ` };
 }
 
 // ---------------------------------------------------------------- 小学校・大学（D347）
