@@ -253,9 +253,9 @@ export function openArcade({ getState, onChange, close: onClose }) {
       const h = free[Math.floor(Math.random() * free.length)];
       if (h) {
         h.classList.add('up');
-        later(() => h.classList.remove('up'), 850);
+        later(() => h.classList.remove('up'), 1400); // 出ている時間（子どもでも追いつけるように：850 → 1,400ms）
       }
-      later(pop, 520 + Math.random() * 260);
+      later(pop, 750 + Math.random() * 300); // 次のもぐらまで（520〜780 → 750〜1,050ms。15秒で16ぴきほど）
     };
     stage.onpointerdown = (ev) => {
       const b = ev.target.closest('[data-i]');
