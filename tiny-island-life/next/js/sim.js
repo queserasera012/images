@@ -11,7 +11,7 @@
 import { CONFIG } from './config.js';
 import {
   T, SIZES, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, center, roadPath, roadDistance, accessTile, canPlace, isRoad, idx,
-  useAreas, landTilesOf, placements, HOUSE_FLOOR, areaAt, COLS, OLD_COLS_2,
+  useAreas, landTilesOf, placements, HOUSE_FLOOR, areaAt, COLS, OLD_COLS_2, DECO,
 } from './grid.js';
 
 const DAY = 1440;
@@ -243,6 +243,7 @@ export function labelOf(state, b) {
   if (b.type === 'shop') return shopLabel(state, b);
   if (b.type === 'kinder') return dirName(ofType(state, 'kinder'), b, '幼稚園');
   if (b.type === 'company') return dirName(ofType(state, 'company'), b, '会社');
+  if (DECO.includes(b.type)) return decoType(b.type).name;
   if (!isVenue(b)) return b.type;
   return dirName(ofType(state, b.type), b, VENUE_NAME[b.type]);
 }
@@ -325,6 +326,7 @@ function freshToday() {
     work: { workers: 0, income: 0 },
     race: null,
     arcade: { plays: 0, rewarded: 0, coin: 0 },
+    deco: 0,
   };
 }
 
@@ -748,6 +750,27 @@ function arcadeChoices(state, r) {
   return ofType(state, 'arcade').map((b) => ({ cafe: b, w: (r.prefs.fun ?? 12) * weather * near(r, b.access) }));
 }
 
+// ---------------------------------------------------------------- 飾り（D334）
+// Coin の使い道。維持費なし。同じ飾りは1つ置くごとに値段が上がる。住民と観光客が ぶらぶら歩きで立ち寄る
+export const decoType = (id) => CONFIG.deco.types.find((t) => t.id === id);
+export function decoCost(state, id) {
+  const n = ofType(state, id).length;
+  return Math.round((decoType(id).cost * (1 + CONFIG.deco.grow * n)) / 10) * 10;
+}
+// 道に面している飾りのうち、道で近いもの（時計台は遠くからも来る）
+function decosNear(state, r) {
+  return state.buildings.filter((b) => DECO.includes(b.type) && b.access !== null && roadDistance(r.at, b.access) <= (decoType(b.type).far || CONFIG.deco.near));
+}
+// 立ち寄ったときに立つ場所：ベンチは その上、ほかは 道から飾りの方へ少し寄ったところ
+function decoSpot(state, b) {
+  const s = SIZES[b.type];
+  const mid = { x: (b.c + s.w / 2) * T, y: (b.r + s.h / 2) * T };
+  if (b.type === 'bench') return { x: mid.x + between(state, -6, 6), y: mid.y + 4 };
+  const a = center(b.access);
+  const k = 0.45;
+  return { x: a.x + (mid.x - a.x) * k + between(state, -8, 8), y: a.y + (mid.y - a.y) * k + between(state, -6, 6) };
+}
+
 // ミニゲームの Coin（D333）：島の大きさに合わせる。住民15人ごとに1倍（1〜8倍）。5 Coin きざみ
 export function gameScale(state) {
   const M = CONFIG.minigame;
@@ -1025,6 +1048,12 @@ function decideNext(state, r, { noCafe = false, avoid = null } = {}) {
   for (const c of shopList) if ((x -= c.w) < 0) return goTo(state, r, 'shop', c.shop.id, c.shop.access, shopFront(c.shop, Math.floor(rand(state) * 3)));
   if ((x -= parkW) < 0) return goTo(state, r, 'park', park.id, park.access, parkPoint(state, park));
   if ((x -= strollW) < 0) {
+    // 近くに飾りがあれば、そこへ立ち寄る（D334）
+    const decos = decosNear(state, r);
+    if (decos.length && rand(state) < CONFIG.deco.visit) {
+      const b = pick(state, decos);
+      return goTo(state, r, 'stroll', b.id, b.access, decoSpot(state, b));
+    }
     // 近くの道をぶらぶら（遠くには行かない）
     const nearby = roadTiles().filter((i) => roadDistance(r.at, i) <= 6);
     const target = pick(state, nearby.length ? nearby : roadTiles());
@@ -1047,10 +1076,17 @@ function arrive(state, r, events) {
       r.until = state.t + (rainNoRoof ? between(state, 8, 18) : between(state, CONFIG.park.stayMin, CONFIG.park.stayMax));
       return;
     }
-    case 'stroll':
+    case 'stroll': {
       r.state = 'STROLL';
-      r.until = state.t + between(state, 4, 14);
+      const deco = r.destId && buildingById(state, r.destId);
+      if (deco) {
+        // 飾りに立ち寄った（D334）。ベンチでは すわって長めに
+        r.until = state.t + (deco.type === 'bench' ? between(state, ...CONFIG.deco.sit) : between(state, 6, 16));
+        deco.visits = (deco.visits || 0) + 1;
+        state.today.deco = (state.today.deco || 0) + 1;
+      } else r.until = state.t + between(state, 4, 14);
       return;
+    }
     case 'boat':
       r.state = 'BOARDED';
       r.visible = false;
@@ -1394,6 +1430,7 @@ function rolloverDay(state, events) {
   const arc = today.byType.arcade;
   if (arc?.served) lines.push({ kind: 'good', text: `ゲームセンターに ${arc.served}人 が来ました（+${arc.income} Coin）` });
   if (today.arcade?.plays) lines.push({ kind: 'good', text: `あなたはゲームセンターで ${today.arcade.plays}回 遊びました${today.arcade.coin ? `（+${today.arcade.coin} Coin）` : ''}` });
+  if (today.deco) lines.push({ kind: 'good', text: `飾りのまわりで ${today.deco}人 が ひと休みしました` });
   const ski = today.byType.ski;
   if (ski?.served) lines.push({ kind: 'good', text: `山の島のスキー場に ${ski.served}人 が来ました（+${ski.income} Coin）` });
   const pond = today.byType.pond;
@@ -1878,6 +1915,24 @@ export function actionsFor(state) {
   if (park && !park.roof) {
     list.push({ id: 'park_roof', icon: 'park_roof', title: '公園に東屋をつくる', detail: '屋根の下なら、雨でも過ごせる', cost: CONFIG.park.roofCost });
   }
+  // 飾り（D334）：「飾り」のタブ。飾り券（じゃんけんのスタンプ10こ）があれば無料
+  const tickets = state.decoTickets || 0;
+  for (const t of CONFIG.deco.types) {
+    const n = ofType(state, t.id).length;
+    const need = Math.max(t.pop || 0, CONFIG.deco.pop);
+    const locked = state.residents.length < need;
+    list.push({
+      id: `deco:${t.id}`,
+      tab: 'deco',
+      icon: `deco_${t.id}`,
+      place: t.id,
+      title: `${t.name}を置く`,
+      detail: locked ? `住民が ${need}人 になると置けます` : tickets ? `${t.note}。飾り券で無料（のこり ${tickets}まい）` : `${t.note}。維持費なし${n ? `（${n + 1}こ目）` : ''}`,
+      cost: tickets && !locked ? 0 : decoCost(state, t.id),
+      ticket: tickets > 0 && !locked,
+      locked,
+    });
+  }
   // 島を広げる（D298）：「島」のタブ
   const u = CONFIG.unlocks.find((x) => x.id === 'expand');
   const expandLocked = !isUnlocked(state, 'expand');
@@ -1972,6 +2027,7 @@ export function applyAction(state, id, place) {
     if (action.place === 'super') for (const r of state.residents) if (!r.carry) r.needShop = true;
     if (action.place === 'petshop') for (const r of state.residents) if (householdHasPet(state, r)) r.needPet = true;
     if (action.place === 'company') assignJobs(state);
+    if (action.ticket) state.decoTickets -= 1;
   } else if (id.startsWith('cafe_upgrade:') || id.startsWith('venue_upgrade:')) {
     const cafe = buildingById(state, id.split(':')[1]);
     cafe.level += 1;
@@ -1995,6 +2051,7 @@ export function applyAction(state, id, place) {
   }
   state.coin -= action.cost;
   state.history.push({ t: state.t, action: id, place: place || null });
+  if (id.startsWith('deco:')) return { ok: true, message: `${decoType(action.place).name}を置きました${action.ticket ? '（飾り券）' : ''}` };
   return { ok: true, message: `${action.title.replace('（', ' ').replace('）', '')}：完成しました` };
 }
 
@@ -2216,8 +2273,12 @@ export function describeResident(state, r) {
       return '公園で過ごしている';
     case 'SHOP':
       return 'お土産を見ている';
-    case 'STROLL':
+    case 'STROLL': {
+      const deco = r.destId && buildingById(state, r.destId);
+      if (deco?.type === 'bench') return 'ベンチで ひと休みしている';
+      if (deco) return `${decoType(deco.type).name}を眺めている`;
       return r.tourist ? '景色を眺めている' : 'あたりを眺めている';
+    }
     case 'HOME':
       return r.age === 'baby' ? '家で すやすや眠っている' : '家にいる';
     case 'SLEEP':
@@ -2259,7 +2320,7 @@ function placeKey(r) {
   if (r.state === 'SEATED' || r.state === 'QUEUE') return `v:${r.destId}`;
   if (r.state === 'PARK') return `p:${r.destId}`;
   if (r.state === 'WORK') return `w:${r.destId}`; // 同じ会社の人とも仲よくなる
-  if (r.state === 'STROLL') return `s:${r.at}`;
+  if (r.state === 'STROLL') return r.destId ? `d:${r.destId}` : `s:${r.at}`; // 同じベンチ・噴水で仲よくなる（D334）
   return null;
 }
 

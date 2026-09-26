@@ -1217,10 +1217,11 @@ export function createRenderer(canvas) {
     }
   }
 
-  function lamp(i, lit) {
+  // 街灯。道の交差点のもの（マスの右上）と、飾りとして置いたもの（マスの真ん中・D334）
+  function lamp(i, lit, placed = false) {
     const p = center(i);
-    const x = p.x + 12;
-    const y = p.y - 8;
+    const x = placed ? p.x : p.x + 12;
+    const y = placed ? p.y + 10 : p.y - 8;
     ctx.fillStyle = PALETTE.ink;
     ctx.fillRect(x - 1, y - 18, 2, 18);
     ctx.fillStyle = lit ? '#ffd66b' : PALETTE.white;
@@ -1233,6 +1234,135 @@ export function createRenderer(canvas) {
       ctx.arc(x, y - 16, 22, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+
+  // ---------------------------------------------------------------- 飾り（D334）
+
+  // 花だん：季節の花の色（冬は花がないので、緑の植え込み）
+  function flowerbed(b, time) {
+    const p = center(idx(b.c, b.r));
+    paperShadow((shadow) => {
+      if (!shadow) ctx.fillStyle = '#b07a52';
+      roundRect(ctx, p.x - 14, p.y - 2, 28, 14, 5);
+      ctx.fill();
+    });
+    ctx.fillStyle = '#8a5a3a';
+    roundRect(ctx, p.x - 12, p.y, 24, 9, 4);
+    ctx.fill();
+    const colors = theme.flowers.length ? theme.flowers : null;
+    for (let k = 0; k < 7; k++) {
+      const fx = p.x - 10 + (k % 4) * 6.5 + (k >= 4 ? 3 : 0);
+      const fy = p.y + 1 + (k >= 4 ? 5 : 0) + Math.sin(time * 1.3 + k) * 0.4;
+      ctx.fillStyle = theme.shrub;
+      ctx.beginPath();
+      ctx.arc(fx, fy + 1, 2.6, 0, Math.PI * 2);
+      ctx.fill();
+      if (!colors) continue;
+      ctx.fillStyle = colors[k % colors.length];
+      ctx.beginPath();
+      ctx.arc(fx, fy - 1, 2.1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // ベンチ：木の座面と背もたれ
+  function bench(b) {
+    const p = center(idx(b.c, b.r));
+    const x = p.x;
+    const y = p.y + 2;
+    paperShadow((shadow) => {
+      if (!shadow) ctx.fillStyle = '#c98b52';
+      roundRect(ctx, x - 13, y - 8, 26, 5, 2); // 背もたれ
+      ctx.fill();
+      roundRect(ctx, x - 14, y, 28, 5, 2); // 座面
+      ctx.fill();
+    });
+    ctx.fillStyle = PALETTE.ink;
+    for (const dx of [-11, 10]) ctx.fillRect(x + dx, y + 5, 2, 5);
+    ctx.fillRect(x - 11, y - 3, 1.5, 3);
+    ctx.fillRect(x + 9.5, y - 3, 1.5, 3);
+  }
+
+  // 噴水（2×2）：まるい池と、真ん中から上がる水
+  function fountain(b, time) {
+    const x = (b.c + 1) * T;
+    const y = (b.r + 1) * T + 4;
+    paperShadow((shadow) => {
+      if (!shadow) ctx.fillStyle = '#e9eef2';
+      ctx.beginPath();
+      ctx.ellipse(x, y, T * 0.85, T * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.fillStyle = '#7cc8dd';
+    ctx.beginPath();
+    ctx.ellipse(x, y, T * 0.7, T * 0.47, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // 波紋
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 1;
+    for (let k = 0; k < 2; k++) {
+      const f = (time * 0.5 + k / 2) % 1;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 6 + f * T * 0.55, 4 + f * T * 0.36, 0, 0, Math.PI * 2);
+      ctx.globalAlpha = 1 - f;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    // 台と水
+    ctx.fillStyle = '#e9eef2';
+    roundRect(ctx, x - 5, y - 14, 10, 14, 3);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(190, 232, 244, 0.9)';
+    for (let k = 0; k < 6; k++) {
+      const f = (time * 1.4 + k / 6) % 1;
+      const dir = k % 2 ? 1 : -1;
+      const dx = dir * (2 + f * 11);
+      const dy = -14 - Math.sin(f * Math.PI) * 14 + f * 12;
+      ctx.beginPath();
+      ctx.arc(x + dx, y + dy, 1.8 * (1 - f * 0.4), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // 時計台：細長い塔と、いまの時刻の時計
+  function clocktower(state, b) {
+    const p = center(idx(b.c, b.r));
+    const x = p.x;
+    const base = p.y + 14;
+    const h = 46;
+    paperShadow((shadow) => {
+      if (!shadow) ctx.fillStyle = '#f4e6cf';
+      roundRect(ctx, x - 9, base - h, 18, h, 2);
+      ctx.fill();
+      if (!shadow) ctx.fillStyle = '#c8553d';
+      ctx.beginPath();
+      ctx.moveTo(x - 12, base - h + 1);
+      ctx.lineTo(x, base - h - 14);
+      ctx.lineTo(x + 12, base - h + 1);
+      ctx.closePath();
+      ctx.fill();
+    });
+    ctx.fillStyle = PALETTE.white;
+    ctx.beginPath();
+    ctx.arc(x, base - h + 11, 6.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = PALETTE.ink;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    const m = clockOf(state.t);
+    const hr = ((m / 60) % 12) / 12 * Math.PI * 2;
+    const mn = (m % 60) / 60 * Math.PI * 2;
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(x, base - h + 11);
+    ctx.lineTo(x + Math.sin(hr) * 3.4, base - h + 11 - Math.cos(hr) * 3.4);
+    ctx.moveTo(x, base - h + 11);
+    ctx.lineTo(x + Math.sin(mn) * 5, base - h + 11 - Math.cos(mn) * 5);
+    ctx.stroke();
+    ctx.fillStyle = PALETTE.ink;
+    roundRect(ctx, x - 3, base - 9, 6, 9, [3, 3, 0, 0]);
+    ctx.fill();
   }
 
   // 船：南の桟橋の横に着く
@@ -2527,6 +2657,11 @@ export function createRenderer(canvas) {
       else if (b.type === 'pool') pool(state, b, time, poolOpen);
       else if (b.type === 'track') track(state, b, time);
       else if (b.type === 'arcade') arcade(state, b, time);
+      else if (b.type === 'flowerbed') flowerbed(b, time);
+      else if (b.type === 'bench') bench(b);
+      else if (b.type === 'streetlamp') lamp(idx(b.c, b.r), false, true);
+      else if (b.type === 'fountain') fountain(b, time);
+      else if (b.type === 'clocktower') clocktower(state, b);
     }
     for (const b of state.buildings) if (b.type === 'track') raceRunners(state, b, time);
     if (theme.snow) for (const b of state.buildings) if (b.type === 'ski') skiSlope(state, b, time);
@@ -2563,6 +2698,7 @@ export function createRenderer(canvas) {
       houseWindow(b, night && home);
     }
     if (night) for (const i of lamps()) lamp(i, true);
+    if (night) for (const b of state.buildings) if (b.type === 'streetlamp') lamp(idx(b.c, b.r), true, true);
     if (night) for (const b of state.buildings) if (b.type === 'planetarium') planetariumGlow(b, time);
     if (night) for (const b of state.buildings) if (b.type === 'cafe' && b.bar) barLights(b, true, time);
     // 住民・観光客・ペットを、奥（上）から順に

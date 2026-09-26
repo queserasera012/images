@@ -41,7 +41,15 @@ export const SIZES = {
   pool: { w: 3, h: 2 }, // プール（夏だけ・D319）。泳ぐ人が見える
   track: { w: 3, h: 3 }, // ドッグレース場（D328）。まわりに観客が立つ
   arcade: { w: 3, h: 2 }, // ゲームセンター（D331）
+  // 飾り（D334）
+  flowerbed: { w: 1, h: 1 },
+  bench: { w: 1, h: 1 },
+  streetlamp: { w: 1, h: 1 },
+  fountain: { w: 2, h: 2 },
+  clocktower: { w: 1, h: 1 },
 };
+// 飾り（D334）：道に面していなくても置ける（使っていない土地の使い道にもなる）
+export const DECO = ['flowerbed', 'bench', 'streetlamp', 'fountain', 'clocktower'];
 
 // 島の土地。本島と、あとからつなげる3つ。
 // ふちは楕円をすこし揺らした形（ph で揺れ方を変える）。描画も同じ式を使うので、見た目と格子がずれない。
@@ -526,7 +534,7 @@ export function canPlace(type, c, r, buildings) {
     if (MAP[t] !== 'land' || used.has(t)) return false;
     if (ONLY_ON[type] && areaAt(colOf(t), rowOf(t)) !== ONLY_ON[type]) return false;
   }
-  return accessTile(type, c, r) !== null;
+  return DECO.includes(type) || accessTile(type, c, r) !== null;
 }
 
 // 建てられる場所の一覧（左上のマス）

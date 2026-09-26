@@ -190,6 +190,34 @@ export const ICONS = {
       `<circle cx="8" cy="11" r="1" fill="${INK}"/>`,
     22,
   ),
+  // 飾り（D334）
+  deco_flowerbed: svg(
+    `<rect x="4" y="13" width="16" height="7" rx="3" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<rect x="4" y="13" width="16" height="7" rx="3" fill="#b07a52" stroke="${INK}" stroke-width="1.3"/>` +
+      `<circle cx="8" cy="11" r="2.6" fill="#f28aa0"/><circle cx="12" cy="9.5" r="2.6" fill="#ffd166"/><circle cx="16" cy="11" r="2.6" fill="#f28aa0"/>`,
+  ),
+  deco_bench: svg(
+    `<rect x="4" y="8" width="16" height="4" rx="1.5" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<rect x="4" y="8" width="16" height="4" rx="1.5" fill="#c98b52" stroke="${INK}" stroke-width="1.2"/>` +
+      `<rect x="3" y="13" width="18" height="4" rx="1.5" fill="#c98b52" stroke="${INK}" stroke-width="1.2"/>` +
+      `<path d="M6 17v3M18 17v3" stroke="${INK}" stroke-width="1.6" stroke-linecap="round"/>`,
+  ),
+  deco_streetlamp: svg(
+    `<path d="M12 9v11M9 20h6" stroke="${INK}" stroke-width="1.8" stroke-linecap="round"/>` +
+      `<circle cx="12" cy="6.5" r="3.6" fill="#ffd66b" stroke="${INK}" stroke-width="1.3"/>`,
+  ),
+  deco_fountain: svg(
+    `<ellipse cx="13" cy="17" rx="9" ry="4" fill="${SHADOW}"/>` +
+      `<ellipse cx="12" cy="16" rx="9" ry="4" fill="#7cc8dd" stroke="${INK}" stroke-width="1.3"/>` +
+      `<rect x="10.5" y="9" width="3" height="7" rx="1" fill="#fff" stroke="${INK}" stroke-width="1.1"/>` +
+      `<path d="M12 8c-2-3-5-2-6 1M12 8c2-3 5-2 6 1" fill="none" stroke="${SKY}" stroke-width="1.6" stroke-linecap="round"/>`,
+  ),
+  deco_clocktower: svg(
+    `<rect x="8" y="8" width="8" height="13" rx="1" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<rect x="8" y="8" width="8" height="13" rx="1" fill="#f4e6cf" stroke="${INK}" stroke-width="1.3"/>` +
+      `<path d="M6.5 8.5 12 3l5.5 5.5z" fill="#c8553d" stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"/>` +
+      `<circle cx="12" cy="12" r="2.6" fill="#fff" stroke="${INK}" stroke-width="1.1"/><path d="M12 12v-1.6M12 12h1.3" stroke="${INK}" stroke-width="0.9" stroke-linecap="round"/>`,
+  ),
   stand_new: svg(
     `<rect x="5" y="9" width="14" height="11" rx="1" transform="translate(1 1)" fill="${SHADOW}"/>` +
       `<rect x="5" y="9" width="14" height="11" rx="1" fill="#fff" stroke="${INK}" stroke-width="1.4"/>` +

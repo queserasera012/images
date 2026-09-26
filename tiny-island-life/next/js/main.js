@@ -1,12 +1,12 @@
 // 画面の組み立て：時間を流す・保存する・タップと指の操作を受ける。ゲームのルールは sim.js にしか書かない。
 
 import { CONFIG } from './config.js';
-import { T, SIZES, PIER, PIERS, OX, OY, AREAS, areaById, center, placements, footprint, canPlace, landBounds } from './grid.js';
+import { T, SIZES, PIER, PIERS, OX, OY, AREAS, areaById, center, placements, footprint, canPlace, landBounds, DECO } from './grid.js';
 import {
   createGame, step, catchUp, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
   migrate, everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
-  labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft,
+  labelOf, nextGoal, unlockNow, nameBaby, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft, decoType,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
   dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft, nameResident, placeLabel, seasonOf,
 } from './sim.js';
@@ -489,6 +489,12 @@ function renderCard() {
       const here = state.residents.filter((r) => r.state === 'PARK' && r.destId === b.id).map((r) => r.id);
       html = `<h3>公園</h3><div class="sub">${b.roof ? '東屋がある' : '屋根はない'}</div>`;
       html += `<div class="now">いま：${who(here)}</div>`;
+    } else if (DECO.includes(b.type)) {
+      // 飾り（D334）
+      const t = decoType(b.type);
+      const here = everyone(state).filter((r) => r.state === 'STROLL' && r.destId === b.id).map((r) => r.id);
+      html = `<h3>${t.name}</h3><div class="sub">${t.note}${b.access === null ? '。道に面していないので、人は立ち寄らない' : ''}</div>`;
+      if (b.access !== null) html += `<div class="now">いま：${who(here)}</div><div>これまでに立ち寄った人：${b.visits || 0}人</div>`;
     } else if (b.type !== 'house') {
       // 知らない種類の建物を「家」と出さない（D310）
       html = `<h3>${labelOf(state, b)}</h3>`;
@@ -774,7 +780,7 @@ function openBuild(focusId) {
       return `<button class="action" type="button" data-action="${a.id}" ${short > 0 || a.locked ? 'disabled' : ''}>
         ${ICONS[a.icon]}
         <span class="text">${a.title}<span class="detail">${a.detail}</span></span>
-        <span><span class="cost">${ICONS.coin}${a.cost.toLocaleString()}</span>${short > 0 && !a.locked ? `<span class="need">あと ${short.toLocaleString()}</span>` : ''}</span>
+        <span><span class="cost">${a.ticket ? '飾り券' : `${ICONS.coin}${a.cost.toLocaleString()}`}</span>${short > 0 && !a.locked ? `<span class="need">あと ${short.toLocaleString()}</span>` : ''}</span>
       </button>`;
     })
     .join('');
@@ -782,12 +788,13 @@ function openBuild(focusId) {
   const badge = (tab) => (count(tab) ? `<span class="n">${count(tab)}</span>` : '');
   const tabs = `<div class="tabs" role="tablist">
     <button type="button" role="tab" data-tab="new" aria-selected="${buildTab === 'new'}">建てる</button>
+    <button type="button" role="tab" data-tab="deco" aria-selected="${buildTab === 'deco'}">飾り${state.decoTickets ? '<span class="n">券</span>' : ''}</button>
     <button type="button" role="tab" data-tab="grow" aria-selected="${buildTab === 'grow'}">広げる${badge('grow')}</button>
     <button type="button" role="tab" data-tab="island" aria-selected="${buildTab === 'island'}">島${badge('island')}</button>
     <button type="button" role="tab" data-tab="look" aria-selected="${buildTab === 'look'}">見た目</button>
   </div>`;
   if (buildTab === 'look') return openSheet(`<h2>つくる</h2>${tabs}${lookHtml()}`);
-  const empty = { new: 'いま建てられるものはありません', grow: 'まだ広げられるものはありません', island: '島は これ以上 広げられません' }[buildTab];
+  const empty = { deco: '置ける飾りはありません', new: 'いま建てられるものはありません', grow: 'まだ広げられるものはありません', island: '島は これ以上 広げられません' }[buildTab];
   openSheet(`<h2>つくる</h2>${tabs}${items || `<p class="lead">${empty}</p>`}`);
   if (focusId) {
     const el = [...document.querySelectorAll('.action')].find((x) => x.dataset.action.startsWith(focusId));
