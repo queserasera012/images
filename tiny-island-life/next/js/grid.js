@@ -100,6 +100,17 @@ export const AREAS = [
     neck: { cx: 9.4 * T, cy: 27.3 * T, rx: 2.2 * T, ry: 1.5 * T },
     roads: { rows: [[26, 6, 10], [30, 1, 10]], cols: [[8, 26, 30]] },
   },
+  // 北東の入り江（D350）：北の丘の東。北の丘の道（7行目）を東へ延ばしてつなぐ。
+  // 北の丘の道と海のあいだに 土地が1マスある（21列7行）。そこだけ ひらくときに道にする（link）。そのマスには はじめから何も建てられない
+  // 本島の南は 港の桟橋と船の通り道があるので ひらかない
+  {
+    id: 'northeast', name: '北東の入り江', ph: 2.3, late: true, cost: 8000, unlock: 'expand4',
+    cx: 29 * T, cy: 5.6 * T, rx: 5.6 * T, ry: 3.6 * T,
+    neck: { cx: 23.2 * T, cy: 6.8 * T, rx: 2.2 * T, ry: 1.6 * T },
+    roads: { rows: [[7, 22, 33]], cols: [[28, 3, 9]] },
+    link: [[21, 7]],
+    needs: 'north', // 北の丘の道からつなぐので、北の丘が先
+  },
   // 山の島を広げる（D321）：北東のふもと。山の島の東の道（42列）を北へ延ばしてつなぐ。
   // 山の島には3×3のカフェが建つ場所が無かった（冬のスキー客のカフェが要るのに）
   {
@@ -217,6 +228,11 @@ function buildMap(ids) {
         if (kind[i] !== 'beach') added.add(i);
       }
     }
+  }
+  // つなぎのマス（link・D350）：今ある土地を1マスだけ道にする。そのマスは はじめから建てられない（LINK_TILES）
+  for (const a of late) for (const [c, r] of a.link || []) {
+    kind[idx(c, r)] = 'road';
+    added.add(idx(c, r));
   }
   // 本島の道とつながらない道は土地に（決めた道なので ふつうは起きない）
   const reach = new Set([MAIN_PIER]);
@@ -529,12 +545,15 @@ export function accessTile(type, c, r) {
 export const ONLY_ON = { ski: 'mountain' };
 
 // その場所に建てられるか
+// あとから道にする つなぎのマス（D350）。はじめから建てられない
+export const LINK_TILES = new Set(AREAS.flatMap((a) => (a.link || []).map(([c, r]) => idx(c, r))));
+
 export function canPlace(type, c, r, buildings) {
   const s = SIZES[type];
   if (!inBounds(c, r) || !inBounds(c + s.w - 1, r + s.h - 1)) return false;
   const used = occupied(buildings);
   for (const t of footprint(type, c, r)) {
-    if (MAP[t] !== 'land' || used.has(t)) return false;
+    if (MAP[t] !== 'land' || used.has(t) || LINK_TILES.has(t)) return false;
     if (ONLY_ON[type] && areaAt(colOf(t), rowOf(t)) !== ONLY_ON[type]) return false;
   }
   return DECO.includes(type) || accessTile(type, c, r) !== null;

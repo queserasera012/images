@@ -11,7 +11,7 @@
 import { CONFIG } from './config.js';
 import {
   T, SIZES, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, center, roadPath, roadDistance, accessTile, canPlace, isRoad, idx,
-  useAreas, landTilesOf, placements, HOUSE_FLOOR, areaAt, COLS, OLD_COLS_2, DECO,
+  useAreas, landTilesOf, placements, HOUSE_FLOOR, areaAt, COLS, OLD_COLS_2, DECO, footprint,
 } from './grid.js';
 import { morningWishes, checkWishes, bigWish } from './wishes.js';
 
@@ -2058,13 +2058,17 @@ export function actionsFor(state) {
     // 本島を広げる 2周目（D329）：南西の浜・北西の丘。それぞれ別の目標（住民の人数）と値段
     if (a.late) {
       const ul = CONFIG.unlocks.find((x) => x.id === a.unlock);
-      const lateLocked = !isUnlocked(state, a.unlock);
+      // つなぎのマス（D350）に 前のセーブの建物があると 道が通せない
+      const linkSet = new Set((a.link || []).map(([c, r]) => idx(c, r)));
+      const blocker = linkSet.size ? state.buildings.find((b) => footprint(b.type, b.c, b.r).some((t) => linkSet.has(t))) : null;
+      const needs = a.needs && !state.areas.includes(a.needs) ? areaById(a.needs) : null;
+      const lateLocked = !isUnlocked(state, a.unlock) || !!blocker || !!needs;
       list.push({
         id: `expand:${a.id}`,
         tab: 'island',
         icon: `expand_${a.id}`,
         title: `${a.name}をひらく`,
-        detail: lateLocked ? `住民が ${ul.pop}人 になると広げられます` : `本島の となりに 建てられる土地が ${landTilesOf(a.id)}マス 増える。道も通る`,
+        detail: !isUnlocked(state, a.unlock) ? `住民が ${ul.pop}人 になると広げられます` : needs ? `先に ${needs.name}をひらくと広げられます` : blocker ? `道を通す場所に ${labelOf(state, blocker) === 'house' ? '家' : labelOf(state, blocker)}があります。動かすと広げられます` : `本島の となりに 建てられる土地が ${landTilesOf(a.id)}マス 増える。道も通る`,
         cost: a.cost,
         locked: lateLocked,
       });
