@@ -5,7 +5,7 @@
 // どの魚が釣れるか・Coin は sim.js（landFish）が決める。ここは判定と絵だけ。
 
 import { landFish, fishingLeft, addBait, adsLeft } from './sim.js';
-import { showRewardedAd } from './ads.js';
+import { showRewardedAd, adsOn } from './ads.js';
 
 export const RING = { r: 30, half: 7, perfect: 3 }; // 輪の真ん中の半径・幅の半分・ぴったりの幅
 export const START_R = 120;
@@ -61,6 +61,7 @@ export function openFishing({ getState, onChange, close: onClose }) {
     root.querySelector('.game-left').textContent = left > 0 ? `今日の Coin：あと ${left}回` : '今日の Coin は おしまい';
     // 特別なエサ（リワード広告・D309）
     const btn = root.querySelector('.bait-btn');
+    root.querySelector('.game-bait').hidden = !adsOn(); // アプリで広告を切っているあいだは出さない（D343）
     const baitLeft = adsLeft(state, 'bait');
     btn.disabled = state.bait > 0 || baitLeft <= 0;
     btn.textContent = state.bait > 0 ? '特別なエサをつけています（次は大物）' : baitLeft > 0 ? `▶ 広告を見て、特別なエサをつける（今日あと ${baitLeft}回）` : '特別なエサは 今日は おしまい';

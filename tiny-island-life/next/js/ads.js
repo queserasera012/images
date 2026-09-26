@@ -7,6 +7,11 @@ const WAIT_SEC = 3;
 
 // アプリの中（WebView）で動いているとき：アプリ側に広告を頼み、答えを待つ（D317）
 export const inApp = () => typeof window !== 'undefined' && !!window.__TIL_NATIVE && !!window.ReactNativeWebView;
+
+// アプリで広告のボタンを出すか（D343）。AdMob の審査が通るまでは false で出す → 通ったら true にして EAS Update で届ける
+// ウェブ版（next/）はいつも出す（仮の広告画面）
+export const APP_ADS = false;
+export const adsOn = () => !inApp() || APP_ADS;
 let nextId = 1;
 const waiting = new Map();
 if (typeof window !== 'undefined') {

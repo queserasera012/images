@@ -18,7 +18,7 @@ import { setupKeepAwake, awakeStatus } from './awake.js';
 import { openFishing, fishingNow } from './fishing.js';
 import { openArcade, arcadeNow } from './arcade.js';
 import { wishOf, wishList } from './wishes.js';
-import { showRewardedAd } from './ads.js';
+import { showRewardedAd, adsOn } from './ads.js';
 
 // 🚨 前の版（3日テスト中）と同じサイトに置くので、保存の名前を分ける（D289）
 const SAVE_KEY = 'til.grid.save.v1';
@@ -317,6 +317,7 @@ let lastCardHtml = '';
 
 // リワード広告（D309）：臨時の観光船。呼べないときは理由を短く
 function boatAdRow(id) {
+  if (!adsOn()) return '';
   const left = adsLeft(state, 'boat');
   if (canCallBoat(state, id)) {
     return `<button id="btn-adboat" data-port="${id}" class="card-act go" type="button">${ICONS.ad}広告を見て、臨時の船を呼ぶ<span class="cost">今日あと ${left}回</span></button>`;
@@ -332,6 +333,7 @@ function boatAdRow(id) {
 
 // リワード広告（D309）：朝の日記の上乗せ
 function bonusRow() {
+  if (!adsOn()) return '';
   const coin = dailyBonus(state);
   return coin > 0 ? `<button class="ad-btn" type="button" data-ad="bonus">${ICONS.ad}広告を見て、昨日の売上に +${coin} Coin</button>` : '';
 }
