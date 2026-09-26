@@ -615,6 +615,14 @@ h3 .dot { width: 14px; height: 14px; }
   font-size: 15px;
   font-weight: 700;
 }
+.card-wish { margin-top: 6px; padding: 8px 10px; border-radius: 10px; background: #fff6df; font-size: 13px; line-height: 1.5; }
+.card-wish b { display: block; color: var(--ink); }
+.card-wish small { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; }
+/* 島の人のお願い（D335） */
+#quest .wishes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+#quest .wishes small { color: var(--muted); font-size: 11px; font-weight: 700; }
+#quest .wish { border: 0; border-radius: 999px; padding: 4px 10px; background: #fff6df; color: var(--ink); font-size: 12px; box-shadow: 1px 1.5px 0 var(--shadow); }
+#quest.folded .wishes { display: none; }
 .card-warn { margin-top: 4px; color: var(--problem, #c8553d); font-size: 13px; font-weight: 700; }
 
 /* リワード広告（D309）。見たい人だけが押す。おすすめに見えないよう、うすい色 */

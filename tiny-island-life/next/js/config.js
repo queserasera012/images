@@ -305,6 +305,18 @@ export const CONFIG = {
     ],
   },
 
+  // ---- 島の人のお願い（D335）：住民が ときどき お願いする。かなえると お礼（Coin は島の大きさに合わせる・minigame.per）
+  wishes: {
+    pop: 9, // 住民9人から
+    max: 2, // 一度に2つまで
+    chance: 0.7, // 朝、新しいお願いが来る確率
+    days: 5, // 5日 かなえられなければ 取り下げ
+    near: 3, // 「家の近く」は 3マス以内
+    cafeSteps: 6, // 「会社の近く」は 道で6マス以内
+    fountainPop: 20,
+    coin: { deco: 60, fountain: 150, cafeNearWork: 150, fish: 80, prize: 80, upgrade: 100 },
+  },
+
   // ---- ミニゲームの Coin（D333）：島の大きさに合わせる。住民 per 人ごとに1倍ずつ（1〜max 倍）
   // 固定の額だと、序盤は売上の +37%・後半は +3%（D332）。これで どの段階でも 1日の売上の 1割ほど
   minigame: { per: 15, max: 8 },

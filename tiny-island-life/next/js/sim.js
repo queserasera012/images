@@ -13,6 +13,7 @@ import {
   T, SIZES, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, center, roadPath, roadDistance, accessTile, canPlace, isRoad, idx,
   useAreas, landTilesOf, placements, HOUSE_FLOOR, areaAt, COLS, OLD_COLS_2, DECO,
 } from './grid.js';
+import { morningWishes, checkWishes } from './wishes.js';
 
 const DAY = 1440;
 
@@ -590,6 +591,7 @@ function tick(state, h, events) {
   for (const v of venues(state)) updateVenue(state, v, events);
   updateRace(state, events);
   checkUnlocks(state, events);
+  if (Math.floor(state.t) !== Math.floor(state.t - h)) checkWishes(state, events); // お願い（D335）：1分ごと
   updatePort(state, events);
   spawnStrays(state, events);
   for (const pet of state.pets) updatePet(state, pet, h);
@@ -1550,6 +1552,10 @@ function rolloverDay(state, events) {
       lines.push({ kind: 'good', text: `${why}、${u.done}` });
     }
   }
+
+  // 島の人のお願い（D335）：かなえたもの・新しいもの
+  for (const x of today.wishes || []) lines.push({ kind: 'good', text: `${x.name}の お願い（${x.short}）を かなえました（+${x.coin} Coin）` });
+  morningWishes(state, endedDay, today, lines);
 
   // その日の売上（朝の日記の上乗せに使う・D309）
   const earned =

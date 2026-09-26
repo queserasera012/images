@@ -17,6 +17,7 @@ import { currentStep, report, skipTutorial, busyCafeNow } from './tutorial.js';
 import { setupKeepAwake, awakeStatus } from './awake.js';
 import { openFishing, fishingNow } from './fishing.js';
 import { openArcade, arcadeNow } from './arcade.js';
+import { wishOf, wishList } from './wishes.js';
 import { showRewardedAd } from './ads.js';
 
 // 🚨 前の版（3日テスト中）と同じサイトに置くので、保存の名前を分ける（D289）
@@ -108,6 +109,10 @@ function frame(now) {
       toast(`${where}船が着きました。観光客が ${e.n}人 降りてきました`);
     } else if (e.type === 'portOpen') {
       setTimeout(() => toast('港がひらきました。船が来るようになります'), 3000);
+      renderQuest();
+    } else if (e.type === 'wish') {
+      // お願いをかなえた（D335）
+      toast(`${e.name}「ありがとう！」　+${e.coin} Coin`);
       renderQuest();
     } else if (e.type === 'married') {
       toast(`${e.a}と${e.b}が結婚しました`);
@@ -382,6 +387,10 @@ function renderCard() {
         ? `${parents[0].name}と${parents[1].name}の子ども`
         : favoriteText(r) + (spouse ? `。${spouse.name}と結婚している` : '');
     html = `<h3>${dot(r)}${r.name}</h3><div class="sub">${sub}</div><div class="now">いまは、${describeResident(state, r)}</div>`;
+    // お願い（D335）：何をすれば かなうかも出す
+    const wish = wishOf(state, r.id);
+    if (wish) html += `<div class="card-wish"><b>お願い：「${wish.text}」</b><small>${wish.hint}</small></div>`;
+    if (r.thanked) html += `<div>お願いを かなえてあげた：${r.thanked}回</div>`;
     if (!r.tourist) html += `<button id="btn-rename-open" class="card-btn" type="button">名前を変える</button>`;
   } else if (selected.kind === 'port' && selected.id && selected.id !== 'main') {
     const port = portById(state, selected.id);
@@ -967,11 +976,19 @@ function renderQuest() {
   if (!step) {
     // チュートリアルのあとは「次の目標」だけを小さく出す（段階的な解放・D295）
     const g = nextGoal(state);
-    if (!g) {
+    // 島の人のお願い（D335）：押すと その人のところへ。解放のはしごが終わったあとは、お願いが目標になる
+    const wishes = wishList(state)
+      .map((w) => ({ w, r: state.residents.find((x) => x.id === w.who) }))
+      .filter((x) => x.r)
+      .map(({ w, r }) => `<button class="wish" type="button" data-wish="${r.id}"><b>${r.name}</b>「${w.short}」</button>`)
+      .join('');
+    if (!g && !wishes) {
       el.hidden = true;
       return;
     }
-    el.innerHTML = `<div class="quest-head"><b>目標：${g.goal}</b><span class="reward">${g.now} / ${g.need}${g.unit}</span>${FOLD}</div><p>${g.what}が ${g.need}${g.unit} になると、${g.note}</p>`;
+    el.innerHTML = g
+      ? `<div class="quest-head"><b>目標：${g.goal}</b><span class="reward">${g.now} / ${g.need}${g.unit}</span>${FOLD}</div><p>${g.what}が ${g.need}${g.unit} になると、${g.note}</p>${wishes ? `<div class="wishes"><small>お願い</small>${wishes}</div>` : ''}`
+      : `<div class="quest-head"><b>島の人のお願い</b><span class="reward">かなえた ${state.wishDone || 0}</span>${FOLD}</div><div class="wishes">${wishes}</div>`;
     el.hidden = false;
     applyFold();
     return;
@@ -1021,6 +1038,15 @@ $('quest').addEventListener('click', (ev) => {
     skipTutorial(state);
     renderQuest();
     save();
+    return;
+  }
+  const wish = ev.target.closest('[data-wish]');
+  if (wish) {
+    const r = state.residents.find((x) => x.id === wish.dataset.wish);
+    if (r) {
+      renderer.focus(r.x, r.y);
+      select({ kind: 'resident', id: r.id });
+    }
     return;
   }
   const choice = ev.target.closest('[data-choice]')?.dataset.choice;
@@ -1093,6 +1119,15 @@ if (DEBUG) {
     arcade: () => arcadeNow(),
     // スキー場の絵を見るため：席を住民で埋める（D318）
     advance: (m) => step(state, m),
+    // お願いを1つ出す（D335・画面の確認用）
+    wish: () => {
+      const r = state.residents.find((x) => !x.age && x.homeId);
+      CONFIG.deco.pop = Math.min(CONFIG.deco.pop, state.residents.length); // 住民が少なくても飾りを置けるように（確認用）
+      state.wishes = [{ id: 'wdbg', kind: 'deco', type: 'bench', home: r.homeId, who: r.id, day: 1, text: '家の近くに ベンチがあったら うれしいな', short: '家の近くにベンチ', hint: `家から ${CONFIG.wishes.near}マス以内に ベンチを置く（つくる → 飾り）` }];
+      renderQuest();
+      const h = buildingById(state, r.homeId);
+      return { c: h.c, r: h.r, id: r.id };
+    },
     selectedId: () => selected?.id || null,
     raceDay: () => isRaceDay(state),
     worldToClient: (x, y) => renderer.toClient(x, y),

@@ -1886,6 +1886,13 @@ export function createRenderer(canvas) {
       ctx.moveTo(cx + 3, cy - 3);
       ctx.lineTo(cx - 3, cy + 3);
       ctx.stroke();
+    } else if (kind === 'wish') {
+      ctx.fillStyle = PALETTE.mustard;
+      roundRect(ctx, cx - 1.6, cy - 5, 3.2, 6.5, 1.6);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx, cy + 3.8, 1.7, 0, Math.PI * 2);
+      ctx.fill();
     } else if (kind === 'photo') {
       ctx.fillStyle = '#2b2b33';
       roundRect(ctx, cx - 5, cy - 3, 10, 7, 1.5);
@@ -2005,6 +2012,9 @@ export function createRenderer(canvas) {
 
     let b = r.bubble;
     if (!b && since < 2) b = 'heart';
+    // お願いがある人（D335）：ときどき「！」。かなえてもらった直後はハート
+    if (!b && r.thankedAt && state.t - r.thankedAt < 90) b = 'heart';
+    if (!b && state.wishes?.some((w) => w.who === r.id) && Math.sin(time * 1.1 + ph * 3) > 0.1) b = 'wish';
     // 観光客は ときどき写真を撮る
     if (!b && r.tourist && (r.state === 'STROLL' || r.state === 'PARK') && Math.sin(time * 0.9 + ph * 5) > 0.8) b = 'photo';
     if (!b && r.state === 'QUEUE' && state.t - r.queuedAt > r.patience * 0.6) b = 'sweat';
