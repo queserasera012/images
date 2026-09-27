@@ -366,7 +366,7 @@ function boatAdRow(id) {
 function bonusRow() {
   if (!adsOn()) return '';
   const coin = dailyBonus(state);
-  return coin > 0 ? `<button class="ad-btn" type="button" data-ad="bonus">${ICONS.ad}広告を見て、昨日の売上に +${coin} Coin</button>` : '';
+  return coin > 0 ? `<button class="ad-btn" type="button" data-ad="bonus">${ICONS.ad}広告を見て、昨日の売上に +${coin} ${MONEY_NAME[state.isle || 'main']}</button>` : '';
 }
 function renderCard() {
   const card = $('card');
@@ -804,6 +804,7 @@ $('sheet').addEventListener('click', (ev) => {
       $('sheet').hidden = true;
       syncBoat();
       updateHud();
+      renderQuest(); // 片付けたら 目標が変わる（D374）
       save();
     }
     return;
@@ -1001,11 +1002,12 @@ function entryHtml(e) {
   const v = diaryView(e);
   const p = (l) => `<p class="${l.kind}">${l.text}</p>`;
   // 売上は見出しの下の1行（見出しの右だと、日記を閉じる × に隠れた）
-  const earn = v.earned ? `<p class="d-earn">売上 +${v.earned.toLocaleString()} Coin${v.upkeep ? `（維持費 −${v.upkeep.toLocaleString()}）` : ''}</p>` : '';
+  const unit = MONEY_NAME[state.isle || 'main']; // 向こうの島は Shell／オーロラ（D374）
+  const earn = v.earned ? `<p class="d-earn">売上 +${v.earned.toLocaleString()} ${unit}${v.upkeep ? `（維持費 −${v.upkeep.toLocaleString()}）` : ''}</p>` : '';
   let html = `<div class="entry"><h3>Day ${e.day}${ICONS[e.weather]}${WEATHER_LABEL[e.weather]}</h3>${earn}`;
   if (v.events.length) html += `<p class="d-head">島のできごと</p>${v.events.map(p).join('')}`;
   html += v.problems.length ? `<p class="d-head problem">困りごと（${v.problems.length}）</p>${v.problems.map(p).join('')}` : '<p class="d-head">困りごとは ありませんでした</p>';
-  if (v.money.length) html += `<details class="d-more"><summary>お店と施設（${v.places}か所・+${v.earned.toLocaleString()} Coin）</summary>${v.money.map(p).join('')}</details>`;
+  if (v.money.length) html += `<details class="d-more"><summary>お店と施設（${v.places}か所・+${v.earned.toLocaleString()} ${unit}）</summary>${v.money.map(p).join('')}</details>`;
   if (v.scene.length) html += `<details class="d-more"><summary>島のようす（${v.scene.length}）</summary>${v.scene.map(p).join('')}</details>`;
   return `${html}</div>`;
 }
@@ -1183,7 +1185,9 @@ function renderQuest() {
       el.hidden = true;
       return;
     }
-    el.innerHTML = g
+    el.innerHTML = g?.body
+      ? `<div class="quest-head"><b>目標：${g.goal}</b>${FOLD}</div><p>${g.body}</p>`
+      : g
       ? `<div class="quest-head"><b>目標：${g.goal}</b><span class="reward">${g.now} / ${g.need}${g.unit}</span>${FOLD}</div><p>${g.what}が ${g.need}${g.unit} になると、${g.note}${g.unit === '人' && state.residents.some(isChild) ? '（小学生までの子どもは数えない）' : ''}</p>${wishes ? `<div class="wishes"><small>お願い</small>${wishes}</div>` : ''}`
       : `<div class="quest-head"><b>島の人のお願い</b><span class="reward">かなえた ${state.wishDone || 0}</span>${FOLD}</div><div class="wishes">${wishes}</div>`;
     el.hidden = false;

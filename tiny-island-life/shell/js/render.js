@@ -138,7 +138,7 @@ const lookBase = (r) =>
   r.generic
     ? mixedLook(r.look)
     : r.tourist
-    ? { shirt: TOURIST_SHIRTS[r.look % TOURIST_SHIRTS.length], hair: '#e8c170', style: 'hat', skin: TOURIST_SKINS[r.look % TOURIST_SKINS.length], camera: true }
+    ? { shirt: TOURIST_SHIRTS[r.look % TOURIST_SHIRTS.length], hair: '#e8c170', style: 'hat', skin: TOURIST_SKINS[r.look % TOURIST_SKINS.length], camera: true, hop: r.hop }
     : LOOKS[r.lookName || r.name] || (r.look !== undefined ? mixedLook(r.look) : DEFAULT_LOOK);
 
 // 家の色（D314・見た目の単発購入の1つ目）。屋根・壁・戸の色のセット。家ごとに順番に使う
@@ -2534,6 +2534,31 @@ export function createRenderer(canvas) {
     ctx.fillStyle = look.shirt;
     roundRect(ctx, x - 6.2, by - 16.5, 12.4, 12.5, 5);
     ctx.fill();
+    // 島めぐりの人（D374）：来た島の小物。シェルの島から＝花の首かざり・オーロラの島から＝毛糸のマフラー・本島から＝手さげ袋
+    if (look.hop === 'shell') {
+      ['#ff6b81', '#ffd166', '#ffffff', '#ff6b81', '#ffd166'].forEach((col, k) => {
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(x - 4.5 + k * 2.25, by - 15.5 + Math.abs(k - 2) * -0.6 + 1.2, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    } else if (look.hop === 'aurora') {
+      ctx.fillStyle = '#3d5a80';
+      roundRect(ctx, x - 6, by - 17, 12, 3.5, 1.5);
+      ctx.fill();
+      ctx.fillRect(x + 2.5 * facing, by - 15, 3, 6);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x - 3, by - 16.2, 1.4, 2);
+      ctx.fillRect(x + 1.5, by - 16.2, 1.4, 2);
+    } else if (look.hop === 'main') {
+      ctx.strokeStyle = '#c49a6c';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(x - 7.5 * facing, by - 9, 2.2, Math.PI, 0);
+      ctx.stroke();
+      ctx.fillStyle = '#f2b84b';
+      ctx.fillRect(x - 7.5 * facing - 3, by - 9, 6, 6);
+    }
     if (look.camera) {
       ctx.fillStyle = '#2b2b33';
       roundRect(ctx, x - 3.5, by - 12, 7, 5, 1.2);

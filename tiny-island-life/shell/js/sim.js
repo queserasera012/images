@@ -753,6 +753,7 @@ function tick(state, h, events) {
     checkUnlocks(state, events);
     if (Math.floor(state.t) !== Math.floor(state.t - h)) checkWishes(state, events); // お願い（D335）：1分ごと
   }
+  if (Math.floor(state.t) !== Math.floor(state.t - h)) checkIsleUnlocks(state, events); // D374：1分ごと
   updatePort(state, events);
   if (!isAbroad(state)) spawnStrays(state, events);
   for (const pet of state.pets) updatePet(state, pet, h);
@@ -1643,6 +1644,7 @@ function rolloverDay(state, events) {
   }
   if (today.boats > 0) {
     lines.push({ kind: 'good', text: `船が ${today.boats}回 来て、観光客が ${today.tourists}人 やってきました` });
+    if (today.hopped) lines.push({ kind: 'good', text: `${isAbroad(state) ? '本島' : '海の向こうの島'}から 島めぐりの観光客が ${today.hopped}人 来ました` });
   }
   const parkFan = Object.entries(today.parkMinutes)
     .filter(([id]) => state.residents.some((x) => x.id === id))
@@ -1819,6 +1821,11 @@ function rolloverDay(state, events) {
   for (const u of CONFIG.unlocks) {
     const on = u.id === 'port' ? state.port.openedOn ?? state.unlockedOn.port : state.unlockedOn[u.id];
     if (on === endedDay) {
+      // 向こうの島の港は 人数ではなく 本島の Coin で ひらく（D372・D374）
+      if (isAbroad(state)) {
+        if (u.id === 'port') lines.push({ kind: 'good', text: '港に 本島からの船が 来るようになりました' });
+        continue;
+      }
       const why = u.pets ? `家族のペットが ${u.pets}匹 になって` : u.kids ? '島に子どもが生まれて' : u.stage ? { pupil: 'もうすぐ小学生になる子がいて', student: 'もうすぐ学生になる子がいて', elder: 'もうすぐ お年寄りになる人がいて' }[u.stage] : `住民が ${u.pop}人 になって`;
       lines.push({ kind: 'good', text: `${why}、${u.done}` });
     }
@@ -1838,7 +1845,9 @@ function rolloverDay(state, events) {
     (today.work?.income || 0);
   // 海の向こうの島の お金は Shell／オーロラ（D371）
   if (isAbroad(state)) for (const l of lines) l.text = l.text.replaceAll('Coin', moneyOf(state));
-  const entry = { day: endedDay, weather: state.weather, lines, read: false, earned };
+  // 建てられるようになったもの（船着き場・向こうの島の施設・D374）
+  for (const id of ['dock', ...ABROAD_VENUES]) if (state.unlockedOn?.[id] === endedDay) lines.push({ kind: 'good', text: UNLOCK_TEXT[id] });
+  const entry = { day: endedDay, weather: state.weather, lines, read: false, earned, tourists: today.tourists || 0 };
   state.diary.push(entry);
   events.push({ type: 'newday', entry });
 
@@ -1923,12 +1932,43 @@ export function isUnlocked(state, id) {
   return !!state.unlocked?.[id];
 }
 
+// 船着き場（本島）・向こうの島の施設がひらく（D374）：知らせて、日記にも書く。一度ひらいたら ずっと
+export const UNLOCK_TEXT = {
+  dock: '海の向こうの島へ 船着き場を つくれるようになりました',
+  ...Object.fromEntries(ABROAD_VENUES.map((t) => [t, `${VENUE_NAME[t]}を 建てられるようになりました`])),
+};
+function checkIsleUnlocks(state, events) {
+  const day = dayOf(state.t);
+  state.unlocked ||= {};
+  state.unlockedOn ||= {};
+  const open = (id) => {
+    state.unlocked[id] = true;
+    state.unlockedOn[id] = day;
+    events.push({ type: 'unlock', id, done: UNLOCK_TEXT[id] });
+  };
+  if (!isAbroad(state)) {
+    if (!state.dockReady && grownAdults(state) >= CONFIG.abroad.grownAdults) {
+      state.dockReady = day;
+      open('dock');
+    }
+    return;
+  }
+  for (const t of ABROAD_VENUES) if (CONFIG[t].isle === state.isle && !state.unlocked[t] && countedPop(state) >= CONFIG[t].pop) open(t);
+}
+
 // 次の目標（まだひらいていない中で いちばん手前）
 export function nextGoal(state) {
-  if (isAbroad(state)) return null;
+  if (isAbroad(state)) {
+    // 向こうの島（D374）：まず片付け → その島だけの施設（住民の人数）
+    if (state.debris && state.debris.every(Boolean)) return { id: 'clear', goal: '島を片付ける', body: '「つくる」の「島」から 区画を片付けると、家を建てられる土地になります（本島の Coin で払う）' };
+    const t = ABROAD_VENUES.find((x) => CONFIG[x].isle === state.isle && !state.unlocked?.[x]);
+    if (!t) return null;
+    return { id: t, goal: `${VENUE_NAME[t]}をひらく`, now: countedPop(state), need: CONFIG[t].pop, unit: '人', what: 'この島の住民', note: `${VENUE_NAME[t]}を建てられるようになります` };
+  }
   // 育つ施設（小学校・大学）は ⭐ 大事なお願いで出すので、はしごには出さない（D347）
   const u = CONFIG.unlocks.find((x) => !x.stage && !isUnlocked(state, x.id));
-  if (!u) return null;
+  // 本島の はしごが終わったら、海の向こうの島（D374）
+  if (!u) return state.dockReady ? null : { id: 'dock', goal: '海の向こうへ 船着き場をつくる', now: grownAdults(state), need: CONFIG.abroad.grownAdults, unit: '人', what: '本島で育った大人', note: '海の向こうの島へ 船着き場をつくれるようになります' };
   if (u.kids) return { ...u, now: kidsCount(state), need: u.kids, unit: '人', what: '島の子ども' };
   return u.pets
     ? { ...u, now: adoptedPets(state), need: u.pets, unit: '匹', what: '家族のペット' }
@@ -1938,13 +1978,18 @@ export function nextGoal(state) {
 // テストや ?debug 用：今すぐ解放する
 export function unlockNow(state, id) {
   if (id === 'port') return openPort(state);
+  if (id === 'dock') state.dockReady ||= dayOf(state.t); // 船着き場（D374）
   state.unlocked[id] = true;
   state.unlockedOn[id] = dayOf(state.t);
 }
 
 function spawnTourists(state, port, boatIdx, boat) {
   const [lo, hi] = CONFIG.port.tourists[state.weather];
-  const n = Math.round(between(state, lo, hi));
+  // 島めぐりの人（D374）：ほかの島から来る人を、その日の便に分けて乗せる
+  const boatsLeft = Math.max(1, (port.today || []).filter((b) => !b.spawned).length + 1);
+  const hop = Math.min(state.hopToday || 0, Math.ceil((state.hopToday || 0) / boatsLeft));
+  state.hopToday = (state.hopToday || 0) - hop;
+  const n = Math.round(between(state, lo, hi)) + hop;
   const at = pierOf(port);
   const pier = center(at);
   const dir = areaById(port.id).pier.dir;
@@ -1953,6 +1998,7 @@ function spawnTourists(state, port, boatIdx, boat) {
       id: `v${state.nextId++}`,
       name: '観光客',
       tourist: true,
+      hop: k >= n - hop ? state.hopFrom || 'main' : undefined, // 島めぐりの人（どの島から来たか）
       boat: boatKey(port, boatIdx),
       pier: at,
       look: Math.floor(rand(state) * 1000),
@@ -1989,6 +2035,7 @@ function spawnTourists(state, port, boatIdx, boat) {
   }
   state.today.boats += 1;
   state.today.tourists += n;
+  state.today.hopped = (state.today.hopped || 0) + hop;
   return n;
 }
 
@@ -2360,6 +2407,7 @@ export function actionsFor(state) {
       const V = CONFIG[type];
       if (V.isle !== state.isle) continue;
       const pop = countedPop(state);
+      const ready = !!state.unlocked?.[type] || pop >= V.pop; // 一度ひらいたら ずっと（D374）
       const full = ofType(state, type).length >= V.max;
       const what = WHAT[type] ? WHAT[type](V) : type === 'beach'
         ? `砂浜にかかる場所にだけ建てられる。晴れた日の昼（${fmtClock(V.open)}〜${fmtClock(V.close)}）に泳ぎに来る。子どもは親と来る。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep}`
@@ -2369,9 +2417,9 @@ export function actionsFor(state) {
         icon: `${type}_new`,
         place: type,
         title: `${VENUE_NAME[type]}をつくる`,
-        detail: full ? `${VENUE_NAME[type]}は この島に ${V.max}つまで` : pop < V.pop ? `この島の住民が ${V.pop}人 になると建てられます（いま ${pop}人）` : what,
+        detail: full ? `${VENUE_NAME[type]}は この島に ${V.max}つまで` : !ready ? `この島の住民が ${V.pop}人 になると建てられます（いま ${pop}人）` : what,
         cost: V.buildCost,
-        locked: full || pop < V.pop,
+        locked: full || !ready,
       });
     }
   }
@@ -2549,7 +2597,7 @@ export function claimDailyBonus(state) {
   if (coin <= 0) return { ok: false, message: 'いまは もらえません' };
   usedAd(state, 'bonus');
   state.coin += coin;
-  return { ok: true, coin, message: `昨日の売上に +${coin} Coin` };
+  return { ok: true, coin, message: `昨日の売上に +${coin} ${moneyOf(state)}` };
 }
 
 // 臨時の観光船：その港に、少しあとで船が着く
@@ -3786,6 +3834,22 @@ function moveAbroad(world) {
   return moved;
 }
 
+// 島めぐり（D374）：港のある島どうし。前の日の観光客の一部が、今日 ほかの島へ渡る。
+// 本島 → 向こうの島（それぞれ）・向こうの島 → 本島。人数は 前の日の観光客 × share（1つの島へ max 人まで）
+function planHops(world) {
+  const H = CONFIG.abroad.hop;
+  const withPort = Object.keys(world.islands).filter((id) => world.islands[id].port?.open);
+  if (withPort.length < 2 || !withPort.includes('main')) return;
+  const yesterday = (id) => world.islands[id].diary.at(-1)?.tourists || 0;
+  for (const id of withPort) {
+    const s = world.islands[id];
+    const from = id === 'main' ? withPort.filter((x) => x !== 'main') : ['main'];
+    const n = Math.min(H.max, Math.round(from.reduce((k, x) => k + yesterday(x), 0) * H.share));
+    s.hopToday = n;
+    s.hopFrom = id === 'main' ? from[0] : 'main';
+  }
+}
+
 // 見ていない島を先に、見ている島を最後に進める（最後に進めた島の地図が 画面とタップに使われる）
 const inOrder = (world) => [...Object.keys(world.islands).filter((id) => id !== world.current), world.current];
 
@@ -3804,7 +3868,10 @@ export function stepWorld(world, dt) {
 function afterSteps(world, before) {
   if (Object.keys(world.islands).length < 2) return;
   const days = dayOf(world.islands.main.t) - before;
-  for (let d = 0; d < Math.min(days, 1); d++) moveAbroad(world);
+  for (let d = 0; d < Math.min(days, 1); d++) {
+    moveAbroad(world);
+    planHops(world);
+  }
   syncMap(islandNow(world));
 }
 
