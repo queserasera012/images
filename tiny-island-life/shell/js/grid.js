@@ -41,6 +41,10 @@ export const SIZES = {
   pool: { w: 3, h: 2 }, // プール（夏だけ・D319）。泳ぐ人が見える
   beach: { w: 2, h: 2 }, // 海水浴場（シェルの島・D371）。砂浜にかかるように建てる（島のふちの土地は1マス幅なので）。泳ぐ人が見える
   onsen: { w: 3, h: 2 }, // 温泉（オーロラの島・D371）。湯につかる人が見える
+  volley: { w: 3, h: 2 }, // ビーチバレー場（シェル・D373）
+  surf: { w: 2, h: 2 }, // サーフィンの浜（シェル・D373）。海水浴場と同じく 砂浜にかかる場所
+  curling: { w: 3, h: 2 }, // カーリング場（オーロラ・D373）
+  hockey: { w: 3, h: 2 }, // アイスホッケー場（オーロラ・D373）。オーロラの島は小さいので 3×3 は建つ場所が残らなかった
   track: { w: 3, h: 3 }, // ドッグレース場（D328）。まわりに観客が立つ
   arcade: { w: 3, h: 2 }, // ゲームセンター（D331）
   school: { w: 3, h: 2 }, // 小学校（D347）
@@ -708,12 +712,12 @@ export function canPlace(type, c, r, buildings) {
   const used = occupied(buildings);
   for (const t of footprint(type, c, r)) {
     // 海水浴場だけは 砂浜のマスにも建てられる（D371）
-    const ground = MAP[t] === 'land' || (type === 'beach' && MAP[t] === 'beach');
+    const ground = MAP[t] === 'land' || (COASTAL.has(type) && MAP[t] === 'beach');
     if (!ground || used.has(t) || LINK_TILES.has(t) || COVERED.has(t)) return false;
     if (ONLY_ON[type] && areaAt(colOf(t), rowOf(t)) !== ONLY_ON[type]) return false;
   }
   // 海水浴場は 砂浜にかかる場所だけ。土地のマスも1つは要る（片付けていない区画に はみ出さない）（D371）
-  if (type === 'beach') {
+  if (COASTAL.has(type)) {
     const tiles = footprint(type, c, r);
     if (!tiles.some((t) => MAP[t] === 'beach') || !tiles.some((t) => MAP[t] === 'land') || !coastSide({ type, c, r })) return false;
     if (tiles.some((t) => MAP[t] === 'beach' && COVER_NEAR(t))) return false;
@@ -721,6 +725,8 @@ export function canPlace(type, c, r, buildings) {
   return DECO.includes(type) || accessTile(type, c, r) !== null;
 }
 
+// 砂浜にかかるように建てるもの（海水浴場・サーフィンの浜）
+export const COASTAL = new Set(['beach', 'surf']);
 // 砂浜のマスが 片付けていない区画に接しているか（海水浴場が 覆われた区画の浜に建たないように）
 const COVER_NEAR = (t) => COVERED.size > 0 && neighbors(t).some((n) => COVERED.has(n));
 // 建物のどの辺が 海に面しているか（海水浴場・D371）。海のマスは2、浜のマスは1と数えて いちばん多い辺の向き [dc, dr]。無ければ null

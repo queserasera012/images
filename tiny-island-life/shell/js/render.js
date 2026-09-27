@@ -5,7 +5,7 @@ import {
   T, COLS, ROWS, WORLD, SIZES, HOUSE_FLOOR, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, landBounds, shapesOf, islandRadius, edgeRadius, COVERED, COVER_KEY, plotOf, idx, center, neighbors, isRoad, occupied, BRIDGES, boatRoute,
 } from './grid.js';
 import { CONFIG } from './config.js';
-import { wantsRoomHouses, boatsNow, clockOf, inSeason, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf, beachWater } from './sim.js';
+import { wantsRoomHouses, boatsNow, clockOf, inSeason, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf, beachWater, sportPlayers, SPORTS } from './sim.js';
 
 export const FONT = '"Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif';
 
@@ -3170,11 +3170,11 @@ export function createRenderer(canvas) {
   }
 
   // 海水浴場（シェルの島・D371）：海に面した辺が 水（波打ちぎわの泡）、残りが 白い砂。パラソルとタオル、見張りの台
-  function beach(b, time) {
+  function beach(b, time, bare = false) {
     const x0 = b.c * T;
     const y0 = b.r * T;
-    const w = SIZES.beach.w * T;
-    const h = SIZES.beach.h * T;
+    const w = SIZES[b.type].w * T;
+    const h = SIZES[b.type].h * T;
     const water = beachWater(b);
     const [dc, dr] = water.dir;
     ctx.fillStyle = '#fbf1e4';
@@ -3201,6 +3201,7 @@ export function createRenderer(canvas) {
       for (let y = water.y + 3; y <= water.y + water.h - 3; y += 3) ctx.lineTo(x + Math.sin(y * 0.35 + time * 2) * 1.2, y);
     }
     ctx.stroke();
+    if (bare) return; // サーフィンの浜は ボードの棚を描く
     // 砂の上：パラソル2本・タオル・見張りの台（水と反対の側）
     const sand = dr ? { x: x0, y: dr > 0 ? y0 : y0 + T, w, h: h - T } : { x: dc > 0 ? x0 : x0 + T, y: y0, w: w - T, h };
     const spots = dr ? [[0.22, 0.5], [0.62, 0.42], [0.88, 0.62]] : [[0.4, 0.22], [0.55, 0.6], [0.35, 0.9]];
@@ -3315,6 +3316,240 @@ export function createRenderer(canvas) {
       ctx.arc(x, y, 3 + life * 5, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+
+  // ---------------------------------------------------------------- 運動（D373）
+
+  // ビーチバレー場：白い砂のコートに 線とネット
+  function volleyCourt(b) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.volley.w * T;
+    const h = SIZES.volley.h * T;
+    ctx.fillStyle = PALETTE.shadow;
+    roundRect(ctx, x0 + 4, y0 + 5, w - 4, h - 4, 5);
+    ctx.fill();
+    ctx.fillStyle = '#f7e7cf';
+    roundRect(ctx, x0 + 1, y0 + 1, w - 2, h - 2, 5);
+    ctx.fill();
+    ctx.strokeStyle = '#e56b6f';
+    ctx.lineWidth = 1.6;
+    ctx.strokeRect(x0 + 8, y0 + 8, w - 16, h - 18);
+    ctx.strokeStyle = PALETTE.ink;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x0 + w / 2, y0 + 3);
+    ctx.lineTo(x0 + w / 2, y0 + h - 8);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(61,90,128,0.45)';
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath();
+    ctx.moveTo(x0 + w / 2 + 2, y0 + 5);
+    ctx.lineTo(x0 + w / 2 + 2, y0 + h - 10);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = PALETTE.ink;
+    ctx.fillRect(x0 + w / 2 - 1.5, y0 + 1, 3, 4);
+    ctx.fillRect(x0 + w / 2 - 1.5, y0 + h - 10, 3, 4);
+  }
+  // サーフィンの浜：海水浴場と同じ水と砂。砂の上に ボードを立てかけた棚
+  function surfBeach(b, time) {
+    beach(b, time, true);
+    const water = beachWater(b);
+    const [dc, dr] = water.dir;
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const sx = dr ? x0 + 8 : dc > 0 ? x0 + 6 : x0 + T + 6;
+    const sy = dr ? (dr > 0 ? y0 + 6 : y0 + T + 6) : y0 + 8;
+    const colors = ['#ff6b81', '#f2b84b', '#62b6cb', '#86c47c'];
+    ctx.fillStyle = '#8d6a4f';
+    ctx.fillRect(sx - 2, sy + 12, 44, 3);
+    colors.forEach((col, k) => {
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.ellipse(sx + 4 + k * 11, sy + 6, 3.2, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fillRect(sx + 3.5 + k * 11, sy - 1, 1, 14);
+    });
+    // 沖の白い波頭
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.lineWidth = 2;
+    for (let k = 0; k < 2; k++) {
+      const t = (time * 0.25 + k * 0.5) % 1;
+      ctx.globalAlpha = 1 - t;
+      ctx.beginPath();
+      if (dr) {
+        const y = (dr > 0 ? water.y + water.h : water.y) - dr * t * water.h;
+        ctx.moveTo(water.x + 4, y);
+        ctx.quadraticCurveTo(water.x + water.w / 2, y - dr * 4, water.x + water.w - 4, y);
+      } else {
+        const x = (dc > 0 ? water.x + water.w : water.x) - dc * t * water.w;
+        ctx.moveTo(x, water.y + 4);
+        ctx.quadraticCurveTo(x - dc * 4, water.y + water.h / 2, x, water.y + water.h - 4);
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  // カーリング場：屋根の骨組みが見える 氷のシート。両はしに 同心円（ハウス）
+  function curlingSheet(b) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.curling.w * T;
+    const h = SIZES.curling.h * T;
+    ctx.fillStyle = PALETTE.shadow;
+    roundRect(ctx, x0 + 4, y0 + 5, w - 4, h - 4, 5);
+    ctx.fill();
+    ctx.fillStyle = '#6e4f3c';
+    roundRect(ctx, x0 + 1, y0 + 1, w - 2, h - 2, 5);
+    ctx.fill();
+    ctx.fillStyle = '#e8f3fa';
+    roundRect(ctx, x0 + 5, y0 + 6, w - 10, h - 14, 3);
+    ctx.fill();
+    for (const cx of [x0 + 20, x0 + w - 20]) {
+      for (const [rad, col] of [[11, '#62b6cb'], [7.5, '#ffffff'], [4.5, '#e56b6f'], [1.8, '#ffffff']]) {
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(cx, y0 + h / 2 - 1, rad, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.strokeStyle = 'rgba(229,107,111,0.6)';
+    ctx.lineWidth = 1;
+    for (const x of [x0 + 36, x0 + w - 36]) {
+      ctx.beginPath();
+      ctx.moveTo(x, y0 + 7);
+      ctx.lineTo(x, y0 + h - 9);
+      ctx.stroke();
+    }
+    // 屋根の梁（上から見た 骨組み）
+    ctx.strokeStyle = 'rgba(110,79,60,0.35)';
+    ctx.lineWidth = 2;
+    for (let k = 1; k < 4; k++) {
+      ctx.beginPath();
+      ctx.moveTo(x0 + (w * k) / 4, y0 + 2);
+      ctx.lineTo(x0 + (w * k) / 4, y0 + 6);
+      ctx.stroke();
+    }
+  }
+  // アイスホッケー場：まわりの板と ガラス、赤と青の線、両はしに ゴール
+  function hockeyRink(b) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.hockey.w * T;
+    const h = SIZES.hockey.h * T;
+    ctx.fillStyle = PALETTE.shadow;
+    roundRect(ctx, x0 + 4, y0 + 5, w - 4, h - 6, 16);
+    ctx.fill();
+    ctx.fillStyle = '#d7e3ec';
+    roundRect(ctx, x0 + 1, y0 + 1, w - 2, h - 8, 16);
+    ctx.fill();
+    ctx.fillStyle = '#f4f9fc';
+    roundRect(ctx, x0 + 5, y0 + 5, w - 10, h - 16, 13);
+    ctx.fill();
+    ctx.strokeStyle = '#e56b6f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x0 + w / 2, y0 + 6);
+    ctx.lineTo(x0 + w / 2, y0 + h - 12);
+    ctx.stroke();
+    ctx.strokeStyle = '#3d5a80';
+    for (const x of [x0 + w * 0.33, x0 + w * 0.67]) {
+      ctx.beginPath();
+      ctx.moveTo(x, y0 + 6);
+      ctx.lineTo(x, y0 + h - 12);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = '#e56b6f';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(x0 + w / 2, y0 + (h - 8) / 2, 9, 0, Math.PI * 2);
+    ctx.stroke();
+    for (const [x, dir] of [[x0 + 9, 1], [x0 + w - 9, -1]]) {
+      ctx.strokeStyle = '#e56b6f';
+      ctx.lineWidth = 1.6;
+      ctx.strokeRect(x - (dir > 0 ? 0 : 6), y0 + (h - 8) / 2 - 6, 6, 12);
+    }
+  }
+  // 遊んでいる様子（遊ぶ人が2人以上いるとき）：ビーチバレーは球がネットを越え、カーリングは石がすべり、ホッケーはパックが走る
+  function sportMotion(state, b, time) {
+    const players = sportPlayers(b);
+    const here = b.seats.slice(0, players.length).map((id, k) => (id ? players[k] : null)).filter(Boolean);
+    if (here.length < 2) return;
+    const t = (time * (b.type === 'hockey' ? 0.9 : 0.5) + b.c * 0.1) % 1;
+    const i = Math.floor(time * (b.type === 'hockey' ? 0.9 : 0.5) + b.c * 0.1) % here.length;
+    const a = here[i];
+    const z = here[(i + 1) % here.length];
+    const x = a.x + (z.x - a.x) * t;
+    let y = a.y + (z.y - a.y) * t;
+    if (b.type === 'volley') {
+      y -= 10 + Math.sin(t * Math.PI) * 18;
+      ctx.fillStyle = PALETTE.shadow;
+      ctx.beginPath();
+      ctx.ellipse(x, a.y + (z.y - a.y) * t + 2, 3, 1.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#f2b84b';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    } else if (b.type === 'curling') {
+      const x0 = b.c * T + 36;
+      const x1 = b.c * T + SIZES.curling.w * T - 22;
+      const ease = 1 - (1 - t) * (1 - t);
+      ctx.fillStyle = '#9aa2aa';
+      ctx.beginPath();
+      ctx.arc(x0 + (x1 - x0) * ease, b.r * T + (SIZES.curling.h * T) / 2 - 1, 3.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#e56b6f';
+      ctx.fillRect(x0 + (x1 - x0) * ease - 1.5, b.r * T + (SIZES.curling.h * T) / 2 - 3.5, 3, 2);
+    } else {
+      ctx.fillStyle = '#1f2a36';
+      ctx.beginPath();
+      ctx.ellipse(x, y + 6, 2.2, 1.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // 波に乗る人：ボードの上に立って、少し揺れる
+  function surfer(r, time) {
+    const look = lookOf(r);
+    const ph = phaseOf(r.id);
+    const ride = Math.sin(time * 1.5 + ph);
+    const x = r.x + ride * 3;
+    const y = r.y;
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.beginPath();
+    ctx.ellipse(x - 5, y + 2, 7, 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = ['#ff6b81', '#f2b84b', '#62b6cb', '#86c47c'][Math.floor(ph * 10) % 4];
+    ctx.beginPath();
+    ctx.ellipse(x, y, 8, 2.4, 0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = look.shirt;
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x - 2, y - 1);
+    ctx.lineTo(x, y - 7);
+    ctx.lineTo(x + 2, y - 1);
+    ctx.stroke();
+    ctx.strokeStyle = look.skin;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(x - 5, y - 6 + ride);
+    ctx.lineTo(x + 5, y - 7 - ride);
+    ctx.stroke();
+    ctx.fillStyle = look.skin;
+    ctx.beginPath();
+    ctx.arc(x, y - 10, 2.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = look.hair;
+    ctx.beginPath();
+    ctx.arc(x, y - 11, 2.8, Math.PI, 0);
+    ctx.fill();
   }
 
   // 湯につかる人：頭と肩、頭に手ぬぐい
@@ -3603,6 +3838,10 @@ export function createRenderer(canvas) {
       else if (b.type === 'pool') pool(state, b, time, poolOpen);
       else if (b.type === 'beach') beach(b, time);
       else if (b.type === 'onsen') onsen(b, time);
+      else if (b.type === 'volley') volleyCourt(b);
+      else if (b.type === 'surf') surfBeach(b, time);
+      else if (b.type === 'curling') curlingSheet(b);
+      else if (b.type === 'hockey') hockeyRink(b);
       else if (b.type === 'track') track(state, b, time);
       else if (b.type === 'arcade') arcade(state, b, time);
       else if (b.type === 'flowerbed') flowerbed(b, time);
@@ -3658,6 +3897,7 @@ export function createRenderer(canvas) {
           const at = r.state === 'SEATED' && state.buildings.find((b) => b.id === r.destId)?.type;
           if (at === 'pool' || at === 'beach') return swimmer(r, time);
           if (at === 'onsen') return bather(r, time);
+          if (at === 'surf') return surfer(r, time);
           return drawResident(state, r, time, r.id === ui.selectedId);
         },
       })),
@@ -3666,6 +3906,7 @@ export function createRenderer(canvas) {
     ].sort((a, b) => a.y - b.y);
     for (const t of things) t.draw();
     for (const b of state.buildings) if (b.type === 'onsen') onsenSteam(b, time);
+    for (const b of state.buildings) if (SPORTS.includes(b.type) && b.type !== 'surf') sportMotion(state, b, time);
     drawSleep(state, time);
     // お願いの建物の名札（D360）：住民が前に立っていても、どの家か分かるように いちばん上に
     for (const wp of ui.wishPlaces || []) {

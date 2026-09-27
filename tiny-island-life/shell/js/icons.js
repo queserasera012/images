@@ -243,6 +243,32 @@ export const ICONS = {
       `<path d="M9.5 8L12 3.2 14.5 8" fill="#fff" stroke="${INK}" stroke-width="1" stroke-linejoin="round"/>`,
     28,
   ),
+  // ビーチバレー（D373）：ネットと 球
+  volley_new: svg(
+    `<path d="M2 19h20" stroke="#f2d8a7" stroke-width="3"/>` +
+      `<path d="M4 12h16M5 9v10M19 9v10" stroke="${INK}" stroke-width="1.4"/><path d="M5 9h14v3H5z" fill="#fff" stroke="${INK}" stroke-width="1"/>` +
+      `<circle cx="15" cy="5" r="3.2" fill="#fff" stroke="${MUSTARD}" stroke-width="1.6"/>`,
+    28,
+  ),
+  // サーフィン（D373）：波と ボード
+  surf_new: svg(
+    `<path d="M2 20c4 0 5-9 11-9 4 0 6 3 6 5-2-1-4-1-5 1 3 0 5 1 8 3z" fill="#3fb6c9" stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"/>` +
+      `<path d="M13 11c-2-1-2-4 0-5" stroke="#fff" stroke-width="1.4" fill="none"/>` +
+      `<ellipse cx="9" cy="7" rx="6" ry="1.8" transform="rotate(-30 9 7)" fill="#ff6b81" stroke="${INK}" stroke-width="1"/>`,
+    28,
+  ),
+  // カーリング（D373）：的と 石
+  curling_new: svg(
+    `<circle cx="9" cy="10" r="7" fill="#62b6cb"/><circle cx="9" cy="10" r="4.5" fill="#fff"/><circle cx="9" cy="10" r="2.2" fill="#e56b6f"/>` +
+      `<circle cx="17.5" cy="17.5" r="4.5" fill="${SHADOW}"/><circle cx="17" cy="17" r="4.5" fill="#9aa2aa" stroke="${INK}" stroke-width="1.2"/><path d="M15.5 13.5h3v2h-3z" fill="#e56b6f"/>`,
+    28,
+  ),
+  // アイスホッケー（D373）：スティックと パック
+  hockey_new: svg(
+    `<path d="M6 3l7 14h5" stroke="${INK}" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` +
+      `<ellipse cx="8" cy="19" rx="3.5" ry="1.8" fill="#1f2a36"/><path d="M3 14h4" stroke="#e56b6f" stroke-width="1.4"/>`,
+    28,
+  ),
   // 温泉（D371）：岩の湯船と 湯気
   onsen_new: svg(
     `<ellipse cx="13" cy="17" rx="9" ry="4" fill="${SHADOW}"/>` +

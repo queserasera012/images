@@ -5,7 +5,7 @@ import { T, SIZES, PIER, PIERS, OX, OY, AREAS, MAIN, areaById, center, placement
 import {
   step, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
-  migrateWorld, createWorld, islandNow, createIsland, visitIsland, stepWorld, catchUpWorld, isAbroad, openRoute, clearPlot, openAbroadPort, MONEY_NAME, ISLE_NAMES, exchange, exchangeLeft,
+  migrateWorld, createWorld, islandNow, createIsland, visitIsland, stepWorld, catchUpWorld, isAbroad, openRoute, clearPlot, openAbroadPort, sportLeft, SPORTS, ABROAD_VENUES, MONEY_NAME, ISLE_NAMES, exchange, exchangeLeft,
   everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
   labelOf, nextGoal, unlockNow, nameBaby, namePet, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft, decoType, isChild,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
@@ -18,6 +18,7 @@ import { currentStep, report, skipTutorial, busyCafeNow, placeTip } from './tuto
 import { setupKeepAwake, awakeStatus } from './awake.js';
 import { openFishing, fishingNow } from './fishing.js';
 import { openArcade, arcadeNow } from './arcade.js';
+import { openSport, sportNow } from './sports.js';
 import { wishOf, wishList, wishPlace } from './wishes.js';
 import { diaryView } from './diary.js';
 import { showRewardedAd, adsOn } from './ads.js';
@@ -514,11 +515,19 @@ function renderCard() {
       html += inSeason(state, 'pool')
         ? `<div class="now">泳いでいる：${who(b.seats.filter(Boolean))}</div><div>外で待っている：${who(b.queue)}</div>`
         : `<div class="now">いまは お休み。夏になると ひらきます（維持費も夏だけ）</div>`;
-    } else if (b.type === 'beach' || b.type === 'onsen') {
-      // 海水浴場・温泉（D371）：その島だけの施設
+    } else if (ABROAD_VENUES.includes(b.type)) {
+      // 海水浴場・温泉（D371）・運動（D373）：その島だけの施設
       const V = CONFIG[b.type];
       html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">一度に ${seatCount(b)}人。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
-      html += `<div class="now">${b.type === 'beach' ? '泳いでいる' : 'つかっている'}：${who(b.seats.filter(Boolean))}</div><div>外で待っている：${who(b.queue)}</div>`;
+      const doing = { beach: '泳いでいる', onsen: 'つかっている', surf: '波に乗っている' }[b.type] || '遊んでいる';
+      html += `<div class="now">${doing}：${who(b.seats.filter(Boolean))}</div><div>外で待っている：${who(b.queue)}</div>`;
+      if (SPORTS.includes(b.type)) {
+        const left = sportLeft(state);
+        const best = state.sportBest?.[b.type];
+        const unit = { volley: '回', surf: '本', curling: '点', hockey: '本' }[b.type];
+        if (best) html += `<div>あなたの いちばん：${best}${unit}</div>`;
+        html += `<button id="btn-sport" class="card-act go" type="button" data-game="${b.type}">${ICONS[`${b.type}_new`]}あなたも遊ぶ<span class="cost">${left > 0 ? `今日の ${MONEY_NAME[state.isle]} あと ${left}回` : `今日の ${MONEY_NAME[state.isle]} は おしまい`}</span></button>`;
+      }
     } else if (b.type === 'super' || b.type === 'planetarium' || b.type === 'petshop' || b.type === 'stand' || b.type === 'aquarium' || b.type === 'hospital') {
       const V = CONFIG[b.type];
       const inside = b.seats.filter(Boolean);
@@ -638,6 +647,20 @@ $('card').addEventListener('click', (ev) => {
     openArcade({
       getState: () => state,
       onChange: () => save(),
+      close: () => save(),
+    });
+    return;
+  }
+  if (ev.target.closest('#btn-sport')) {
+    const game = ev.target.closest('#btn-sport').dataset.game;
+    select(null);
+    openSport({
+      game,
+      getState: () => state,
+      onChange: () => {
+        updateHud();
+        save();
+      },
       close: () => save(),
     });
     return;
@@ -1297,11 +1320,12 @@ if (DEBUG) {
     focusPier: (id) => renderer.focus(center(PIERS[id]).x + 40, center(PIERS[id]).y),
     fishing: () => fishingNow(),
     arcade: () => arcadeNow(),
+    sport: () => sportNow(),
     // スキー場の絵を見るため：席を住民で埋める（D318）
     advance: (m) => step(state, m),
     // 向こうの島に 本島の大人を n人 移す（海水浴場・温泉の絵を見るため・D371）。移住と同じ しくみで毎朝2人ずつ来るのを待たない
     populate: (n) => {
-      state.coin += 50000;
+      state.coin += 100000;
       world.islands.main.coin += 20000;
       (state.debris || []).forEach((covered, k) => covered && clearPlot(world, world.current, k));
       for (let k = 0; k < n; k++) {

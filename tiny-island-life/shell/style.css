@@ -746,9 +746,9 @@ h3 .dot { width: 14px; height: 14px; }
 .arcade-menu-btn[hidden] { display: none; }
 .crane { display: block; margin: 0 auto; border-radius: 18px; touch-action: none; }
 /* 見出しが2行にならないように（題名が長いと 紙の高さが変わっていた） */
-.arcade .game-head { height: 32px; white-space: nowrap; }
-.arcade .game-head b { font-size: 15px; }
-.arcade .game-left { font-size: 11px; }
+.arcade .game-head, .sport .game-head { height: 32px; white-space: nowrap; }
+.arcade .game-head b, .sport .game-head b { font-size: 15px; }
+.arcade .game-left, .sport .game-left { font-size: 11px; }
 
 /* ---- 船で ほかの島へ（D367）：船が横切るあいだに 島が切り替わる ---- */
 #voyage {

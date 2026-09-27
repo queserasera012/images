@@ -187,6 +187,47 @@ export const CONFIG = {
     buildCost: 8000,
   },
 
+  // ---- 運動（1.3・D365・D373）：その島の住民が pop人 になると建てられる。住民が遊ぶ・見に来る。あなたも遊べる（sports.js）----
+  // 値段は 向こうの島に たまるお金に合わせた（D370：Day 80 で 2万・Day 100 で 6〜7万）
+  volley: { // ビーチバレー場（シェル）：コートで 2対2。まわりで見る人
+    isle: 'shell', pop: 20, max: 1,
+    open: 9 * 60, close: 18 * 60,
+    customerValue: 25, stayMin: 40, stayMax: 70, maxQueue: 6, rainLinger: 1,
+    pull: 26, weather: { sunny: 1, cloudy: 0.7, rain: 0.1 },
+    levels: [{ level: 1, seats: 10, upkeep: 80 }, { level: 2, seats: 14, upkeep: 110, cost: 12000 }],
+    buildCost: 20000,
+  },
+  surf: { // サーフィンの浜（シェル）：海水浴場と同じく 砂浜にかかる場所。朝の波がいい
+    isle: 'shell', pop: 30, max: 1,
+    open: 7 * 60, close: 17 * 60,
+    customerValue: 30, stayMin: 50, stayMax: 90, maxQueue: 4, rainLinger: 1,
+    pull: 22, weather: { sunny: 1, cloudy: 0.9, rain: 0.4 },
+    levels: [{ level: 1, seats: 8, upkeep: 100 }, { level: 2, seats: 12, upkeep: 140, cost: 15000 }],
+    buildCost: 30000,
+  },
+  curling: { // カーリング場（オーロラ）：屋根つきの氷。雪の日も来る
+    isle: 'aurora', pop: 20, max: 1,
+    open: 10 * 60, close: 21 * 60,
+    customerValue: 25, stayMin: 40, stayMax: 70, maxQueue: 6, rainLinger: 1.2,
+    pull: 24, weather: { sunny: 1, cloudy: 1.1, rain: 1.3 },
+    levels: [{ level: 1, seats: 8, upkeep: 80 }, { level: 2, seats: 12, upkeep: 110, cost: 12000 }],
+    buildCost: 20000,
+  },
+  hockey: { // アイスホッケー場（オーロラ）：午後から夜。見に来る人が多い
+    isle: 'aurora', pop: 30, max: 1,
+    open: 13 * 60, close: 22 * 60,
+    customerValue: 30, stayMin: 50, stayMax: 90, maxQueue: 6, rainLinger: 1,
+    pull: 26, weather: { sunny: 1, cloudy: 1, rain: 1.1 },
+    levels: [{ level: 1, seats: 12, upkeep: 100 }, { level: 2, seats: 16, upkeep: 140, cost: 15000 }],
+    buildCost: 30000,
+  },
+  // あなたの運動のミニゲーム（D373）：その島のお金が出るのは「腕」のときだけ・島ごとに1日3回まで（ゲームセンターと同じ考え・D333）
+  sports: {
+    rewardsPerDay: 3,
+    coin: 30, // 島が大きくなると ふえる（minigame.per）
+    skill: { volley: 8, surf: 4, curling: 6, hockey: 4 }, // ラリー8回・波4本・3投で6点・5本中4点
+  },
+
   pool: {
     open: 10 * 60,
     close: 17 * 60,

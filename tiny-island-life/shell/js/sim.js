@@ -182,10 +182,14 @@ export const everyone = (state) => (state.visitors?.length ? state.residents.con
 export const personById = (state, id) => state.residents.find((r) => r.id === id) || state.visitors?.find((r) => r.id === id);
 
 // 席と列のある施設（カフェ・スーパー・プラネタリウム）。同じ仕組みで動く（D295）
-export const VENUE_TYPES = ['cafe', 'super', 'planetarium', 'petshop', 'pond', 'stand', 'ski', 'aquarium', 'pool', 'track', 'arcade', 'hospital', 'beach', 'onsen'];
+export const VENUE_TYPES = ['cafe', 'super', 'planetarium', 'petshop', 'pond', 'stand', 'ski', 'aquarium', 'pool', 'track', 'arcade', 'hospital', 'beach', 'onsen', 'volley', 'surf', 'curling', 'hockey'];
+// 海の向こうの島だけの施設（D371・D373）。運動は あなたも遊べる
+export const SPORTS = ['volley', 'surf', 'curling', 'hockey'];
+export const ABROAD_VENUES = ['beach', 'onsen', ...SPORTS];
 export const VENUE_NAME = {
   cafe: 'カフェ', super: 'スーパー', planetarium: 'プラネタリウム', petshop: 'ペットショップ', pond: '釣り堀', stand: 'コーヒースタンド', ski: 'スキー場',
   aquarium: '水族館', pool: 'プール', track: 'ドッグレース場', arcade: 'ゲームセンター', hospital: '病院', beach: '海水浴場', onsen: '温泉',
+  volley: 'ビーチバレー場', surf: 'サーフィンの浜', curling: 'カーリング場', hockey: 'アイスホッケー場',
 };
 // 季節の施設（D318・D319）：その季節だけ開き、維持費もその季節だけ
 export const SEASONAL = { ski: 'yuki', pool: 'natsu' };
@@ -224,6 +228,8 @@ export function seatPositions(cafe) {
   if (cafe.type === 'pool') return poolSeats(cafe);
   if (cafe.type === 'beach') return beachSeats(cafe);
   if (cafe.type === 'onsen') return onsenSeats(cafe);
+  if (cafe.type === 'surf') return beachSeats(cafe);
+  if (SPORTS.includes(cafe.type)) return sportSeats(cafe);
   if (cafe.type === 'track') return trackSeats(cafe);
   const x0 = cafe.c * T;
   const y0 = (cafe.r + 1) * T;
@@ -266,7 +272,7 @@ function poolSeats(b) {
 
 // 海水浴場（D371）：海に面した辺の 1マス幅が 水。泳ぐ場所は その水の中に 2列（まんなかから埋める）
 export function beachWater(b) {
-  const s = SIZES.beach;
+  const s = SIZES[b.type];
   const [dc, dr] = coastSide(b) || [0, 1];
   const x0 = b.c * T;
   const y0 = b.r * T;
@@ -288,6 +294,27 @@ function beachSeats(b) {
   const mid = (n - 1) / 2;
   return pos.map((p, i) => ({ p, d: Math.abs(Math.floor(i / 2) - mid) + (i % 2) * 0.1 })).sort((a, c) => a.d - c.d).map((x) => x.p);
 }
+// 運動（D373）：はじめの何人かが コートで遊ぶ人、そのあとは まわりで見る人
+// playersOf(b)：遊ぶ人の場所（コートの中）。見る人は コートの下のふちに並ぶ
+export function sportPlayers(b) {
+  const x0 = b.c * T;
+  const y0 = b.r * T;
+  const w = SIZES[b.type].w * T;
+  const h = SIZES[b.type].h * T;
+  if (b.type === 'volley') return [[0.2, 0.32], [0.3, 0.62], [0.7, 0.32], [0.8, 0.62]].map(([fx, fy]) => ({ x: x0 + w * fx, y: y0 + h * fy }));
+  if (b.type === 'curling') return [[0.18, 0.5], [0.42, 0.34], [0.42, 0.66], [0.82, 0.5]].map(([fx, fy]) => ({ x: x0 + w * fx, y: y0 + h * fy }));
+  return [[0.18, 0.3], [0.36, 0.55], [0.18, 0.72], [0.82, 0.3], [0.64, 0.55], [0.82, 0.72]].map(([fx, fy]) => ({ x: x0 + w * fx, y: y0 + h * fy }));
+}
+function sportSeats(b) {
+  const x0 = b.c * T;
+  const w = SIZES[b.type].w * T;
+  const y = (b.r + SIZES[b.type].h) * T - 3;
+  const n = CONFIG[b.type].levels.at(-1).seats - sportPlayers(b).length;
+  const watch = [];
+  for (let k = 0; k < n; k++) watch.push({ x: x0 + 8 + ((w - 16) * (k + 0.5)) / n, y: y + (k % 2) * 3 });
+  return [...sportPlayers(b), ...watch];
+}
+
 // 温泉（D371）：まるい湯船のふちに沿って つかる
 function onsenSeats(b) {
   const cx = b.c * T + (SIZES.onsen.w * T) / 2;
@@ -667,6 +694,7 @@ function planDay(state, r) {
   r.skied = false; // スキーも1日1回まで
   r.swam = false; // プールも1日1回まで（海水浴場も）
   r.bathed = false; // 温泉も1日1回まで（D371）
+  r.did = {}; // 運動も それぞれ1日1回まで（D373）
   r.visitedAqua = false; // 水族館も1日1回まで
   r.watchedRace = false; // ドッグレース
   r.played = false; // ゲームセンターも1日1回まで
@@ -943,6 +971,28 @@ export function arcadeSkilled(gameId, play) {
   if (gameId === 'mole') return play.score >= S.mole;
   return false;
 }
+// あなたの運動（D373）：その島のお金が出るのは「腕」のときだけ（島ごとに1日3回まで）。
+// score：ラリーの回数・乗れた波の数・3投の点・5本のうち入った数
+export function sportLeft(state) {
+  return Math.max(0, CONFIG.sports.rewardsPerDay - (state.today.sports?.rewarded || 0));
+}
+export function playSport(state, gameId, { score = 0 } = {}) {
+  const G = CONFIG.sports;
+  state.today.sports ||= { plays: 0, rewarded: 0, coin: 0 };
+  const a = state.today.sports;
+  a.plays += 1;
+  const skilled = score >= G.skill[gameId];
+  let coin = 0;
+  if (skilled && sportLeft(state) > 0) {
+    coin = gameCoin(state, G.coin);
+    a.rewarded += 1;
+    a.coin += coin;
+    state.coin += coin;
+  }
+  (state.sportBest ||= {})[gameId] = Math.max(state.sportBest[gameId] || 0, score);
+  return { ok: true, game: gameId, score, skilled, coin, left: sportLeft(state), best: state.sportBest[gameId] };
+}
+
 export function playArcade(state, gameId, play = {}) {
   const G = CONFIG.arcade.game;
   state.today.arcade ||= { plays: 0, rewarded: 0, coin: 0 };
@@ -988,6 +1038,18 @@ function onsenChoices(state, r) {
   if (isChild(r) || r.bathed || !venueOpen(state, 'onsen', 30)) return [];
   const P = CONFIG.onsen;
   return ofType(state, 'onsen').map((b) => ({ cafe: b, w: P.pull * P.weather[state.weather] * (r.elder ? P.elderPull : 1) * near(r, b.access) }));
+}
+
+// 運動（D373）：大人と学生。それぞれ1日1回
+function sportChoices(state, r) {
+  if (isChild(r)) return [];
+  const out = [];
+  for (const type of SPORTS) {
+    if (r.did?.[type] || !ofType(state, type).length || !venueOpen(state, type, 30)) continue;
+    const P = CONFIG[type];
+    for (const b of ofType(state, type)) out.push({ cafe: b, w: P.pull * P.weather[state.weather] * near(r, b.access) });
+  }
+  return out;
 }
 
 function poolChoices(state, r) {
@@ -1200,6 +1262,7 @@ function decideNext(state, r, { noCafe = false, avoid = null } = {}) {
     ...(avoid === 'pool' ? [] : poolChoices(state, r)),
     ...(avoid === 'beach' ? [] : beachChoices(state, r)),
     ...(avoid === 'onsen' ? [] : onsenChoices(state, r)),
+    ...sportChoices(state, r).filter((x) => x.cafe.type !== avoid),
     ...(avoid === 'track' ? [] : trackChoices(state, r)),
     ...(avoid === 'arcade' ? [] : arcadeChoices(state, r)),
     ...(avoid === 'hospital' ? [] : hospitalChoices(state, r)),
@@ -1441,6 +1504,7 @@ function sit(state, r, b, seatIdx) {
   if (b.type === 'ski') r.skied = true;
   if (b.type === 'pool' || b.type === 'beach') r.swam = true;
   if (b.type === 'onsen') r.bathed = true;
+  if (SPORTS.includes(b.type)) (r.did ||= {})[b.type] = true;
   if (b.type === 'track') r.watchedRace = true;
   if (b.type === 'arcade') r.played = true;
   if (b.type === 'aquarium') r.visitedAqua = true;
@@ -1449,7 +1513,7 @@ function sit(state, r, b, seatIdx) {
     const f = standFront(b);
     r.tx = f.x;
     r.ty = f.y;
-  } else if (b.type === 'cafe' || b.type === 'pond' || b.type === 'pool' || b.type === 'track' || b.type === 'beach' || b.type === 'onsen') {
+  } else if (b.type === 'cafe' || b.type === 'pond' || b.type === 'pool' || b.type === 'track' || b.type === 'beach' || b.type === 'onsen' || SPORTS.includes(b.type)) {
     const s = seatPositions(b)[seatIdx];
     r.tx = s.x;
     r.ty = s.y;
@@ -1612,7 +1676,7 @@ function rolloverDay(state, events) {
   if (aq?.served) lines.push({ kind: 'good', text: `水族館に ${aq.served}人 が来ました（+${aq.income} Coin）` });
   const pool = today.byType.pool;
   if (pool?.served) lines.push({ kind: 'good', text: `プールに ${pool.served}人 が来ました（+${pool.income} Coin）` });
-  for (const type of ['beach', 'onsen']) {
+  for (const type of ABROAD_VENUES) {
     const x = today.byType[type];
     if (x?.served) lines.push({ kind: 'good', text: `${VENUE_NAME[type]}に ${x.served}人 が来ました（+${x.income} Coin）` });
   }
@@ -2286,12 +2350,18 @@ export function actionsFor(state) {
     }
   } else {
     // その島だけの施設（D365・D371）：海水浴場（シェル）・温泉（オーロラ）。その島の住民が pop人 になると
-    for (const type of ['beach', 'onsen']) {
+    const WHAT = {
+      volley: (V) => `コートで 2対2。まわりで見る人も。${fmtClock(V.open)}〜${fmtClock(V.close)}・晴れた日に多い。あなたも遊べる（ラリー）。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep}`,
+      surf: (V) => `砂浜にかかる場所にだけ建てられる。${fmtClock(V.open)}〜${fmtClock(V.close)}。あなたも遊べる（波に乗る）。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep}`,
+      curling: (V) => `屋根つきの氷。雪の日も来る。${fmtClock(V.open)}〜${fmtClock(V.close)}。あなたも遊べる（カーリング）。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep}`,
+      hockey: (V) => `午後から夜（${fmtClock(V.open)}〜${fmtClock(V.close)}）。見に来る人が多い。あなたも遊べる（シュート）。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep}`,
+    };
+    for (const type of ABROAD_VENUES) {
       const V = CONFIG[type];
       if (V.isle !== state.isle) continue;
       const pop = countedPop(state);
       const full = ofType(state, type).length >= V.max;
-      const what = type === 'beach'
+      const what = WHAT[type] ? WHAT[type](V) : type === 'beach'
         ? `砂浜にかかる場所にだけ建てられる。晴れた日の昼（${fmtClock(V.open)}〜${fmtClock(V.close)}）に泳ぎに来る。子どもは親と来る。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep}`
         : `夕方から夜（${fmtClock(V.open)}〜${fmtClock(V.close)}）。雪の日に人が増える。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep}`;
       list.push({
@@ -2614,6 +2684,10 @@ export function describeResident(state, r) {
       if (b.type === 'pool') return 'プールで泳いでいる';
       if (b.type === 'beach') return '海で泳いでいる';
       if (b.type === 'onsen') return '温泉につかっている';
+      if (SPORTS.includes(b.type)) {
+        const playing = b.seats.indexOf(r.id) < sportPlayers(b).length;
+        return playing ? { volley: 'ビーチバレーをしている', surf: '波に乗っている', curling: 'カーリングをしている', hockey: 'アイスホッケーをしている' }[b.type] : `${VENUE_NAME[b.type]}で 見ている`;
+      }
       if (b.type === 'ski') return 'スキーをしている';
       if (b.type === 'track') return 'ドッグレースを見ている';
       if (b.type === 'arcade') return 'ゲームセンターで遊んでいる';
@@ -2897,7 +2971,7 @@ function bringCompanions(state, r) {
   // （施設はどれも dest='cafe' で向かうので、行き先の建物の種類で見る）
   const where = r.dest === 'cafe' ? buildingById(state, r.destId)?.type : r.dest;
   const wants = (c) =>
-    ({ super: c.needShop, petshop: c.needPet, planetarium: !c.visitedFun, pond: !c.fished, ski: !c.skied && !c.age, pool: !c.swam, beach: !c.swam, onsen: !c.bathed && !c.age, aquarium: !c.visitedAqua, track: !c.watchedRace, arcade: !c.played, hospital: false, work: false }[where] ?? true);
+    ({ super: c.needShop, petshop: c.needPet, planetarium: !c.visitedFun, pond: !c.fished, ski: !c.skied && !c.age, pool: !c.swam, beach: !c.swam, onsen: !c.bathed && !c.age, ...Object.fromEntries(SPORTS.map((t) => [t, !c.did?.[t] && !isChild(c)])), aquarium: !c.visitedAqua, track: !c.watchedRace, arcade: !c.played, hospital: false, work: false }[where] ?? true);
   const spouse = r.spouseId && state.residents.find((x) => x.id === r.spouseId);
   if (awakeHome(spouse) && wants(spouse) && rand(state) < F.walkTogether) join(spouse);
   if (r.dest === 'park' || r.dest === 'stroll' || where === 'pool' || where === 'beach' || where === 'track' || where === 'arcade') {
