@@ -2305,6 +2305,22 @@ export function actionsFor(state) {
       });
     }
   }
+  // 港をひらく（D372）：本島から 観光客を乗せた船が来る。お土産屋も建つ。本島の Coin で払う
+  if (isAbroad(state) && !state.port.open) {
+    const noCafe = !cafes(state).length;
+    list.push({
+      id: 'abroad_port',
+      tab: 'island',
+      icon: 'harbor',
+      title: '港をひらく',
+      detail: noCafe
+        ? 'カフェができると ひらけます'
+        : `本島から 観光客を乗せた船が 1日2回 来る（${CONFIG.port.boats.map(fmtClock).join('・')}ごろ）。お土産屋も建てられる。本島の Coin で払う`,
+      cost: A.port,
+      payWith: 'main',
+      locked: noCafe,
+    });
+  }
   if (isAbroad(state) && state.debris) {
     state.debris.forEach((covered, n) => {
       if (!covered) return;
@@ -2322,7 +2338,7 @@ export function actionsFor(state) {
   if (!isAbroad(state)) return list;
   // 海の向こうの島：本島の はしごのもの（釣り堀・スーパーなど）は出さない。ここでは ひらかないので（D371）
   const ladder = new Set(CONFIG.unlocks.map((u) => u.id));
-  if (!state.port.open) ladder.add('shop'); // お土産屋は 港のあと（向こうの島の港は まだ無い）
+  if (!state.port.open) ladder.add('shop'); // お土産屋は 港をひらいたら（D372）
   const here = list.filter((a) => !ladder.has(a.id));
   // お金は Shell／オーロラ（片付けは本島の Coin のまま・D371）
   for (const a of here) if (a.payWith !== 'main' && a.detail) a.detail = a.detail.replaceAll('Coin', moneyOf(state));
@@ -3577,6 +3593,23 @@ export function openRoute(world, id) {
   }
   syncMap(islandNow(world));
   return res;
+}
+
+// 港をひらく（向こうの島で・本島の Coin・D372）
+export function openAbroadPort(world, id) {
+  const state = world.islands[id];
+  const main = world.islands.main;
+  if (!state || !isAbroad(state)) return { ok: false, message: 'いまは できません' };
+  syncMap(state);
+  const action = actionsFor(state).find((a) => a.id === 'abroad_port');
+  if (!action || action.locked) return { ok: false, message: 'いまは できません' };
+  if (main.coin < action.cost) return { ok: false, message: `本島の Coin が足りません（あと ${action.cost - main.coin}）` };
+  main.coin -= action.cost;
+  main.history.push({ t: main.t, action: `abroad_port:${id}`, place: null });
+  openPort(state);
+  state.history.push({ t: state.t, action: 'abroad_port', place: null });
+  syncMap(islandNow(world));
+  return { ok: true, message: `${ISLE_NAMES[id]}に 港ができました` };
 }
 
 // 区画を片付ける（向こうの島で・本島の Coin）。片付いた区画の土地に 家や店が建てられる

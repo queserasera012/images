@@ -5,7 +5,7 @@ import { T, SIZES, PIER, PIERS, OX, OY, AREAS, MAIN, areaById, center, placement
 import {
   step, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
-  migrateWorld, createWorld, islandNow, createIsland, visitIsland, stepWorld, catchUpWorld, isAbroad, openRoute, clearPlot, MONEY_NAME, ISLE_NAMES, exchange, exchangeLeft,
+  migrateWorld, createWorld, islandNow, createIsland, visitIsland, stepWorld, catchUpWorld, isAbroad, openRoute, clearPlot, openAbroadPort, MONEY_NAME, ISLE_NAMES, exchange, exchangeLeft,
   everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
   labelOf, nextGoal, unlockNow, nameBaby, namePet, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft, decoType, isChild,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
@@ -773,9 +773,9 @@ $('sheet').addEventListener('click', (ev) => {
     return startPicking(action);
   }
   // 海の向こうの島：船着き場（本島で）と 片付け（向こうの島で）。どちらも 本島の Coin で払う（D354・D367）
-  if (action.id.startsWith('route:') || action.id.startsWith('clear:')) {
+  if (action.id.startsWith('route:') || action.id.startsWith('clear:') || action.id === 'abroad_port') {
     const [kind, arg] = action.id.split(':');
-    const res = kind === 'route' ? openRoute(world, arg) : clearPlot(world, world.current, Number(arg));
+    const res = kind === 'route' ? openRoute(world, arg) : kind === 'clear' ? clearPlot(world, world.current, Number(arg)) : openAbroadPort(world, world.current);
     toast(res.message);
     if (res.ok) {
       $('sheet').hidden = true;
