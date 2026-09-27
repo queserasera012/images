@@ -17,7 +17,7 @@ import { currentStep, report, skipTutorial, busyCafeNow, placeTip } from './tuto
 import { setupKeepAwake, awakeStatus } from './awake.js';
 import { openFishing, fishingNow } from './fishing.js';
 import { openArcade, arcadeNow } from './arcade.js';
-import { wishOf, wishList } from './wishes.js';
+import { wishOf, wishList, wishPlace } from './wishes.js';
 import { diaryView } from './diary.js';
 import { showRewardedAd, adsOn } from './ads.js';
 
@@ -142,6 +142,7 @@ function frame(now) {
   renderer.draw(state, now / 1000, {
     selectedId: selected?.kind === 'resident' ? selected.id : null,
     selectedBuildingId: selected?.kind === 'building' ? selected.id : null,
+    wishPlaces: wishPlacesNow(),
     pokes,
     placing,
     cafeLabel: (b) => cafeLabel(state, b),
@@ -149,6 +150,16 @@ function frame(now) {
   updateHud();
   if (selected) renderCard();
   requestAnimationFrame(frame);
+}
+
+// 光らせる お願いの建物（D360）：住民のカードを開いているとき、その人のお願い。
+// 飾りを置く場所を選んでいるときは、その飾りを待っている家ぜんぶ（カードは閉じているので）
+function wishPlacesNow() {
+  if (placing && !placing.move && !placing.pick) {
+    return (state.wishes || []).filter((w) => w.kind === 'deco' && w.type === placing.type).map((w) => wishPlace(state, w)).filter(Boolean);
+  }
+  const p = selected?.kind === 'resident' ? wishPlace(state, wishOf(state, selected.id)) : null;
+  return p ? [p] : [];
 }
 
 let shownWeather = null;
@@ -1102,7 +1113,10 @@ $('quest').addEventListener('click', (ev) => {
   if (wish) {
     const r = state.residents.find((x) => x.id === wish.dataset.wish);
     if (r) {
-      renderer.focus(r.x, r.y);
+      // 家の近く・会社の近く・広げるお店のお願いは、その建物へ寄る（人は 島のどこかを歩いていることが多い・D360）
+      const place = wishPlace(state, wishOf(state, r.id));
+      if (place) renderer.focus((place.building.c + SIZES[place.building.type].w / 2) * T, (place.building.r + SIZES[place.building.type].h / 2) * T);
+      else renderer.focus(r.x, r.y);
       select({ kind: 'resident', id: r.id });
     }
     return;

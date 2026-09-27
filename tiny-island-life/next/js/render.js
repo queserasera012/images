@@ -2893,6 +2893,19 @@ export function createRenderer(canvas) {
     const night = clock >= 19 * 60 || clock < 6 * 60;
     const used = occupied(state.buildings);
     decor(used, time);
+    // お願いの建物（D360）：住民のカードを開いているあいだと、その飾りを置く場所を選んでいるあいだ。
+    // 「家から 3マス以内」のお願いは、その範囲を うすく塗る
+    for (const wp0 of ui.wishPlaces || []) {
+      if (!wp0.near) continue;
+      const s = SIZES[wp0.building.type];
+      const n = wp0.near;
+      ctx.fillStyle = `rgba(242, 184, 75, ${0.16 + Math.sin(time * 2) * 0.04})`;
+      ctx.strokeStyle = 'rgba(242, 184, 75, 0.55)';
+      ctx.lineWidth = 1.5;
+      roundRect(ctx, (wp0.building.c - n) * T, (wp0.building.r - n) * T, (s.w + 2 * n) * T, (s.h + 2 * n) * T, 14);
+      ctx.fill();
+      ctx.stroke();
+    }
 
     const cafeList = state.buildings.filter((b) => b.type === 'cafe');
     const poolOpen = themeId() === 'natsu';
@@ -2931,8 +2944,8 @@ export function createRenderer(canvas) {
     for (const port of [state.port, ...(state.harbors || [])]) boat(state, port, time);
     if (ui.placing) drawPlacing(state, ui.placing, time);
     // 選んでいる建物を点線で囲む（住民の一覧から飛んだとき、どの家か分かるように・D311）
-    const sb = ui.selectedBuildingId && state.buildings.find((b) => b.id === ui.selectedBuildingId);
-    if (sb) {
+    const sbs = [ui.selectedBuildingId && state.buildings.find((b) => b.id === ui.selectedBuildingId), ...(ui.wishPlaces || []).map((p) => p.building)];
+    for (const sb of new Set(sbs.filter(Boolean))) {
       const s = SIZES[sb.type];
       const top = sb.type === 'house' ? 14 + ((sb.level || 1) - 1) * HOUSE_FLOOR : 6;
       ctx.strokeStyle = `rgba(242, 184, 75, ${0.65 + Math.sin(time * 4) * 0.3})`;
@@ -2973,6 +2986,26 @@ export function createRenderer(canvas) {
     ].sort((a, b) => a.y - b.y);
     for (const t of things) t.draw();
     drawSleep(state, time);
+    // お願いの建物の名札（D360）：住民が前に立っていても、どの家か分かるように いちばん上に
+    for (const wp of ui.wishPlaces || []) {
+      if (!wp.label) continue;
+      const s = SIZES[wp.building.type];
+      const top = wp.building.type === 'house' ? 14 + ((wp.building.level || 1) - 1) * HOUSE_FLOOR : 6;
+      const x = (wp.building.c + s.w / 2) * T;
+      const y = wp.building.r * T - top - 14;
+      ctx.font = `700 11px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const w = ctx.measureText(wp.label).width + 14;
+      ctx.fillStyle = PALETTE.shadow;
+      roundRect(ctx, x - w / 2 + 1.5, y - 8 + 2, w, 17, 8.5);
+      ctx.fill();
+      ctx.fillStyle = PALETTE.mustard;
+      roundRect(ctx, x - w / 2, y - 8, w, 17, 8.5);
+      ctx.fill();
+      ctx.fillStyle = PALETTE.ink;
+      ctx.fillText(wp.label, x, y + 1);
+    }
     drawRaceLabel();
     // 「もう少し広い家に住みたい」家族の家の上に、ふきだし（D307）
     for (const id of wantsRoomHouses(state)) {

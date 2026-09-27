@@ -212,3 +212,14 @@ export function checkWishes(state, events) {
 export const wishOf = (state, id) => (state.wishes || []).find((w) => w.who === id) || null;
 // ⭐ 大事なお願いを先に（目標の紙の いちばん上・D347）
 export const wishList = (state) => [...(state.wishes || [])].sort((a, b) => Number(!!b.big) - Number(!!a.big));
+
+// お願いに かかわる建物（D360）：お願いを押したら、その建物へ寄って光らせる（「家の近く」の家が分からない、の声）
+// near：「家から Nマス以内」の範囲も見せる（お願いの条件そのもの。答えではない）
+export function wishPlace(state, w) {
+  if (!w) return null;
+  const id = w.kind === 'deco' ? w.home : w.kind === 'cafeNearWork' ? w.company : w.kind === 'upgrade' ? w.target : null;
+  const building = id && buildingById(state, id);
+  if (!building) return null;
+  const who = state.residents.find((r) => r.id === w.who);
+  return { building, near: w.kind === 'deco' ? W().near : null, label: w.kind === 'deco' && who ? `${who.name}の家` : null };
+}
