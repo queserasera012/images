@@ -5,7 +5,7 @@ import { T, SIZES, PIER, PIERS, OX, OY, AREAS, MAIN, areaById, center, placement
 import {
   step, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
-  migrateWorld, createWorld, islandNow, createIsland, visitIsland, stepWorld, catchUpWorld, isAbroad, openRoute, clearPlot, openAbroadPort, sportLeft, SPORTS, ABROAD_VENUES, MONEY_NAME, ISLE_NAMES, exchange, exchangeLeft,
+  migrateWorld, createWorld, islandNow, createIsland, visitIsland, stepWorld, catchUpWorld, isAbroad, openRoute, clearPlot, moverReport, openAbroadPort, sportLeft, SPORTS, ABROAD_VENUES, MONEY_NAME, ISLE_NAMES, exchange, exchangeLeft,
   everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
   labelOf, nextGoal, unlockNow, nameBaby, namePet, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft, decoType, isChild,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
@@ -1303,6 +1303,10 @@ function renderDebug() {
     <button data-dbg="dock">船着き場をつくれるようにする（育った大人の条件なし・Coin +30,000）</button>
     ${Object.entries(ISLE_NAMES).filter(([id]) => id !== (state.isle || 'main')).map(([id, name]) => `<button data-dbg="isle" data-isle="${id}">${world.islands[id] ? `${name}へ` : `${name}をつくって行く`}</button>`).join('')}
     <button data-dbg="reset">最初からやり直す</button>
+    <pre>${(() => {
+      const m = moverReport(world);
+      return `移住（本島で育った大人 ${m.grown}人）\n  移れる（独り身・お年寄りでない・ペットなし）${m.ready}人\n  結婚 ${m.married}・お年寄り ${m.elder}・ペット ${m.pet}\n${Object.entries(m.rooms).map(([id, n]) => `  ${ISLE_NAMES[id]}の空き ${n}人ぶん`).join('\n')}`;
+    })()}</pre>
     <pre>画面をつけたまま：${{ on: 'オン', off: 'オフ', unsupported: 'この端末では使えない' }[awakeStatus()]}</pre>
     <pre>起動の記録（日付: 回数）\n${Object.entries(byDate).map(([d, n]) => `${d}: ${n}`).join('\n') || '—'}</pre>`;
 }

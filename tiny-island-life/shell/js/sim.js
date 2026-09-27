@@ -3789,6 +3789,22 @@ export function exchange(world, id, coin) {
 // 本島の家が空く → 本島には また人が引っ越してくる。移住できる人は 本島で子どもが育たないと増えない（D365）
 const canMove = (state, r) =>
   r.parents && !r.age && !r.elder && !r.spouseId && !r.tourist && r.state !== 'PENDING' && !(state.pets || []).some((p) => p.ownerId === r.id);
+// 移住の内わけ（?debug で見る・D375）：本島で育った大人のうち 動ける人・結婚・お年寄り・ペット、向こうの島の空き
+export function moverReport(world) {
+  const m = world.islands.main;
+  const grown = m.residents.filter((r) => r.parents && !r.age && r.state !== 'PENDING');
+  const pet = (r) => (m.pets || []).some((p) => p.ownerId === r.id);
+  const rooms = {};
+  for (const id of Object.keys(world.islands)) if (id !== 'main') rooms[id] = houses(world.islands[id]).reduce((n, h) => n + Math.max(0, openRoom(world.islands[id], h)), 0);
+  return {
+    grown: grown.length,
+    ready: grown.filter((r) => canMove(m, r)).length,
+    married: grown.filter((r) => r.spouseId).length,
+    elder: grown.filter((r) => r.elder).length,
+    pet: grown.filter(pet).length,
+    rooms,
+  };
+}
 function moveAbroad(world) {
   const main = world.islands.main;
   const day = dayOf(main.t);
