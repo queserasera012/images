@@ -3787,23 +3787,56 @@ export function exchange(world, id, coin) {
 // 毎朝、本島で育った 独り身の大人が、空き家のある 向こうの島へ（島ごとに 1日2人まで）。
 // 年上の人から。ペットを飼っている人は 行かない（ペットを置いていかないように）。
 // 本島の家が空く → 本島には また人が引っ越してくる。移住できる人は 本島で子どもが育たないと増えない（D365）
-const canMove = (state, r) =>
-  r.parents && !r.age && !r.elder && !r.spouseId && !r.tourist && r.state !== 'PENDING' && !(state.pets || []).some((p) => p.ownerId === r.id);
-// 移住の内わけ（?debug で見る・D375）：本島で育った大人のうち 動ける人・結婚・お年寄り・ペット、向こうの島の空き
+// 移る単位（D375）：独り身の1人、または 夫婦の2人。本島で育った人（と その夫婦の相手）。若い人から。
+// 移らない人：お年寄り・ペットを飼っている人・子ども（小学生まで・学生）がいる夫婦（子どもを置いていかないように）
+function moveUnits(state) {
+  const pet = (r) => (state.pets || []).some((p) => p.ownerId === r.id);
+  const free = (r) => r && !r.age && !r.elder && !r.tourist && r.state !== 'PENDING' && !pet(r);
+  const hasKids = (r) => state.residents.some((x) => x.age && x.parents?.includes(r.id));
+  const units = [];
+  const seen = new Set();
+  for (const r of state.residents) {
+    if (seen.has(r.id) || !r.parents || !free(r)) continue;
+    if (!r.spouseId) {
+      units.push([r]);
+      seen.add(r.id);
+      continue;
+    }
+    const sp = state.residents.find((x) => x.id === r.spouseId);
+    if (!free(sp) || hasKids(r) || hasKids(sp)) continue;
+    units.push([r, sp]);
+    seen.add(r.id);
+    seen.add(sp.id);
+  }
+  return units.sort((a, b) => b[0].bornOn - a[0].bornOn);
+}
+// 移住の内わけ（?debug で見る・D375）：本島で育った大人のうち 移れる人（夫婦は2人）・結婚・お年寄り・ペット、向こうの島の空き
 export function moverReport(world) {
   const m = world.islands.main;
   const grown = m.residents.filter((r) => r.parents && !r.age && r.state !== 'PENDING');
   const pet = (r) => (m.pets || []).some((p) => p.ownerId === r.id);
+  const units = moveUnits(m);
   const rooms = {};
   for (const id of Object.keys(world.islands)) if (id !== 'main') rooms[id] = houses(world.islands[id]).reduce((n, h) => n + Math.max(0, openRoom(world.islands[id], h)), 0);
   return {
     grown: grown.length,
-    ready: grown.filter((r) => canMove(m, r)).length,
+    ready: units.reduce((n, u) => n + u.length, 0),
+    couples: units.filter((u) => u.length === 2).length,
     married: grown.filter((r) => r.spouseId).length,
     elder: grown.filter((r) => r.elder).length,
     pet: grown.filter(pet).length,
     rooms,
   };
+}
+// n人が入れる家（空きが いちばん少ない家から）
+function houseFor(state, n) {
+  let best = null;
+  let room = Infinity;
+  for (const h of houses(state)) {
+    const k = openRoom(state, h);
+    if (k >= n && k < room) (best = h), (room = k);
+  }
+  return best;
 }
 function moveAbroad(world) {
   const main = world.islands.main;
@@ -3811,25 +3844,37 @@ function moveAbroad(world) {
   // どの島から先に選ぶかは 日ごとに入れかえる（いつも同じ島が 先に人をもらわないように）
   const to = Object.keys(world.islands).filter((id) => id !== 'main');
   for (let k = 0; k < day % Math.max(1, to.length); k++) to.push(to.shift());
+  const quota = Object.fromEntries(to.map((id) => [id, CONFIG.abroad.movePerDay])); // 島ごとに 1日 ◯人まで
   const moved = [];
-  for (let k = 0; k < CONFIG.abroad.movePerDay; k++) {
+  for (let more = true; more; ) {
+    more = false;
     for (const id of to) {
       const isle = world.islands[id];
+      if (quota[id] <= 0) continue;
       syncMap(isle);
-      const home = freeHouse(isle);
-      if (!home) continue;
-      const r = main.residents.filter((x) => canMove(main, x)).sort((a, b) => a.bornOn - b.bornOn)[0];
-      if (!r) break;
+      const unit = moveUnits(main).find((u) => u.length <= quota[id] && houseFor(isle, u.length));
+      if (!unit) continue;
+      const home = houseFor(isle, unit.length);
       syncMap(main);
-      leaveIsland(main, r);
+      for (const r of unit) leaveIsland(main, r);
       syncMap(isle);
-      if (babyPrefs(r)) grownPrefs(r); // 前のセーブで 大人になった人（D370）
-      const base = { name: r.name, named: r.named, generic: r.generic, bornOn: r.bornOn, prefs: r.prefs, coffee: r.coffee };
-      const n = makeResident(isle, base, home, true);
-      Object.assign(n, { look: r.look, life: r.life, from: 'main', nightOwl: r.nightOwl });
-      n.arriveAt = Math.floor(isle.t / DAY) * DAY + clockToInDay(8 * 60) + between(isle, 0, 120);
-      planDay(isle, n);
-      moved.push({ id, name: r.name });
+      const arrive = Math.floor(isle.t / DAY) * DAY + clockToInDay(8 * 60) + between(isle, 0, 120);
+      const news = unit.map((r) => {
+        if (babyPrefs(r)) grownPrefs(r); // 前のセーブで 大人になった人（D370）
+        const base = { name: r.name, named: r.named, generic: r.generic, bornOn: r.bornOn, prefs: r.prefs, coffee: r.coffee };
+        const n = makeResident(isle, base, home, true);
+        Object.assign(n, { look: r.look, life: r.life, from: 'main', nightOwl: r.nightOwl, arriveAt: arrive });
+        planDay(isle, n);
+        moved.push({ id, name: r.name });
+        return n;
+      });
+      if (news.length === 2) {
+        // 夫婦は 向こうでも夫婦（D375）
+        news[0].spouseId = news[1].id;
+        news[1].spouseId = news[0].id;
+      }
+      quota[id] -= unit.length;
+      more = true;
     }
   }
   if (!moved.length) return moved;

@@ -1305,7 +1305,7 @@ function renderDebug() {
     <button data-dbg="reset">最初からやり直す</button>
     <pre>${(() => {
       const m = moverReport(world);
-      return `移住（本島で育った大人 ${m.grown}人）\n  移れる（独り身・お年寄りでない・ペットなし）${m.ready}人\n  結婚 ${m.married}・お年寄り ${m.elder}・ペット ${m.pet}\n${Object.entries(m.rooms).map(([id, n]) => `  ${ISLE_NAMES[id]}の空き ${n}人ぶん`).join('\n')}`;
+      return `移住（本島で育った大人 ${m.grown}人）\n  移れる ${m.ready}人（うち夫婦 ${m.couples}組）\n  結婚 ${m.married}・お年寄り ${m.elder}・ペット ${m.pet}\n${Object.entries(m.rooms).map(([id, n]) => `  ${ISLE_NAMES[id]}の空き ${n}人ぶん`).join('\n')}`;
     })()}</pre>
     <pre>画面をつけたまま：${{ on: 'オン', off: 'オフ', unsupported: 'この端末では使えない' }[awakeStatus()]}</pre>
     <pre>起動の記録（日付: 回数）\n${Object.entries(byDate).map(([d, n]) => `${d}: ${n}`).join('\n') || '—'}</pre>`;
@@ -1439,8 +1439,10 @@ if (DEBUG) {
       renderQuest();
     }
     if (k === 'grown') {
-      // 本島の大人を5人 「本島で育った独り身の大人」にする（移住を試す用）
-      for (const r of world.islands.main.residents.filter((x) => !x.age && !x.spouseId).slice(0, 5)) r.parents ||= ['?', '?'];
+      // 本島の大人を5人 「本島で育った大人」にする（移住を試す用）。移れる人だけ（お年寄り・ペットを飼っている人は選ばない・D375）
+      const main = world.islands.main;
+      const pet = (r) => (main.pets || []).some((p) => p.ownerId === r.id);
+      for (const r of main.residents.filter((x) => !x.age && !x.elder && !x.tourist && !x.parents && !pet(x)).slice(0, 5)) r.parents = ['?', '?'];
     }
     if (k === 'dock') {
       CONFIG.abroad.grownAdults = 0;
