@@ -1661,9 +1661,9 @@ function rolloverDay(state, events) {
     lines.push({ kind: 'good', text: `${labelOf(state, p)}に ${B.baby[kind]}が 入荷しました` });
   }
 
-  // 季節が変わる朝（D313）
+  // 季節が変わる朝（D313）。シェルの島は常夏なので出さない（D364）
   const nextSeason = seasonOf(endedDay + 1);
-  if (nextSeason.id !== seasonOf(endedDay).id) lines.push({ kind: 'good', text: `島に${nextSeason.name}が来ました` });
+  if (!isShell(state) && nextSeason.id !== seasonOf(endedDay).id) lines.push({ kind: 'good', text: `島に${nextSeason.name}が来ました` });
 
   // 家族：結婚・引っ越し・赤ちゃん・歩けるようになる（D297）
   for (const l of familyEvents(state, endedDay, events)) lines.push(l);
@@ -2276,7 +2276,10 @@ export function wantsRoomHouses(state) {
 }
 
 // ---------------------------------------------------------------- 季節（D313）
+// シェルの島は常夏（D364）：季節が進まない。夏のもの（プール）は一年中ひらき、冬のもの（スキー）は無い
+const EVER_SUMMER = { id: 'natsu', name: '常夏' };
 export function seasonOf(stateOrDay) {
+  if (typeof stateOrDay === 'object' && isShell(stateOrDay)) return EVER_SUMMER;
   const day = typeof stateOrDay === 'number' ? stateOrDay : dayOf(stateOrDay.t);
   const S = CONFIG.seasons;
   return S.order[Math.floor((day - 1) / S.length) % S.order.length];

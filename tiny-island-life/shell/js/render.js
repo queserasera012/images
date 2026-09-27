@@ -5,7 +5,7 @@ import {
   T, COLS, ROWS, WORLD, SIZES, HOUSE_FLOOR, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, landBounds, shapesOf, islandRadius, idx, center, neighbors, isRoad, occupied, BRIDGES, boatRoute,
 } from './grid.js';
 import { CONFIG } from './config.js';
-import { wantsRoomHouses, boatsNow, clockOf, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf } from './sim.js';
+import { wantsRoomHouses, boatsNow, clockOf, inSeason, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf } from './sim.js';
 
 export const FONT = '"Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif';
 
@@ -3018,7 +3018,7 @@ export function createRenderer(canvas) {
     }
 
     const cafeList = state.buildings.filter((b) => b.type === 'cafe');
-    const poolOpen = themeId() === 'natsu';
+    const poolOpen = inSeason(state, 'pool'); // 夏だけ。シェルの島は常夏なので一年中（D364）
     let houseN = 0;
     // 奥（上）から順に描く
     for (const b of [...state.buildings].sort((a, c) => a.r - c.r)) {
