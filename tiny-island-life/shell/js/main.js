@@ -1366,7 +1366,8 @@ $('coin-icon').innerHTML = ICONS.coin;
 const THEME_PARAM = new URLSearchParams(location.search).get('theme');
 let shownTheme = null;
 function syncTheme() {
-  const id = THEME_PARAM || seasonOf(state).id;
+  // シェルの島は季節で変わらない、その島だけの見た目（D363）
+  const id = THEME_PARAM || (isShell(state) ? 'shell' : seasonOf(state).id);
   if (id !== shownTheme) {
     setTheme(id);
     shownTheme = id;

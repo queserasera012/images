@@ -67,6 +67,19 @@ export const THEMES = {
     flowers: [],
     snow: true,
   },
+  // シェルの島（D363）：海の向こうの島。季節では変わらない。
+  // 本島の夏（南の島）と 色だけでは見分けがつかないので、形で違える：
+  // サンゴ礁の輪（浅い潟と、とぎれとぎれのサンゴ）・白い石だたみの道・ヤシの木。砂は 貝がらの砕けた うすい桃色
+  shell: {
+    name: 'シェルの島',
+    palette: { sea: '#2a9cb6', seaDeep: '#1d7f98', sand: '#f8e6da', sandDark: '#ecccbb', grass: '#86c47c', grassDark: '#66a862', grassLight: '#a7d99b' },
+    leaves: [['#3f9a5a', '#5cb872'], ['#2f8a4c', '#4caa63']],
+    shrub: '#4f9e5e',
+    flowers: ['#ff6b81', '#ffffff', '#ffd166'],
+    palms: true,
+    reef: { lagoon: '#7fd2d0', coral: '#f3a597', foam: 'rgba(255,255,255,0.8)' },
+    stone: { base: '#f4f2ec', dark: '#cfc8ba', cobble: '#e2ddd1' },
+  },
 };
 let theme = THEMES.default;
 export function setTheme(id) {
@@ -161,6 +174,40 @@ function islandPath(ctx, area, k = 1, grow = 0, dx = 0, dy = 0) {
     else ctx.lineTo(x, y);
   }
   ctx.closePath();
+}
+
+// サンゴ礁の輪（シェルの島・D363）：島のまわりの浅い潟と、その外のふちの とぎれとぎれのサンゴ。
+// 桟橋の先（南）は あけておく（船の通り道）
+function reef(g, areas) {
+  const look = THEMES.shell.reef;
+  g.fillStyle = look.lagoon;
+  for (const a of areas.flatMap(shapesOf)) {
+    islandPath(g, a, 1, 46);
+    g.fill();
+  }
+  for (const area of areas) {
+    const n = 150;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      if (Math.abs(a - Math.PI / 2) < 0.32) continue; // 船の通り道
+      if (Math.sin(a * 5 + area.ph * 3) > 0.82) continue; // ところどころ切れている
+      const f = islandRadius(a, area.ph);
+      const w = 44 + Math.sin(i * 2.3) * 3;
+      const x = area.cx + Math.cos(a) * (area.rx * f + w);
+      const y = area.cy + Math.sin(a) * (area.ry * f + w);
+      const h = hash(i + Math.round(area.ph * 1000));
+      if (h < 0.18) continue; // すき間
+      const s = 1.6 + h * 2.2;
+      g.fillStyle = look.foam;
+      g.beginPath();
+      g.arc(x + Math.cos(a) * 2.5, y + Math.sin(a) * 2.5, s + 1, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = look.coral;
+      g.beginPath();
+      g.arc(x, y, s, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
 }
 
 // 山（D318）：紙を切り抜いたような山。ふもとは山のマスの下の端、頂上は島の上に はみ出す
@@ -385,6 +432,7 @@ export function createRenderer(canvas) {
         g.fill();
       }
     };
+    if (theme.reef) reef(g, areas);
     layer(PALETTE.seaDeep, 1, 10, 6, 8);
     layer('rgba(255,255,255,0.22)', 1, 12);
     layer(PALETTE.sand, 1, 4);
@@ -431,8 +479,24 @@ export function createRenderer(canvas) {
         if (isRoad(i + COLS)) g.fillRect(p.x - W / 2 + d, p.y + d, W, T);
       }
     };
-    band(PALETTE.sandDark, 2);
-    band(PALETTE.sand, 0);
+    if (theme.stone) {
+      // 石だたみ（シェルの島）：白い帯に、少し濃い石を散らす
+      band(theme.stone.dark, 2);
+      band(theme.stone.base, 0);
+      g.fillStyle = theme.stone.cobble;
+      for (let i = 0; i < MAP.length; i++) {
+        if (!isRoad(i) || BRIDGES.has(i)) continue;
+        const p = center(i);
+        for (let k = 0; k < 4; k++) {
+          const h = hash(i * 4 + k);
+          roundRect(g, p.x - 8 + (k % 2) * 8 + h * 3, p.y - 7 + Math.floor(k / 2) * 8 + ((h * 7) % 1) * 2, 6.5, 5, 2);
+          g.fill();
+        }
+      }
+    } else {
+      band(PALETTE.sandDark, 2);
+      band(PALETTE.sand, 0);
+    }
     // 橋（D318）：海の上の道は 板をわたした橋にする
     for (const i of BRIDGES) {
       const p = center(i);
@@ -462,6 +526,7 @@ export function createRenderer(canvas) {
   // ---------------------------------------------------------------- 部品
 
   function tree(x, y, r, time) {
+    if (theme.palms) return palm(x, y, r, time);
     const s = Math.sin(time * 1.3 + x) * 0.6;
     ctx.fillStyle = PALETTE.shadow;
     ctx.beginPath();
@@ -485,6 +550,51 @@ export function createRenderer(canvas) {
       ctx.beginPath();
       ctx.arc(x + s, y - r * 1.25, r * 0.78, Math.PI * 1.05, Math.PI * 1.95);
       ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // ヤシの木（シェルの島）：少し傾いた幹と、垂れた葉
+  function palm(x, y, r, time) {
+    const lean = (Math.floor(Math.abs(x * 7 + y * 3)) % 2 ? 1 : -1) * r * 0.35;
+    const s = Math.sin(time * 1.1 + x) * 1.2;
+    const top = { x: x + lean + s, y: y - r * 2.1 };
+    ctx.fillStyle = PALETTE.shadow;
+    ctx.beginPath();
+    ctx.ellipse(x + 4 + lean, y + 2, r * 0.95, r * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#b48a5e';
+    ctx.lineWidth = 3.2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.quadraticCurveTo(x - lean * 0.2, y - r * 1.2, top.x, top.y);
+    ctx.stroke();
+    // 幹の節
+    ctx.strokeStyle = 'rgba(80,50,30,0.3)';
+    ctx.lineWidth = 1;
+    for (let k = 1; k < 5; k++) {
+      const t = k / 5;
+      const px = (1 - t) * (1 - t) * x + 2 * t * (1 - t) * (x - lean * 0.2) + t * t * top.x;
+      const py = (1 - t) * (1 - t) * y + 2 * t * (1 - t) * (y - r * 1.2) + t * t * top.y;
+      ctx.beginPath();
+      ctx.moveTo(px - 1.6, py);
+      ctx.lineTo(px + 1.6, py);
+      ctx.stroke();
+    }
+    const [leaf, light] = theme.leaves[Math.floor(Math.abs(x * 7 + y * 13)) % theme.leaves.length];
+    const L = r * 1.25;
+    [-2.75, -2.15, -1.55, -0.95, -0.35, 0.3, 2.9].forEach((a, k) => {
+      const droop = Math.abs(Math.cos(a)) * r * 0.35;
+      ctx.fillStyle = k % 2 ? light : leaf;
+      ctx.beginPath();
+      ctx.ellipse(top.x + (Math.cos(a) * L) / 2, top.y + (Math.sin(a) * L) / 2 + droop, L / 2, r * 0.22, a + Math.sign(Math.cos(a)) * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.fillStyle = '#7a5a3c';
+    for (const dx of [-2.2, 2.2]) {
+      ctx.beginPath();
+      ctx.arc(top.x + dx, top.y + 2.5, 1.9, 0, Math.PI * 2);
       ctx.fill();
     }
   }
