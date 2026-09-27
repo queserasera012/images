@@ -5,7 +5,7 @@ import { T, SIZES, PIER, PIERS, OX, OY, AREAS, MAIN, areaById, center, placement
 import {
   step, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
-  migrateWorld, createWorld, islandNow, createShellIsland, visitIsland, stepWorld, catchUpWorld, isShell,
+  migrateWorld, createWorld, islandNow, createIsland, visitIsland, stepWorld, catchUpWorld, isAbroad,
   everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
   labelOf, nextGoal, unlockNow, nameBaby, namePet, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft, decoType, isChild,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
@@ -25,6 +25,9 @@ import { showRewardedAd, adsOn } from './ads.js';
 // 🚨 ほかの版（3日テスト中・ストア版 1.0）と同じサイトに置くので、保存の名前を分ける（D289・D361）
 // シェルの島の版は til.shell.*。はじめの1回だけ 1.0 のセーブ（til.grid.save.v1）を読んで写す。1.0 のほうには書き込まない
 const SAVE_KEY = 'til.shell.save.v1';
+// 島の名前と お金（本島 Coin・シェルの島 Shell・オーロラの島 オーロラ。D354・D366）
+const ISLE_NAME = { main: '本島', shell: 'シェルの島', aurora: 'オーロラの島' };
+const MONEY = { main: { icon: 'coin', label: 'Coin' }, shell: { icon: 'shell', label: 'Shell' }, aurora: { icon: 'aurora', label: 'オーロラ' } };
 const OLD_SAVE_KEY = 'til.grid.save.v1';
 const OPENS_KEY = 'til.shell.opens.v1';
 const DEBUG = new URLSearchParams(location.search).has('debug');
@@ -180,9 +183,10 @@ setHouseSkin(new URLSearchParams(location.search).get('house') || chosenHouseSki
   $('clock').textContent = formatClock(state.t);
   $('coin').textContent = state.coin.toLocaleString();
   if (shownIsle !== world.current) {
-    // シェルの島では お金が Shell（D354）
-    $('coin-icon').innerHTML = isShell(state) ? ICONS.shell : ICONS.coin;
-    $('hud-coin').setAttribute('aria-label', isShell(state) ? 'Shell' : 'Coin');
+    // シェルの島では お金が Shell（D354）、オーロラの島では オーロラ（D366）
+    const money = MONEY[state.isle] || MONEY.main;
+    $('coin-icon').innerHTML = ICONS[money.icon];
+    $('hud-coin').setAttribute('aria-label', money.label);
     shownIsle = world.current;
   }
   // いま住んでいる人の数（D310）。引っ越してくる途中の人は数えない
@@ -1178,7 +1182,7 @@ function renderDebug() {
     <button data-dbg="expand">島を広げられるようにする（山の島の橋も）</button>
     <button data-dbg="wave1">会社・水族館・プールをひらく</button>
     <button data-dbg="family">結婚と出産を早める（留守2回で子ども）</button>
-    ${world.islands.shell ? `<button data-dbg="isle">${isShell(state) ? '本島へ' : 'シェルの島へ'}</button>` : '<button data-dbg="isle">シェルの島をつくって行く</button>'}
+    ${Object.entries(ISLE_NAME).filter(([id]) => id !== (state.isle || 'main')).map(([id, name]) => `<button data-dbg="isle" data-isle="${id}">${world.islands[id] ? `${name}へ` : `${name}をつくって行く`}</button>`).join('')}
     <button data-dbg="reset">最初からやり直す</button>
     <pre>画面をつけたまま：${{ on: 'オン', off: 'オフ', unsupported: 'この端末では使えない' }[awakeStatus()]}</pre>
     <pre>起動の記録（日付: 回数）\n${Object.entries(byDate).map(([d, n]) => `${d}: ${n}`).join('\n') || '—'}</pre>`;
@@ -1297,8 +1301,9 @@ if (DEBUG) {
       renderQuest();
     }
     if (k === 'isle') {
-      if (!world.islands.shell) createShellIsland(world);
-      goIsland(isShell(state) ? 'main' : 'shell');
+      const id = ev.target.dataset.isle;
+      if (!world.islands[id]) createIsland(world, id);
+      goIsland(id);
     }
     if (k === 'reset' && confirm('島を最初からやり直しますか？')) {
       world = createWorld();
@@ -1366,8 +1371,8 @@ $('coin-icon').innerHTML = ICONS.coin;
 const THEME_PARAM = new URLSearchParams(location.search).get('theme');
 let shownTheme = null;
 function syncTheme() {
-  // シェルの島は季節で変わらない、その島だけの見た目（D363）
-  const id = THEME_PARAM || (isShell(state) ? 'shell' : seasonOf(state).id);
+  // 海の向こうの島は季節で変わらない、その島だけの見た目（シェル D363・オーロラ D365）
+  const id = THEME_PARAM || (isAbroad(state) ? state.isle : seasonOf(state).id);
   if (id !== shownTheme) {
     setTheme(id);
     shownTheme = id;

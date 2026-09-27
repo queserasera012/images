@@ -2,7 +2,7 @@
 // 見た目の方針は docs/DESIGN.md（切り絵のジオラマ・絵文字は使わない）。格子版（D289）。
 
 import {
-  T, COLS, ROWS, WORLD, SIZES, HOUSE_FLOOR, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, landBounds, shapesOf, islandRadius, idx, center, neighbors, isRoad, occupied, BRIDGES, boatRoute,
+  T, COLS, ROWS, WORLD, SIZES, HOUSE_FLOOR, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, landBounds, shapesOf, islandRadius, edgeRadius, idx, center, neighbors, isRoad, occupied, BRIDGES, boatRoute,
 } from './grid.js';
 import { CONFIG } from './config.js';
 import { wantsRoomHouses, boatsNow, clockOf, inSeason, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf } from './sim.js';
@@ -79,6 +79,21 @@ export const THEMES = {
     palms: true,
     reef: { lagoon: '#7fd2d0', coral: '#f3a597', foam: 'rgba(255,255,255,0.8)' },
     stone: { base: '#f4f2ec', dark: '#cfc8ba', cobble: '#e2ddd1' },
+  },
+  // オーロラの島（D365・D366）：北欧の常冬の島。季節では変わらない。
+  // 本島の冬（雪）と 色だけでは見分けがつかないので、形で違える：
+  // 入り組んだ岩の海岸（フィヨルド・形は grid.js）・とがった針葉樹・踏み固めた雪の道・海に浮かぶ氷・夜空のオーロラ
+  aurora: {
+    name: 'オーロラの島',
+    palette: { sea: '#2d5873', seaDeep: '#1d3d53', sand: '#7c8791', sandDark: '#5f6a74', grass: '#eaf0f5', grassDark: '#c3d0dc', grassLight: '#f8fafc' },
+    leaves: [['#2e5b4b', '#3f7361'], ['#284f45', '#386658']],
+    shrub: '#557a6c',
+    flowers: [],
+    snow: true,
+    conifers: true,
+    ice: '#f2f7fb',
+    trail: { base: '#d3dde6', dark: '#a7b6c4', track: 'rgba(120,140,165,0.35)' },
+    sky: ['rgba(110, 240, 180, 0.42)', 'rgba(90, 210, 220, 0.3)', 'rgba(170, 120, 255, 0.28)'],
   },
 };
 let theme = THEMES.default;
@@ -165,9 +180,10 @@ function lamps() {
 // 島の土地（楕円をすこし揺らした形）。広げた土地は、本島に重ねて描く
 function islandPath(ctx, area, k = 1, grow = 0, dx = 0, dy = 0) {
   ctx.beginPath();
-  for (let i = 0; i <= 120; i++) {
-    const a = (i / 120) * Math.PI * 2;
-    const f = islandRadius(a, area.ph) * k;
+  const n = area.fjords ? 480 : 120; // 細い切れこみ（フィヨルド）は 細かく描く
+  for (let i = 0; i <= n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const f = edgeRadius(area, a) * k;
     const x = area.cx + dx + Math.cos(a) * (area.rx * f + grow);
     const y = area.cy + dy + Math.sin(a) * (area.ry * f + grow);
     if (i === 0) ctx.moveTo(x, y);
@@ -493,6 +509,30 @@ export function createRenderer(canvas) {
           g.fill();
         }
       }
+    } else if (theme.trail) {
+      // 踏み固めた雪の道（オーロラの島）：青みの影と、そりの跡が2本
+      band(theme.trail.dark, 2);
+      band(theme.trail.base, 0);
+      g.strokeStyle = theme.trail.track;
+      g.lineWidth = 1.2;
+      for (let i = 0; i < MAP.length; i++) {
+        if (!isRoad(i) || BRIDGES.has(i)) continue;
+        const p = center(i);
+        const across = isRoad(i + 1) || isRoad(i - 1);
+        const along = isRoad(i + COLS) || isRoad(i - COLS);
+        g.beginPath();
+        for (const k of [-3.5, 3.5]) {
+          if (across) {
+            g.moveTo(p.x - T / 2, p.y + k);
+            g.lineTo(p.x + T / 2, p.y + k);
+          }
+          if (along) {
+            g.moveTo(p.x + k, p.y - T / 2);
+            g.lineTo(p.x + k, p.y + T / 2);
+          }
+        }
+        g.stroke();
+      }
     } else {
       band(PALETTE.sandDark, 2);
       band(PALETTE.sand, 0);
@@ -525,8 +565,50 @@ export function createRenderer(canvas) {
 
   // ---------------------------------------------------------------- 部品
 
+  function floe(x, y, r, seed) {
+    ctx.beginPath();
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * Math.PI * 2 + seed;
+      const f = 0.7 + hash(seed * 6 + k) * 0.45;
+      ctx.lineTo(x + Math.cos(a) * r * f, y + Math.sin(a) * r * f * 0.7);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // オーロラ（オーロラの島の夜空・D365）：海と島の上にかかる光の幕。日が暮れると出て、明け方に消える
+  function auroraSky(clock, time) {
+    const min = clock >= 12 * 60 ? clock - 19 * 60 : clock + 5 * 60; // 19時から数えた分
+    const strength = Math.max(0, Math.min(1, min / 60, (11 * 60 - min) / 60)); // 19〜20時で出て、5〜6時で消える
+    if (strength <= 0) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    theme.sky.forEach((color, k) => {
+      const base = view.h * (0.08 + k * 0.08);
+      const edge = (x) => base + Math.sin(x * 0.006 + time * 0.25 + k * 1.7) * 26 + Math.sin(x * 0.017 - time * 0.4 + k) * 9;
+      const height = (x) => 70 + Math.sin(x * 0.011 + time * 0.3 + k * 2) * 30;
+      // 幕は細い たての帯を並べて描く。帯ごとに 下の端が明るく、上へ行くほど消える（下の端も少しぼかす）
+      const grad = ctx.createLinearGradient(0, -1, 0, 0.08);
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(0.8, color);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      const W = 6;
+      for (let x = 0; x < view.w + W; x += W) {
+        // ひだ：ところどころ明るい
+        ctx.globalAlpha = strength * (0.55 + 0.3 * Math.sin(time * 0.6 + k * 2.1) + 0.25 * Math.sin(x * 0.05 + time * 0.8 + k));
+        if (ctx.globalAlpha <= 0.02) continue;
+        ctx.setTransform(view.dpr, 0, 0, view.dpr * height(x), view.dpr * x, view.dpr * edge(x));
+        ctx.fillRect(0, -1, W + 0.5, 1.08);
+      }
+    });
+    ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+    ctx.restore();
+  }
+
   function tree(x, y, r, time) {
     if (theme.palms) return palm(x, y, r, time);
+    if (theme.conifers) return conifer(x, y, r, time);
     const s = Math.sin(time * 1.3 + x) * 0.6;
     ctx.fillStyle = PALETTE.shadow;
     ctx.beginPath();
@@ -549,6 +631,48 @@ export function createRenderer(canvas) {
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.arc(x + s, y - r * 1.25, r * 0.78, Math.PI * 1.05, Math.PI * 1.95);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // 針葉樹（オーロラの島）：3段の とがった葉に、雪が積もる
+  function conifer(x, y, r, time) {
+    const s = Math.sin(time * 0.9 + x) * 0.4;
+    const h = r * 2.3;
+    ctx.fillStyle = PALETTE.shadow;
+    ctx.beginPath();
+    ctx.ellipse(x + 4, y + 2, r * 0.7, r * 0.32, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#6b5040';
+    ctx.fillRect(x - 1.5, y - r * 0.4, 3, r * 0.4);
+    const [leaf, light] = theme.leaves[Math.floor(Math.abs(x * 7 + y * 13)) % theme.leaves.length];
+    for (let k = 0; k < 3; k++) {
+      const top = y - r * 0.3 - h * (0.42 + k * 0.29);
+      const bottom = y - r * 0.3 - h * k * 0.26;
+      const w = r * (0.85 - k * 0.2);
+      const sx = s * (k + 1);
+      ctx.fillStyle = leaf;
+      ctx.beginPath();
+      ctx.moveTo(x + sx, top);
+      ctx.lineTo(x + sx + w, bottom);
+      ctx.lineTo(x + sx - w, bottom);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = light;
+      ctx.beginPath();
+      ctx.moveTo(x + sx, top);
+      ctx.lineTo(x + sx - w, bottom);
+      ctx.lineTo(x + sx - w * 0.35, bottom);
+      ctx.closePath();
+      ctx.fill();
+      // 雪：それぞれの段の上に
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(x + sx, top);
+      ctx.lineTo(x + sx + w * 0.42, top + (bottom - top) * 0.45);
+      ctx.lineTo(x + sx, top + (bottom - top) * 0.34);
+      ctx.lineTo(x + sx - w * 0.42, top + (bottom - top) * 0.45);
       ctx.closePath();
       ctx.fill();
     }
@@ -2991,6 +3115,18 @@ export function createRenderer(canvas) {
       ctx.arc(x, y, 7, Math.PI * 1.15, Math.PI * 1.85);
       ctx.stroke();
     }
+    if (theme.ice) {
+      // 海に浮かぶ氷（オーロラの島）：ゆっくり流れる、角ばった白いかけら
+      for (let i = 0; i < 26; i++) {
+        const x = ((i * 173 + time * 2.2) % (WORLD.w + 300)) - 150;
+        const y = ((i * 229 + 40) % (WORLD.h + 300)) - 150;
+        const r = 5 + hash(i + 7) * 9;
+        ctx.fillStyle = 'rgba(20, 45, 70, 0.25)';
+        floe(x + 2, y + 3, r, i);
+        ctx.fillStyle = theme.ice;
+        floe(x, y, r, i);
+      }
+    }
     teaser(state);
     const gk = `${MAP_KEY}|${(state.harbors || []).map((h) => h.id).join('+')}|${themeId()}`;
     if (gk !== groundKey) {
@@ -3074,6 +3210,7 @@ export function createRenderer(canvas) {
       ctx.fillStyle = c;
       ctx.fillRect(0, 0, view.w, view.h);
     }
+    if (theme.sky && state.weather === 'sunny') auroraSky(clock, time);
 
     toWorldSpace();
     for (const b of state.buildings) {

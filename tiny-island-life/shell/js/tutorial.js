@@ -52,7 +52,7 @@ export function tutorialOf(state) {
 }
 
 export function currentStep(state) {
-  if (state.isle === 'shell') return null; // はじめの「やること」は本島だけ
+  if (state.isle && state.isle !== 'main') return null; // はじめの「やること」は本島だけ
   const t = tutorialOf(state);
   if (t.skipped) return null;
   return STEPS[t.step] || null;

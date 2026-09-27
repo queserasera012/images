@@ -51,11 +51,14 @@ function roadTiles() {
 }
 
 // このセーブの島の形に、地図を合わせる（D298）。ルールを動かす入口で必ず呼ぶ。
-// isle：どちらの島か（無ければ本島）。シェルの島は 同じ格子の上の別の地図（D354）
+// isle：どの島か（無ければ本島）。シェルの島・オーロラの島は 同じ格子の上の別の地図（D354・D365）
 export function syncMap(state) {
   useAreas(state.areas || ['main'], state.isle || 'main');
 }
 export const isShell = (state) => state.isle === 'shell';
+export const isAurora = (state) => state.isle === 'aurora';
+// 海の向こうの島（シェルの島・オーロラの島）。本島の はしご・お願い・迷い込むペット・季節の日記は出さない
+export const isAbroad = (state) => !!state.isle && state.isle !== 'main';
 
 export const WEATHER_LABEL = { sunny: '晴れ', cloudy: 'くもり', rain: '雨' };
 
@@ -659,13 +662,13 @@ function tick(state, h, events) {
   growAffinity(state, h);
   for (const v of venues(state)) updateVenue(state, v, events);
   updateRace(state, events);
-  // シェルの島には 本島の解放のはしご・お願い・迷い込むペットは無い（この島の はしごは あとで・D354）
-  if (!isShell(state)) {
+  // 海の向こうの島には 本島の解放のはしご・お願い・迷い込むペットは無い（この島の はしごは あとで・D354）
+  if (!isAbroad(state)) {
     checkUnlocks(state, events);
     if (Math.floor(state.t) !== Math.floor(state.t - h)) checkWishes(state, events); // お願い（D335）：1分ごと
   }
   updatePort(state, events);
-  if (!isShell(state)) spawnStrays(state, events);
+  if (!isAbroad(state)) spawnStrays(state, events);
   for (const pet of state.pets) updatePet(state, pet, h);
 
   const longest = Math.max(0, ...cafes(state).map((c) => c.queue.length));
@@ -1661,9 +1664,9 @@ function rolloverDay(state, events) {
     lines.push({ kind: 'good', text: `${labelOf(state, p)}に ${B.baby[kind]}が 入荷しました` });
   }
 
-  // 季節が変わる朝（D313）。シェルの島は常夏なので出さない（D364）
+  // 季節が変わる朝（D313）。シェルの島は常夏・オーロラの島は常冬なので出さない（D364・D365）
   const nextSeason = seasonOf(endedDay + 1);
-  if (!isShell(state) && nextSeason.id !== seasonOf(endedDay).id) lines.push({ kind: 'good', text: `島に${nextSeason.name}が来ました` });
+  if (!isAbroad(state) && nextSeason.id !== seasonOf(endedDay).id) lines.push({ kind: 'good', text: `島に${nextSeason.name}が来ました` });
 
   // 家族：結婚・引っ越し・赤ちゃん・歩けるようになる（D297）
   for (const l of familyEvents(state, endedDay, events)) lines.push(l);
@@ -1776,7 +1779,7 @@ export function isUnlocked(state, id) {
 
 // 次の目標（まだひらいていない中で いちばん手前）
 export function nextGoal(state) {
-  if (isShell(state)) return null;
+  if (isAbroad(state)) return null;
   // 育つ施設（小学校・大学）は ⭐ 大事なお願いで出すので、はしごには出さない（D347）
   const u = CONFIG.unlocks.find((x) => !x.stage && !isUnlocked(state, x.id));
   if (!u) return null;
@@ -2276,10 +2279,13 @@ export function wantsRoomHouses(state) {
 }
 
 // ---------------------------------------------------------------- 季節（D313）
-// シェルの島は常夏（D364）：季節が進まない。夏のもの（プール）は一年中ひらき、冬のもの（スキー）は無い
+// シェルの島は常夏（D364）：季節が進まない。夏のもの（プール）は一年中ひらき、冬のもの（スキー）は無い。
+// オーロラの島は常冬（D365）：プールは ひらかない。スキー場は置かない（本島の山の島にあるので）
 const EVER_SUMMER = { id: 'natsu', name: '常夏' };
+const EVER_WINTER = { id: 'yuki', name: '常冬' };
 export function seasonOf(stateOrDay) {
   if (typeof stateOrDay === 'object' && isShell(stateOrDay)) return EVER_SUMMER;
+  if (typeof stateOrDay === 'object' && isAurora(stateOrDay)) return EVER_WINTER;
   const day = typeof stateOrDay === 'number' ? stateOrDay : dayOf(stateOrDay.t);
   const S = CONFIG.seasons;
   return S.order[Math.floor((day - 1) / S.length) % S.order.length];
@@ -3358,8 +3364,8 @@ export function describePet(state, pet) {
 
 export { idx };
 
-// ---------------------------------------------------------------- 2つの島（シェルの島・D336〜D354）
-// セーブは 島を並べたもの：{ version: 3, current: 'main', islands: { main: 島, shell: 島 } }
+// ---------------------------------------------------------------- 島を並べる（シェルの島・オーロラの島・D336〜D366）
+// セーブは 島を並べたもの：{ version: 3, current: 'main', islands: { main: 島, shell: 島, aurora: 島 } }
 // 島の中身は いままでの state のまま。ルール（tick）は 1つの島を相手にしたまま変えない。
 // 見ていない島も 同じだけ時間が進む（「新しい島で遊んでいるあいだも、本島は動き続ける」D336 の5）
 
@@ -3381,16 +3387,21 @@ export function migrateWorld(save) {
 
 export const islandNow = (world) => world.islands[world.current];
 
-// シェルの島をつくる（はじめは何も無い。住民は あとで本島から移ってくる）。時計と天気は本島に合わせる
-export function createShellIsland(world) {
+// 海の向こうの島をつくる（はじめは何も無い。住民は あとで本島から移ってくる）。時計と天気は本島に合わせる。
+// 島ごとに 乱数の種を変える（同じ日に同じ天気・同じ出来事にならないように）
+export const ABROAD = { shell: 0x5bd1e995, aurora: 0x27d4eb2f };
+export function createIsland(world, id) {
+  if (!ABROAD[id]) return null;
+  if (world.islands[id]) return world.islands[id];
   const main = world.islands.main;
-  const state = blankIsland((main.seed ^ 0x5bd1e995) >>> 0);
-  Object.assign(state, { isle: 'shell', t: main.t, coin: 0, weather: main.weather });
+  const state = blankIsland((main.seed ^ ABROAD[id]) >>> 0);
+  Object.assign(state, { isle: id, t: main.t, coin: 0, weather: main.weather });
   syncMap(state);
-  world.islands.shell = state;
+  world.islands[id] = state;
   syncMap(islandNow(world));
   return state;
 }
+export const createShellIsland = (world) => createIsland(world, 'shell');
 
 // 行き先の島へ。地図も その島に切り替わる
 export function visitIsland(world, id) {

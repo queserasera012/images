@@ -50,6 +50,14 @@ export const ICONS = {
       `<g stroke="${INK}" stroke-width="1.2" stroke-linecap="round" opacity="0.7"><path d="M12 19V6.2"/><path d="M12 19L8 7.2"/><path d="M12 19l4-11.8"/><path d="M12 19L5.6 9.6"/><path d="M12 19l6.4-9.4"/></g>`,
     18,
   ),
+  // オーロラ（オーロラの島の お金・D366）：夜空の丸に、緑と紫の光の幕
+  aurora: svg(
+    `<circle cx="13" cy="13" r="8.5" fill="${SHADOW}"/><circle cx="12" cy="12" r="8.5" fill="#24365e"/>` +
+      `<path d="M5 13.5c2.2-3 4.4-3.4 7-1.4s4.8 1.6 7-1.4" fill="none" stroke="#7ef0b8" stroke-width="2.2" stroke-linecap="round"/>` +
+      `<path d="M6 10c2-2.2 4-2.4 6.2-1s4.2 1.2 6-.8" fill="none" stroke="#b79cff" stroke-width="1.6" stroke-linecap="round" opacity="0.9"/>` +
+      `<circle cx="9" cy="16.5" r="0.9" fill="#fff"/><circle cx="15.5" cy="16" r="0.7" fill="#fff"/>`,
+    18,
+  ),
   build: svg(
     `<path d="M4 12l8-7 8 7v8H4z" transform="translate(1 1)" fill="${SHADOW}"/>` +
       `<path d="M4 12l8-7 8 7v8H4z" fill="${INK}"/><path d="M12 11v6M9 14h6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>`,

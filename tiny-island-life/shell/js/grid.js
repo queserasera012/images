@@ -168,6 +168,26 @@ const SHELL_AREAS = [
     pier: { col: SX + 7, dir: [0, 1] },
   },
 ];
+// オーロラの島（北欧・常冬・D365〜D366）。シェルの島と同じく 同じ格子の上の別の地図。
+// 本島の冬（雪）と見分けがつくよう、形で違える：入り組んだ海岸（フィヨルド）。fjords は 切れこみの向き（a）・幅（w）・深さ（d）
+const AX = 15; // オーロラの島の左上のマス
+const AY = 9;
+const AURORA_COLS = 17;
+const AURORA_ROWS = 15;
+const AURORA_AREAS = [
+  {
+    id: 'main', name: 'オーロラの島', ph: 4.3,
+    cx: (AX + AURORA_COLS / 2) * T, cy: (AY + AURORA_ROWS / 2) * T,
+    rx: (AURORA_COLS / 2) * T - 12, ry: (AURORA_ROWS / 2) * T - 14,
+    pier: { col: AX + 8, dir: [0, 1] },
+    fjords: [
+      { a: -2.8, w: 0.09, d: 0.3 }, // 西（1本目と2本目の横の道のあいだ）
+      { a: 0.2, w: 0.08, d: 0.27 }, // 東
+      { a: -1.35, w: 0.08, d: 0.24 }, // 北
+      { a: 2.35, w: 0.07, d: 0.2 }, // 南西
+    ],
+  },
+];
 
 // いま動かしている島の土地。useAreas で島ごとに切り替える（ES モジュールの let は、読み込んだ側にも切り替えが見える）
 export let ISLE = 'main';
@@ -180,6 +200,15 @@ export let MAIN = AREAS[0];
 export const ISLAND = { cx: MAIN_AREAS[0].cx, cy: MAIN_AREAS[0].cy, rx: MAIN_AREAS[0].rx, ry: MAIN_AREAS[0].ry };
 export function islandRadius(a, ph = 0) {
   return 1 + 0.035 * Math.sin(3 * a + 1 + ph) + 0.022 * Math.sin(5 * a + 2 + ph * 2) + 0.012 * Math.sin(9 * a + ph * 3);
+}
+// その土地の岸までの遠さ（向き a）。フィヨルドのある土地（オーロラの島）は、そこだけ細く深く切れこむ
+export function edgeRadius(area, a) {
+  let f = islandRadius(a, area.ph);
+  for (const j of area.fjords || []) {
+    const d = Math.atan2(Math.sin(a - j.a), Math.cos(a - j.a));
+    f -= j.d * Math.exp(-((d / j.w) ** 2));
+  }
+  return f;
 }
 
 // 道の線（碁盤の目）。本島は前の版と同じ [4,8,12] / [6,11,16,20]
@@ -199,7 +228,7 @@ function edgeFactor(area, x, y) {
   const dx = x - area.cx;
   const dy = y - area.cy;
   const a = Math.atan2(dy / area.ry, dx / area.rx);
-  return Math.hypot(dx / area.rx, dy / area.ry) / islandRadius(a, area.ph);
+  return Math.hypot(dx / area.rx, dy / area.ry) / edgeRadius(area, a);
 }
 const tileFactor = (area, c, r) => edgeFactor(area, c * T + T / 2, r * T + T / 2);
 
@@ -267,11 +296,17 @@ const SHELL_CORE = coreKind({
   area: SHELL_AREAS[0], ox: SX, oy: SY, cols: SHELL_COLS, rows: SHELL_ROWS,
   roadCols: [3, 7, 11], roadRows: [4, 8, 12], sideCols: [3, 11], pierCol: 7,
 });
+// オーロラの島は横に長い（17×15）
+const AURORA_CORE = coreKind({
+  area: AURORA_AREAS[0], ox: AX, oy: AY, cols: AURORA_COLS, rows: AURORA_ROWS,
+  roadCols: [4, 8, 12], roadRows: [3, 7, 11], sideCols: [4, 12], pierCol: 8,
+});
 
 // 島ごとの下敷き。BASE はいま動かしている島（useAreas で切り替える）
 const ISLES = {
   main: { areas: MAIN_AREAS, kind: MAIN_CORE.kind, pier: MAIN_CORE.pier },
   shell: { areas: SHELL_AREAS, kind: SHELL_CORE.kind, pier: SHELL_CORE.pier },
+  aurora: { areas: AURORA_AREAS, kind: AURORA_CORE.kind, pier: AURORA_CORE.pier },
 };
 export const ISLE_IDS = Object.keys(ISLES);
 let BASE = ISLES.main;
@@ -414,7 +449,7 @@ function buildBase(ids) {
 }
 
 // いまの地図。useAreas で切り替える（ES モジュールの let は、読み込んだ側にも切り替えが見える）
-// 地図の名前（MAP_KEY）は 本島なら「main+north」、シェルの島なら「shell:main」。島が違えば名前も違う
+// 地図の名前（MAP_KEY）は 本島なら「main+north」、シェルの島なら「shell:main」、オーロラの島なら「aurora:main」。島が違えば名前も違う
 const MAPS = new Map();
 export let MAP_KEY = 'main';
 export let MAP = MAIN_KIND;
@@ -426,7 +461,7 @@ let pathCache = new Map();
 const pathCaches = new Map([['main', pathCache]]);
 const keyOf = (ids) => (ISLE === 'main' ? '' : `${ISLE}:`) + ids.join('+');
 
-// isle：どちらの島か（'main'＝本島・'shell'＝シェルの島）。島が変わると 土地の一覧（AREAS）ごと切り替わる
+// isle：どの島か（'main'＝本島・'shell'＝シェルの島・'aurora'＝オーロラの島）。島が変わると 土地の一覧（AREAS）ごと切り替わる
 export function useAreas(ids = ['main'], isle = 'main') {
   if (isle !== ISLE) {
     ISLE = isle;
