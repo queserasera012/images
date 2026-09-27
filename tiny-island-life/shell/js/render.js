@@ -2,7 +2,7 @@
 // 見た目の方針は docs/DESIGN.md（切り絵のジオラマ・絵文字は使わない）。格子版（D289）。
 
 import {
-  T, COLS, ROWS, WORLD, SIZES, HOUSE_FLOOR, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, landBounds, shapesOf, islandRadius, edgeRadius, idx, center, neighbors, isRoad, occupied, BRIDGES, boatRoute,
+  T, COLS, ROWS, WORLD, SIZES, HOUSE_FLOOR, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, landBounds, shapesOf, islandRadius, edgeRadius, COVERED, COVER_KEY, plotOf, idx, center, neighbors, isRoad, occupied, BRIDGES, boatRoute,
 } from './grid.js';
 import { CONFIG } from './config.js';
 import { wantsRoomHouses, boatsNow, clockOf, inSeason, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf } from './sim.js';
@@ -223,6 +223,261 @@ function reef(g, areas) {
       g.arc(x, y, s, 0, Math.PI * 2);
       g.fill();
     }
+  }
+}
+
+// ---------------------------------------------------------------- 片付けていない区画（海の向こうの島・D354・D367）
+// シェルの島：嵐で流れ着いたもの（流木・木箱・網・海藻）と 伸びた草。
+// オーロラの島：雪の吹きだまりに、倒れた針葉樹・伏せた小舟・区画ごとに1つ 古い漁師小屋。
+// どちらも 片付けると消える（動かない絵なので 地面の絵に描く）
+function drawDebris(g) {
+  const tiles = [...COVERED].sort((a, b) => a - b);
+  if (theme.conifers) return snowDebris(g, tiles);
+  for (const i of tiles) {
+    const p = center(i);
+    g.fillStyle = 'rgba(150, 128, 88, 0.3)';
+    g.fillRect(p.x - T / 2, p.y - T / 2, T, T);
+  }
+  for (const i of tiles) {
+    const p = center(i);
+    const h = hash(i);
+    const h2 = hash(i + 991);
+    // 伸びた草（どのマスにも）
+    g.strokeStyle = '#5b8a4a';
+    g.lineWidth = 1.4;
+    g.lineCap = 'round';
+    for (let k = 0; k < 3; k++) {
+      const x = p.x - 10 + ((h2 * 97 + k * 37) % 20);
+      const y = p.y + 4 + ((h * 53 + k * 11) % 9);
+      g.beginPath();
+      g.moveTo(x, y);
+      g.lineTo(x - 2, y - 6);
+      g.moveTo(x, y);
+      g.lineTo(x + 2, y - 7);
+      g.stroke();
+    }
+    if (h < 0.24) {
+      // 流木
+      const a = (h2 - 0.5) * 1.6;
+      g.save();
+      g.translate(p.x, p.y);
+      g.rotate(a);
+      g.fillStyle = PALETTE.shadow;
+      roundRect(g, -12, -1, 26, 6, 3);
+      g.fill();
+      g.fillStyle = '#b8a48a';
+      roundRect(g, -13, -3, 26, 6, 3);
+      g.fill();
+      g.strokeStyle = 'rgba(90,70,50,0.35)';
+      g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(-9, -1);
+      g.lineTo(8, 0);
+      g.moveTo(6, -3);
+      g.lineTo(10, -7);
+      g.stroke();
+      g.restore();
+    } else if (h < 0.38) {
+      // 木箱（少し傾いて）
+      g.save();
+      g.translate(p.x + (h2 - 0.5) * 8, p.y - 2);
+      g.rotate((h2 - 0.5) * 0.6);
+      g.fillStyle = PALETTE.shadow;
+      g.fillRect(-6, -5, 13, 12);
+      g.fillStyle = '#c49a6c';
+      g.fillRect(-7, -7, 13, 12);
+      g.strokeStyle = 'rgba(80,50,30,0.45)';
+      g.lineWidth = 1;
+      g.strokeRect(-7, -7, 13, 12);
+      g.beginPath();
+      g.moveTo(-7, -1);
+      g.lineTo(6, -1);
+      g.moveTo(-7, -7);
+      g.lineTo(6, 5);
+      g.stroke();
+      g.restore();
+    } else if (h < 0.48) {
+      // 網（浮きのついた）
+      g.save();
+      g.translate(p.x, p.y);
+      g.fillStyle = 'rgba(95, 120, 110, 0.35)';
+      g.beginPath();
+      g.ellipse(0, 0, 12, 7, h2, 0, Math.PI * 2);
+      g.fill();
+      g.strokeStyle = 'rgba(70, 95, 90, 0.7)';
+      g.lineWidth = 0.8;
+      for (let k = -10; k <= 10; k += 4) {
+        g.beginPath();
+        g.moveTo(k - 3, -6);
+        g.lineTo(k + 3, 6);
+        g.moveTo(k + 3, -6);
+        g.lineTo(k - 3, 6);
+        g.stroke();
+      }
+      g.fillStyle = '#e8743b';
+      for (const [x, y] of [[-8, -3], [7, 3]]) {
+        g.beginPath();
+        g.arc(x, y, 2.2, 0, Math.PI * 2);
+        g.fill();
+      }
+      g.restore();
+    } else if (h < 0.56) {
+      // 打ち上げられた海藻
+      g.fillStyle = '#6f7a3c';
+      g.beginPath();
+      g.ellipse(p.x - 3, p.y + 2, 7, 3.5, 0.3, 0, Math.PI * 2);
+      g.ellipse(p.x + 4, p.y, 5, 3, -0.4, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+}
+function snowDebris(g, tiles) {
+  const covered = new Set(tiles);
+  // 吹きだまり（どのマスにも。青い影の上に 白い山）
+  // 大きさも位置も ばらばらにして、マスの並びが見えないように。影を先に全部、白い山をあとで全部
+  const drifts = tiles
+    .filter((i) => hash(i + 313) < 0.6)
+    .map((i) => {
+      const p = center(i);
+      const h = hash(i + 71);
+      const h2 = hash(i + 173);
+      return { x: p.x + (h - 0.5) * 14, y: p.y + (h2 - 0.5) * 12, rx: 10 + h2 * 9, ry: 5 + h * 4 };
+    });
+  g.fillStyle = 'rgba(120, 145, 175, 0.22)';
+  g.beginPath();
+  for (const d of drifts) {
+    g.moveTo(d.x + 2 + d.rx, d.y + 3);
+    g.ellipse(d.x + 2, d.y + 3, d.rx, d.ry, 0, 0, Math.PI * 2);
+  }
+  g.fill();
+  g.fillStyle = '#fbfdff';
+  g.beginPath();
+  for (const d of drifts) {
+    g.moveTo(d.x + d.rx, d.y);
+    g.ellipse(d.x, d.y, d.rx, d.ry, 0, 0, Math.PI * 2);
+  }
+  g.fill();
+  // 区画ごとに1つ 古い漁師小屋（右と下のマスも覆われているところ）
+  const huts = new Map();
+  for (const i of tiles) {
+    const n = plotOf(i % COLS, Math.floor(i / COLS));
+    if (!covered.has(i + 1) || !covered.has(i + COLS) || !covered.has(i + COLS + 1)) continue;
+    if (!huts.has(n) || hash(i + 5) < hash(huts.get(n) + 5)) huts.set(n, i);
+  }
+  const hutTiles = new Set([...huts.values()].flatMap((i) => [i, i + 1, i + COLS, i + COLS + 1]));
+  for (const i of tiles) {
+    if (hutTiles.has(i)) continue;
+    const p = center(i);
+    const h = hash(i);
+    const h2 = hash(i + 991);
+    if (h < 0.2) {
+      // 倒れた針葉樹（雪をかぶって）
+      g.save();
+      g.translate(p.x, p.y);
+      g.rotate((h2 - 0.5) * 0.9);
+      g.fillStyle = 'rgba(60, 80, 110, 0.25)';
+      g.fillRect(-13, 1, 27, 5);
+      g.strokeStyle = '#6b5040';
+      g.lineWidth = 2.6;
+      g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(-13, 0);
+      g.lineTo(13, 0);
+      g.stroke();
+      g.fillStyle = '#2e5b4b';
+      for (let k = 0; k < 3; k++) {
+        const x = -4 + k * 6;
+        g.beginPath();
+        g.moveTo(x + 7, 0);
+        g.lineTo(x - 1, -5 + k * 0.6);
+        g.lineTo(x - 1, 5 - k * 0.6);
+        g.closePath();
+        g.fill();
+      }
+      g.fillStyle = '#ffffff';
+      g.beginPath();
+      g.ellipse(4, -2.5, 9, 2.4, 0, 0, Math.PI * 2);
+      g.fill();
+      g.restore();
+    } else if (h < 0.3) {
+      // 伏せた小舟
+      g.fillStyle = 'rgba(60, 80, 110, 0.25)';
+      g.beginPath();
+      g.ellipse(p.x + 2, p.y + 3, 12, 5, 0, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = '#8a5a3c';
+      g.beginPath();
+      g.ellipse(p.x, p.y, 12, 5, 0, 0, Math.PI * 2);
+      g.fill();
+      g.strokeStyle = 'rgba(50,30,20,0.4)';
+      g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(p.x - 10, p.y);
+      g.lineTo(p.x + 10, p.y);
+      g.stroke();
+      g.fillStyle = '#ffffff';
+      g.beginPath();
+      g.ellipse(p.x - 1, p.y - 2.5, 8, 2.6, 0, 0, Math.PI * 2);
+      g.fill();
+    } else if (h < 0.36) {
+      // 雪から出た 杭
+      g.fillStyle = '#7a6250';
+      g.fillRect(p.x - 6, p.y - 6, 2.5, 8);
+      g.fillRect(p.x + 3, p.y - 4, 2.5, 6);
+      g.fillStyle = '#fff';
+      g.fillRect(p.x - 6.5, p.y - 7, 3.5, 1.6);
+      g.fillRect(p.x + 2.5, p.y - 5, 3.5, 1.6);
+    }
+  }
+  for (const i of huts.values()) {
+    // 古い漁師小屋：灰色の板の壁・雪の重みで少し たわんだ屋根・板を打ちつけた窓
+    const x = (i % COLS) * T + 8;
+    const y = Math.floor(i / COLS) * T + 18;
+    const w = T * 2 - 16;
+    const hgt = 20;
+    g.fillStyle = 'rgba(60, 80, 110, 0.28)';
+    g.fillRect(x + 4, y + 5, w, hgt + 6);
+    g.fillStyle = '#8f8a82';
+    g.fillRect(x, y + 6, w, hgt);
+    g.strokeStyle = 'rgba(40,35,30,0.3)';
+    g.lineWidth = 1;
+    for (let k = 4; k < w; k += 5) {
+      g.beginPath();
+      g.moveTo(x + k, y + 6);
+      g.lineTo(x + k, y + 6 + hgt);
+      g.stroke();
+    }
+    g.fillStyle = '#5d564f';
+    g.fillRect(x + 6, y + 12, 9, 8);
+    g.strokeStyle = '#b8a48a';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(x + 5, y + 13);
+    g.lineTo(x + 16, y + 19);
+    g.stroke();
+    g.fillStyle = '#6b4a36';
+    g.fillRect(x + w - 14, y + 13, 8, 13);
+    // 屋根と雪
+    g.fillStyle = '#6e4f3c';
+    g.beginPath();
+    g.moveTo(x - 4, y + 8);
+    g.quadraticCurveTo(x + w / 2, y + 2, x + w + 4, y + 8);
+    g.lineTo(x + w / 2, y - 8);
+    g.closePath();
+    g.fill();
+    g.fillStyle = '#ffffff';
+    g.beginPath();
+    g.moveTo(x - 5, y + 7);
+    g.quadraticCurveTo(x + w / 2, y + 1, x + w + 5, y + 7);
+    g.lineTo(x + w / 2 + 2, y - 7);
+    g.lineTo(x + w / 2 - 2, y - 9);
+    g.closePath();
+    g.fill();
+    // 小屋のまわりの吹きだまり
+    g.beginPath();
+    g.ellipse(x + 2, y + hgt + 6, 9, 4, 0, 0, Math.PI * 2);
+    g.ellipse(x + w - 3, y + hgt + 7, 11, 4, 0, 0, Math.PI * 2);
+    g.fill();
   }
 }
 
@@ -559,6 +814,7 @@ export function createRenderer(canvas) {
       g.fillRect(p.x - T / 2, p.y + 10, 3, 7);
     }
     for (const a of areas) if (a.mountain) drawMountain(g, a.mountain, themeId());
+    if (COVERED.size) drawDebris(g);
     groundRect = rect;
     return off;
   }
@@ -746,7 +1002,7 @@ export function createRenderer(canvas) {
   // 空いている土地の飾り（建物を建てると消える）
   function decor(used, time) {
     for (let i = 0; i < MAP.length; i++) {
-      if (MAP[i] !== 'land' || used.has(i)) continue;
+      if (MAP[i] !== 'land' || used.has(i) || COVERED.has(i)) continue;
       const h = hash(i);
       const p = center(i);
       if (h < 0.16) tree(p.x + (h - 0.08) * 60, p.y + 8, 9 + h * 20, time);
@@ -3128,7 +3384,7 @@ export function createRenderer(canvas) {
       }
     }
     teaser(state);
-    const gk = `${MAP_KEY}|${(state.harbors || []).map((h) => h.id).join('+')}|${themeId()}`;
+    const gk = `${MAP_KEY}|${(state.harbors || []).map((h) => h.id).join('+')}|${themeId()}|${COVER_KEY}`;
     if (gk !== groundKey) {
       ground = buildGround(state);
       groundKey = gk;

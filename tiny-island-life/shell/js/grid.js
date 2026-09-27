@@ -305,8 +305,8 @@ const AURORA_CORE = coreKind({
 // 島ごとの下敷き。BASE はいま動かしている島（useAreas で切り替える）
 const ISLES = {
   main: { areas: MAIN_AREAS, kind: MAIN_CORE.kind, pier: MAIN_CORE.pier },
-  shell: { areas: SHELL_AREAS, kind: SHELL_CORE.kind, pier: SHELL_CORE.pier },
-  aurora: { areas: AURORA_AREAS, kind: AURORA_CORE.kind, pier: AURORA_CORE.pier },
+  shell: { areas: SHELL_AREAS, kind: SHELL_CORE.kind, pier: SHELL_CORE.pier, mid: { c: SX + 7, r: SY + 8 } },
+  aurora: { areas: AURORA_AREAS, kind: AURORA_CORE.kind, pier: AURORA_CORE.pier, mid: { c: AX + 8, r: AY + 7 } },
 };
 export const ISLE_IDS = Object.keys(ISLES);
 let BASE = ISLES.main;
@@ -488,6 +488,37 @@ useAreas(['main']);
 MAPS.set('main', { kind: MAIN_KIND, piers: { main: MAIN_PIER }, bridges: new Set() });
 
 export const isRoad = (i) => MAP[i] === 'road';
+
+// ---------------------------------------------------------------- 片付け（海の向こうの島・D354）
+// 島は まんなかの縦と横の道で 4つの区画に分かれる（0 北西・1 北東・2 南西・3 南東）。
+// 片付いていない区画の土地（COVERED）には 何も建たない。道は はじめから通れる
+export const PLOT_NAMES = ['北西', '北東', '南西', '南東'];
+export function plotOf(c, r) {
+  const mid = BASE.mid;
+  if (!mid) return null;
+  return (r > mid.r ? 2 : 0) + (c > mid.c ? 1 : 0);
+}
+export let COVERED = new Set();
+export let COVER_KEY = '';
+const covers = new Map();
+// debris：区画ごとに まだ覆われているか（[true, true, false, true] など）。本島は無し
+export function useCover(debris = []) {
+  const key = debris.some(Boolean) ? `${MAP_KEY}|${debris.map(Number).join('')}` : '';
+  if (key === COVER_KEY) return;
+  COVER_KEY = key;
+  if (!key) {
+    COVERED = new Set();
+    return;
+  }
+  if (!covers.has(key)) {
+    const set = new Set();
+    for (let i = 0; i < MAP.length; i++) if (MAP[i] === 'land' && debris[plotOf(colOf(i), rowOf(i))]) set.add(i);
+    covers.set(key, set);
+  }
+  COVERED = covers.get(key);
+}
+// その区画の土地のマス数（片付けると 建てられる土地になる）
+export const plotLand = (n) => MAP.reduce((s, k, i) => s + (k === 'land' && plotOf(colOf(i), rowOf(i)) === n ? 1 : 0), 0);
 
 // そのマスは どの土地か（本島 or 広げた土地）。住民の一覧で「東の岬の家」のように呼ぶため
 export function areaAt(c, r) {
@@ -674,7 +705,7 @@ export function canPlace(type, c, r, buildings) {
   if (!inBounds(c, r) || !inBounds(c + s.w - 1, r + s.h - 1)) return false;
   const used = occupied(buildings);
   for (const t of footprint(type, c, r)) {
-    if (MAP[t] !== 'land' || used.has(t) || LINK_TILES.has(t)) return false;
+    if (MAP[t] !== 'land' || used.has(t) || LINK_TILES.has(t) || COVERED.has(t)) return false;
     if (ONLY_ON[type] && areaAt(colOf(t), rowOf(t)) !== ONLY_ON[type]) return false;
   }
   return DECO.includes(type) || accessTile(type, c, r) !== null;

@@ -749,3 +749,27 @@ h3 .dot { width: 14px; height: 14px; }
 .arcade .game-head { height: 32px; white-space: nowrap; }
 .arcade .game-head b { font-size: 15px; }
 .arcade .game-left { font-size: 11px; }
+
+/* ---- 船で ほかの島へ（D367）：船が横切るあいだに 島が切り替わる ---- */
+#voyage {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--sea);
+  opacity: 0;
+  pointer-events: none;
+}
+#voyage .to { font-size: 18px; font-weight: 700; color: var(--paper); }
+#voyage .ship { transform: scale(2.4); }
+#voyage.go { animation: voyage-fade 1.4s ease-in-out forwards; pointer-events: auto; }
+#voyage.go .ship { animation: voyage-ship 1.4s ease-in-out forwards; }
+@keyframes voyage-fade { 0% { opacity: 0; } 30%, 60% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes voyage-ship { 0% { transform: translateX(-110px) scale(2.4); } 100% { transform: translateX(110px) scale(2.4); } }
+@media (prefers-reduced-motion: reduce) {
+  #voyage.go .ship { animation: none; }
+}

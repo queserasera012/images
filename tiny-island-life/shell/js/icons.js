@@ -58,6 +58,39 @@ export const ICONS = {
       `<circle cx="9" cy="16.5" r="0.9" fill="#fff"/><circle cx="15.5" cy="16" r="0.7" fill="#fff"/>`,
     18,
   ),
+  // 船（下のボタン・D367）：帆のある小さな船
+  boat: svg(
+    `<path d="M4 15h16l-2.5 4h-11z" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<path d="M4 15h16l-2.5 4h-11z" fill="${INK}"/>` +
+      `<path d="M12 4v10M12 4l6 8h-6z" fill="${MUSTARD}" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"/>` +
+      `<path d="M12 6.5l-4.5 6H12" fill="#fff" stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"/>`,
+  ),
+  // 船着き場（シェルの島へ）：桟橋と ヤシの小島
+  route_shell: svg(
+    `<ellipse cx="15" cy="17.5" rx="7" ry="2.6" fill="#f8e6da" stroke="${INK}" stroke-width="1.2"/>` +
+      `<path d="M15 17V9.5" stroke="#b48a5e" stroke-width="1.8" stroke-linecap="round"/>` +
+      `<path d="M15 9.5c-2-2-4.5-1.6-5.5-.3M15 9.5c2-2 4.5-1.6 5.5-.3M15 9.5c-.6-2.4.6-4 2.2-4.6" stroke="#3f9a5a" stroke-width="2" fill="none" stroke-linecap="round"/>` +
+      `<path d="M2 16h7" stroke="#b98b5e" stroke-width="2.4"/><path d="M3.5 16v3M7.5 16v3" stroke="#8d6a4f" stroke-width="1.2"/>` +
+      `<path d="M2 21.5c2 0 2-1 4-1s2 1 4 1 2-1 4-1 2 1 4 1 2-1 4-1" stroke="${SKY}" stroke-width="1.4" fill="none" stroke-linecap="round"/>`,
+    28,
+  ),
+  // 船着き場（オーロラの島へ）：桟橋と 雪の針葉樹、空に光の幕
+  route_aurora: svg(
+    `<path d="M4 7c3-2 6 1 9-.5s5-2 8 0" stroke="#5fd6a4" stroke-width="1.8" fill="none" stroke-linecap="round"/>` +
+      `<ellipse cx="15" cy="17.5" rx="7" ry="2.6" fill="#eaf0f5" stroke="${INK}" stroke-width="1.2"/>` +
+      `<path d="M15 9l3.4 6h-6.8z" fill="#2e5b4b"/><path d="M15 9l1.4 2.5h-2.8z" fill="#fff"/><path d="M15 15v2" stroke="#6b5040" stroke-width="1.4"/>` +
+      `<path d="M2 16h7" stroke="#b98b5e" stroke-width="2.4"/><path d="M3.5 16v3M7.5 16v3" stroke="#8d6a4f" stroke-width="1.2"/>` +
+      `<path d="M2 21.5c2 0 2-1 4-1s2 1 4 1 2-1 4-1 2 1 4 1 2-1 4-1" stroke="${SKY}" stroke-width="1.4" fill="none" stroke-linecap="round"/>`,
+    28,
+  ),
+  // 片付け（D354）：木箱と 流木
+  clear: svg(
+    `<rect x="4" y="9" width="10" height="9" rx="1" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<rect x="4" y="9" width="10" height="9" rx="1" fill="#c49a6c" stroke="${INK}" stroke-width="1.3"/>` +
+      `<path d="M4 13.5h10M9 9v9" stroke="${INK}" stroke-width="1" opacity="0.6"/>` +
+      `<path d="M13 20.5l8-3.5" stroke="#8d6a4f" stroke-width="2.6" stroke-linecap="round"/><path d="M17 19l1.2 1.6" stroke="#8d6a4f" stroke-width="1.4" stroke-linecap="round"/>`,
+    28,
+  ),
   build: svg(
     `<path d="M4 12l8-7 8 7v8H4z" transform="translate(1 1)" fill="${SHADOW}"/>` +
       `<path d="M4 12l8-7 8 7v8H4z" fill="${INK}"/><path d="M12 11v6M9 14h6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>`,

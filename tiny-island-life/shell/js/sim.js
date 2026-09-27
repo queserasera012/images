@@ -11,7 +11,7 @@
 import { CONFIG } from './config.js';
 import {
   T, SIZES, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, center, roadPath, roadDistance, accessTile, canPlace, isRoad, idx,
-  useAreas, landTilesOf, placements, HOUSE_FLOOR, areaAt, COLS, OLD_COLS_2, DECO, footprint, occupied, neighbors, ROWS,
+  useAreas, useCover, plotLand, PLOT_NAMES, landTilesOf, placements, HOUSE_FLOOR, areaAt, COLS, OLD_COLS_2, DECO, footprint, occupied, neighbors, ROWS,
 } from './grid.js';
 import { morningWishes, checkWishes, bigWish } from './wishes.js';
 
@@ -54,11 +54,21 @@ function roadTiles() {
 // isle：どの島か（無ければ本島）。シェルの島・オーロラの島は 同じ格子の上の別の地図（D354・D365）
 export function syncMap(state) {
   useAreas(state.areas || ['main'], state.isle || 'main');
+  useCover(state.debris); // 片付いていない区画（海の向こうの島・D354）
 }
 export const isShell = (state) => state.isle === 'shell';
 export const isAurora = (state) => state.isle === 'aurora';
 // 海の向こうの島（シェルの島・オーロラの島）。本島の はしご・お願い・迷い込むペット・季節の日記は出さない
 export const isAbroad = (state) => !!state.isle && state.isle !== 'main';
+// 島ごとの お金の名前（本島 Coin・シェルの島 Shell・オーロラの島 オーロラ。D354・D366）
+export const MONEY_NAME = { main: 'Coin', shell: 'Shell', aurora: 'オーロラ' };
+export const ISLE_NAMES = { main: '本島', shell: 'シェルの島', aurora: 'オーロラの島' };
+// 船着き場の一覧に出す ひとこと（どんな島か）と、片付けで どけるもの（D367）
+const ISLE_LOOK = { shell: '常夏の島。嵐で流れ着いたもので 覆われている', aurora: '常冬の島。雪に埋もれた 古い漁師小屋と 倒れた木がある' };
+const CLEAR_TEXT = { shell: '流木・網・木箱をどける', aurora: '雪をかいて、倒れた木と 古い漁師小屋を片付ける' };
+export const moneyOf = (state) => MONEY_NAME[state.isle || 'main'];
+// 本島で育った大人（本島で生まれて 大人になった人）。海の向こうの島へ 船着き場をつくる条件（D354）
+export const grownAdults = (state) => state.residents.filter((r) => r.parents && !r.age && r.state !== 'PENDING').length;
 
 export const WEATHER_LABEL = { sunny: '晴れ', cloudy: 'くもり', rain: '雨' };
 
@@ -2184,6 +2194,36 @@ export function actionsFor(state) {
       locked: !state.port.open,
     });
   }
+  // 海の向こうの島（D354・D365）：本島では 船着き場をつくる。向こうの島では 区画を片付ける（どちらも本島の Coin）
+  const A = CONFIG.abroad;
+  if (!isAbroad(state)) {
+    const grown = grownAdults(state);
+    for (const id of Object.keys(ISLE_LOOK)) {
+      if (state.routes?.[id]) continue;
+      list.push({
+        id: `route:${id}`,
+        tab: 'island',
+        icon: `route_${id}`,
+        title: `${ISLE_NAMES[id]}への 船着き場をつくる`,
+        detail: grown < A.grownAdults ? `本島で育った大人が ${A.grownAdults}人 になると つくれます（いま ${grown}人）` : ISLE_LOOK[id],
+        cost: A.dock,
+        locked: grown < A.grownAdults,
+      });
+    }
+  } else if (state.debris) {
+    state.debris.forEach((covered, n) => {
+      if (!covered) return;
+      list.push({
+        id: `clear:${n}`,
+        tab: 'island',
+        icon: 'clear',
+        title: `${PLOT_NAMES[n]}を片付ける`,
+        detail: `${CLEAR_TEXT[state.isle]}。家を建てられる土地が ${plotLand(n)}マス になる。本島の Coin で払う`,
+        cost: A.clear,
+        payWith: 'main',
+      });
+    });
+  }
   return list;
 }
 
@@ -2193,7 +2233,8 @@ export function applyAction(state, id, place) {
   if (id === 'house_upgrade') return upgradeHouse(state, place?.id);
   const action = actionsFor(state).find((a) => a.id === id);
   if (!action || action.locked) return { ok: false, message: 'いまは できません' };
-  if (state.coin < action.cost) return { ok: false, message: `Coin が足りません（あと ${action.cost - state.coin}）` };
+  if (action.payWith === 'main') return { ok: false, message: 'いまは できません' }; // 本島の Coin で払うもの（clearPlot）
+  if (state.coin < action.cost) return { ok: false, message: `${moneyOf(state)} が足りません（あと ${action.cost - state.coin}）` };
   if (action.place) {
     if (!place || !canPlace(action.place, place.c, place.r, state.buildings)) return { ok: false, message: 'そこには建てられません' };
     state.buildings.push(makeBuilding(state, action.place, place.c, place.r));
@@ -2223,6 +2264,9 @@ export function applyAction(state, id, place) {
   } else if (id.startsWith('expand:')) {
     state.areas.push(id.split(':')[1]);
     syncMap(state);
+  } else if (id.startsWith('route:')) {
+    state.routes ||= {};
+    state.routes[id.split(':')[1]] = dayOf(state.t);
   } else if (id.startsWith('harbor:')) {
     const port = { id: id.split(':')[1], open: true, today: [], openedOn: dayOf(state.t) };
     state.harbors.push(port);
@@ -3389,19 +3433,51 @@ export const islandNow = (world) => world.islands[world.current];
 
 // 海の向こうの島をつくる（はじめは何も無い。住民は あとで本島から移ってくる）。時計と天気は本島に合わせる。
 // 島ごとに 乱数の種を変える（同じ日に同じ天気・同じ出来事にならないように）
+// covered：はじめは 4つの区画とも覆われている（片付けは 本島の Coin・clearPlot）。false は確かめる用
 export const ABROAD = { shell: 0x5bd1e995, aurora: 0x27d4eb2f };
-export function createIsland(world, id) {
+export function createIsland(world, id, { covered = true } = {}) {
   if (!ABROAD[id]) return null;
   if (world.islands[id]) return world.islands[id];
   const main = world.islands.main;
   const state = blankIsland((main.seed ^ ABROAD[id]) >>> 0);
   Object.assign(state, { isle: id, t: main.t, coin: 0, weather: main.weather });
+  if (covered) state.debris = [true, true, true, true];
+  main.routes ||= {};
+  main.routes[id] ??= dayOf(main.t);
   syncMap(state);
   world.islands[id] = state;
   syncMap(islandNow(world));
   return state;
 }
-export const createShellIsland = (world) => createIsland(world, 'shell');
+export const createShellIsland = (world, opts) => createIsland(world, 'shell', opts);
+
+// 船着き場をつくる（本島で・本島の Coin）。できたら その島が現れる（はじめは 覆われている）
+export function openRoute(world, id) {
+  const main = world.islands.main;
+  const res = applyAction(main, `route:${id}`);
+  if (res.ok) {
+    createIsland(world, id);
+    res.message = `${ISLE_NAMES[id]}への 船着き場ができました`;
+  }
+  syncMap(islandNow(world));
+  return res;
+}
+
+// 区画を片付ける（向こうの島で・本島の Coin）。片付いた区画の土地に 家や店が建てられる
+export function clearPlot(world, id, n) {
+  const state = world.islands[id];
+  const main = world.islands.main;
+  if (!state?.debris?.[n]) return { ok: false, message: 'いまは できません' };
+  const cost = CONFIG.abroad.clear;
+  if (main.coin < cost) return { ok: false, message: `本島の Coin が足りません（あと ${cost - main.coin}）` };
+  main.coin -= cost;
+  main.history.push({ t: main.t, action: `clear:${id}:${n}`, place: null });
+  state.debris[n] = false;
+  state.history.push({ t: state.t, action: `clear:${n}`, place: null });
+  syncMap(islandNow(world));
+  const left = state.debris.filter(Boolean).length;
+  return { ok: true, message: left ? `${PLOT_NAMES[n]}が片付きました` : `${PLOT_NAMES[n]}が片付きました。島じゅう 建てられます` };
+}
 
 // 行き先の島へ。地図も その島に切り替わる
 export function visitIsland(world, id) {

@@ -5,7 +5,7 @@ import { T, SIZES, PIER, PIERS, OX, OY, AREAS, MAIN, areaById, center, placement
 import {
   step, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
-  migrateWorld, createWorld, islandNow, createIsland, visitIsland, stepWorld, catchUpWorld, isAbroad,
+  migrateWorld, createWorld, islandNow, createIsland, visitIsland, stepWorld, catchUpWorld, isAbroad, openRoute, clearPlot, MONEY_NAME, ISLE_NAMES,
   everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
   labelOf, nextGoal, unlockNow, nameBaby, namePet, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft, decoType, isChild,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
@@ -25,9 +25,9 @@ import { showRewardedAd, adsOn } from './ads.js';
 // 🚨 ほかの版（3日テスト中・ストア版 1.0）と同じサイトに置くので、保存の名前を分ける（D289・D361）
 // シェルの島の版は til.shell.*。はじめの1回だけ 1.0 のセーブ（til.grid.save.v1）を読んで写す。1.0 のほうには書き込まない
 const SAVE_KEY = 'til.shell.save.v1';
-// 島の名前と お金（本島 Coin・シェルの島 Shell・オーロラの島 オーロラ。D354・D366）
-const ISLE_NAME = { main: '本島', shell: 'シェルの島', aurora: 'オーロラの島' };
-const MONEY = { main: { icon: 'coin', label: 'Coin' }, shell: { icon: 'shell', label: 'Shell' }, aurora: { icon: 'aurora', label: 'オーロラ' } };
+// 島ごとの お金の絵（本島 Coin・シェルの島 Shell・オーロラの島 オーロラ。D354・D366）
+const MONEY_ICON = { main: 'coin', shell: 'shell', aurora: 'aurora' };
+const moneyIcon = (isle) => ICONS[MONEY_ICON[isle || 'main']];
 const OLD_SAVE_KEY = 'til.grid.save.v1';
 const OPENS_KEY = 'til.shell.opens.v1';
 const DEBUG = new URLSearchParams(location.search).has('debug');
@@ -184,9 +184,8 @@ setHouseSkin(new URLSearchParams(location.search).get('house') || chosenHouseSki
   $('coin').textContent = state.coin.toLocaleString();
   if (shownIsle !== world.current) {
     // シェルの島では お金が Shell（D354）、オーロラの島では オーロラ（D366）
-    const money = MONEY[state.isle] || MONEY.main;
-    $('coin-icon').innerHTML = ICONS[money.icon];
-    $('hud-coin').setAttribute('aria-label', money.label);
+    $('coin-icon').innerHTML = moneyIcon(state.isle);
+    $('hud-coin').setAttribute('aria-label', MONEY_NAME[state.isle || 'main']);
     shownIsle = world.current;
   }
   // いま住んでいる人の数（D310）。引っ越してくる途中の人は数えない
@@ -768,6 +767,19 @@ $('sheet').addEventListener('click', (ev) => {
     $('sheet').hidden = true;
     return startPicking(action);
   }
+  // 海の向こうの島：船着き場（本島で）と 片付け（向こうの島で）。どちらも 本島の Coin で払う（D354・D367）
+  if (action.id.startsWith('route:') || action.id.startsWith('clear:')) {
+    const [kind, arg] = action.id.split(':');
+    const res = kind === 'route' ? openRoute(world, arg) : clearPlot(world, world.current, Number(arg));
+    toast(res.message);
+    if (res.ok) {
+      $('sheet').hidden = true;
+      syncBoat();
+      updateHud();
+      save();
+    }
+    return;
+  }
   const res = applyAction(state, action.id);
   toast(res.message);
   if (res.ok) {
@@ -780,6 +792,47 @@ $('sheet').addEventListener('click', (ev) => {
 });
 
 $('btn-build').addEventListener('click', () => openBuild());
+
+// 船（D367）：船着き場ができたら出る。行き先を選ぶと 船の絵で切り替わる。どの島も そのあいだ動いている
+function syncBoat() {
+  $('btn-boat').hidden = Object.keys(world.islands).length < 2;
+}
+function openBoat() {
+  if (placing) return;
+  const rows = Object.keys(world.islands).map((id) => {
+    const s = world.islands[id];
+    const here = id === world.current;
+    const pop = s.residents.filter((r) => r.state !== 'PENDING').length;
+    const covered = (s.debris || []).filter(Boolean).length;
+    return `<button class="action" type="button" data-go="${id}" ${here ? 'disabled' : ''}>
+      ${ICONS[`route_${id}`] || ICONS.harbor}
+      <span class="text">${ISLE_NAMES[id]}<span class="detail">住民 ${pop}人${covered ? `・覆われている区画 ${covered}` : ''}</span></span>
+      <span><span class="cost">${moneyIcon(id)}${s.coin.toLocaleString()}</span><span class="need">${here ? 'いまいる島' : ''}</span></span>
+    </button>`;
+  });
+  openSheet(`<h2>船</h2>${rows.join('')}`);
+}
+$('btn-boat').addEventListener('click', () => openBoat());
+$('sheet').addEventListener('click', (ev) => {
+  const go = ev.target.closest('[data-go]');
+  if (!go || go.disabled) return;
+  $('sheet').hidden = true;
+  sail(go.dataset.go);
+});
+// 船の絵が横切るあいだに 島を切り替える
+function sail(id) {
+  const v = $('voyage');
+  v.innerHTML = `<div class="ship">${ICONS.harbor}</div><div class="to">${ISLE_NAMES[id]}へ</div>`;
+  v.hidden = false;
+  v.classList.remove('go');
+  void v.offsetWidth;
+  v.classList.add('go');
+  setTimeout(() => goIsland(id), 550);
+  setTimeout(() => {
+    v.hidden = true;
+    v.classList.remove('go');
+  }, 1400);
+}
 
 // 見た目（D314）：家の色。買ったものは島をやり直しても残る
 const SKIN_PRICE = '¥160（仮）';
@@ -857,11 +910,13 @@ function openBuild(focusId) {
   list.sort((a, b) => Number(!!a.locked) - Number(!!b.locked));
   const items = list
     .map((a) => {
-      const short = a.cost - state.coin;
+      // 片付けは 向こうの島にいても 本島の Coin で払う（D354）
+      const payer = a.payWith === 'main' ? 'main' : state.isle;
+      const short = a.cost - world.islands[payer || 'main'].coin;
       return `<button class="action" type="button" data-action="${a.id}" ${short > 0 || a.locked ? 'disabled' : ''}>
         ${ICONS[a.icon]}
         <span class="text">${a.title}<span class="detail">${a.detail}</span></span>
-        <span><span class="cost">${a.ticket ? '飾り券' : `${ICONS.coin}${a.cost.toLocaleString()}`}</span>${short > 0 && !a.locked ? `<span class="need">あと ${short.toLocaleString()}</span>` : ''}</span>
+        <span><span class="cost">${a.ticket ? '飾り券' : `${moneyIcon(payer)}${a.cost.toLocaleString()}`}</span>${short > 0 && !a.locked ? `<span class="need">あと ${short.toLocaleString()}</span>` : ''}</span>
       </button>`;
     })
     .join('');
@@ -1182,7 +1237,8 @@ function renderDebug() {
     <button data-dbg="expand">島を広げられるようにする（山の島の橋も）</button>
     <button data-dbg="wave1">会社・水族館・プールをひらく</button>
     <button data-dbg="family">結婚と出産を早める（留守2回で子ども）</button>
-    ${Object.entries(ISLE_NAME).filter(([id]) => id !== (state.isle || 'main')).map(([id, name]) => `<button data-dbg="isle" data-isle="${id}">${world.islands[id] ? `${name}へ` : `${name}をつくって行く`}</button>`).join('')}
+    <button data-dbg="dock">船着き場をつくれるようにする（育った大人の条件なし・Coin +30,000）</button>
+    ${Object.entries(ISLE_NAMES).filter(([id]) => id !== (state.isle || 'main')).map(([id, name]) => `<button data-dbg="isle" data-isle="${id}">${world.islands[id] ? `${name}へ` : `${name}をつくって行く`}</button>`).join('')}
     <button data-dbg="reset">最初からやり直す</button>
     <pre>画面をつけたまま：${{ on: 'オン', off: 'オフ', unsupported: 'この端末では使えない' }[awakeStatus()]}</pre>
     <pre>起動の記録（日付: 回数）\n${Object.entries(byDate).map(([d, n]) => `${d}: ${n}`).join('\n') || '—'}</pre>`;
@@ -1300,6 +1356,11 @@ if (DEBUG) {
       unlockNow(state, 'planetarium');
       renderQuest();
     }
+    if (k === 'dock') {
+      CONFIG.abroad.grownAdults = 0;
+      world.islands.main.coin += 30000;
+      updateHud();
+    }
     if (k === 'isle') {
       const id = ev.target.dataset.isle;
       if (!world.islands[id]) createIsland(world, id);
@@ -1308,6 +1369,7 @@ if (DEBUG) {
     if (k === 'reset' && confirm('島を最初からやり直しますか？')) {
       world = createWorld();
       state = islandNow(world);
+      syncBoat();
       firstRun = true;
       busyStage = null;
       renderQuest();
@@ -1333,6 +1395,7 @@ function goIsland(id) {
   renderer.focus(MAIN.cx, MAIN.cy);
   renderQuest();
   updateHud();
+  syncBoat();
   save();
 }
 
@@ -1382,6 +1445,8 @@ syncTheme();
 $('pop-icon').innerHTML = ICONS.people;
 document.querySelector('#btn-build .i').innerHTML = ICONS.build;
 document.querySelector('#btn-diary .i').innerHTML = ICONS.diary;
+document.querySelector('#btn-boat .i').innerHTML = ICONS.boat;
+syncBoat();
 setupKeepAwake();
 renderer.resize();
 {
