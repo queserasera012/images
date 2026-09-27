@@ -137,6 +137,13 @@ const KINDS = {
     },
   },
 
+  // ⭐ ペットと一緒に引っ越したい（D376）：海の向こうの島の どちらかに ペットショップができたら かなう。
+  // 向こうの島のことは 本島の state では分からないので、島を並べた側（sim.js の afterSteps）が abroadPetshop を入れる
+  petMove: {
+    make: () => null,
+    done: (state) => !!state.abroadPetshop,
+  },
+
   // ⭐ 大事なお願い（D347）：施設をひらいたときに出す（朝のお願いには出てこない）。建てれば かなう
   facility: {
     make: () => null,
@@ -152,6 +159,19 @@ export function bigWish(state, u) {
   const name = { school: '小学校', college: '大学', hospital: '病院' }[u.id] || u.goal;
   state.wishSeq = (state.wishSeq || 0) + 1;
   const w = { id: `w${state.wishSeq}`, kind: 'facility', big: true, type: u.id, who: who.id, day: dayOf(state.t), text: u.wish, short: `${name}をつくる`, hint: `${name}を建てる（つくる → 建てる）` };
+  state.wishes ||= [];
+  state.wishes.push(w);
+  return w;
+}
+
+// ⭐ ペットと一緒に引っ越したい（D376）。本島の ペットを飼っている 本島で育った大人から
+export function petMoveWish(state, r, pet) {
+  state.wishSeq = (state.wishSeq || 0) + 1;
+  const w = {
+    id: `w${state.wishSeq}`, kind: 'petMove', big: true, who: r.id, day: dayOf(state.t),
+    text: `海の向こうの島にも ペットショップがあったら、${pet.name}と一緒に 引っ越せるのになあ`,
+    short: '向こうの島にペットショップ', hint: 'シェルの島か オーロラの島に ペットショップを建てる（その島で つくる → 建てる）',
+  };
   state.wishes ||= [];
   state.wishes.push(w);
   return w;

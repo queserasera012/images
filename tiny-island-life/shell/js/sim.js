@@ -13,7 +13,7 @@ import {
   T, SIZES, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, center, roadPath, roadDistance, accessTile, canPlace, isRoad, idx,
   useAreas, useCover, plotLand, PLOT_NAMES, coastSide, landTilesOf, placements, HOUSE_FLOOR, areaAt, COLS, OLD_COLS_2, DECO, footprint, occupied, neighbors, ROWS,
 } from './grid.js';
-import { morningWishes, checkWishes, bigWish } from './wishes.js';
+import { morningWishes, checkWishes, bigWish, petMoveWish } from './wishes.js';
 
 const DAY = 1440;
 
@@ -2457,7 +2457,15 @@ export function actionsFor(state) {
   // 海の向こうの島：本島の はしごのもの（釣り堀・スーパーなど）は出さない。ここでは ひらかないので（D371）
   const ladder = new Set(CONFIG.unlocks.map((u) => u.id));
   if (!state.port.open) ladder.add('shop'); // お土産屋は 港をひらいたら（D372）
+  ladder.delete('petshop'); // ペットショップは その島の住民 ◯人 から（D376）
   const here = list.filter((a) => !ladder.has(a.id));
+  const ps = here.find((a) => a.id === 'petshop');
+  if (ps && !ofType(state, 'petshop').length) {
+    const pop = countedPop(state);
+    const need = CONFIG.abroad.petshopPop;
+    ps.locked = pop < need;
+    ps.detail = ps.locked ? `この島の住民が ${need}人 になると建てられます（いま ${pop}人）` : `ペットのいる家の人が通う。本島で ペットを飼っている人も、ペットと一緒に 引っ越してこられる。一度に ${CONFIG.petshop.levels[0].seats}人。維持費 1日 ${CONFIG.petshop.levels[0].upkeep} Coin`;
+  }
   // お金は Shell／オーロラ（片付けは本島の Coin のまま・D371）
   for (const a of here) if (a.payWith !== 'main' && a.detail) a.detail = a.detail.replaceAll('Coin', moneyOf(state));
   return here;
@@ -3789,9 +3797,10 @@ export function exchange(world, id, coin) {
 // 本島の家が空く → 本島には また人が引っ越してくる。移住できる人は 本島で子どもが育たないと増えない（D365）
 // 移る単位（D375）：独り身の1人、または 夫婦の2人。本島で育った人（と その夫婦の相手）。若い人から。
 // 移らない人：お年寄り・ペットを飼っている人・子ども（小学生まで・学生）がいる夫婦（子どもを置いていかないように）
-function moveUnits(state) {
+// pets：ペットを飼っている人も（行き先の島に ペットショップがあるとき・D376）
+function moveUnits(state, { pets = false } = {}) {
   const pet = (r) => (state.pets || []).some((p) => p.ownerId === r.id);
-  const free = (r) => r && !r.age && !r.elder && !r.tourist && r.state !== 'PENDING' && !pet(r);
+  const free = (r) => r && !r.age && !r.elder && !r.tourist && r.state !== 'PENDING' && (pets || !pet(r));
   const hasKids = (r) => state.residents.some((x) => x.age && x.parents?.includes(r.id));
   const units = [];
   const seen = new Set();
@@ -3852,10 +3861,15 @@ function moveAbroad(world) {
       const isle = world.islands[id];
       if (quota[id] <= 0) continue;
       syncMap(isle);
-      const unit = moveUnits(main).find((u) => u.length <= quota[id] && houseFor(isle, u.length));
+      const withPets = ofType(isle, 'petshop').length > 0; // ペットショップのある島へは ペットと一緒に（D376）
+      const unit = moveUnits(main, { pets: withPets }).find((u) => u.length <= quota[id] && houseFor(isle, u.length));
       if (!unit) continue;
       const home = houseFor(isle, unit.length);
       syncMap(main);
+      // ペットは 先に連れ出す（飼い主が島を出ると 家族に引き継ぐか 野に帰る処理になるので）
+      const pets = (main.pets || []).filter((p) => unit.some((r) => p.ownerId === r.id));
+      main.pets = (main.pets || []).filter((p) => !pets.includes(p));
+      main.petNaming = (main.petNaming || []).filter((pid) => !pets.some((p) => p.id === pid));
       for (const r of unit) leaveIsland(main, r);
       syncMap(isle);
       const arrive = Math.floor(isle.t / DAY) * DAY + clockToInDay(8 * 60) + between(isle, 0, 120);
@@ -3873,6 +3887,15 @@ function moveAbroad(world) {
         news[0].spouseId = news[1].id;
         news[1].spouseId = news[0].id;
       }
+      const door = houseDoor(home);
+      for (const p of pets) {
+        const owner = news[unit.findIndex((r) => r.id === p.ownerId)];
+        isle.pets.push({
+          ...p, id: `p${isle.nextId++}`, ownerId: owner.id, homeId: home.id, path: [], spot: null,
+          anchor: { x: door.x, y: door.y + 8 }, x: door.x, y: door.y + 8, tx: door.x, ty: door.y + 8, state: 'WANDER', until: isle.t,
+        });
+        moved.petNames = [...(moved.petNames || []), { id, name: p.name }];
+      }
       quota[id] -= unit.length;
       more = true;
     }
@@ -3887,12 +3910,33 @@ function moveAbroad(world) {
   for (const id of to) {
     const names = moved.filter((m) => m.id === id).map((m) => m.name);
     if (!names.length) continue;
-    note(main, `${names.join('と')}は、${ISLE_NAMES[id]}へ 引っ越していきました`);
+    const petNames = (moved.petNames || []).filter((p) => p.id === id).map((p) => p.name);
+    const withPet = petNames.length ? `（${petNames.join('と')}も 一緒に）` : '';
+    note(main, `${names.join('と')}は、${ISLE_NAMES[id]}へ 引っ越していきました${withPet}`);
     note(world.islands[id], `今日、${names.join('と')}が 本島から やってくるそうです`);
     syncMap(world.islands[id]);
     assignJobs(world.islands[id]);
   }
   return moved;
+}
+
+// ペットショップが 向こうの島の どちらかにあるか（本島の お願いが かなったかを見るため・D376）
+function markPetshop(world) {
+  world.islands.main.abroadPetshop = Object.keys(world.islands).some((id) => id !== 'main' && ofType(world.islands[id], 'petshop').length > 0);
+}
+// ⭐ ペットと一緒に引っ越したい（D376）：向こうの島があって、どちらにも ペットショップが無いとき。
+// ペットを飼っている 本島で育った大人（ペットの他は 移れる人）から、一度に1つ
+function askPetMove(world) {
+  const main = world.islands.main;
+  markPetshop(world);
+  if (main.abroadPetshop || (main.wishes || []).some((w) => w.kind === 'petMove')) return;
+  const unit = moveUnits(main, { pets: true }).find((u) => u.some((r) => main.pets.some((p) => p.ownerId === r.id)));
+  if (!unit) return;
+  const r = unit.find((x) => main.pets.some((p) => p.ownerId === x.id));
+  const pet = main.pets.find((p) => p.ownerId === r.id);
+  const w = petMoveWish(main, r, pet);
+  const last = main.diary.at(-1);
+  if (last && last.day === dayOf(main.t) - 1) last.lines.push({ kind: 'good', text: `${r.name}から お願い：「${w.text}」` });
 }
 
 // 島めぐり（D374）：港のある島どうし。前の日の観光客の一部が、今日 ほかの島へ渡る。
@@ -3917,6 +3961,7 @@ const inOrder = (world) => [...Object.keys(world.islands).filter((id) => id !== 
 // dt（ゲーム内の分）だけ 全部の島を進める。返すのは 見ている島の出来事
 export function stepWorld(world, dt) {
   const before = dayOf(world.islands.main.t);
+  if (Object.keys(world.islands).length > 1) markPetshop(world); // 本島のお願いが かなったか（D376）
   let events = [];
   for (const id of inOrder(world)) {
     const ev = step(world.islands[id], dt);
@@ -3932,13 +3977,16 @@ function afterSteps(world, before) {
   for (let d = 0; d < Math.min(days, 1); d++) {
     moveAbroad(world);
     planHops(world);
+    askPetMove(world);
   }
+  markPetshop(world);
   syncMap(islandNow(world));
 }
 
 // 留守のあいだ：どの島も 次の朝7時まで進める（D281）
 export function catchUpWorld(world, gameMinutes) {
   const before = dayOf(world.islands.main.t);
+  if (Object.keys(world.islands).length > 1) markPetshop(world); // 本島のお願いが かなったか（D376）
   let events = [];
   for (const id of inOrder(world)) {
     const ev = catchUp(world.islands[id], gameMinutes);

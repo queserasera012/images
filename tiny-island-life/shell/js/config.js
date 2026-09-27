@@ -473,7 +473,7 @@ export const CONFIG = {
     near: 3, // 「家の近く」は 3マス以内
     cafeSteps: 6, // 「会社の近く」は 道で6マス以内
     fountainPop: 20,
-    coin: { deco: 60, fountain: 150, cafeNearWork: 150, fish: 80, prize: 80, upgrade: 100, facility: 150 },
+    coin: { deco: 60, fountain: 150, cafeNearWork: 150, fish: 80, prize: 80, upgrade: 100, facility: 150, petMove: 150 },
   },
 
   // ---- ミニゲームの Coin（D333）：島の大きさに合わせる。住民 per 人ごとに1倍ずつ（1〜max 倍）
@@ -514,6 +514,9 @@ export const CONFIG = {
     exchange: { rate: 10, perDay: 5000, step: 1000 },
     // 移住（D340・D365）：本島で育った 独り身の大人が、空き家のある島へ。島ごとに 1日2人まで
     movePerDay: 2,
+    // 向こうの島のペットショップ（D376）：その島の住民 ◯人 から（本島の「ペット2匹から」は ここでは使えない）。
+    // どちらかの島にできると、ペットを飼っている人も ペットと一緒に移る
+    petshopPop: 6,
   },
 
   expand: {
