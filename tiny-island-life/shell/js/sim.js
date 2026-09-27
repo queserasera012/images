@@ -11,7 +11,7 @@
 import { CONFIG } from './config.js';
 import {
   T, SIZES, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, center, roadPath, roadDistance, accessTile, canPlace, isRoad, idx,
-  useAreas, useCover, plotLand, PLOT_NAMES, landTilesOf, placements, HOUSE_FLOOR, areaAt, COLS, OLD_COLS_2, DECO, footprint, occupied, neighbors, ROWS,
+  useAreas, useCover, plotLand, PLOT_NAMES, coastSide, landTilesOf, placements, HOUSE_FLOOR, areaAt, COLS, OLD_COLS_2, DECO, footprint, occupied, neighbors, ROWS,
 } from './grid.js';
 import { morningWishes, checkWishes, bigWish } from './wishes.js';
 
@@ -182,10 +182,10 @@ export const everyone = (state) => (state.visitors?.length ? state.residents.con
 export const personById = (state, id) => state.residents.find((r) => r.id === id) || state.visitors?.find((r) => r.id === id);
 
 // 席と列のある施設（カフェ・スーパー・プラネタリウム）。同じ仕組みで動く（D295）
-export const VENUE_TYPES = ['cafe', 'super', 'planetarium', 'petshop', 'pond', 'stand', 'ski', 'aquarium', 'pool', 'track', 'arcade', 'hospital'];
+export const VENUE_TYPES = ['cafe', 'super', 'planetarium', 'petshop', 'pond', 'stand', 'ski', 'aquarium', 'pool', 'track', 'arcade', 'hospital', 'beach', 'onsen'];
 export const VENUE_NAME = {
   cafe: 'カフェ', super: 'スーパー', planetarium: 'プラネタリウム', petshop: 'ペットショップ', pond: '釣り堀', stand: 'コーヒースタンド', ski: 'スキー場',
-  aquarium: '水族館', pool: 'プール', track: 'ドッグレース場', arcade: 'ゲームセンター', hospital: '病院',
+  aquarium: '水族館', pool: 'プール', track: 'ドッグレース場', arcade: 'ゲームセンター', hospital: '病院', beach: '海水浴場', onsen: '温泉',
 };
 // 季節の施設（D318・D319）：その季節だけ開き、維持費もその季節だけ
 export const SEASONAL = { ski: 'yuki', pool: 'natsu' };
@@ -222,6 +222,8 @@ export function houseDoor(h) {
 export function seatPositions(cafe) {
   if (cafe.type === 'pond') return pondSeats(cafe);
   if (cafe.type === 'pool') return poolSeats(cafe);
+  if (cafe.type === 'beach') return beachSeats(cafe);
+  if (cafe.type === 'onsen') return onsenSeats(cafe);
   if (cafe.type === 'track') return trackSeats(cafe);
   const x0 = cafe.c * T;
   const y0 = (cafe.r + 1) * T;
@@ -260,6 +262,42 @@ function poolSeats(b) {
   const pos = [];
   for (let row = 0; row < 3; row++) for (let k = 0; k < 4; k++) pos.push({ x: x0 + 17 + k * 19 + (row % 2) * 6, y: y0 + 18 + row * 13 });
   return [5, 6, 1, 2, 9, 10, 4, 7, 0, 3, 8, 11].map((i) => pos[i]);
+}
+
+// 海水浴場（D371）：海に面した辺の 1マス幅が 水。泳ぐ場所は その水の中に 2列（まんなかから埋める）
+export function beachWater(b) {
+  const s = SIZES.beach;
+  const [dc, dr] = coastSide(b) || [0, 1];
+  const x0 = b.c * T;
+  const y0 = b.r * T;
+  if (dr) return { x: x0, y: dr > 0 ? y0 + (s.h - 1) * T : y0, w: s.w * T, h: T, dir: [dc, dr] };
+  return { x: dc > 0 ? x0 + (s.w - 1) * T : x0, y: y0, w: T, h: s.h * T, dir: [dc, dr] };
+}
+function beachSeats(b) {
+  const w = beachWater(b);
+  const across = w.w > w.h;
+  const n = 8; // 2列 × 8（Lv2 の 16人ぶん）
+  const pos = [];
+  for (let k = 0; k < n; k++) {
+    for (const lane of [0, 1]) {
+      const t = (k + 0.5 + lane * 0.5) / (n + 0.5);
+      const off = 9 + lane * 12;
+      pos.push(across ? { x: w.x + t * w.w, y: w.dir[1] > 0 ? w.y + off : w.y + w.h - off } : { x: w.dir[0] > 0 ? w.x + off : w.x + w.w - off, y: w.y + t * w.h });
+    }
+  }
+  const mid = (n - 1) / 2;
+  return pos.map((p, i) => ({ p, d: Math.abs(Math.floor(i / 2) - mid) + (i % 2) * 0.1 })).sort((a, c) => a.d - c.d).map((x) => x.p);
+}
+// 温泉（D371）：まるい湯船のふちに沿って つかる
+function onsenSeats(b) {
+  const cx = b.c * T + (SIZES.onsen.w * T) / 2;
+  const cy = b.r * T + T + 4;
+  const pos = [];
+  for (let k = 0; k < 12; k++) {
+    const a = (k / 12) * Math.PI * 2 + 0.3;
+    pos.push({ x: cx + Math.cos(a) * 26, y: cy + Math.sin(a) * 11 });
+  }
+  return [9, 3, 6, 0, 8, 4, 10, 2, 7, 5, 11, 1].map((i) => pos[i]);
 }
 
 // 釣り堀の釣り座：池の下のふちに並ぶ（池の方を向いて座る）
@@ -627,7 +665,8 @@ function planDay(state, r) {
   r.visitedFun = false; // プラネタリウムも1日1回まで
   r.fished = false; // 釣り堀も1日1回まで
   r.skied = false; // スキーも1日1回まで
-  r.swam = false; // プールも1日1回まで
+  r.swam = false; // プールも1日1回まで（海水浴場も）
+  r.bathed = false; // 温泉も1日1回まで（D371）
   r.visitedAqua = false; // 水族館も1日1回まで
   r.watchedRace = false; // ドッグレース
   r.played = false; // ゲームセンターも1日1回まで
@@ -938,6 +977,19 @@ export function playArcade(state, gameId, play = {}) {
 }
 
 // プール（D319）：夏だけ。晴れた日に集まる。大人と観光客が行き、子どもは親についてくる。1日1回まで
+// 海水浴場（D371）：晴れた日の昼。大人（子どもは親と来る）。1日1回
+function beachChoices(state, r) {
+  if (isChild(r) || r.swam || !venueOpen(state, 'beach', 30)) return [];
+  const P = CONFIG.beach;
+  return ofType(state, 'beach').map((b) => ({ cafe: b, w: P.pull * P.weather[state.weather] * near(r, b.access) }));
+}
+// 温泉（D371）：夕方から夜。雪（雨）の日に増える。お年寄りに人気。子どもは来ない。1日1回
+function onsenChoices(state, r) {
+  if (isChild(r) || r.bathed || !venueOpen(state, 'onsen', 30)) return [];
+  const P = CONFIG.onsen;
+  return ofType(state, 'onsen').map((b) => ({ cafe: b, w: P.pull * P.weather[state.weather] * (r.elder ? P.elderPull : 1) * near(r, b.access) }));
+}
+
 function poolChoices(state, r) {
   if (isChild(r) || r.swam || !inSeason(state, 'pool') || !venueOpen(state, 'pool', 30)) return [];
   const P = CONFIG.pool;
@@ -1146,6 +1198,8 @@ function decideNext(state, r, { noCafe = false, avoid = null } = {}) {
     ...(avoid === 'ski' ? [] : skiChoices(state, r)),
     ...(avoid === 'aquarium' ? [] : aquariumChoices(state, r)),
     ...(avoid === 'pool' ? [] : poolChoices(state, r)),
+    ...(avoid === 'beach' ? [] : beachChoices(state, r)),
+    ...(avoid === 'onsen' ? [] : onsenChoices(state, r)),
     ...(avoid === 'track' ? [] : trackChoices(state, r)),
     ...(avoid === 'arcade' ? [] : arcadeChoices(state, r)),
     ...(avoid === 'hospital' ? [] : hospitalChoices(state, r)),
@@ -1385,7 +1439,8 @@ function sit(state, r, b, seatIdx) {
   r.seat = seatIdx;
   if (b.type === 'pond') r.fished = true;
   if (b.type === 'ski') r.skied = true;
-  if (b.type === 'pool') r.swam = true;
+  if (b.type === 'pool' || b.type === 'beach') r.swam = true;
+  if (b.type === 'onsen') r.bathed = true;
   if (b.type === 'track') r.watchedRace = true;
   if (b.type === 'arcade') r.played = true;
   if (b.type === 'aquarium') r.visitedAqua = true;
@@ -1394,7 +1449,7 @@ function sit(state, r, b, seatIdx) {
     const f = standFront(b);
     r.tx = f.x;
     r.ty = f.y;
-  } else if (b.type === 'cafe' || b.type === 'pond' || b.type === 'pool' || b.type === 'track') {
+  } else if (b.type === 'cafe' || b.type === 'pond' || b.type === 'pool' || b.type === 'track' || b.type === 'beach' || b.type === 'onsen') {
     const s = seatPositions(b)[seatIdx];
     r.tx = s.x;
     r.ty = s.y;
@@ -1557,6 +1612,10 @@ function rolloverDay(state, events) {
   if (aq?.served) lines.push({ kind: 'good', text: `水族館に ${aq.served}人 が来ました（+${aq.income} Coin）` });
   const pool = today.byType.pool;
   if (pool?.served) lines.push({ kind: 'good', text: `プールに ${pool.served}人 が来ました（+${pool.income} Coin）` });
+  for (const type of ['beach', 'onsen']) {
+    const x = today.byType[type];
+    if (x?.served) lines.push({ kind: 'good', text: `${VENUE_NAME[type]}に ${x.served}人 が来ました（+${x.income} Coin）` });
+  }
   const arc = today.byType.arcade;
   if (arc?.served) lines.push({ kind: 'good', text: `ゲームセンターに ${arc.served}人 が来ました（+${arc.income} Coin）` });
   if (today.arcade?.plays) lines.push({ kind: 'good', text: `あなたはゲームセンターで ${today.arcade.plays}回 遊びました${today.arcade.coin ? `（+${today.arcade.coin} Coin）` : ''}` });
@@ -1713,6 +1772,8 @@ function rolloverDay(state, events) {
     (today.school?.went || 0) * CONFIG.school.fee +
     (today.college?.went || 0) * CONFIG.college.fee +
     (today.work?.income || 0);
+  // 海の向こうの島の お金は Shell／オーロラ（D371）
+  if (isAbroad(state)) for (const l of lines) l.text = l.text.replaceAll('Coin', moneyOf(state));
   const entry = { day: endedDay, weather: state.weather, lines, read: false, earned };
   state.diary.push(entry);
   events.push({ type: 'newday', entry });
@@ -2223,7 +2284,28 @@ export function actionsFor(state) {
         locked: !ready,
       });
     }
-  } else if (state.debris) {
+  } else {
+    // その島だけの施設（D365・D371）：海水浴場（シェル）・温泉（オーロラ）。その島の住民が pop人 になると
+    for (const type of ['beach', 'onsen']) {
+      const V = CONFIG[type];
+      if (V.isle !== state.isle) continue;
+      const pop = countedPop(state);
+      const full = ofType(state, type).length >= V.max;
+      const what = type === 'beach'
+        ? `砂浜にかかる場所にだけ建てられる。晴れた日の昼（${fmtClock(V.open)}〜${fmtClock(V.close)}）に泳ぎに来る。子どもは親と来る。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep}`
+        : `夕方から夜（${fmtClock(V.open)}〜${fmtClock(V.close)}）。雪の日に人が増える。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep}`;
+      list.push({
+        id: type,
+        icon: `${type}_new`,
+        place: type,
+        title: `${VENUE_NAME[type]}をつくる`,
+        detail: full ? `${VENUE_NAME[type]}は この島に ${V.max}つまで` : pop < V.pop ? `この島の住民が ${V.pop}人 になると建てられます（いま ${pop}人）` : what,
+        cost: V.buildCost,
+        locked: full || pop < V.pop,
+      });
+    }
+  }
+  if (isAbroad(state) && state.debris) {
     state.debris.forEach((covered, n) => {
       if (!covered) return;
       list.push({
@@ -2237,7 +2319,14 @@ export function actionsFor(state) {
       });
     });
   }
-  return list;
+  if (!isAbroad(state)) return list;
+  // 海の向こうの島：本島の はしごのもの（釣り堀・スーパーなど）は出さない。ここでは ひらかないので（D371）
+  const ladder = new Set(CONFIG.unlocks.map((u) => u.id));
+  if (!state.port.open) ladder.add('shop'); // お土産屋は 港のあと（向こうの島の港は まだ無い）
+  const here = list.filter((a) => !ladder.has(a.id));
+  // お金は Shell／オーロラ（片付けは本島の Coin のまま・D371）
+  for (const a of here) if (a.payWith !== 'main' && a.detail) a.detail = a.detail.replaceAll('Coin', moneyOf(state));
+  return here;
 }
 
 // place は { c, r }（建てる場所の左上のマス）
@@ -2507,6 +2596,8 @@ export function describeResident(state, r) {
       if (b.type === 'petshop') return 'ペットショップで買い物中';
       if (b.type === 'aquarium') return '水族館で魚を見ている';
       if (b.type === 'pool') return 'プールで泳いでいる';
+      if (b.type === 'beach') return '海で泳いでいる';
+      if (b.type === 'onsen') return '温泉につかっている';
       if (b.type === 'ski') return 'スキーをしている';
       if (b.type === 'track') return 'ドッグレースを見ている';
       if (b.type === 'arcade') return 'ゲームセンターで遊んでいる';
@@ -2790,10 +2881,10 @@ function bringCompanions(state, r) {
   // （施設はどれも dest='cafe' で向かうので、行き先の建物の種類で見る）
   const where = r.dest === 'cafe' ? buildingById(state, r.destId)?.type : r.dest;
   const wants = (c) =>
-    ({ super: c.needShop, petshop: c.needPet, planetarium: !c.visitedFun, pond: !c.fished, ski: !c.skied && !c.age, pool: !c.swam, aquarium: !c.visitedAqua, track: !c.watchedRace, arcade: !c.played, hospital: false, work: false }[where] ?? true);
+    ({ super: c.needShop, petshop: c.needPet, planetarium: !c.visitedFun, pond: !c.fished, ski: !c.skied && !c.age, pool: !c.swam, beach: !c.swam, onsen: !c.bathed && !c.age, aquarium: !c.visitedAqua, track: !c.watchedRace, arcade: !c.played, hospital: false, work: false }[where] ?? true);
   const spouse = r.spouseId && state.residents.find((x) => x.id === r.spouseId);
   if (awakeHome(spouse) && wants(spouse) && rand(state) < F.walkTogether) join(spouse);
-  if (r.dest === 'park' || r.dest === 'stroll' || where === 'pool' || where === 'track' || where === 'arcade') {
+  if (r.dest === 'park' || r.dest === 'stroll' || where === 'pool' || where === 'beach' || where === 'track' || where === 'arcade') {
     for (const kid of state.residents) {
       if ((kid.age === 'kid' || kid.age === 'pupil') && kid.parents?.includes(r.id) && awakeHome(kid) && rand(state) < F.kidJoins) join(kid);
     }

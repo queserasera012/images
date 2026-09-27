@@ -148,6 +148,45 @@ export const CONFIG = {
   },
 
   // ---- プール（D319）：夏だけ開く。晴れた日に人が集まり、公園が空く。子どもは親と来る ----
+  // ---- 海の向こうの島の施設（D365・D371）：その島の住民が pop人 になると建てられる。1つの島に1つ ----
+  // 海水浴場（シェルの島）：海に面した土地だけ。晴れた日の昼。子どもは親と来る
+  beach: {
+    isle: 'shell', pop: 12, max: 1,
+    open: 9 * 60,
+    close: 17 * 60,
+    customerValue: 20,
+    stayMin: 50,
+    stayMax: 100,
+    maxQueue: 6,
+    rainLinger: 1,
+    pull: 36,
+    weather: { sunny: 1, cloudy: 0.5, rain: 0.05 },
+    levels: [
+      { level: 1, seats: 10, upkeep: 40 },
+      { level: 2, seats: 16, upkeep: 60, cost: 5000 },
+    ],
+    buildCost: 8000,
+  },
+  // 温泉（オーロラの島）：夕方から夜。雪（雨）の日と お年寄りに人気。子どもは来ない
+  onsen: {
+    isle: 'aurora', pop: 12, max: 1,
+    open: 15 * 60,
+    close: 23 * 60,
+    customerValue: 22,
+    stayMin: 40,
+    stayMax: 80,
+    maxQueue: 6,
+    rainLinger: 1.3,
+    pull: 30,
+    elderPull: 1.6,
+    weather: { sunny: 1, cloudy: 1.2, rain: 1.6 },
+    levels: [
+      { level: 1, seats: 8, upkeep: 40 },
+      { level: 2, seats: 12, upkeep: 60, cost: 5000 },
+    ],
+    buildCost: 8000,
+  },
+
   pool: {
     open: 10 * 60,
     close: 17 * 60,

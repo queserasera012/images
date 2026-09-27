@@ -39,6 +39,8 @@ export const SIZES = {
   company: { w: 3, h: 2 }, // 会社（D319）
   aquarium: { w: 3, h: 3 }, // 水族館（D319）
   pool: { w: 3, h: 2 }, // プール（夏だけ・D319）。泳ぐ人が見える
+  beach: { w: 2, h: 2 }, // 海水浴場（シェルの島・D371）。砂浜にかかるように建てる（島のふちの土地は1マス幅なので）。泳ぐ人が見える
+  onsen: { w: 3, h: 2 }, // 温泉（オーロラの島・D371）。湯につかる人が見える
   track: { w: 3, h: 3 }, // ドッグレース場（D328）。まわりに観客が立つ
   arcade: { w: 3, h: 2 }, // ゲームセンター（D331）
   school: { w: 3, h: 2 }, // 小学校（D347）
@@ -705,10 +707,34 @@ export function canPlace(type, c, r, buildings) {
   if (!inBounds(c, r) || !inBounds(c + s.w - 1, r + s.h - 1)) return false;
   const used = occupied(buildings);
   for (const t of footprint(type, c, r)) {
-    if (MAP[t] !== 'land' || used.has(t) || LINK_TILES.has(t) || COVERED.has(t)) return false;
+    // 海水浴場だけは 砂浜のマスにも建てられる（D371）
+    const ground = MAP[t] === 'land' || (type === 'beach' && MAP[t] === 'beach');
+    if (!ground || used.has(t) || LINK_TILES.has(t) || COVERED.has(t)) return false;
     if (ONLY_ON[type] && areaAt(colOf(t), rowOf(t)) !== ONLY_ON[type]) return false;
   }
+  // 海水浴場は 砂浜にかかる場所だけ。土地のマスも1つは要る（片付けていない区画に はみ出さない）（D371）
+  if (type === 'beach') {
+    const tiles = footprint(type, c, r);
+    if (!tiles.some((t) => MAP[t] === 'beach') || !tiles.some((t) => MAP[t] === 'land') || !coastSide({ type, c, r })) return false;
+    if (tiles.some((t) => MAP[t] === 'beach' && COVER_NEAR(t))) return false;
+  }
   return DECO.includes(type) || accessTile(type, c, r) !== null;
+}
+
+// 砂浜のマスが 片付けていない区画に接しているか（海水浴場が 覆われた区画の浜に建たないように）
+const COVER_NEAR = (t) => COVERED.size > 0 && neighbors(t).some((n) => COVERED.has(n));
+// 建物のどの辺が 海に面しているか（海水浴場・D371）。海のマスは2、浜のマスは1と数えて いちばん多い辺の向き [dc, dr]。無ければ null
+export function coastSide(b) {
+  const s = SIZES[b.type];
+  const shore = (c, r) => (!inBounds(c, r) ? 0 : MAP[idx(c, r)] === 'sea' ? 2 : MAP[idx(c, r)] === 'beach' ? 1 : 0);
+  const sides = [
+    [[0, 1], Array.from({ length: s.w }, (_, k) => [b.c + k, b.r + s.h])],
+    [[0, -1], Array.from({ length: s.w }, (_, k) => [b.c + k, b.r - 1])],
+    [[1, 0], Array.from({ length: s.h }, (_, k) => [b.c + s.w, b.r + k])],
+    [[-1, 0], Array.from({ length: s.h }, (_, k) => [b.c - 1, b.r + k])],
+  ].map(([dir, tiles]) => ({ dir, n: tiles.reduce((k, [c, r]) => k + shore(c, r), 0) }));
+  const best = sides.sort((a, b2) => b2.n - a.n)[0];
+  return best.n ? best.dir : null;
 }
 
 // 建てられる場所の一覧（左上のマス）

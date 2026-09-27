@@ -234,6 +234,22 @@ export const ICONS = {
       `<circle cx="9" cy="12" r="1.6" fill="#f3cfb0"/>`,
     28,
   ),
+  // 海水浴場（D371）：砂浜と波、パラソル
+  beach_new: svg(
+    `<path d="M2 16c3-1 5 1 8 0s5-1 8 0 3 1 4 .5V21H2z" fill="#3fb6c9"/>` +
+      `<path d="M2 14h20v2c-3 1-5-1-8 0s-5 1-8 0-3-.5-4 0z" fill="#fbf1e4"/>` +
+      `<path d="M12 14V6" stroke="${INK}" stroke-width="1.3"/>` +
+      `<path d="M5 8a7 5 0 0 1 14 0z" fill="#ff6b81" stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"/>` +
+      `<path d="M9.5 8L12 3.2 14.5 8" fill="#fff" stroke="${INK}" stroke-width="1" stroke-linejoin="round"/>`,
+    28,
+  ),
+  // 温泉（D371）：岩の湯船と 湯気
+  onsen_new: svg(
+    `<ellipse cx="13" cy="17" rx="9" ry="4" fill="${SHADOW}"/>` +
+      `<ellipse cx="12" cy="16" rx="9" ry="4" fill="#6cc6c0" stroke="#7d858d" stroke-width="2.2"/>` +
+      `<path d="M8 11c-1.2-1.4 1.2-2.6 0-4M12 11c-1.2-1.4 1.2-2.6 0-4M16 11c-1.2-1.4 1.2-2.6 0-4" stroke="${INK}" stroke-width="1.3" fill="none" stroke-linecap="round"/>`,
+    28,
+  ),
   // スキー場（D318）：雪の山と、滑るあと
   ski_new: svg(
     `<path d="M3 19l8-13 5 7 2-2 3 8z" transform="translate(1 1)" fill="${SHADOW}"/>` +

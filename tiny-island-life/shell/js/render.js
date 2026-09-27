@@ -5,7 +5,7 @@ import {
   T, COLS, ROWS, WORLD, SIZES, HOUSE_FLOOR, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, landBounds, shapesOf, islandRadius, edgeRadius, COVERED, COVER_KEY, plotOf, idx, center, neighbors, isRoad, occupied, BRIDGES, boatRoute,
 } from './grid.js';
 import { CONFIG } from './config.js';
-import { wantsRoomHouses, boatsNow, clockOf, inSeason, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf } from './sim.js';
+import { wantsRoomHouses, boatsNow, clockOf, inSeason, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf, beachWater } from './sim.js';
 
 export const FONT = '"Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif';
 
@@ -3169,6 +3169,176 @@ export function createRenderer(canvas) {
     ctx.fillRect(x0 + w - 10.5, y0 + h - 6, 1, 5);
   }
 
+  // 海水浴場（シェルの島・D371）：海に面した辺が 水（波打ちぎわの泡）、残りが 白い砂。パラソルとタオル、見張りの台
+  function beach(b, time) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.beach.w * T;
+    const h = SIZES.beach.h * T;
+    const water = beachWater(b);
+    const [dc, dr] = water.dir;
+    ctx.fillStyle = '#fbf1e4';
+    roundRect(ctx, x0 + 1, y0 + 1, w - 2, h - 2, 6);
+    ctx.fill();
+    // 水：外へ行くほど濃い
+    const g = dr ? ctx.createLinearGradient(0, water.y + (dr > 0 ? 0 : water.h), 0, water.y + (dr > 0 ? water.h : 0)) : ctx.createLinearGradient(water.x + (dc > 0 ? 0 : water.w), 0, water.x + (dc > 0 ? water.w : 0), 0);
+    g.addColorStop(0, '#9fe3dd');
+    g.addColorStop(1, '#3fb6c9');
+    ctx.fillStyle = g;
+    roundRect(ctx, water.x + 1, water.y + 1, water.w - 2, water.h - 2, 5);
+    ctx.fill();
+    // 波打ちぎわ（砂との境目の泡が 寄せては返す）
+    const wash = Math.sin(time * 1.4) * 2.5;
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    if (dr) {
+      const y = (dr > 0 ? water.y : water.y + water.h) + dr * wash;
+      for (let x = water.x + 3; x <= water.x + water.w - 3; x += 3) ctx.lineTo(x, y + Math.sin(x * 0.35 + time * 2) * 1.2);
+    } else {
+      const x = (dc > 0 ? water.x : water.x + water.w) + dc * wash;
+      for (let y = water.y + 3; y <= water.y + water.h - 3; y += 3) ctx.lineTo(x + Math.sin(y * 0.35 + time * 2) * 1.2, y);
+    }
+    ctx.stroke();
+    // 砂の上：パラソル2本・タオル・見張りの台（水と反対の側）
+    const sand = dr ? { x: x0, y: dr > 0 ? y0 : y0 + T, w, h: h - T } : { x: dc > 0 ? x0 : x0 + T, y: y0, w: w - T, h };
+    const spots = dr ? [[0.22, 0.5], [0.62, 0.42], [0.88, 0.62]] : [[0.4, 0.22], [0.55, 0.6], [0.35, 0.9]];
+    const colors = [['#ff6b81', '#ffffff'], ['#f2b84b', '#ffffff']];
+    spots.slice(0, 2).forEach(([fx, fy], k) => {
+      const px = sand.x + sand.w * fx;
+      const py = sand.y + sand.h * fy;
+      ctx.fillStyle = k ? '#62b6cb' : '#f28aa0';
+      ctx.fillRect(px - 7, py + 2, 12, 5); // タオル
+      ctx.fillStyle = PALETTE.shadow;
+      ctx.beginPath();
+      ctx.ellipse(px + 3, py + 3, 9, 3.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = PALETTE.ink;
+      ctx.fillRect(px - 0.6, py - 8, 1.2, 10);
+      for (let s = 0; s < 6; s++) {
+        ctx.fillStyle = colors[k][s % 2];
+        ctx.beginPath();
+        ctx.moveTo(px, py - 12);
+        ctx.arc(px, py - 8, 9, Math.PI + (s * Math.PI) / 6, Math.PI + ((s + 1) * Math.PI) / 6);
+        ctx.closePath();
+        ctx.fill();
+      }
+    });
+    const [lx, ly] = spots[2];
+    const px = sand.x + sand.w * lx;
+    const py = sand.y + sand.h * ly;
+    ctx.strokeStyle = '#c49a6c';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(px - 4, py + 4);
+    ctx.lineTo(px - 2, py - 6);
+    ctx.moveTo(px + 4, py + 4);
+    ctx.lineTo(px + 2, py - 6);
+    ctx.stroke();
+    ctx.fillStyle = '#e56b6f';
+    ctx.fillRect(px - 4, py - 9, 8, 4);
+  }
+
+  // 温泉（オーロラの島・D371）：木の板の床に、岩で囲んだ まるい湯船。湯気が立つ。のれんの小屋と 雪の灯籠
+  function onsen(b, time) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES.onsen.w * T;
+    const h = SIZES.onsen.h * T;
+    ctx.fillStyle = PALETTE.shadow;
+    roundRect(ctx, x0 + 4, y0 + 5, w - 4, h - 4, 5);
+    ctx.fill();
+    ctx.fillStyle = '#b08a64';
+    roundRect(ctx, x0 + 1, y0 + 1, w - 2, h - 2, 5);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(70,45,25,0.25)';
+    ctx.lineWidth = 1;
+    for (let x = x0 + 7; x < x0 + w - 2; x += 7) {
+      ctx.beginPath();
+      ctx.moveTo(x, y0 + 3);
+      ctx.lineTo(x, y0 + h - 3);
+      ctx.stroke();
+    }
+    const cx = x0 + w / 2;
+    const cy = y0 + T + 4;
+    // 岩のふち
+    for (let k = 0; k < 16; k++) {
+      const a = (k / 16) * Math.PI * 2;
+      ctx.fillStyle = k % 3 ? '#7d858d' : '#9aa2aa';
+      ctx.beginPath();
+      ctx.ellipse(cx + Math.cos(a) * 34, cy + Math.sin(a) * 15, 5.5, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // 湯
+    const g = ctx.createRadialGradient(cx - 6, cy - 3, 2, cx, cy, 34);
+    g.addColorStop(0, '#bff0e6');
+    g.addColorStop(1, '#6cc6c0');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 31, 13, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // 雪をかぶった岩
+    ctx.fillStyle = '#ffffff';
+    for (const k of [0, 5, 11]) {
+      const a = (k / 16) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.ellipse(cx + Math.cos(a) * 34, cy + Math.sin(a) * 15 - 2, 4, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // のれんの小屋（左上）と 灯籠（右下）
+    ctx.fillStyle = '#6e4f3c';
+    ctx.fillRect(x0 + 4, y0 + 3, 16, 10);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(x0 + 3, y0 + 1, 18, 3);
+    ctx.fillStyle = '#3d5a80';
+    ctx.fillRect(x0 + 6, y0 + 6, 5, 6);
+    ctx.fillStyle = '#c8553d';
+    ctx.fillRect(x0 + 12, y0 + 6, 5, 6);
+    ctx.fillStyle = '#9aa2aa';
+    ctx.fillRect(x0 + w - 11, y0 + h - 14, 5, 9);
+    ctx.fillStyle = `rgba(255, 214, 120, ${0.75 + Math.sin(time * 3) * 0.2})`;
+    ctx.fillRect(x0 + w - 10, y0 + h - 12, 3, 3);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(x0 + w - 12, y0 + h - 16, 7, 2);
+  }
+  // 湯気（住民の上に重ねる）
+  function onsenSteam(b, time) {
+    const cx = b.c * T + (SIZES.onsen.w * T) / 2;
+    const cy = b.r * T + T + 4;
+    for (let k = 0; k < 7; k++) {
+      const life = (time * 0.35 + k / 7) % 1;
+      const x = cx - 22 + ((k * 13) % 44) + Math.sin(time + k) * 3;
+      const y = cy - life * 26;
+      ctx.fillStyle = `rgba(255,255,255,${0.45 * (1 - life)})`;
+      ctx.beginPath();
+      ctx.arc(x, y, 3 + life * 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // 湯につかる人：頭と肩、頭に手ぬぐい
+  function bather(r, time) {
+    const look = lookOf(r);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(r.x, r.y + 1, 6, 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = look.skin;
+    ctx.beginPath();
+    ctx.ellipse(r.x, r.y, 5, 2.2, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(r.x, r.y - 3.5, 3.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = look.hair;
+    ctx.beginPath();
+    ctx.arc(r.x, r.y - 4.5, 3.2, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(r.x - 2.5, r.y - 8.5 + Math.sin(time + r.x) * 0.3, 5, 1.8);
+  }
+
   // 泳いでいる人：水から頭と腕だけ
   function swimmer(r, time) {
     const look = lookOf(r);
@@ -3431,6 +3601,8 @@ export function createRenderer(canvas) {
       else if (b.type === 'company') company(state, b);
       else if (b.type === 'aquarium') aquarium(state, b, time);
       else if (b.type === 'pool') pool(state, b, time, poolOpen);
+      else if (b.type === 'beach') beach(b, time);
+      else if (b.type === 'onsen') onsen(b, time);
       else if (b.type === 'track') track(state, b, time);
       else if (b.type === 'arcade') arcade(state, b, time);
       else if (b.type === 'flowerbed') flowerbed(b, time);
@@ -3482,12 +3654,18 @@ export function createRenderer(canvas) {
     const things = [
       ...everyone(state).filter((r) => r.visible).map((r) => ({
         y: r.y,
-        draw: () => (r.state === 'SEATED' && state.buildings.find((b) => b.id === r.destId)?.type === 'pool' ? swimmer(r, time) : drawResident(state, r, time, r.id === ui.selectedId)),
+        draw: () => {
+          const at = r.state === 'SEATED' && state.buildings.find((b) => b.id === r.destId)?.type;
+          if (at === 'pool' || at === 'beach') return swimmer(r, time);
+          if (at === 'onsen') return bather(r, time);
+          return drawResident(state, r, time, r.id === ui.selectedId);
+        },
       })),
       // レースに出ているあいだ、島のペットはコースの上に描く（家のまわりには描かない）
       ...(state.pets || []).filter((p) => !racing(state, p.id)).map((p) => ({ y: p.y, draw: () => drawPet(state, p, time) })),
     ].sort((a, b) => a.y - b.y);
     for (const t of things) t.draw();
+    for (const b of state.buildings) if (b.type === 'onsen') onsenSteam(b, time);
     drawSleep(state, time);
     // お願いの建物の名札（D360）：住民が前に立っていても、どの家か分かるように いちばん上に
     for (const wp of ui.wishPlaces || []) {

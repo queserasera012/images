@@ -514,6 +514,11 @@ function renderCard() {
       html += inSeason(state, 'pool')
         ? `<div class="now">泳いでいる：${who(b.seats.filter(Boolean))}</div><div>外で待っている：${who(b.queue)}</div>`
         : `<div class="now">いまは お休み。夏になると ひらきます（維持費も夏だけ）</div>`;
+    } else if (b.type === 'beach' || b.type === 'onsen') {
+      // 海水浴場・温泉（D371）：その島だけの施設
+      const V = CONFIG[b.type];
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">一度に ${seatCount(b)}人。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
+      html += `<div class="now">${b.type === 'beach' ? '泳いでいる' : 'つかっている'}：${who(b.seats.filter(Boolean))}</div><div>外で待っている：${who(b.queue)}</div>`;
     } else if (b.type === 'super' || b.type === 'planetarium' || b.type === 'petshop' || b.type === 'stand' || b.type === 'aquarium' || b.type === 'hospital') {
       const V = CONFIG[b.type];
       const inside = b.seats.filter(Boolean);
@@ -1294,6 +1299,20 @@ if (DEBUG) {
     arcade: () => arcadeNow(),
     // スキー場の絵を見るため：席を住民で埋める（D318）
     advance: (m) => step(state, m),
+    // 向こうの島に 本島の大人を n人 移す（海水浴場・温泉の絵を見るため・D371）。移住と同じ しくみで毎朝2人ずつ来るのを待たない
+    populate: (n) => {
+      state.coin += 50000;
+      world.islands.main.coin += 20000;
+      (state.debris || []).forEach((covered, k) => covered && clearPlot(world, world.current, k));
+      for (let k = 0; k < n; k++) {
+        let spot = placements('house', state.buildings)[0];
+        if (!spot) break;
+        applyAction(state, 'house', spot);
+      }
+      const homes = state.buildings.filter((b) => b.type === 'house');
+      const base = world.islands.main.residents.filter((r) => !r.age);
+      for (let k = 0; k < n; k++) state.residents.push({ ...base[k % base.length], id: `demo${state.residents.length}`, homeId: homes[k % homes.length].id, at: homes[k % homes.length].access, state: 'HOME', visible: false, job: null, spouseId: null, parents: null });
+    },
     // お願いを1つ出す（D335・画面の確認用）
     wish: () => {
       const r = state.residents.find((x) => !x.age && x.homeId);
