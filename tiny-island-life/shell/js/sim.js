@@ -109,6 +109,14 @@ const h01 = (s) => {
   return ((x ^ (x >>> 15)) >>> 0) / 4294967296;
 };
 export const ageOf = (state, r) => (r.bornOn == null ? null : dayOf(state.t) - r.bornOn);
+// 大人になった日に 大人の好みを持つ（D370）。赤ちゃんの好み（カフェ 0・遊び 0）のままだと、
+// 島で生まれた人は 大人になっても カフェにも遊び場にも行かなかった。引っ越してくる人と同じ幅で、人の id から決める
+function grownPrefs(r) {
+  const f = (k, a, b) => a + (b - a) * h01(`${r.id}${k}`);
+  r.prefs = { ...r.prefs, cafe: f('cafe', 8, 28), park: f('park', 8, 30), stroll: f('stroll', 8, 26), fun: f('fun', 6, 22) };
+  r.coffee = f('coffee', 0.2, 0.9);
+}
+const babyPrefs = (r) => r.parents && !r.age && !r.prefs?.cafe && !r.prefs?.fun;
 function giveAge(state, r) {
   const F = CONFIG.family;
   if (r.bornOn == null) r.bornOn = dayOf(state.t) - Math.round(F.arriveAgeMin + h01(`${r.id}age`) * (F.arriveAgeMax - F.arriveAgeMin));
@@ -395,6 +403,7 @@ export function migrate(state) {
     giveAge(state, r);
     // D351：老人になる日を 45 → 55日にした。まだ55日になっていない老人は もとに戻す（仕事は次の割り当てで）
     if (r.elder && r.bornOn != null && dayOf(state.t) - r.bornOn < CONFIG.family.elderAt) r.elder = false;
+    if (babyPrefs(r)) grownPrefs(r); // D370：大人になっても 赤ちゃんの好みのままだった人
   }
   state.visitors ||= [];
   state.port ||= { open: false, today: [] };
@@ -2200,6 +2209,8 @@ export function actionsFor(state) {
   const A = CONFIG.abroad;
   if (!isAbroad(state)) {
     const grown = grownAdults(state);
+    // 一度 10人に届いたら、そのあとは ずっとつくれる（育った大人は すぐ移住するので、2つ目の島のときには もう いない・D370）
+    const ready = !!state.dockReady || grown >= A.grownAdults;
     for (const id of Object.keys(ISLE_LOOK)) {
       if (state.routes?.[id]) continue;
       list.push({
@@ -2207,9 +2218,9 @@ export function actionsFor(state) {
         tab: 'island',
         icon: `route_${id}`,
         title: `${ISLE_NAMES[id]}への 船着き場をつくる`,
-        detail: grown < A.grownAdults ? `本島で育った大人が ${A.grownAdults}人 になると つくれます（いま ${grown}人）` : ISLE_LOOK[id],
+        detail: ready ? ISLE_LOOK[id] : `本島で育った大人が ${A.grownAdults}人 になると つくれます（いま ${grown}人）`,
         cost: A.dock,
-        locked: grown < A.grownAdults,
+        locked: !ready,
       });
     }
   } else if (state.debris) {
@@ -2267,6 +2278,7 @@ export function applyAction(state, id, place) {
     state.areas.push(id.split(':')[1]);
     syncMap(state);
   } else if (id.startsWith('route:')) {
+    state.dockReady ||= dayOf(state.t);
     state.routes ||= {};
     state.routes[id.split(':')[1]] = dayOf(state.t);
   } else if (id.startsWith('harbor:')) {
@@ -2635,7 +2647,10 @@ function familyEvents(state, day, events) {
     r.age = to;
     state.naming = state.naming.filter((id) => id !== r.id); // 名前をつけないまま育った子（名前はそのまま）
     lines.push({ kind: 'good', text: `${r.name}${text}` });
-    if (!to) planDay(state, r); // 大人になったら 寝る時間なども大人と同じ
+    if (!to) {
+      grownPrefs(r); // D370
+      planDay(state, r); // 大人になったら 寝る時間なども大人と同じ
+    }
   }
 
   // 老人になる（D349）：生まれて45日。仕事をやめて のんびり暮らす
@@ -3531,7 +3546,9 @@ const canMove = (state, r) =>
 function moveAbroad(world) {
   const main = world.islands.main;
   const day = dayOf(main.t);
+  // どの島から先に選ぶかは 日ごとに入れかえる（いつも同じ島が 先に人をもらわないように）
   const to = Object.keys(world.islands).filter((id) => id !== 'main');
+  for (let k = 0; k < day % Math.max(1, to.length); k++) to.push(to.shift());
   const moved = [];
   for (let k = 0; k < CONFIG.abroad.movePerDay; k++) {
     for (const id of to) {
@@ -3544,6 +3561,7 @@ function moveAbroad(world) {
       syncMap(main);
       leaveIsland(main, r);
       syncMap(isle);
+      if (babyPrefs(r)) grownPrefs(r); // 前のセーブで 大人になった人（D370）
       const base = { name: r.name, named: r.named, generic: r.generic, bornOn: r.bornOn, prefs: r.prefs, coffee: r.coffee };
       const n = makeResident(isle, base, home, true);
       Object.assign(n, { look: r.look, life: r.life, from: 'main', nightOwl: r.nightOwl });
