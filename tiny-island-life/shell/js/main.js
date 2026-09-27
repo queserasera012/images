@@ -5,7 +5,7 @@ import { T, SIZES, PIER, PIERS, OX, OY, AREAS, MAIN, areaById, center, placement
 import {
   step, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
-  migrateWorld, createWorld, islandNow, createIsland, visitIsland, stepWorld, catchUpWorld, isAbroad, openRoute, clearPlot, MONEY_NAME, ISLE_NAMES,
+  migrateWorld, createWorld, islandNow, createIsland, visitIsland, stepWorld, catchUpWorld, isAbroad, openRoute, clearPlot, MONEY_NAME, ISLE_NAMES, exchange, exchangeLeft,
   everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
   labelOf, nextGoal, unlockNow, nameBaby, namePet, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft, decoType, isChild,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
@@ -810,10 +810,40 @@ function openBoat() {
       <span><span class="cost">${moneyIcon(id)}${s.coin.toLocaleString()}</span><span class="need">${here ? 'いまいる島' : ''}</span></span>
     </button>`;
   });
-  openSheet(`<h2>船</h2>${rows.join('')}`);
+  // 両替（D366）：本島の Coin → 向こうの島のお金。1日の上限は 2つの島で分け合う
+  const X = CONFIG.abroad.exchange;
+  const left = exchangeLeft(world);
+  const coin = world.islands.main.coin;
+  const ex = Object.keys(world.islands)
+    .filter((id) => id !== 'main')
+    .map((id) => {
+      const one = Math.min(X.step, left, coin);
+      const all = Math.min(left, coin);
+      const btn = (amt, label) => `<button class="ex-btn" type="button" data-ex="${id}" data-amt="${amt}" ${amt < X.rate ? 'disabled' : ''}>${label}</button>`;
+      const buttons = all < X.rate
+        ? `<span class="need">${left < X.rate ? '今日の両替は ここまで' : '本島の Coin が足りません'}</span>`
+        : `${btn(one, `${ICONS.coin}${one.toLocaleString()} → ${Math.floor(one / X.rate).toLocaleString()}`)}${btn(all, 'のこり全部')}`;
+      return `<div class="ex-row"><span class="ex-name">${moneyIcon(id)}${MONEY_NAME[id]}</span>${buttons}</div>`;
+    })
+    .join('');
+  openSheet(`<h2>船</h2>${rows.join('')}
+    <h3 class="ex-title">両替</h3>
+    <p class="lead">本島の Coin ${X.rate} で 1。今日は あと ${ICONS.coin}${left.toLocaleString()} まで（2つの島で合わせて）</p>
+    ${ex}`);
 }
 $('btn-boat').addEventListener('click', () => openBoat());
 $('sheet').addEventListener('click', (ev) => {
+  const ex = ev.target.closest('[data-ex]');
+  if (ex && !ex.disabled) {
+    const res = exchange(world, ex.dataset.ex, Number(ex.dataset.amt));
+    toast(res.message);
+    if (res.ok) {
+      updateHud();
+      save();
+      openBoat();
+    }
+    return;
+  }
   const go = ev.target.closest('[data-go]');
   if (!go || go.disabled) return;
   $('sheet').hidden = true;
@@ -1237,6 +1267,7 @@ function renderDebug() {
     <button data-dbg="expand">島を広げられるようにする（山の島の橋も）</button>
     <button data-dbg="wave1">会社・水族館・プールをひらく</button>
     <button data-dbg="family">結婚と出産を早める（留守2回で子ども）</button>
+    <button data-dbg="grown">本島の大人5人を「育った大人」にする（移住を試す）</button>
     <button data-dbg="dock">船着き場をつくれるようにする（育った大人の条件なし・Coin +30,000）</button>
     ${Object.entries(ISLE_NAMES).filter(([id]) => id !== (state.isle || 'main')).map(([id, name]) => `<button data-dbg="isle" data-isle="${id}">${world.islands[id] ? `${name}へ` : `${name}をつくって行く`}</button>`).join('')}
     <button data-dbg="reset">最初からやり直す</button>
@@ -1355,6 +1386,10 @@ if (DEBUG) {
       unlockNow(state, 'super');
       unlockNow(state, 'planetarium');
       renderQuest();
+    }
+    if (k === 'grown') {
+      // 本島の大人を5人 「本島で育った独り身の大人」にする（移住を試す用）
+      for (const r of world.islands.main.residents.filter((x) => !x.age && !x.spouseId).slice(0, 5)) r.parents ||= ['?', '?'];
     }
     if (k === 'dock') {
       CONFIG.abroad.grownAdults = 0;

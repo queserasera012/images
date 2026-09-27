@@ -1641,7 +1641,9 @@ function rolloverDay(state, events) {
   const served = Object.values(today.byType).reduce((n, x) => n + x.served, 0) || today.served;
   const customers = served + today.lost.length;
   const satisfaction = customers === 0 ? 1 : served / customers;
-  if (vacancy(state) <= 0) {
+  if (isAbroad(state)) {
+    // 海の向こうの島には 本島から移り住む人だけが来る（moveAbroad・D340）
+  } else if (vacancy(state) <= 0) {
     lines.push({ kind: 'problem', text: '島に住みたい人がいたようですが、空いている家がありませんでした' });
   } else if (satisfaction < CONFIG.growth.minSatisfaction) {
     lines.push({ kind: 'problem', text: '島を見に来た人がいましたが、住むのはやめたようです' });
@@ -2830,6 +2832,15 @@ function waitingForKid(state, r) {
 // 旅立った人を島から外す（D349）。席・列・会社・夫婦・お願い・ペットの飼い主を片付ける
 function passAway(state, r) {
   const lines = [{ kind: 'info', text: `${r.name}は、長い人生を終えて、静かに旅立ちました` }];
+  const family = state.residents.filter((x) => x !== r && x.homeId === r.homeId && x.state !== 'PENDING');
+  for (const l of leaveIsland(state, r)) lines.push(l);
+  if (family.length) lines.push({ kind: 'info', text: `${family.length === 1 ? family[0].name : `${r.name}の家族`}は、しばらく さみしそうです` });
+  return lines;
+}
+
+// 島から いなくなる（旅立つ・ほかの島へ引っ越す）：席・列・仕事・ペット・お願いから外す
+function leaveIsland(state, r) {
+  const lines = [];
   for (const b of state.buildings) {
     if (b.seats) b.seats = b.seats.map((x) => (x === r.id ? null : x));
     if (b.queue) b.queue = b.queue.filter((x) => x !== r.id);
@@ -2861,7 +2872,6 @@ function passAway(state, r) {
   for (const k of Object.keys(state.affinity || {})) if (k.split('|').includes(r.id)) delete state.affinity[k];
   state.residents.splice(state.residents.indexOf(r), 1);
   if (r.job) assignJobs(state);
-  if (family.length) lines.push({ kind: 'info', text: `${family.length === 1 ? family[0].name : `${r.name}の家族`}は、しばらく さみしそうです` });
   return lines;
 }
 
@@ -3488,25 +3498,108 @@ export function visitIsland(world, id) {
   return state;
 }
 
+// ---------------------------------------------------------------- 両替（D336・D340・D366）
+// 本島の Coin → 向こうの島のお金。10 → 1。1日の上限（本島の Coin で 5,000）は 2つの島で分け合う
+export function exchangeLeft(world) {
+  const X = CONFIG.abroad.exchange;
+  const e = world.exchange;
+  return Math.max(0, X.perDay - (e && e.day === dayOf(world.islands.main.t) ? e.used : 0));
+}
+export function exchange(world, id, coin) {
+  const main = world.islands.main;
+  const to = world.islands[id];
+  const X = CONFIG.abroad.exchange;
+  if (!to || !isAbroad(to)) return { ok: false, message: 'いまは できません' };
+  const left = exchangeLeft(world);
+  if (left <= 0) return { ok: false, message: '今日の両替は ここまでです' };
+  const paid = Math.floor(Math.min(coin, left, main.coin) / X.rate) * X.rate;
+  if (paid <= 0) return { ok: false, message: '本島の Coin が足りません' };
+  const got = paid / X.rate;
+  main.coin -= paid;
+  to.coin += got;
+  const day = dayOf(main.t);
+  world.exchange = { day, used: (world.exchange?.day === day ? world.exchange.used : 0) + paid };
+  return { ok: true, paid, got, message: `${paid.toLocaleString()} Coin を ${got.toLocaleString()} ${MONEY_NAME[id]} に両替しました` };
+}
+
+// ---------------------------------------------------------------- 移住（D340・D365）
+// 毎朝、本島で育った 独り身の大人が、空き家のある 向こうの島へ（島ごとに 1日2人まで）。
+// 年上の人から。ペットを飼っている人は 行かない（ペットを置いていかないように）。
+// 本島の家が空く → 本島には また人が引っ越してくる。移住できる人は 本島で子どもが育たないと増えない（D365）
+const canMove = (state, r) =>
+  r.parents && !r.age && !r.elder && !r.spouseId && !r.tourist && r.state !== 'PENDING' && !(state.pets || []).some((p) => p.ownerId === r.id);
+function moveAbroad(world) {
+  const main = world.islands.main;
+  const day = dayOf(main.t);
+  const to = Object.keys(world.islands).filter((id) => id !== 'main');
+  const moved = [];
+  for (let k = 0; k < CONFIG.abroad.movePerDay; k++) {
+    for (const id of to) {
+      const isle = world.islands[id];
+      syncMap(isle);
+      const home = freeHouse(isle);
+      if (!home) continue;
+      const r = main.residents.filter((x) => canMove(main, x)).sort((a, b) => a.bornOn - b.bornOn)[0];
+      if (!r) break;
+      syncMap(main);
+      leaveIsland(main, r);
+      syncMap(isle);
+      const base = { name: r.name, named: r.named, generic: r.generic, bornOn: r.bornOn, prefs: r.prefs, coffee: r.coffee };
+      const n = makeResident(isle, base, home, true);
+      Object.assign(n, { look: r.look, life: r.life, from: 'main', nightOwl: r.nightOwl });
+      n.arriveAt = Math.floor(isle.t / DAY) * DAY + clockToInDay(8 * 60) + between(isle, 0, 120);
+      planDay(isle, n);
+      moved.push({ id, name: r.name });
+    }
+  }
+  if (!moved.length) return moved;
+  syncMap(main);
+  assignJobs(main);
+  const note = (state, text) => {
+    const last = state.diary[state.diary.length - 1];
+    if (last && last.day === day - 1) last.lines.push({ kind: 'good', text });
+  };
+  for (const id of to) {
+    const names = moved.filter((m) => m.id === id).map((m) => m.name);
+    if (!names.length) continue;
+    note(main, `${names.join('と')}は、${ISLE_NAMES[id]}へ 引っ越していきました`);
+    note(world.islands[id], `今日、${names.join('と')}が 本島から やってくるそうです`);
+    syncMap(world.islands[id]);
+    assignJobs(world.islands[id]);
+  }
+  return moved;
+}
+
 // 見ていない島を先に、見ている島を最後に進める（最後に進めた島の地図が 画面とタップに使われる）
 const inOrder = (world) => [...Object.keys(world.islands).filter((id) => id !== world.current), world.current];
 
 // dt（ゲーム内の分）だけ 全部の島を進める。返すのは 見ている島の出来事
 export function stepWorld(world, dt) {
+  const before = dayOf(world.islands.main.t);
   let events = [];
   for (const id of inOrder(world)) {
     const ev = step(world.islands[id], dt);
     if (id === world.current) events = ev;
   }
+  afterSteps(world, before);
   return events;
+}
+// 本島の日付が変わったら（朝の日記のあと）移住。最後に 見ている島の地図に戻す
+function afterSteps(world, before) {
+  if (Object.keys(world.islands).length < 2) return;
+  const days = dayOf(world.islands.main.t) - before;
+  for (let d = 0; d < Math.min(days, 1); d++) moveAbroad(world);
+  syncMap(islandNow(world));
 }
 
 // 留守のあいだ：どの島も 次の朝7時まで進める（D281）
 export function catchUpWorld(world, gameMinutes) {
+  const before = dayOf(world.islands.main.t);
   let events = [];
   for (const id of inOrder(world)) {
     const ev = catchUp(world.islands[id], gameMinutes);
     if (id === world.current) events = ev;
   }
+  afterSteps(world, before);
   return events;
 }
