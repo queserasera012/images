@@ -2130,7 +2130,7 @@ export function actionsFor(state) {
   const full = cafes(state).length >= cafeMax(state);
   const moreLand = areasForMax(state) < areasForMaxAll();
   list.push({
-    id: 'cafe', icon: 'cafe_new', place: 'cafe', title: 'カフェをもう1軒つくる',
+    id: 'cafe', icon: 'cafe_new', place: 'cafe', title: cafes(state).length ? 'カフェをもう1軒つくる' : 'カフェをつくる', // 向こうの島は1軒も無いところから（D377）
     detail: full
       ? `カフェは いまの島に ${cafeMax(state)}軒まで${moreLand ? '（島を広げると1軒ずつ増える）' : ''}`
       : `席 3。維持費 1日 ${CONFIG.cafe.levels[0].upkeep} Coin。場所を選べる`,
@@ -3827,7 +3827,10 @@ export function moverReport(world) {
   const units = moveUnits(m);
   const rooms = {};
   for (const id of Object.keys(world.islands)) if (id !== 'main') rooms[id] = houses(world.islands[id]).reduce((n, h) => n + Math.max(0, openRoom(world.islands[id], h)), 0);
+  const kids = m.residents.filter((r) => r.age);
   return {
+    kids: kids.length,
+    kidsByAge: ['baby', 'kid', 'pupil', 'student'].map((a) => kids.filter((r) => r.age === a).length),
     grown: grown.length,
     ready: units.reduce((n, u) => n + u.length, 0),
     couples: units.filter((u) => u.length === 2).length,

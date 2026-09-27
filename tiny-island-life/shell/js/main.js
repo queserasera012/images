@@ -1305,7 +1305,7 @@ function renderDebug() {
     <button data-dbg="reset">最初からやり直す</button>
     <pre>${(() => {
       const m = moverReport(world);
-      return `移住（本島で育った大人 ${m.grown}人）\n  移れる ${m.ready}人（うち夫婦 ${m.couples}組）\n  結婚 ${m.married}・お年寄り ${m.elder}・ペット ${m.pet}\n${Object.entries(m.rooms).map(([id, n]) => `  ${ISLE_NAMES[id]}の空き ${n}人ぶん`).join('\n')}`;
+      return `本島の子ども ${m.kids}人（赤ちゃん ${m.kidsByAge[0]}・幼稚園 ${m.kidsByAge[1]}・小学生 ${m.kidsByAge[2]}・学生 ${m.kidsByAge[3]}）\n移住（本島で育った大人 ${m.grown}人）\n  移れる ${m.ready}人（うち夫婦 ${m.couples}組）\n  結婚 ${m.married}・お年寄り ${m.elder}・ペット ${m.pet}\n${Object.entries(m.rooms).map(([id, n]) => `  ${ISLE_NAMES[id]}の空き ${n}人ぶん`).join('\n')}`;
     })()}</pre>
     <pre>画面をつけたまま：${{ on: 'オン', off: 'オフ', unsupported: 'この端末では使えない' }[awakeStatus()]}</pre>
     <pre>起動の記録（日付: 回数）\n${Object.entries(byDate).map(([d, n]) => `${d}: ${n}`).join('\n') || '—'}</pre>`;
