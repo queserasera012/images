@@ -4095,6 +4095,8 @@ export function createRenderer(canvas) {
       // 後ろ＝足もとが 建物のいちばん上のマスより北（横の道にいる人は隠さない）
       const hide = blocks.filter((k) => x > k.x0 - 12 && x < k.x1 + 12 && y < k.r0 * T + 2 && y > k.top - 46 && !(c >= k.c0 && c < k.c1 && r >= k.r0 && r < k.r1));
       if (!hide.length) return paint();
+      // 足もとが 建物に隠れているなら、その人ごと描かない（髪の先だけが 屋根の上に浮いて見えた）
+      if (hide.some((k) => x > k.x0 && x < k.x1 && y > k.top)) return;
       ctx.save();
       ctx.beginPath();
       ctx.rect(-1e4, -1e4, 2e4, 2e4);
