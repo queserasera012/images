@@ -893,8 +893,8 @@ function exchangeHtml(inBoat) {
       const btn = (amt, label) => `<button class="ex-btn" type="button" data-ex="${id}" data-amt="${amt}" ${amt < X.rate ? 'disabled' : ''}>${label}</button>`;
       const buttons = all < X.rate
         ? `<span class="need">${left < X.rate ? `両替は ${backAt(world.islands.main)}` : '本島のコインが足りません'}</span>`
-        : `${btn(one, `${ICONS.coin}${one.toLocaleString()} → ${Math.floor(one / X.rate).toLocaleString()}`)}${btn(all, 'のこり全部')}`;
-      return `<div class="ex-row"><span class="ex-name">${moneyIcon(id)}${MONEY_NAME[id]}<small>${world.islands[id].coin.toLocaleString()}</small></span>${buttons}</div>`;
+        : `${btn(one, `${ICONS.coin}${one.toLocaleString()} → ${moneyIcon(id)}${Math.floor(one / X.rate).toLocaleString()}`)}${btn(all, 'のこり全部')}`;
+      return `<div class="ex-row"><span class="ex-name">${moneyIcon(id)}<span class="ex-who">${MONEY_NAME[id]}<small>${world.islands[id].coin.toLocaleString()}</small></span></span>${buttons}</div>`;
     })
     .join('');
   return `${inBoat ? '<h3 class="ex-title">両替</h3>' : ''}

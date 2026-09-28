@@ -798,6 +798,11 @@ h3 .dot { width: 14px; height: 14px; }
 /* 右上のお金を押すと 両替（向こうの島があるとき・D378） */
 #hud-coin { cursor: pointer; pointer-events: auto; }
 .ex-name small { margin-left: 4px; color: var(--muted); font-size: 12px; font-weight: 700; }
+/* 名前の下に その島のお金（せまい画面で 名前が2行に折れていた・D401） */
+.ex-who { display: flex; flex-direction: column; line-height: 1.25; white-space: nowrap; }
+.ex-who small { margin-left: 0; }
+.ex-btn { white-space: nowrap; padding: 8px 9px; gap: 2px; }
+.ex-row { flex-wrap: wrap; row-gap: 8px; column-gap: 6px; } /* とてもせまい画面（320px）では ボタンが次の行へ */
 
 /* マルシェの定期便（D387） */
 .order-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
