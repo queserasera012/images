@@ -2374,7 +2374,7 @@ export function actionsFor(state) {
       if (p.breeder) continue;
       list.push({
         id: `petshop_breeder:${p.id}`,
-        icon: 'petshop_new',
+        icon: 'petshop_up',
         title: `${labelOf(state, p)}を ペットショップ&ブリーダーにする`,
         detail: `${B.every}日ごとに 子犬・子猫・子うさぎが1頭 入る（店に${B.shelf}頭まで）。ペットのいない家の人が 買いに来る。名前は あなたがつける。維持費 1日 +${B.upkeep} コイン`,
         cost: B.cost,
@@ -2398,7 +2398,7 @@ export function actionsFor(state) {
     const unit = ['kinder', 'school', 'college'].includes(c.type) ? '通える子' : c.type === 'company' ? '勤める人' : c.type === 'super' ? '一度に入れる人' : '席';
     list.push({
       id: `${c.type === 'cafe' ? 'cafe' : 'venue'}_upgrade:${c.id}`,
-      icon: 'cafe_upgrade',
+      icon: `${c.type}_up`, // その建物の絵に「＋」（カップの絵だと、どれを広げるのか分からなかった）
       title: `${labelOf(state, c)}を広げる（Lv${next.level}）`,
       detail: `${unit} ${seatCount(c)} → ${next.seats}　維持費 1日 ${next.upkeep} コイン`,
       cost: next.cost,
@@ -2423,7 +2423,7 @@ export function actionsFor(state) {
     if (!next) continue;
     list.push({
       id: `shop_upgrade:${b.id}`,
-      icon: 'shop_new',
+      icon: 'shop_up',
       title: `${shopLabel(state, b)}の品数を増やす（Lv${next.level}）`,
       detail: `1日 ${CONFIG.shop.levels[b.level - 1].stock} → ${next.stock}個　維持費 1日 ${next.upkeep} コイン`,
       cost: next.cost,
