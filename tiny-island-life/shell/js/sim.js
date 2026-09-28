@@ -187,13 +187,23 @@ export const everyone = (state) => (state.visitors?.length ? state.residents.con
 export const personById = (state, id) => state.residents.find((r) => r.id === id) || state.visitors?.find((r) => r.id === id);
 
 // 席と列のある施設（カフェ・スーパー・プラネタリウム）。同じ仕組みで動く（D295）
-export const VENUE_TYPES = ['cafe', 'super', 'planetarium', 'petshop', 'pond', 'stand', 'ski', 'aquarium', 'pool', 'track', 'arcade', 'hospital', 'beach', 'onsen', 'volley', 'surf', 'curling', 'hockey'];
+export const VENUE_TYPES = ['cafe', 'super', 'planetarium', 'petshop', 'pond', 'stand', 'ski', 'aquarium', 'pool', 'track', 'arcade', 'hospital', 'beach', 'onsen', 'marche', 'beachfest', 'snowfest', 'volley', 'surf', 'curling', 'hockey'];
 // 海の向こうの島だけの施設（D371・D373）。運動は あなたも遊べる
 export const SPORTS = ['volley', 'surf', 'curling', 'hockey'];
-export const ABROAD_VENUES = ['beach', 'onsen', ...SPORTS];
+export const FESTS = ['beachfest', 'snowfest'];
+export const ABROAD_VENUES = ['beach', 'onsen', 'marche', 'volley', 'curling', ...FESTS, 'surf', 'hockey'];
+// フェスの日（D387）：その島に舞台があって、7日ごとの その日
+export const isFestDay = (state, type, day = dayOf(state.t)) => ofType(state, type).length > 0 && day % CONFIG[type].every === CONFIG[type].on % CONFIG[type].every;
+export const nextFestDay = (state, type) => {
+  const F = CONFIG[type];
+  const d = dayOf(state.t);
+  return d + ((F.on - (d % F.every) + F.every) % F.every);
+};
+// その施設が この島に建つか（isle は1つの島、または島の一覧・D387）
+export const isleHas = (type, isle) => [].concat(CONFIG[type].isle).includes(isle);
 export const VENUE_NAME = {
   cafe: 'カフェ', super: 'スーパー', planetarium: 'プラネタリウム', petshop: 'ペットショップ', pond: '釣り堀', stand: 'コーヒースタンド', ski: 'スキー場',
-  aquarium: '水族館', pool: 'プール', track: 'ドッグレース場', arcade: 'ゲームセンター', hospital: '病院', beach: '海水浴場', onsen: '温泉',
+  aquarium: '水族館', pool: 'プール', track: 'ドッグレース場', arcade: 'ゲームセンター', hospital: '病院', beach: '海水浴場', onsen: '温泉', marche: 'マルシェ', beachfest: 'ビーチフェスの舞台', snowfest: 'オーロラの夜の舞台',
   volley: 'ビーチバレー場', surf: 'サーフィンの浜', curling: 'カーリング場', hockey: 'アイスホッケー場',
 };
 // 季節の施設（D318・D319）：その季節だけ開き、維持費もその季節だけ
@@ -215,6 +225,7 @@ function makeBuilding(state, type, c, r) {
   if (type === 'park') b.roof = false;
   if (type === 'house') b.level = 1;
   if (type === 'shop') Object.assign(b, { level: 1, stock: CONFIG.shop.levels[0].stock });
+  if (type === 'marche') Object.assign(b, { stock: 0, order: CONFIG.marche.ship.first }); // 品物は 次の朝の船で とどく（D387）
   return b;
 }
 
@@ -234,6 +245,8 @@ export function seatPositions(cafe) {
   if (cafe.type === 'beach') return beachSeats(cafe);
   if (cafe.type === 'onsen') return onsenSeats(cafe);
   if (cafe.type === 'surf') return beachSeats(cafe);
+  if (cafe.type === 'marche') return marcheSeats(cafe);
+  if (FESTS.includes(cafe.type)) return festSeats(cafe);
   if (SPORTS.includes(cafe.type)) return sportSeats(cafe);
   if (cafe.type === 'track') return trackSeats(cafe);
   const x0 = cafe.c * T;
@@ -318,6 +331,75 @@ function sportSeats(b) {
   const watch = [];
   for (let k = 0; k < n; k++) watch.push({ x: x0 + 8 + ((w - 16) * (k + 0.5)) / n, y: y + (k % 2) * 3 });
   return [...sportPlayers(b), ...watch];
+}
+
+// マルシェ（D387）：屋台の前に立って 品物を選ぶ（2列）
+function marcheSeats(b) {
+  const x0 = b.c * T;
+  const w = SIZES.marche.w * T;
+  const y = (b.r + 2) * T - 6;
+  const pos = [];
+  for (let k = 0; k < 10; k++) pos.push({ x: x0 + 10 + ((w - 20) * ((k % 5) + 0.5 + (k >= 5 ? 0.4 : 0))) / 5.4, y: y - (k >= 5 ? 9 : 0) });
+  return pos;
+}
+// フェス（D387）：舞台の前に 3列で立って 見る
+function festSeats(b) {
+  const x0 = b.c * T;
+  const w = SIZES[b.type].w * T;
+  const pos = [];
+  for (let row = 0; row < 3; row++) for (let k = 0; k < 10; k++) pos.push({ x: x0 + 8 + ((w - 16) * (k + 0.5 + (row % 2) * 0.4)) / 10.4, y: (b.r + 2) * T - 4 - row * 9 });
+  // 前の列の まんなかから
+  return pos.map((p, i) => ({ p, d: Math.floor(i / 10) * 10 + Math.abs((i % 10) - 4.5) })).sort((a, c) => a.d - c.d).map((x) => x.p);
+}
+// フェスの日に 本島から船を出す（D387）：本島のコインで。本島の人が 観光客として 大勢来る
+export function canFestBoat(world, id) {
+  const s = world.islands[id];
+  if (!s?.port?.open) return { ok: false, why: '港が要ります' };
+  const type = FESTS.find((t) => isleHas(t, s.isle));
+  if (!type || !isFestDay(s, type)) return { ok: false, why: 'フェスの日に 出せます' };
+  if (s.today.festBoat) return { ok: false, why: 'もう 船を出しました' };
+  if (clockOf(s.t) >= CONFIG[type].open - 60) return { ok: false, why: 'フェスの1時間前までに 出せます' };
+  return { ok: true, type };
+}
+export function sendFestBoat(world, id) {
+  const s = world.islands[id];
+  const main = world.islands.main;
+  const can = canFestBoat(world, id);
+  if (!can.ok) return { ok: false, message: can.why };
+  const B = CONFIG.abroad.festBoat;
+  if (main.coin < B.cost) return { ok: false, message: `本島のコインが足りません（あと ${(B.cost - main.coin).toLocaleString()}）` };
+  main.coin -= B.cost;
+  main.history.push({ t: main.t, action: `festBoat:${id}`, place: null });
+  const F = CONFIG[can.type];
+  const base = Math.floor(s.t / DAY) * DAY;
+  const arrive = base + clockToInDay(F.open - 40);
+  s.port.today.push({ arrive, depart: base + clockToInDay(F.close + 15), spawned: false, left: false, extra: true, fest: true, people: B.people });
+  s.today.festBoat = true;
+  (main.today.festBoats ||= []).push(id);
+  return { ok: true, message: `${ISLE_NAMES[id]}の フェスへ 本島から船を出します（−${B.cost.toLocaleString()} コイン）` };
+}
+// フェス（D387）：その日の 開いている時間。大人と学生と観光客
+function festChoices(state, r) {
+  if (isChild(r)) return [];
+  const out = [];
+  for (const type of FESTS) {
+    if (r.did?.[type] || !isFestDay(state, type) || !venueOpen(state, type, 30)) continue;
+    const P = CONFIG[type];
+    for (const b of ofType(state, type)) out.push({ cafe: b, w: P.pull * (r.tourist ? P.touristPull : 1) * P.weather[state.weather] * near(r, b.access) });
+  }
+  return out;
+}
+
+// マルシェの品物（D387）：棚に置ける数・並んでいる物
+export const marcheCap = (b) => CONFIG.marche.levels[b.level - 1].stock;
+export const marcheGoods = (state) => CONFIG.marche.goods[state.isle] || CONFIG.marche.goods.shell;
+// 定期便の個数を選ぶ（0〜棚に置ける数・きざみ）。お金は 次の朝に 本島のコインで払う
+export function setMarcheOrder(state, id, n) {
+  const b = buildingById(state, id);
+  if (!b || b.type !== 'marche') return { ok: false, message: 'いまは できません' };
+  const S = CONFIG.marche.ship;
+  b.order = Math.max(0, Math.min(marcheCap(b), Math.round(n / S.step) * S.step));
+  return { ok: true, order: b.order, message: b.order ? `毎朝 ${b.order}個 送ります（本島のコイン ${(b.order * S.cost).toLocaleString()}）` : '品物を送るのを やめました' };
 }
 
 // 温泉（D371）：まるい湯船のふちに沿って つかる
@@ -835,6 +917,7 @@ export const closeOf = (b) => (b.type === 'cafe' && b.bar ? CONFIG.cafe.bar.clos
 function buildingOpen(state, b, margin = 0) {
   if (!inSeason(state, b.type)) return false;
   if (b.type === 'track' && !isRaceDay(state)) return false;
+  if (FESTS.includes(b.type) && !isFestDay(state, b.type)) return false; // フェスは その日だけ（D387）
   const c = clockOf(state.t);
   return c >= CONFIG[b.type].open && c < closeOf(b) - margin;
 }
@@ -1044,6 +1127,13 @@ function onsenChoices(state, r) {
   if (isChild(r) || r.bathed || !venueOpen(state, 'onsen', 30)) return [];
   const P = CONFIG.onsen;
   return ofType(state, 'onsen').map((b) => ({ cafe: b, w: P.pull * P.weather[state.weather] * (r.elder ? P.elderPull : 1) * near(r, b.access) }));
+}
+
+// マルシェ（D387）：朝市。大人と学生と観光客。1日1回。売り切れていても来る（来て 買えずに帰る＝日記に出る）
+function marcheChoices(state, r) {
+  if (isChild(r) || r.did?.marche || !ofType(state, 'marche').length || !venueOpen(state, 'marche', 20)) return [];
+  const P = CONFIG.marche;
+  return ofType(state, 'marche').map((b) => ({ cafe: b, w: P.pull * (r.tourist ? P.touristPull : 1) * P.weather[state.weather] * near(r, b.access) }));
 }
 
 // 運動（D373）：大人と学生。それぞれ1日1回
@@ -1269,6 +1359,8 @@ function decideNext(state, r, { noCafe = false, avoid = null } = {}) {
     ...(avoid === 'beach' ? [] : beachChoices(state, r)),
     ...(avoid === 'onsen' ? [] : onsenChoices(state, r)),
     ...sportChoices(state, r).filter((x) => x.cafe.type !== avoid),
+    ...(avoid === 'marche' ? [] : marcheChoices(state, r)),
+    ...festChoices(state, r).filter((x) => x.cafe.type !== avoid),
     ...(avoid === 'track' ? [] : trackChoices(state, r)),
     ...(avoid === 'arcade' ? [] : arcadeChoices(state, r)),
     ...(avoid === 'hospital' ? [] : hospitalChoices(state, r)),
@@ -1503,6 +1595,17 @@ export function seatCount(b) {
 // カフェはテラスに座る姿が見える。スーパーとプラネタリウムは中に入る（見えない）
 function sit(state, r, b, seatIdx) {
   const V = CONFIG[b.type];
+  // マルシェ：品物が無ければ 買えずに帰る（D387）
+  if (b.type === 'marche') {
+    (r.did ||= {}).marche = true;
+    if (b.stock <= 0) {
+      state.today.soldOut = (state.today.soldOut || 0) + 1;
+      r.bubble = 'closed';
+      r.bubbleUntil = state.t + 20;
+      return afterActivity(state, r, 0.7, { avoid: 'marche' });
+    }
+    b.stock -= 1;
+  }
   b.seats[seatIdx] = r.id;
   r.state = 'SEATED';
   r.seat = seatIdx;
@@ -1510,7 +1613,7 @@ function sit(state, r, b, seatIdx) {
   if (b.type === 'ski') r.skied = true;
   if (b.type === 'pool' || b.type === 'beach') r.swam = true;
   if (b.type === 'onsen') r.bathed = true;
-  if (SPORTS.includes(b.type)) (r.did ||= {})[b.type] = true;
+  if (SPORTS.includes(b.type) || FESTS.includes(b.type)) (r.did ||= {})[b.type] = true;
   if (b.type === 'track') r.watchedRace = true;
   if (b.type === 'arcade') r.played = true;
   if (b.type === 'aquarium') r.visitedAqua = true;
@@ -1519,7 +1622,7 @@ function sit(state, r, b, seatIdx) {
     const f = standFront(b);
     r.tx = f.x;
     r.ty = f.y;
-  } else if (b.type === 'cafe' || b.type === 'pond' || b.type === 'pool' || b.type === 'track' || b.type === 'beach' || b.type === 'onsen' || SPORTS.includes(b.type)) {
+  } else if (b.type === 'cafe' || b.type === 'pond' || b.type === 'pool' || b.type === 'track' || b.type === 'beach' || b.type === 'onsen' || b.type === 'marche' || SPORTS.includes(b.type) || FESTS.includes(b.type)) {
     const s = seatPositions(b)[seatIdx];
     r.tx = s.x;
     r.ty = s.y;
@@ -1850,6 +1953,11 @@ function rolloverDay(state, events) {
     (today.work?.income || 0);
   // 海の向こうの島の お金は Shell／オーロラ（D371）
   if (isAbroad(state)) for (const l of lines) l.text = l.text.replaceAll('コイン', moneyOf(state));
+  // フェスの日の朝（D387）
+  for (const type of FESTS) if (isFestDay(state, type, endedDay + 1)) lines.push({ kind: 'info', text: `今日は ${type === 'beachfest' ? 'ビーチフェス' : 'オーロラの夜のフェス'}（${fmtClock(CONFIG[type].open)}から）` });
+  if (today.festBoat) lines.push({ kind: 'good', text: '本島からの船で、フェスに 大勢 遊びに来ました' });
+  // マルシェが売り切れて 買えなかった人（D387）
+  if (today.soldOut) lines.push({ kind: 'problem', text: `マルシェの品物が 売り切れて、${today.soldOut}人 が 買えずに帰りました` });
   // 建てられるようになったもの（船着き場・向こうの島の施設・D374）
   for (const id of ['dock', ...ABROAD_VENUES]) if (state.unlockedOn?.[id] === endedDay) lines.push({ kind: 'good', text: UNLOCK_TEXT[id] });
   const entry = { day: endedDay, weather: state.weather, lines, read: false, earned, tourists: today.tourists || 0 };
@@ -1958,7 +2066,7 @@ function checkIsleUnlocks(state, events) {
     }
     return;
   }
-  for (const t of ABROAD_VENUES) if (CONFIG[t].isle === state.isle && !state.unlocked[t] && countedPop(state) >= CONFIG[t].pop) open(t);
+  for (const t of ABROAD_VENUES) if (isleHas(t, state.isle) && !state.unlocked[t] && countedPop(state) >= CONFIG[t].pop) open(t);
 }
 
 // 次の目標（まだひらいていない中で いちばん手前）
@@ -1966,7 +2074,7 @@ export function nextGoal(state) {
   if (isAbroad(state)) {
     // 向こうの島（D374）：まず片付け → その島だけの施設（住民の人数）
     if (state.debris && state.debris.every(Boolean)) return { id: 'clear', goal: '島を片付ける', body: '「つくる」の「島」から 区画を片付けると、家を建てられる土地になります（本島のコインで払う）' };
-    const t = ABROAD_VENUES.find((x) => CONFIG[x].isle === state.isle && !state.unlocked?.[x]);
+    const t = ABROAD_VENUES.find((x) => isleHas(x, state.isle) && !state.unlocked?.[x]);
     if (!t) return null;
     return { id: t, goal: `${VENUE_NAME[t]}をひらく`, now: countedPop(state), need: CONFIG[t].pop, unit: '人', what: 'この島の住民', note: `${VENUE_NAME[t]}を建てられるようになります` };
   }
@@ -1994,7 +2102,8 @@ function spawnTourists(state, port, boatIdx, boat) {
   const boatsLeft = Math.max(1, (port.today || []).filter((b) => !b.spawned).length + 1);
   const hop = Math.min(state.hopToday || 0, Math.ceil((state.hopToday || 0) / boatsLeft));
   state.hopToday = (state.hopToday || 0) - hop;
-  const n = Math.round(between(state, lo, hi)) + hop;
+  // フェスの船（D387）：本島の人が 大勢（本島からの島めぐりと同じ 手さげ袋）
+  const n = boat?.fest ? boat.people : Math.round(between(state, lo, hi)) + hop;
   const at = pierOf(port);
   const pier = center(at);
   const dir = areaById(port.id).pier.dir;
@@ -2003,7 +2112,7 @@ function spawnTourists(state, port, boatIdx, boat) {
       id: `v${state.nextId++}`,
       name: '観光客',
       tourist: true,
-      hop: k >= n - hop ? state.hopFrom || 'main' : undefined, // 島めぐりの人（どの島から来たか）
+      hop: boat?.fest ? 'main' : k >= n - hop ? state.hopFrom || 'main' : undefined, // 島めぐりの人（どの島から来たか）
       boat: boatKey(port, boatIdx),
       pier: at,
       look: Math.floor(rand(state) * 1000),
@@ -2403,6 +2512,9 @@ export function actionsFor(state) {
   } else {
     // その島だけの施設（D365・D371）：海水浴場（シェル）・温泉（オーロラ）。その島の住民が pop人 になると
     const WHAT = {
+      beachfest: (V) => `7日ごと（Day ${V.on}・${V.on + V.every}…）の 夕方（${fmtClock(V.open)}〜${fmtClock(V.close)}）。砂浜の舞台で音楽、最後に花火。本島から船を出すこともできる。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep}`,
+      snowfest: (V) => `7日ごと（Day ${V.every}・${V.every * 2}…）の 夜（${fmtClock(V.open)}〜${fmtClock(V.close)}）。雪の舞台とキャンドル。晴れていれば オーロラの下。本島から船を出すこともできる。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep}`,
+      marche: (V) => `朝市（${fmtClock(V.open)}〜${fmtClock(V.close)}）。本島の品物を 本島のコインで仕入れて 毎朝 船で送る（1個 ${V.ship.cost} コイン）。1個 ${V.customerValue} ${moneyOf(state)}で売れる。住民と観光客が買いに来る。維持費 1日 ${V.levels[0].upkeep}`,
       volley: (V) => `コートで 2対2。まわりで見る人も。${fmtClock(V.open)}〜${fmtClock(V.close)}・晴れた日に多い。あなたも遊べる（ラリー）。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep}`,
       surf: (V) => `砂浜にかかる場所にだけ建てられる。${fmtClock(V.open)}〜${fmtClock(V.close)}。あなたも遊べる（波に乗る）。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep}`,
       curling: (V) => `屋根つきの氷。雪の日も来る。${fmtClock(V.open)}〜${fmtClock(V.close)}。あなたも遊べる（カーリング）。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep}`,
@@ -2410,7 +2522,7 @@ export function actionsFor(state) {
     };
     for (const type of ABROAD_VENUES) {
       const V = CONFIG[type];
-      if (V.isle !== state.isle) continue;
+      if (!isleHas(type, state.isle)) continue;
       const pop = countedPop(state);
       const ready = !!state.unlocked?.[type] || pop >= V.pop; // 一度ひらいたら ずっと（D374）
       const full = ofType(state, type).length >= V.max;
@@ -2425,6 +2537,7 @@ export function actionsFor(state) {
         detail: full ? `${VENUE_NAME[type]}は この島に ${V.max}つまで` : !ready ? `この島の住民が ${V.pop}人 になると建てられます（いま ${pop}人）` : what,
         cost: V.buildCost,
         locked: full || !ready,
+        keepCoin: type === 'marche', // 「本島のコイン」は そのまま（D387）
       });
     }
   }
@@ -2472,7 +2585,7 @@ export function actionsFor(state) {
     ps.detail = ps.locked ? `この島の住民が ${need}人 になると建てられます（いま ${pop}人）` : `ペットのいる家の人が通う。本島で ペットを飼っている人も、ペットと一緒に 引っ越してこられる。一度に ${CONFIG.petshop.levels[0].seats}人。維持費 1日 ${CONFIG.petshop.levels[0].upkeep} コイン`;
   }
   // お金は Shell／オーロラ（片付けは本島のコインのまま・D371）
-  for (const a of here) if (a.payWith !== 'main' && a.detail) a.detail = a.detail.replaceAll('コイン', moneyOf(state));
+  for (const a of here) if (a.payWith !== 'main' && !a.keepCoin && a.detail) a.detail = a.detail.replaceAll('コイン', moneyOf(state));
   return here;
 }
 
@@ -2745,6 +2858,8 @@ export function describeResident(state, r) {
       if (b.type === 'pool') return 'プールで泳いでいる';
       if (b.type === 'beach') return '海で泳いでいる';
       if (b.type === 'onsen') return '温泉につかっている';
+      if (b.type === 'marche') return 'マルシェで 買い物をしている';
+      if (FESTS.includes(b.type)) return 'フェスで 音楽を聴いている';
       if (SPORTS.includes(b.type)) {
         const playing = b.seats.indexOf(r.id) < sportPlayers(b).length;
         return playing ? { volley: 'ビーチバレーをしている', surf: '波に乗っている', curling: 'カーリングをしている', hockey: 'アイスホッケーをしている' }[b.type] : `${VENUE_NAME[b.type]}で 見ている`;
@@ -3928,6 +4043,37 @@ function moveAbroad(world) {
   return moved;
 }
 
+// マルシェの定期便（D387）：毎朝、選んだ個数を 本島のコインで仕入れて 船で送る。
+// 棚に空きがある分だけ・本島のコインが足りる分だけ。両方の日記に書く
+export function shipMarche(world) {
+  const main = world.islands.main;
+  const day = dayOf(main.t);
+  const S = CONFIG.marche.ship;
+  const note = (state, text, kind = 'good') => {
+    const last = state.diary.at(-1);
+    if (last && last.day === day - 1) last.lines.push({ kind, text });
+  };
+  for (const id of Object.keys(world.islands)) {
+    if (id === 'main') continue;
+    const isle = world.islands[id];
+    for (const b of ofType(isle, 'marche')) {
+      const want = Math.min(b.order || 0, marcheCap(b) - b.stock);
+      if (want <= 0) continue;
+      const n = Math.min(want, Math.floor(main.coin / S.cost));
+      if (n <= 0) {
+        note(isle, '本島のコインが足りなくて、マルシェの品物が とどきませんでした', 'problem');
+        continue;
+      }
+      const cost = n * S.cost;
+      main.coin -= cost;
+      b.stock += n;
+      main.today.marcheShip = (main.today.marcheShip || 0) + cost;
+      note(main, `${ISLE_NAMES[id]}のマルシェへ 品物を ${n}個 送りました（−${cost.toLocaleString()} コイン）`);
+      note(isle, `本島から マルシェの品物が ${n}個 とどきました`);
+    }
+  }
+}
+
 // ペットショップが 向こうの島の どちらかにあるか（本島の お願いが かなったかを見るため・D376）
 function markPetshop(world) {
   world.islands.main.abroadPetshop = Object.keys(world.islands).some((id) => id !== 'main' && ofType(world.islands[id], 'petshop').length > 0);
@@ -3986,6 +4132,7 @@ function afterSteps(world, before) {
     moveAbroad(world);
     planHops(world);
     askPetMove(world);
+    shipMarche(world);
   }
   markPetshop(world);
   syncMap(islandNow(world));

@@ -5,7 +5,7 @@ import {
   T, COLS, ROWS, WORLD, SIZES, HOUSE_FLOOR, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, landBounds, shapesOf, islandRadius, edgeRadius, COVERED, COVER_KEY, plotOf, idx, center, neighbors, isRoad, occupied, BRIDGES, boatRoute,
 } from './grid.js';
 import { CONFIG } from './config.js';
-import { wantsRoomHouses, boatsNow, clockOf, inSeason, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf, beachWater, sportPlayers, SPORTS } from './sim.js';
+import { wantsRoomHouses, boatsNow, clockOf, inSeason, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf, beachWater, sportPlayers, SPORTS, marcheCap, FESTS, isFestDay } from './sim.js';
 
 export const FONT = '"Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif';
 
@@ -2726,7 +2726,9 @@ export function createRenderer(canvas) {
       person(r, r.x, r.y, { bob, stride, facing, seated: false });
       ctx.restore();
     } else {
-      person(r, r.x, r.y, { bob, stride, facing, seated: r.state === 'SEATED' });
+      // マルシェ・運動では 立っている（屋台の前・コート・D387）
+      const standAt = r.state === 'SEATED' && ['marche', ...SPORTS, ...FESTS].includes(state.buildings.find((b) => b.id === r.destId)?.type);
+      person(r, r.x, r.y, { bob, stride, facing, seated: r.state === 'SEATED' && !standAt });
       if (r.state === 'SEATED' && state.buildings.find((b) => b.id === r.destId)?.type === 'pond') rod(r, time);
     }
     if (r.carry === 'groceries') {
@@ -3343,6 +3345,165 @@ export function createRenderer(canvas) {
     }
   }
 
+  // マルシェ（D387）：屋台が3つ。しましまの屋根と、木箱に品物。品物が減ると 箱が空く
+  const MARCHE_LOOK = {
+    shell: { roofs: [['#ff8a7a', '#ffffff'], ['#2ec4b6', '#ffffff'], ['#ffbf69', '#ffffff']], goods: ['#ffb627', '#f4d35e', '#ff6b81', '#86c47c'] },
+    aurora: { roofs: [['#a3413b', '#f4ecdf'], ['#2f5d62', '#f4ecdf'], ['#6b5b4b', '#f4ecdf']], goods: ['#c49a6c', '#8e2f5a', '#3d5a80', '#f2e2b3'] },
+  };
+  function marche(state, b) {
+    const look = MARCHE_LOOK[state.isle] || MARCHE_LOOK.shell;
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const full = Math.min(1, b.stock / Math.max(1, marcheCap(b)));
+    ctx.fillStyle = PALETTE.shadow;
+    ctx.fillRect(x0 + 5, y0 + 10, SIZES.marche.w * T - 6, 36);
+    for (let k = 0; k < 3; k++) {
+      const x = x0 + 3 + k * 29;
+      const [roof, stripe] = look.roofs[k];
+      // 台と 木箱
+      ctx.fillStyle = '#b98b5e';
+      ctx.fillRect(x + 2, y0 + 22, 22, 14);
+      ctx.fillStyle = '#8d6a4f';
+      ctx.fillRect(x + 2, y0 + 34, 22, 3);
+      const show = Math.round(full * 6);
+      for (let g = 0; g < 6; g++) {
+        const gx = x + 6 + (g % 3) * 7;
+        const gy = y0 + 25 + Math.floor(g / 3) * 5;
+        ctx.fillStyle = g < show ? look.goods[(g + k) % look.goods.length] : 'rgba(80,50,30,0.25)';
+        ctx.beginPath();
+        ctx.arc(gx, gy, g < show ? 2.6 : 1.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // しましまの屋根
+      for (let s = 0; s < 4; s++) {
+        ctx.fillStyle = s % 2 ? stripe : roof;
+        ctx.fillRect(x + s * 6.5, y0 + 6, 6.5, 12);
+      }
+      ctx.fillStyle = roof;
+      for (let s = 0; s < 4; s++) {
+        ctx.beginPath();
+        ctx.arc(x + 3.25 + s * 6.5, y0 + 18, 3.25, 0, Math.PI);
+        ctx.fill();
+      }
+      ctx.fillStyle = PALETTE.ink;
+      ctx.fillRect(x + 1, y0 + 18, 1.5, 18);
+      ctx.fillRect(x + 24, y0 + 18, 1.5, 18);
+    }
+  }
+
+  // フェスの舞台（D387）：シェル＝砂浜の木の舞台に 電球のひも。オーロラ＝雪の舞台に ランタン。
+  // フェスの時間は 演奏する人が舞台に立ち、灯りがともる
+  function festStage(state, b, time) {
+    const x0 = b.c * T;
+    const y0 = b.r * T;
+    const w = SIZES[b.type].w * T;
+    const snow = b.type === 'snowfest';
+    const clock = clockOf(state.t);
+    const on = isFestDay(state, b.type) && clock >= CONFIG[b.type].open - 20 && clock < CONFIG[b.type].close;
+    // 客席の地面
+    ctx.fillStyle = snow ? 'rgba(200,215,230,0.5)' : 'rgba(240,220,180,0.55)';
+    roundRect(ctx, x0 + 2, y0 + 26, w - 4, 32, 5);
+    ctx.fill();
+    // 舞台
+    ctx.fillStyle = PALETTE.shadow;
+    ctx.fillRect(x0 + 10, y0 + 6, w - 16, 22);
+    ctx.fillStyle = snow ? '#8a9aa8' : '#b98b5e';
+    ctx.fillRect(x0 + 8, y0 + 4, w - 16, 20);
+    ctx.fillStyle = snow ? '#ffffff' : '#8d6a4f';
+    ctx.fillRect(x0 + 8, y0 + 22, w - 16, 3);
+    // 屋根の柱と 横のはり
+    ctx.fillStyle = snow ? '#5d4a3a' : '#6e4f3c';
+    ctx.fillRect(x0 + 9, y0 - 12, 3, 18);
+    ctx.fillRect(x0 + w - 12, y0 - 12, 3, 18);
+    ctx.fillRect(x0 + 8, y0 - 14, w - 16, 3);
+    if (snow) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x0 + 7, y0 - 17, w - 14, 3);
+    }
+    // 灯り：電球のひも（シェル）・ランタン（オーロラ）。フェスの時間は明るく
+    for (let k = 0; k < 7; k++) {
+      const lx = x0 + 12 + ((w - 24) * k) / 6;
+      const ly = y0 - 10 + Math.sin((k / 6) * Math.PI) * 4;
+      const glow = on ? 0.75 + Math.sin(time * 4 + k) * 0.25 : 0.25;
+      ctx.fillStyle = snow ? `rgba(255, 196, 110, ${glow})` : ['#ff6b81', '#ffd166', '#62b6cb'][k % 3];
+      ctx.globalAlpha = snow ? 1 : glow;
+      ctx.beginPath();
+      if (snow) ctx.fillRect(lx - 2, ly, 4, 5);
+      else ctx.arc(lx, ly + 2, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    if (!on) return;
+    // 演奏する人（3人）：はねるように ゆれる
+    const colors = snow ? ['#3d5a80', '#a3413b', '#2f5d62'] : ['#ff6b81', '#2ec4b6', '#f2b84b'];
+    for (let k = 0; k < 3; k++) {
+      const px = x0 + 22 + k * ((w - 44) / 2);
+      const hop = Math.abs(Math.sin(time * 5 + k)) * 2;
+      ctx.fillStyle = colors[k];
+      roundRect(ctx, px - 4, y0 + 8 - hop, 8, 9, 3);
+      ctx.fill();
+      ctx.fillStyle = '#f3cfb0';
+      ctx.beginPath();
+      ctx.arc(px, y0 + 5 - hop, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // 音符（シェル）・キャンドルのゆらぎ（オーロラ）
+    if (!snow) {
+      ctx.fillStyle = 'rgba(61,90,128,0.7)';
+      for (let k = 0; k < 3; k++) {
+        const t = (time * 0.6 + k / 3) % 1;
+        const nx = x0 + w / 2 + Math.sin(t * 6 + k) * 18;
+        const ny = y0 - 14 - t * 20;
+        ctx.globalAlpha = 1 - t;
+        ctx.beginPath();
+        ctx.arc(nx, ny, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(nx + 1.4, ny - 7, 1, 7);
+      }
+      ctx.globalAlpha = 1;
+    } else {
+      for (let k = 0; k < 8; k++) {
+        const cx = x0 + 6 + ((w - 12) * k) / 7;
+        const cy = y0 + 58;
+        ctx.fillStyle = '#f4ecdf';
+        ctx.fillRect(cx - 1.5, cy - 5, 3, 5);
+        ctx.fillStyle = `rgba(255, 190, 90, ${0.7 + Math.sin(time * 6 + k * 2) * 0.3})`;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy - 7, 1.6, 2.6, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  // 花火（ビーチフェスの最後・D387）：夜空に 開いて 散る（画面の上のほう）
+  function fireworks(time) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const colors = ['255, 120, 140', '255, 210, 110', '120, 220, 255', '190, 150, 255'];
+    for (let k = 0; k < 4; k++) {
+      const cyc = (time * 0.45 + k * 0.27) % 1;
+      const seed = Math.floor(time * 0.45 + k * 0.27) * 7 + k;
+      const cx = view.w * (0.2 + ((seed * 37) % 60) / 100);
+      const cy = view.h * (0.12 + ((seed * 53) % 20) / 100);
+      if (cyc < 0.2) {
+        ctx.fillStyle = `rgba(${colors[k]}, 0.9)`;
+        ctx.beginPath();
+        ctx.arc(cx, cy + (0.2 - cyc) * 400, 2, 0, Math.PI * 2);
+        ctx.fill();
+        continue;
+      }
+      const t = (cyc - 0.2) / 0.8;
+      const rad = 10 + t * 70;
+      ctx.fillStyle = `rgba(${colors[k]}, ${1 - t})`;
+      for (let s = 0; s < 18; s++) {
+        const a = (s / 18) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(a) * rad, cy + Math.sin(a) * rad + t * t * 20, 2.2 - t * 1.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
   // ---------------------------------------------------------------- 運動（D373）
 
   // ビーチバレー場：白い砂のコートに 線とネット
@@ -3863,6 +4024,8 @@ export function createRenderer(canvas) {
       else if (b.type === 'pool') pool(state, b, time, poolOpen);
       else if (b.type === 'beach') beach(b, time);
       else if (b.type === 'onsen') onsen(b, time);
+      else if (b.type === 'marche') marche(state, b);
+      else if (FESTS.includes(b.type)) festStage(state, b, time);
       else if (b.type === 'volley') volleyCourt(b);
       else if (b.type === 'surf') surfBeach(b, time);
       else if (b.type === 'curling') curlingSheet(b);
@@ -3903,6 +4066,8 @@ export function createRenderer(canvas) {
       ctx.fillRect(0, 0, view.w, view.h);
     }
     if (theme.sky && state.weather === 'sunny') auroraSky(clock, time);
+    // ビーチフェスの花火（D387）：フェスの日の 最後の30分
+    if (state.weather !== 'rain' && isFestDay(state, 'beachfest') && clock >= CONFIG.beachfest.fireworks && clock < CONFIG.beachfest.close) fireworks(time);
 
     toWorldSpace();
     for (const b of state.buildings) {

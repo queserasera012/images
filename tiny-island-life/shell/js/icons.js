@@ -243,6 +243,14 @@ export const ICONS = {
       `<path d="M9.5 8L12 3.2 14.5 8" fill="#fff" stroke="${INK}" stroke-width="1" stroke-linejoin="round"/>`,
     28,
   ),
+  // マルシェ（D387）：しましまの屋根の屋台と 品物
+  marche_new: svg(
+    `<rect x="4" y="12" width="17" height="8" rx="1" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<rect x="4" y="12" width="16" height="8" rx="1" fill="#b98b5e" stroke="${INK}" stroke-width="1.1"/>` +
+      `<path d="M3 6h18v5H3z" fill="#ff8a7a" stroke="${INK}" stroke-width="1.1"/><path d="M7.5 6v5M12 6v5M16.5 6v5" stroke="#fff" stroke-width="2.2"/>` +
+      `<circle cx="8" cy="15" r="1.8" fill="#ffb627"/><circle cx="12" cy="15" r="1.8" fill="#86c47c"/><circle cx="16" cy="15" r="1.8" fill="#ff6b81"/>`,
+    28,
+  ),
   // ビーチバレー（D373）：ネットと 球
   volley_new: svg(
     `<path d="M2 19h20" stroke="#f2d8a7" stroke-width="3"/>` +

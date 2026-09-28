@@ -187,6 +187,39 @@ export const CONFIG = {
     buildCost: 8000,
   },
 
+  // ---- マルシェ（1.4・D387）：両方の島。本島の品物を 本島のコインで仕入れて 船で送り、朝市で売る ----
+  // 本島のコインの 2本目の行き先（両替とは別・上限なし）。1個 100 コイン → 売れると 12（その島のお金）＝両替より2割お得
+  marche: {
+    isle: ['shell', 'aurora'], pop: 16, max: 1,
+    open: 7 * 60, close: 13 * 60,
+    customerValue: 12, // 1個の値段（その島のお金）
+    stayMin: 10, stayMax: 25, maxQueue: 6, rainLinger: 1,
+    pull: 28, touristPull: 1.5, weather: { sunny: 1, cloudy: 0.9, rain: 0.5 },
+    levels: [{ level: 1, seats: 6, upkeep: 30, stock: 40 }, { level: 2, seats: 10, upkeep: 50, stock: 80, cost: 8000 }],
+    buildCost: 12000,
+    ship: { cost: 100, first: 20, step: 10 }, // 1個の仕入れ（本島のコイン）・建てたときの定期便の個数・選ぶきざみ
+    goods: { shell: ['マンゴー', 'パイナップル', 'ハイビスカス', 'ココナッツ'], aurora: ['ライ麦パン', 'ベリーのジャム', '毛糸の手袋', 'チーズ'] },
+  },
+
+  // ---- フェス（1.4・D387）：対になる2つ。7日ごと。舞台は その島のお金で建てて広げる ----
+  // 空の光の対：シェル＝夕暮れのビーチフェス（最後に花火）・オーロラ＝夜の雪の舞台（キャンドルと オーロラ）
+  beachfest: {
+    isle: 'shell', pop: 25, max: 1, every: 7, on: 3, // Day 3・10・17…
+    open: 17 * 60, close: 21 * 60, fireworks: 20 * 60 + 30,
+    customerValue: 15, stayMin: 60, stayMax: 120, maxQueue: 8, rainLinger: 1,
+    pull: 70, touristPull: 1.3, weather: { sunny: 1, cloudy: 0.8, rain: 0.4 },
+    levels: [{ level: 1, seats: 20, upkeep: 60 }, { level: 2, seats: 30, upkeep: 90, cost: 15000 }],
+    buildCost: 25000,
+  },
+  snowfest: {
+    isle: 'aurora', pop: 25, max: 1, every: 7, on: 0, // Day 7・14・21…
+    open: 19 * 60, close: 23 * 60, // 24時をまたぐと 日付の区切りと 船の帰りがぶつかるので 23時まで
+    customerValue: 15, stayMin: 60, stayMax: 120, maxQueue: 8, rainLinger: 1,
+    pull: 70, touristPull: 1.3, weather: { sunny: 1, cloudy: 1, rain: 0.8 },
+    levels: [{ level: 1, seats: 20, upkeep: 60 }, { level: 2, seats: 30, upkeep: 90, cost: 15000 }],
+    buildCost: 25000,
+  },
+
   // ---- 運動（1.3・D365・D373）：その島の住民が pop人 になると建てられる。住民が遊ぶ・見に来る。あなたも遊べる（sports.js）----
   // 値段は 向こうの島に たまるお金に合わせた（D370：Day 80 で 2万・Day 100 で 6〜7万）
   volley: { // ビーチバレー場（シェル）：コートで 2対2。まわりで見る人
@@ -509,6 +542,8 @@ export const CONFIG = {
     clear: 3750, // 片付け（1区画・4区画ある）
     // 島めぐり（D374）：港のある島どうし、前の日の観光客の share が 次の日に ほかの島へ（1つの島へ 1日 max 人まで）
     hop: { share: 0.2, max: 8 },
+    // フェスの日に 本島から船を出す（D387）：本島のコインで。本島の人が観光客として大勢来る（港が要る）
+    festBoat: { cost: 8000, people: 16 },
     port: 5000, // 港をひらく（D365 の「道を通す」の分。10,000 の半額・D372）。カフェが1軒あると
     // 両替（D336・D340・D366）：本島 → 向こうの島の一方通行。10 コイン → 1。1日の上限は 2つの島で分け合う
     exchange: { rate: 10, perDay: 5000, step: 1000 },

@@ -798,3 +798,7 @@ h3 .dot { width: 14px; height: 14px; }
 /* 右上のお金を押すと 両替（向こうの島があるとき・D378） */
 #hud-coin { cursor: pointer; pointer-events: auto; }
 .ex-name small { margin-left: 4px; color: var(--muted); font-size: 12px; font-weight: 700; }
+
+/* マルシェの定期便（D387） */
+.order-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.order-row span { flex: 1 1 100%; }

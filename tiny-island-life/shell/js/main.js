@@ -5,7 +5,7 @@ import { T, SIZES, PIER, PIERS, OX, OY, AREAS, MAIN, areaById, center, placement
 import {
   step, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
-  migrateWorld, createWorld, islandNow, createIsland, visitIsland, stepWorld, catchUpWorld, isAbroad, openRoute, clearPlot, moverReport, dayNow, backAt, openAbroadPort, sportLeft, SPORTS, ABROAD_VENUES, MONEY_NAME, ISLE_NAMES, exchange, exchangeLeft,
+  migrateWorld, createWorld, islandNow, createIsland, visitIsland, stepWorld, catchUpWorld, isAbroad, openRoute, clearPlot, moverReport, dayNow, backAt, setMarcheOrder, marcheCap, marcheGoods, FESTS, isFestDay, nextFestDay, canFestBoat, sendFestBoat, openAbroadPort, sportLeft, SPORTS, ABROAD_VENUES, MONEY_NAME, ISLE_NAMES, exchange, exchangeLeft,
   everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
   labelOf, nextGoal, unlockNow, nameBaby, namePet, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft, decoType, isChild,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
@@ -519,8 +519,25 @@ function renderCard() {
       // 海水浴場・温泉（D371）・運動（D373）：その島だけの施設
       const V = CONFIG[b.type];
       html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">一度に ${seatCount(b)}人。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
-      const doing = { beach: '泳いでいる', onsen: 'つかっている', surf: '波に乗っている' }[b.type] || '遊んでいる';
+      const doing = { beach: '泳いでいる', onsen: 'つかっている', surf: '波に乗っている', marche: '買い物中', beachfest: '聴いている', snowfest: '聴いている' }[b.type] || '遊んでいる';
       html += `<div class="now">${doing}：${who(b.seats.filter(Boolean))}</div><div>外で待っている：${who(b.queue)}</div>`;
+      if (FESTS.includes(b.type)) {
+        // フェス（D387）：次の日と、本島から船を出すボタン
+        const today = isFestDay(state, b.type);
+        html += `<div>${today ? `今日は フェスの日（${fmt(V.open)}〜${fmt(V.close)}）` : `次のフェス：Day ${nextFestDay(state, b.type)}（${fmt(V.open)}〜${fmt(V.close)}）`}</div>`;
+        const can = canFestBoat(world, world.current);
+        const B = CONFIG.abroad.festBoat;
+        html += can.ok
+          ? `<div class="card-note">本島のコインで 船を出すと、本島の人が ${B.people}人 フェスに来ます</div><button id="btn-festboat" class="card-act go" type="button">${ICONS.boat}本島から船を出す<span class="cost">${ICONS.coin}${B.cost.toLocaleString()}</span></button>`
+          : `<div class="card-note">本島から船を出す：${state.today.festBoat ? '船を出しました（本島の人が 大勢 来ます）' : can.why}</div>`;
+      }
+      if (b.type === 'marche') {
+        // マルシェ（D387）：並んでいる品物と、毎朝の定期便（本島のコインで仕入れる）
+        const S = V.ship;
+        html += `<div>並んでいる：${marcheGoods(state).join('・')}（${b.stock} / ${marcheCap(b)}個）</div>`;
+        html += `<div class="order-row"><span>毎朝 本島から送る：<b>${b.order}個</b>（本島のコイン ${ICONS.coin}${(b.order * S.cost).toLocaleString()}）</span>
+          <button class="ex-btn" type="button" data-order="-${S.step}" ${b.order <= 0 ? 'disabled' : ''}>−${S.step}</button><button class="ex-btn" type="button" data-order="${S.step}" ${b.order >= marcheCap(b) ? 'disabled' : ''}>＋${S.step}</button></div>`;
+      }
       if (SPORTS.includes(b.type)) {
         const left = sportLeft(state);
         const best = state.sportBest?.[b.type];
@@ -649,6 +666,24 @@ $('card').addEventListener('click', (ev) => {
       onChange: () => save(),
       close: () => save(),
     });
+    return;
+  }
+  if (ev.target.closest('#btn-festboat')) {
+    const res = sendFestBoat(world, world.current);
+    toast(res.message);
+    if (res.ok) {
+      updateHud();
+      renderCard();
+      save();
+    }
+    return;
+  }
+  const order = ev.target.closest('[data-order]');
+  if (order && !order.disabled) {
+    const b = buildingById(state, selected?.id);
+    if (b) setMarcheOrder(state, b.id, b.order + Number(order.dataset.order));
+    renderCard();
+    save();
     return;
   }
   if (ev.target.closest('#btn-sport')) {
@@ -1343,6 +1378,7 @@ if (DEBUG) {
     sport: () => sportNow(),
     // スキー場の絵を見るため：席を住民で埋める（D318）
     advance: (m) => step(state, m),
+    sunny: () => (state.weather = 'sunny'), // 花火・オーロラの絵を見るため
     // 向こうの島に 本島の大人を n人 移す（海水浴場・温泉の絵を見るため・D371）。移住と同じ しくみで毎朝2人ずつ来るのを待たない
     populate: (n) => {
       state.coin += 100000;
