@@ -683,7 +683,7 @@ function freeHouse(state) {
 // D326：前は みな「島の人」だったが、全員に名前をつける（オーナー「島の人表記は もやもやする」）。見た目は人ごとに混ぜたもの（generic）
 // 結婚するのは今までどおり、はじめの10人と、プレイヤーが名前を変えた人だけ（named）。
 // みな結婚できるようにすると、Day 40 で夫婦が 5組 → 15〜18組、子どもが 5人 → 15〜17人 になる（遊び方が大きく変わるので、オーナーが決める）
-const GIVEN_NAMES = [
+export const GIVEN_NAMES = [
   'ユイ', 'ハルト', 'ハナ', 'リク', 'サキ', 'ユウト', 'メイ', 'ソウタ', 'リナ', 'ハヤト',
   'エマ', 'レン', 'アオイ', 'コウ', 'ヒナ', 'タクミ', 'ミオ', 'カイト', 'ナナ', 'シュン',
   'サクラ', 'ユウキ', 'ユナ', 'ダイキ', 'カナ', 'ケンタ', 'マイ', 'リョウ', 'モモ', 'ショウタ',
@@ -695,19 +695,50 @@ const GIVEN_NAMES = [
   'マリ', 'ナオキ', 'ルナ', 'ヒデキ', 'スズ', 'マモル', 'ミホ', 'ミノル', 'ナオ', 'ワタル',
   'ユウカ', 'リュウ', 'アユミ', 'ソウマ', 'トモミ', 'アラタ', 'ケイコ', 'イツキ', 'ヨシコ', 'カナタ',
   'フミ', 'ハジメ', 'キョウコ', 'タイチ', 'アイ', 'ユズル', 'エミ', 'ショウ', 'マユ', 'リョウタ',
-  'ミキ', 'ヤマト', 'サヤ', 'コタロウ', 'ナギ', 'ハヤテ', 'イロハ', 'シゲル', 'スミレ', 'トシオ',
+  'ミキ', 'ヤマト', 'サヤ', 'コタロウ', 'ナギ', 'ハヤテ', 'イロハ', 'シゲル', 'スミレ', 'トシオ',  // D389：名前を 183個 足した（本島の住民が 110〜120人になると 使い切って「ユイ2」のような番号がついていた）
+  'イオリ', 'ウタ', 'エイタ', 'オト', 'カホ', 'キミ', 'クルミ', 'ケイタ', 'コトネ', 'サエ',
+  'シズカ', 'スバル', 'タマキ', 'チサト', 'ツカサ', 'テルオ', 'トウマ', 'ナギサ', 'ニナ', 'ネネ',
+  'フウカ', 'ヘイタ', 'ホタル', 'マドカ', 'ミズキ', 'ムツミ', 'メグミ', 'モトキ', 'ヤスコ', 'ユウジ',
+  'ヨウコ', 'ライ', 'レイ', 'イブキ', 'ウミ', 'エイジ', 'カンナ', 'キイチ', 'クミ', 'コウヘイ',
+  'サトシ', 'シノ', 'スグル', 'セイジ', 'タカシ', 'チエ', 'ツヨシ', 'テツヤ', 'トモヤ', 'ナツキ',
+  'ノリコ', 'ハルミ', 'ヒサシ', 'フユカ', 'ホマレ', 'マキ', 'モエ', 'ヤヨイ', 'ユタカ', 'ヨシキ',
+  'ルカ', 'レオ', 'アツシ', 'イズミ', 'ウララ', 'エミリ', 'オリエ', 'カオル', 'キヨシ', 'クニオ',
+  'ケイスケ', 'コズエ', 'ジュリ', 'スミコ', 'センリ', 'ソウスケ', 'タエ', 'チヨ', 'ツグミ', 'トウコ',
+  'ナミ', 'ノブオ', 'ハツネ', 'ヒトミ', 'フタバ', 'ホダカ', 'マサル', 'ミドリ', 'ムサシ', 'モリオ',
+  'ヤスシ', 'ユリエ', 'ヨシオ', 'リツ', 'ルリ', 'レイコ', 'アキ', 'イチカ', 'ウイ', 'エリカ',
+  'カツヤ', 'キョウヘイ', 'クレハ', 'コノハ', 'サツキ', 'シュウ', 'スズカ', 'セイラ', 'ソウ', 'チアキ',
+  'ナナミ', 'ノドカ', 'ハルキ', 'ヒビキ', 'フミヤ', 'ホクト', 'マイコ', 'ミハル', 'メイコ', 'ユイト',
+  'ヨシエ', 'ラン', 'レイナ', 'ワカバ', 'アオバ', 'イサオ', 'ウシオ', 'エツコ', 'カナエ', 'キョウスケ',
+  'クニコ', 'ケイゴ', 'コウジ', 'サチ', 'シゲオ', 'スエコ', 'セツコ', 'タダシ', 'チズル', 'テルミ',
+  'トシエ', 'ナオミ', 'ノブコ', 'ヒロミ', 'フジオ', 'マサコ', 'ミチコ', 'ヤスオ', 'ユウコ', 'ヨシミ',
+  'リョウコ', 'アイカ', 'イクミ', 'ウメ', 'エナ', 'オウキ', 'カイリ', 'キサキ', 'クウ', 'ケイト',
+  'コマチ', 'サホ', 'シオン', 'スイ', 'セリ', 'タクト', 'チハヤ', 'ツバキ', 'テン', 'トキ',
+  'ナユタ', 'ノエル', 'ハク', 'ヒスイ', 'フウタ', 'マヒロ', 'ミソラ', 'ムギ', 'メル', 'ヤエ',
+  'ユラ', 'ヨル', 'ロイ',
 ];
-function freshName(state) {
-  const used = new Set([...state.residents.map((r) => r.name), ...RESIDENT_POOL.map((p) => p.name)]);
+// 名前は 3つの島の住民と かぶらないように（D389：引っ越した「ユイ」と 本島の新しい「ユイ」が並んでいた）。
+// ほかの島の住民の名前は stepWorld・catchUpWorld が 島を進める前に入れる（OTHER_NAMES）
+let OTHER_NAMES = new Set();
+function takenNames(state) {
+  return new Set([...state.residents.map((r) => r.name), ...RESIDENT_POOL.map((p) => p.name), ...OTHER_NAMES]);
+}
+const freshName = (state) => pickName(state, OTHER_NAMES);
+// others：ほかの島の住民の名前。テストからも呼ぶ
+export function pickName(state, others = new Set()) {
+  const here = new Set([...state.residents.map((r) => r.name), ...RESIDENT_POOL.map((p) => p.name)]);
+  const all = new Set([...here, ...others]);
   state.nameIndex ||= 0;
-  for (let k = 0; k < GIVEN_NAMES.length; k++) {
-    const n = GIVEN_NAMES[(state.nameIndex + k) % GIVEN_NAMES.length];
-    if (used.has(n)) continue;
-    state.nameIndex = (state.nameIndex + k + 1) % GIVEN_NAMES.length;
-    return n;
+  // まず 3つの島のだれとも かぶらない名前。それも無ければ この島の人とだけ かぶらない名前
+  for (const used of [all, here]) {
+    for (let k = 0; k < GIVEN_NAMES.length; k++) {
+      const n = GIVEN_NAMES[(state.nameIndex + k) % GIVEN_NAMES.length];
+      if (used.has(n)) continue;
+      state.nameIndex = (state.nameIndex + k + 1) % GIVEN_NAMES.length;
+      return n;
+    }
   }
-  // 使い切ったら 番号をつける
-  for (let i = 2; ; i++) for (const b of GIVEN_NAMES) if (!used.has(`${b}${i}`)) return `${b}${i}`;
+  // この島だけで 300人を超えたら 番号をつける（ふつうは ここまで来ない）
+  for (let i = 2; ; i++) for (const b of GIVEN_NAMES) if (!here.has(`${b}${i}`)) return `${b}${i}`;
 }
 
 function genericResident(state) {
@@ -3119,7 +3150,7 @@ function familyEvents(state, day, events) {
       state.wantsRoom.push(a.homeId);
       continue;
     }
-    const used = new Set([...state.residents.map((x) => x.name), ...RESIDENT_POOL.map((x) => x.name)]); // あとから来る人と かぶらない
+    const used = takenNames(state); // あとから来る人・ほかの島の人と かぶらない（D389）
     const name = F.kidNames.find((n) => !used.has(n)) || freshName(state); // D357：使い切っても「赤ちゃん」にしない
     const baby = makeResident(
       state,
@@ -4152,11 +4183,19 @@ export function stepWorld(world, dt) {
   if (Object.keys(world.islands).length > 1) markPetshop(world); // 本島のお願いが かなったか（D376）
   let events = [];
   for (const id of inOrder(world)) {
+    OTHER_NAMES = namesElsewhere(world, id);
     const ev = step(world.islands[id], dt);
     if (id === world.current) events = ev;
   }
+  OTHER_NAMES = new Set();
   afterSteps(world, before);
   return events;
+}
+// ほかの島に住んでいる人の名前（D389）
+function namesElsewhere(world, id) {
+  const set = new Set();
+  for (const [k, s] of Object.entries(world.islands)) if (k !== id) for (const r of s.residents) set.add(r.name);
+  return set;
 }
 // 本島の日付が変わったら（朝の日記のあと）移住。最後に 見ている島の地図に戻す
 function afterSteps(world, before) {
@@ -4178,9 +4217,11 @@ export function catchUpWorld(world, gameMinutes) {
   if (Object.keys(world.islands).length > 1) markPetshop(world); // 本島のお願いが かなったか（D376）
   let events = [];
   for (const id of inOrder(world)) {
+    OTHER_NAMES = namesElsewhere(world, id);
     const ev = catchUp(world.islands[id], gameMinutes);
     if (id === world.current) events = ev;
   }
+  OTHER_NAMES = new Set();
   afterSteps(world, before);
   return events;
 }
