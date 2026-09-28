@@ -424,7 +424,8 @@ function renderCard() {
         <button id="btn-rename" type="button">この名前にする</button></div>`;
       return;
     }
-    if (!r || !r.visible) return select(null);
+    // 建物に入ると カードを閉じる。お願いから開いたときは 家にいても開いたまま（家を光らせるため・D393）
+    if (!r || (!r.visible && !selected.fromWish)) return select(null);
     const parents = parentsOf(state, r);
     const spouse = r.spouseId && personById(state, r.spouseId);
     const sub = r.tourist
@@ -639,7 +640,7 @@ $('card').addEventListener('click', (ev) => {
     const res = nameResident(state, selected.id, $('res-name').value);
     toast(res.message);
     if (res.ok) {
-      selected = { kind: 'resident', id: selected.id };
+      selected = { kind: 'resident', id: selected.id, fromWish: selected.fromWish };
       delete $('card').dataset.stray;
       renderCard();
       save();
@@ -1296,7 +1297,7 @@ $('quest').addEventListener('click', (ev) => {
       const place = wishPlace(state, wishOf(state, r.id));
       if (place) renderer.focus((place.building.c + SIZES[place.building.type].w / 2) * T, (place.building.r + SIZES[place.building.type].h / 2) * T);
       else renderer.focus(r.x, r.y);
-      select({ kind: 'resident', id: r.id });
+      select({ kind: 'resident', id: r.id, fromWish: true });
     }
     return;
   }
@@ -1394,8 +1395,10 @@ if (DEBUG) {
       for (let k = 0; k < n; k++) state.residents.push({ ...base[k % base.length], id: `demo${state.residents.length}`, homeId: homes[k % homes.length].id, at: homes[k % homes.length].access, state: 'HOME', visible: false, job: null, spouseId: null, parents: null });
     },
     // お願いを1つ出す（D335・画面の確認用）
-    wish: () => {
+    // home：その人を家の中に（家にいる人のお願いを押したときの確かめ用・D393）
+    wish: (home = false) => {
       const r = state.residents.find((x) => !x.age && x.homeId);
+      if (home) Object.assign(r, { state: 'HOME', visible: false, until: state.t + 600 });
       CONFIG.deco.pop = Math.min(CONFIG.deco.pop, state.residents.length); // 住民が少なくても飾りを置けるように（確認用）
       state.wishes = [{ id: 'wdbg', kind: 'deco', type: 'bench', home: r.homeId, who: r.id, day: 1, text: '家の近くに ベンチがあったら うれしいな', short: '家の近くにベンチ', hint: `家から ${CONFIG.wishes.near}マス以内に ベンチを置く（つくる → 飾り）` }];
       renderQuest();
