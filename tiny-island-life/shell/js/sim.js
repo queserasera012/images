@@ -2893,6 +2893,15 @@ export function moveBuilding(state, id, place) {
     }
     if (pet.anchor && inWas(pet.anchor.x, pet.anchor.y)) pet.anchor = { x: pet.anchor.x + dx, y: pet.anchor.y + dy };
   }
+  // 浜（海水浴場・サーフィン）は 動かすと 水の向きが変わることがある。水の中の人は 新しい水の中へ（D396）
+  if (b.type === 'beach' || b.type === 'surf') {
+    const seats = seatPositions(b);
+    for (const p of everyone(state)) {
+      if (p.destId !== b.id || p.state !== 'SEATED' || !(p.seat >= 0) || !seats[p.seat]) continue;
+      p.x = p.tx = seats[p.seat].x;
+      p.y = p.ty = seats[p.seat].y;
+    }
+  }
   state.history.push({ t: state.t, action: `move:${b.id}`, place });
   return { ok: true, message: `${{ house: '家', park: '公園' }[b.type] || labelOf(state, b)}を動かしました` };
 }

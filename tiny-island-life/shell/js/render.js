@@ -4084,7 +4084,9 @@ export function createRenderer(canvas) {
       ...everyone(state).filter((r) => r.visible).map((r) => ({
         y: r.y,
         draw: () => {
-          const at = r.state === 'SEATED' && state.buildings.find((b) => b.id === r.destId)?.type;
+          // 水の中の絵は、席（水の中）に着いてから。着くまでは 道から歩いていく（土の上で泳いで見えた・D396）
+          const arrived = Math.hypot(r.x - r.tx, r.y - r.ty) < 3;
+          const at = r.state === 'SEATED' && arrived && state.buildings.find((b) => b.id === r.destId)?.type;
           if (at === 'pool' || at === 'beach') return swimmer(r, time);
           if (at === 'onsen') return bather(r, time);
           if (at === 'surf') return surfer(r, time);
