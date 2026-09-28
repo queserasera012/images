@@ -60,8 +60,8 @@ export const isShell = (state) => state.isle === 'shell';
 export const isAurora = (state) => state.isle === 'aurora';
 // 海の向こうの島（シェルの島・オーロラの島）。本島の はしご・お願い・迷い込むペット・季節の日記は出さない
 export const isAbroad = (state) => !!state.isle && state.isle !== 'main';
-// 島ごとの お金の名前（本島 Coin・シェルの島 Shell・オーロラの島 オーロラ。D354・D366）
-export const MONEY_NAME = { main: 'Coin', shell: 'Shell', aurora: 'オーロラ' };
+// 島ごとの お金の名前（本島コイン・シェルの島 Shell・オーロラの島 オーロラ。D354・D366）
+export const MONEY_NAME = { main: 'コイン', shell: 'シェル', aurora: 'オーロラ' }; // ぜんぶカタカナ（子どもも読む・D378）
 export const ISLE_NAMES = { main: '本島', shell: 'シェルの島', aurora: 'オーロラの島' };
 // 船着き場の一覧に出す ひとこと（どんな島か）と、片付けで どけるもの（D367）
 const ISLE_LOOK = { shell: '常夏の島。嵐で流れ着いたもので 覆われている', aurora: '常冬の島。雪に埋もれた 古い漁師小屋と 倒れた木がある' };
@@ -930,7 +930,7 @@ function arcadeChoices(state, r) {
 }
 
 // ---------------------------------------------------------------- 飾り（D334）
-// Coin の使い道。維持費なし。同じ飾りは1つ置くごとに値段が上がる。住民と観光客が ぶらぶら歩きで立ち寄る
+// コインの使い道。維持費なし。同じ飾りは1つ置くごとに値段が上がる。住民と観光客が ぶらぶら歩きで立ち寄る
 export const decoType = (id) => CONFIG.deco.types.find((t) => t.id === id);
 export function decoCost(state, id) {
   const n = ofType(state, id).length;
@@ -950,7 +950,7 @@ function decoSpot(state, b) {
   return { x: a.x + (mid.x - a.x) * k + between(state, -8, 8), y: a.y + (mid.y - a.y) * k + between(state, -6, 6) };
 }
 
-// ミニゲームの Coin（D333）：島の大きさに合わせる。住民15人ごとに1倍（1〜8倍）。5 Coin きざみ
+// ミニゲームのコイン（D333）：島の大きさに合わせる。住民15人ごとに1倍（1〜8倍）。5 コイン きざみ
 export function gameScale(state) {
   const M = CONFIG.minigame;
   return Math.min(M.max, Math.max(1, state.residents.length / M.per));
@@ -959,8 +959,8 @@ export function gameCoin(state, base) {
   return Math.round((base * gameScale(state)) / 5) * 5;
 }
 
-// あなたのゲーム（D331・D333）：Coin が出るのは「腕」が要るときだけ（1日 rewardsPerDay 回まで）
-// 神経衰弱は 12手以内・もぐらは 12ひき以上。じゃんけんは Coin ではなく スタンプ。クレーンゲームは景品を集める
+// あなたのゲーム（D331・D333）：コインが出るのは「腕」が要るときだけ（1日 rewardsPerDay 回まで）
+// 神経衰弱は 12手以内・もぐらは 12ひき以上。じゃんけんはコインではなく スタンプ。クレーンゲームは景品を集める
 // play = { won, score, prizeId }。score は 神経衰弱なら手数・もぐらなら たたいた数
 export function arcadeLeft(state) {
   return Math.max(0, CONFIG.arcade.game.rewardsPerDay - (state.today.arcade?.rewarded || 0));
@@ -1136,7 +1136,7 @@ function updateRace(state, events) {
 // ---------------------------------------------------------------- 会社（D319）
 //
 // 会社には机の数だけ住民（大人）が勤める。家の近い人から。
-// 朝 8:30 から出勤し、12時にお昼を食べに近くのカフェへ出て、戻って17時まで働く。働いた人の数だけ Coin が入る
+// 朝 8:30 から出勤し、12時にお昼を食べに近くのカフェへ出て、戻って17時まで働く。働いた人の数だけコインが入る
 
 // 勤める人を決める（毎朝と、会社を建てた・広げたとき）
 export function assignJobs(state) {
@@ -1640,7 +1640,7 @@ function rolloverDay(state, events) {
 
   // 良かったこと（1〜2個）
   if (today.served > 0) {
-    lines.push({ kind: 'good', text: `カフェに ${today.served}人 が来ました（+${today.income} Coin）` });
+    lines.push({ kind: 'good', text: `カフェに ${today.served}人 が来ました（+${today.income} コイン）` });
   }
   if (today.boats > 0) {
     lines.push({ kind: 'good', text: `船が ${today.boats}回 来て、観光客が ${today.tourists}人 やってきました` });
@@ -1655,50 +1655,50 @@ function rolloverDay(state, events) {
   }
 
   const sup = today.byType.super;
-  if (sup?.served) lines.push({ kind: 'good', text: `スーパーで ${sup.served}人 が買い物しました（+${sup.income} Coin）` });
+  if (sup?.served) lines.push({ kind: 'good', text: `スーパーで ${sup.served}人 が買い物しました（+${sup.income} コイン）` });
   const doc = today.byType.hospital;
-  if (doc?.served) lines.push({ kind: 'good', text: `病院に ${doc.served}人 が 診てもらいに来ました（+${doc.income} Coin）` });
+  if (doc?.served) lines.push({ kind: 'good', text: `病院に ${doc.served}人 が 診てもらいに来ました（+${doc.income} コイン）` });
   const fun = today.byType.planetarium;
-  if (fun?.served) lines.push({ kind: 'good', text: `プラネタリウムに ${fun.served}人 が来ました（+${fun.income} Coin）` });
+  if (fun?.served) lines.push({ kind: 'good', text: `プラネタリウムに ${fun.served}人 が来ました（+${fun.income} コイン）` });
   const bar = today.byType.bar;
-  if (bar?.served) lines.push({ kind: 'good', text: `夜のレストランに ${bar.served}人 が来ました（+${bar.income} Coin）` });
+  if (bar?.served) lines.push({ kind: 'good', text: `夜のレストランに ${bar.served}人 が来ました（+${bar.income} コイン）` });
   const stand = today.byType.stand;
-  if (stand?.served) lines.push({ kind: 'good', text: `コーヒースタンドで ${stand.served}人 がコーヒーを買いました（+${stand.income} Coin）` });
+  if (stand?.served) lines.push({ kind: 'good', text: `コーヒースタンドで ${stand.served}人 がコーヒーを買いました（+${stand.income} コイン）` });
   if (today.race) {
     const R = today.race;
     const mine = R.placed.map((x) => `${x.name}が${x.rank}着`).join('・');
     const seen = today.byType.track?.served || 0;
     lines.push({
       kind: 'good',
-      text: `ドッグレース：1着は${R.winner}${R.winnerOwn ? '' : '（島の外の犬）'}。${mine ? `${mine}（+${R.prize} Coin）。` : '島のペットは入賞ならず。'}見に来た人 ${seen}人`,
+      text: `ドッグレース：1着は${R.winner}${R.winnerOwn ? '' : '（島の外の犬）'}。${mine ? `${mine}（+${R.prize} コイン）。` : '島のペットは入賞ならず。'}見に来た人 ${seen}人`,
     });
   }
-  if (today.work?.workers) lines.push({ kind: 'good', text: `会社で ${today.work.workers}人 が働きました（+${today.work.income} Coin）` });
+  if (today.work?.workers) lines.push({ kind: 'good', text: `会社で ${today.work.workers}人 が働きました（+${today.work.income} コイン）` });
   const aq = today.byType.aquarium;
-  if (aq?.served) lines.push({ kind: 'good', text: `水族館に ${aq.served}人 が来ました（+${aq.income} Coin）` });
+  if (aq?.served) lines.push({ kind: 'good', text: `水族館に ${aq.served}人 が来ました（+${aq.income} コイン）` });
   const pool = today.byType.pool;
-  if (pool?.served) lines.push({ kind: 'good', text: `プールに ${pool.served}人 が来ました（+${pool.income} Coin）` });
+  if (pool?.served) lines.push({ kind: 'good', text: `プールに ${pool.served}人 が来ました（+${pool.income} コイン）` });
   for (const type of ABROAD_VENUES) {
     const x = today.byType[type];
-    if (x?.served) lines.push({ kind: 'good', text: `${VENUE_NAME[type]}に ${x.served}人 が来ました（+${x.income} Coin）` });
+    if (x?.served) lines.push({ kind: 'good', text: `${VENUE_NAME[type]}に ${x.served}人 が来ました（+${x.income} コイン）` });
   }
   const arc = today.byType.arcade;
-  if (arc?.served) lines.push({ kind: 'good', text: `ゲームセンターに ${arc.served}人 が来ました（+${arc.income} Coin）` });
-  if (today.arcade?.plays) lines.push({ kind: 'good', text: `あなたはゲームセンターで ${today.arcade.plays}回 遊びました${today.arcade.coin ? `（+${today.arcade.coin} Coin）` : ''}` });
+  if (arc?.served) lines.push({ kind: 'good', text: `ゲームセンターに ${arc.served}人 が来ました（+${arc.income} コイン）` });
+  if (today.arcade?.plays) lines.push({ kind: 'good', text: `あなたはゲームセンターで ${today.arcade.plays}回 遊びました${today.arcade.coin ? `（+${today.arcade.coin} コイン）` : ''}` });
   if (today.deco) lines.push({ kind: 'good', text: `飾りのまわりで ${today.deco}人 が ひと休みしました` });
   const ski = today.byType.ski;
-  if (ski?.served) lines.push({ kind: 'good', text: `山の島のスキー場に ${ski.served}人 が来ました（+${ski.income} Coin）` });
+  if (ski?.served) lines.push({ kind: 'good', text: `山の島のスキー場に ${ski.served}人 が来ました（+${ski.income} コイン）` });
   const pond = today.byType.pond;
-  if (pond?.served) lines.push({ kind: 'good', text: `釣り堀に ${pond.served}人 が来ました（+${pond.income} Coin）` });
+  if (pond?.served) lines.push({ kind: 'good', text: `釣り堀に ${pond.served}人 が来ました（+${pond.income} コイン）` });
   const me = today.fishing;
   if (me?.caught?.length) {
-    const coin = me.coin ? `（+${me.coin} Coin）` : '';
+    const coin = me.coin ? `（+${me.coin} コイン）` : '';
     lines.push({ kind: 'good', text: `あなたは釣り堀で ${me.caught.length}匹 釣りました${coin}` });
   }
   const ps = today.byType.petshop;
-  if (ps?.served) lines.push({ kind: 'good', text: `ペットショップに ${ps.served}人 が来ました（+${ps.income} Coin）` });
+  if (ps?.served) lines.push({ kind: 'good', text: `ペットショップに ${ps.served}人 が来ました（+${ps.income} コイン）` });
   if (today.shopSold > 0) {
-    lines.push({ kind: 'good', text: `お土産が ${today.shopSold}個 売れました（+${today.shopIncome} Coin）` });
+    lines.push({ kind: 'good', text: `お土産が ${today.shopSold}個 売れました（+${today.shopIncome} コイン）` });
   }
   const missed = {};
   for (const m of today.shopMissed) {
@@ -1710,16 +1710,16 @@ function rolloverDay(state, events) {
     const [bucket, label] = key.split('|');
     lines.push({
       kind: 'problem',
-      text: `${bucket}、${label}が売り切れて、観光客 ${n}人 が何も買えませんでした（−${n * CONFIG.shop.value} Coin）`,
+      text: `${bucket}、${label}が売り切れて、観光客 ${n}人 が何も買えませんでした（−${n * CONFIG.shop.value} コイン）`,
     });
   }
   const kg = today.kinder || { went: 0, missed: 0 };
-  if (kg.went) lines.push({ kind: 'good', text: `幼稚園に ${kg.went}人 が通いました（+${kg.went * CONFIG.kinder.fee} Coin）` });
+  if (kg.went) lines.push({ kind: 'good', text: `幼稚園に ${kg.went}人 が通いました（+${kg.went * CONFIG.kinder.fee} コイン）` });
   if (kg.missed) lines.push({ kind: 'problem', text: `幼稚園がいっぱいで、${kg.missed}人 の子が家で過ごしました` });
   for (const type of ['school', 'college']) {
     const x = today[type];
     const name = type === 'school' ? '小学校' : '大学';
-    if (x?.went) lines.push({ kind: 'good', text: `${name}に ${x.went}人 が通いました（+${x.went * CONFIG[type].fee} Coin）` });
+    if (x?.went) lines.push({ kind: 'good', text: `${name}に ${x.went}人 が通いました（+${x.went * CONFIG[type].fee} コイン）` });
     if (x?.missed) lines.push({ kind: 'problem', text: `${name}がいっぱいで、${x.missed}人 が入れませんでした` });
   }
   const petLine = petDiaryLine(state, endedDay);
@@ -1736,7 +1736,7 @@ function rolloverDay(state, events) {
   const top = Object.entries(groups).sort((a, b) => b[1] - a[1]).slice(0, 2);
   for (const [key, n] of top) {
     const [bucket, label, who, venue] = key.split('|');
-    const loss = `（−${n * CONFIG[venue].customerValue} Coin）`;
+    const loss = `（−${n * CONFIG[venue].customerValue} コイン）`;
     const how = venue === 'super' ? '買い物できずに帰りました' : venue === 'planetarium' ? '入れずに帰りました' : '帰ってしまいました';
     lines.push({
       kind: 'problem',
@@ -1762,11 +1762,11 @@ function rolloverDay(state, events) {
   const harborUpkeep = (state.harbors || []).length * CONFIG.harbor.upkeep;
   if (harborUpkeep > 0) {
     state.coin -= harborUpkeep;
-    lines.push({ kind: 'info', text: `港の維持費 −${harborUpkeep} Coin` });
+    lines.push({ kind: 'info', text: `港の維持費 −${harborUpkeep} コイン` });
   }
   if (upkeep + shopUpkeep > 0) {
     state.coin -= upkeep + shopUpkeep;
-    lines.push({ kind: 'info', text: shopUpkeep || !onlyCafes ? `お店の維持費 −${upkeep + shopUpkeep} Coin` : `カフェの維持費 −${upkeep} Coin` });
+    lines.push({ kind: 'info', text: shopUpkeep || !onlyCafes ? `お店の維持費 −${upkeep + shopUpkeep} コイン` : `カフェの維持費 −${upkeep} コイン` });
   }
   // お土産屋は毎朝 入荷する
   for (const b of shops(state)) b.stock = CONFIG.shop.levels[b.level - 1].stock;
@@ -1799,7 +1799,7 @@ function rolloverDay(state, events) {
   }
 
   // ペットショップ&ブリーダー（D355）：売れた子・入荷した子
-  for (const x of today.petsSold || []) lines.push({ kind: 'good', text: `${x.owner}の家に ${x.baby}の ${x.name}が 家族になりました（+${x.price} Coin）` });
+  for (const x of today.petsSold || []) lines.push({ kind: 'good', text: `${x.owner}の家に ${x.baby}の ${x.name}が 家族になりました（+${x.price} コイン）` });
   for (const p of ofType(state, 'petshop')) {
     if (!p.breeder || endedDay + 1 < p.nextPetDay) continue;
     const B = CONFIG.petshop.breeder;
@@ -1821,7 +1821,7 @@ function rolloverDay(state, events) {
   for (const u of CONFIG.unlocks) {
     const on = u.id === 'port' ? state.port.openedOn ?? state.unlockedOn.port : state.unlockedOn[u.id];
     if (on === endedDay) {
-      // 向こうの島の港は 人数ではなく 本島の Coin で ひらく（D372・D374）
+      // 向こうの島の港は 人数ではなく 本島のコインで ひらく（D372・D374）
       if (isAbroad(state)) {
         if (u.id === 'port') lines.push({ kind: 'good', text: '港に 本島からの船が 来るようになりました' });
         continue;
@@ -1832,7 +1832,7 @@ function rolloverDay(state, events) {
   }
 
   // 島の人のお願い（D335）：かなえたもの・新しいもの
-  for (const x of today.wishes || []) lines.push({ kind: 'good', text: `${x.name}の お願い（${x.short}）を かなえました（+${x.coin} Coin）` });
+  for (const x of today.wishes || []) lines.push({ kind: 'good', text: `${x.name}の お願い（${x.short}）を かなえました（+${x.coin} コイン）` });
   morningWishes(state, endedDay, today, lines);
 
   // その日の売上（朝の日記の上乗せに使う・D309）
@@ -1844,7 +1844,7 @@ function rolloverDay(state, events) {
     (today.college?.went || 0) * CONFIG.college.fee +
     (today.work?.income || 0);
   // 海の向こうの島の お金は Shell／オーロラ（D371）
-  if (isAbroad(state)) for (const l of lines) l.text = l.text.replaceAll('Coin', moneyOf(state));
+  if (isAbroad(state)) for (const l of lines) l.text = l.text.replaceAll('コイン', moneyOf(state));
   // 建てられるようになったもの（船着き場・向こうの島の施設・D374）
   for (const id of ['dock', ...ABROAD_VENUES]) if (state.unlockedOn?.[id] === endedDay) lines.push({ kind: 'good', text: UNLOCK_TEXT[id] });
   const entry = { day: endedDay, weather: state.weather, lines, read: false, earned, tourists: today.tourists || 0 };
@@ -1960,7 +1960,7 @@ function checkIsleUnlocks(state, events) {
 export function nextGoal(state) {
   if (isAbroad(state)) {
     // 向こうの島（D374）：まず片付け → その島だけの施設（住民の人数）
-    if (state.debris && state.debris.every(Boolean)) return { id: 'clear', goal: '島を片付ける', body: '「つくる」の「島」から 区画を片付けると、家を建てられる土地になります（本島の Coin で払う）' };
+    if (state.debris && state.debris.every(Boolean)) return { id: 'clear', goal: '島を片付ける', body: '「つくる」の「島」から 区画を片付けると、家を建てられる土地になります（本島のコインで払う）' };
     const t = ABROAD_VENUES.find((x) => CONFIG[x].isle === state.isle && !state.unlocked?.[x]);
     if (!t) return null;
     return { id: t, goal: `${VENUE_NAME[t]}をひらく`, now: countedPop(state), need: CONFIG[t].pop, unit: '人', what: 'この島の住民', note: `${VENUE_NAME[t]}を建てられるようになります` };
@@ -2133,7 +2133,7 @@ export function actionsFor(state) {
     id: 'cafe', icon: 'cafe_new', place: 'cafe', title: cafes(state).length ? 'カフェをもう1軒つくる' : 'カフェをつくる', // 向こうの島は1軒も無いところから（D377）
     detail: full
       ? `カフェは いまの島に ${cafeMax(state)}軒まで${moreLand ? '（島を広げると1軒ずつ増える）' : ''}`
-      : `席 3。維持費 1日 ${CONFIG.cafe.levels[0].upkeep} Coin。場所を選べる`,
+      : `席 3。維持費 1日 ${CONFIG.cafe.levels[0].upkeep} コイン。場所を選べる`,
     cost: CONFIG.cafe.buildCost, locked: full,
   });
   {
@@ -2141,7 +2141,7 @@ export function actionsFor(state) {
     const fullS = ofType(state, 'stand').length >= maxOf(state, 'stand');
     list.push({
       id: 'stand', icon: 'stand_new', place: 'stand', title: 'コーヒースタンドをつくる',
-      detail: fullS ? `コーヒースタンドは いまの島に ${maxOf(state, 'stand')}軒まで${moreLandNote(state, 'stand')}` : `朝だけ開く（${fmtClock(S.open)}〜${fmtClock(S.close)}）。持ち帰りなので座らない。1マス。維持費 1日 ${S.levels[0].upkeep} Coin`,
+      detail: fullS ? `コーヒースタンドは いまの島に ${maxOf(state, 'stand')}軒まで${moreLandNote(state, 'stand')}` : `朝だけ開く（${fmtClock(S.open)}〜${fmtClock(S.close)}）。持ち帰りなので座らない。1マス。維持費 1日 ${S.levels[0].upkeep} コイン`,
       cost: S.buildCost, locked: fullS,
     });
   }
@@ -2152,30 +2152,30 @@ export function actionsFor(state) {
     const full = ofType(state, type).length >= maxOf(state, type);
     const locked = !isUnlocked(state, type) || full;
     const what = type === 'arcade'
-      ? `住民と観光客が遊びに来る（雨の日に増える）。あなたも4つのゲームで遊べる。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} Coin`
+      ? `住民と観光客が遊びに来る（雨の日に増える）。あなたも4つのゲームで遊べる。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} コイン`
       : type === 'track'
-      ? `${CONFIG.track.every}日ごと（Day ${CONFIG.track.every}・${CONFIG.track.every * 2}…）の ${fmtClock(CONFIG.track.start)} から、島のペットと島の外の犬がレース。住民と観光客が見に来る（入場料）。3着までで賞金。維持費 1日 ${V.levels[0].upkeep} Coin`
+      ? `${CONFIG.track.every}日ごと（Day ${CONFIG.track.every}・${CONFIG.track.every * 2}…）の ${fmtClock(CONFIG.track.start)} から、島のペットと島の外の犬がレース。住民と観光客が見に来る（入場料）。3着までで賞金。維持費 1日 ${V.levels[0].upkeep} コイン`
       : type === 'company'
-      ? `住民 ${V.levels[0].seats}人 が朝 出勤して、お昼に近くのカフェへ行く。1人 1日 ${CONFIG.company.pay} Coin。場所を選べる`
+      ? `住民 ${V.levels[0].seats}人 が朝 出勤して、お昼に近くのカフェへ行く。1人 1日 ${CONFIG.company.pay} コイン。場所を選べる`
       : type === 'aquarium'
-      ? `観光客が長く過ごす。雨の日にも人が来る。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`
+      ? `観光客が長く過ごす。雨の日にも人が来る。${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} コイン。場所を選べる`
       : type === 'pool'
-      ? `夏だけ開く（${fmtClock(V.open)}〜${fmtClock(V.close)}）。晴れた日に人が集まる。子どもは親と来る。${V.levels[0].seats}人。維持費は夏だけ 1日 ${V.levels[0].upkeep} Coin`
+      ? `夏だけ開く（${fmtClock(V.open)}〜${fmtClock(V.close)}）。晴れた日に人が集まる。子どもは親と来る。${V.levels[0].seats}人。維持費は夏だけ 1日 ${V.levels[0].upkeep} コイン`
       : type === 'pond'
-      ? `住民が釣りに来る。あなたも釣りができる。釣り座 ${V.levels[0].seats}つ。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`
+      ? `住民が釣りに来る。あなたも釣りができる。釣り座 ${V.levels[0].seats}つ。維持費 1日 ${V.levels[0].upkeep} コイン。場所を選べる`
       : type === 'super'
-      ? `住民が毎日 買い物に行く。一度に ${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`
+      ? `住民が毎日 買い物に行く。一度に ${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} コイン。場所を選べる`
       : type === 'kinder'
-        ? `子どもが朝 通って、15時に帰る。${V.levels[0].seats}人まで。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`
+        ? `子どもが朝 通って、15時に帰る。${V.levels[0].seats}人まで。維持費 1日 ${V.levels[0].upkeep} コイン。場所を選べる`
       : type === 'school'
-        ? `小学生が朝 ひとりで通って、${fmtClock(V.close)}に帰る。${V.levels[0].seats}人まで。1人 1日 ${V.fee} Coin。維持費 1日 ${V.levels[0].upkeep} Coin`
+        ? `小学生が朝 ひとりで通って、${fmtClock(V.close)}に帰る。${V.levels[0].seats}人まで。1人 1日 ${V.fee} コイン。維持費 1日 ${V.levels[0].upkeep} コイン`
       : type === 'hospital'
-        ? `お年寄りが ときどき 診てもらいに来る。${fmtClock(V.open)}〜${fmtClock(V.close)}。一度に ${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} Coin`
+        ? `お年寄りが ときどき 診てもらいに来る。${fmtClock(V.open)}〜${fmtClock(V.close)}。一度に ${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} コイン`
       : type === 'college'
-        ? `学生が朝 通って、${fmtClock(V.close)}まで勉強する。帰りに カフェやゲームセンターへ。${V.levels[0].seats}人まで。1人 1日 ${V.fee} Coin。維持費 1日 ${V.levels[0].upkeep} Coin`
+        ? `学生が朝 通って、${fmtClock(V.close)}まで勉強する。帰りに カフェやゲームセンターへ。${V.levels[0].seats}人まで。1人 1日 ${V.fee} コイン。維持費 1日 ${V.levels[0].upkeep} コイン`
       : type === 'petshop'
-        ? `ペットのいる家の人が通う。一度に ${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`
-        : `長く過ごせる屋内の施設。${V.levels[0].seats}席。維持費 1日 ${V.levels[0].upkeep} Coin。場所を選べる`;
+        ? `ペットのいる家の人が通う。一度に ${V.levels[0].seats}人。維持費 1日 ${V.levels[0].upkeep} コイン。場所を選べる`
+        : `長く過ごせる屋内の施設。${V.levels[0].seats}席。維持費 1日 ${V.levels[0].upkeep} コイン。場所を選べる`;
     list.push({
       id: type,
       icon: `${type}_new`,
@@ -2194,7 +2194,7 @@ export function actionsFor(state) {
       id: 'ski', icon: 'ski_new', place: 'ski', title: 'スキー場をつくる',
       detail: full
         ? `スキー場は島に ${K.max}軒まで`
-        : `山の島にだけ建てられる。冬のあいだ（${fmtClock(K.open)}〜${fmtClock(K.close)}）住民と観光客が滑りに来る。一度に ${K.levels[0].seats}人。維持費は冬だけ 1日 ${K.levels[0].upkeep} Coin`,
+        : `山の島にだけ建てられる。冬のあいだ（${fmtClock(K.open)}〜${fmtClock(K.close)}）住民と観光客が滑りに来る。一度に ${K.levels[0].seats}人。維持費は冬だけ 1日 ${K.levels[0].upkeep} コイン`,
       cost: K.buildCost, locked: full,
     });
   }
@@ -2207,7 +2207,7 @@ export function actionsFor(state) {
         id: `petshop_breeder:${p.id}`,
         icon: 'petshop_new',
         title: `${labelOf(state, p)}を ペットショップ&ブリーダーにする`,
-        detail: `${B.every}日ごとに 子犬・子猫・子うさぎが1頭 入る（店に${B.shelf}頭まで）。ペットのいない家の人が 買いに来る。名前は あなたがつける。維持費 1日 +${B.upkeep} Coin`,
+        detail: `${B.every}日ごとに 子犬・子猫・子うさぎが1頭 入る（店に${B.shelf}頭まで）。ペットのいない家の人が 買いに来る。名前は あなたがつける。維持費 1日 +${B.upkeep} コイン`,
         cost: B.cost,
       });
     }
@@ -2219,7 +2219,7 @@ export function actionsFor(state) {
       id: `cafe_bar:${c.id}`,
       icon: 'bar',
       title: `${cafeLabel(state, c)}を カフェ&レストランにする`,
-      detail: `昼はカフェのまま、夜は ${fmtClock(B.close)} までレストラン（夜ごはん）。維持費 1日 +${B.upkeep} Coin`,
+      detail: `昼はカフェのまま、夜は ${fmtClock(B.close)} までレストラン（夜ごはん）。維持費 1日 +${B.upkeep} コイン`,
       cost: B.cost,
     });
   }
@@ -2231,7 +2231,7 @@ export function actionsFor(state) {
       id: `${c.type === 'cafe' ? 'cafe' : 'venue'}_upgrade:${c.id}`,
       icon: 'cafe_upgrade',
       title: `${labelOf(state, c)}を広げる（Lv${next.level}）`,
-      detail: `${unit} ${seatCount(c)} → ${next.seats}　維持費 1日 ${next.upkeep} Coin`,
+      detail: `${unit} ${seatCount(c)} → ${next.seats}　維持費 1日 ${next.upkeep} コイン`,
       cost: next.cost,
     });
   }
@@ -2244,7 +2244,7 @@ export function actionsFor(state) {
       title: shops(state).length ? 'お土産屋をもう1軒つくる' : 'お土産屋をつくる',
       detail: full
         ? `お土産屋は いまの島に ${maxOf(state, 'shop')}軒まで${moreLandNote(state, 'shop')}`
-        : state.port?.open ? `観光客がお土産を買う。1日 ${CONFIG.shop.levels[0].stock}個まで。維持費 1日 ${CONFIG.shop.levels[0].upkeep} Coin。場所を選べる` : '港がひらくと建てられます',
+        : state.port?.open ? `観光客がお土産を買う。1日 ${CONFIG.shop.levels[0].stock}個まで。維持費 1日 ${CONFIG.shop.levels[0].upkeep} コイン。場所を選べる` : '港がひらくと建てられます',
       cost: CONFIG.shop.cost,
       locked: !state.port?.open || full,
     });
@@ -2256,7 +2256,7 @@ export function actionsFor(state) {
       id: `shop_upgrade:${b.id}`,
       icon: 'shop_new',
       title: `${shopLabel(state, b)}の品数を増やす（Lv${next.level}）`,
-      detail: `1日 ${CONFIG.shop.levels[b.level - 1].stock} → ${next.stock}個　維持費 1日 ${next.upkeep} Coin`,
+      detail: `1日 ${CONFIG.shop.levels[b.level - 1].stock} → ${next.stock}個　維持費 1日 ${next.upkeep} コイン`,
       cost: next.cost,
     });
   }
@@ -2371,13 +2371,13 @@ export function actionsFor(state) {
       icon: 'harbor',
       title: `${areaById(id).name}に港をつくる`,
       detail: state.port.open
-        ? `船が1日2回 来る（${H.boats.map(fmtClock).join('・')}ごろ）。維持費 1日 ${H.upkeep} Coin`
+        ? `船が1日2回 来る（${H.boats.map(fmtClock).join('・')}ごろ）。維持費 1日 ${H.upkeep} コイン`
         : '本島の港がひらくと つくれます',
       cost: H.cost,
       locked: !state.port.open,
     });
   }
-  // 海の向こうの島（D354・D365）：本島では 船着き場をつくる。向こうの島では 区画を片付ける（どちらも本島の Coin）
+  // 海の向こうの島（D354・D365）：本島では 船着き場をつくる。向こうの島では 区画を片付ける（どちらも本島のコイン）
   const A = CONFIG.abroad;
   if (!isAbroad(state)) {
     const grown = grownAdults(state);
@@ -2423,7 +2423,7 @@ export function actionsFor(state) {
       });
     }
   }
-  // 港をひらく（D372）：本島から 観光客を乗せた船が来る。お土産屋も建つ。本島の Coin で払う
+  // 港をひらく（D372）：本島から 観光客を乗せた船が来る。お土産屋も建つ。本島のコインで払う
   if (isAbroad(state) && !state.port.open) {
     const noCafe = !cafes(state).length;
     list.push({
@@ -2433,7 +2433,7 @@ export function actionsFor(state) {
       title: '港をひらく',
       detail: noCafe
         ? 'カフェができると ひらけます'
-        : `本島から 観光客を乗せた船が 1日2回 来る（${CONFIG.port.boats.map(fmtClock).join('・')}ごろ）。お土産屋も建てられる。本島の Coin で払う`,
+        : `本島から 観光客を乗せた船が 1日2回 来る（${CONFIG.port.boats.map(fmtClock).join('・')}ごろ）。お土産屋も建てられる。本島のコインで払う`,
       cost: A.port,
       payWith: 'main',
       locked: noCafe,
@@ -2447,7 +2447,7 @@ export function actionsFor(state) {
         tab: 'island',
         icon: 'clear',
         title: `${PLOT_NAMES[n]}を片付ける`,
-        detail: `${CLEAR_TEXT[state.isle]}。家を建てられる土地が ${plotLand(n)}マス になる。本島の Coin で払う`,
+        detail: `${CLEAR_TEXT[state.isle]}。家を建てられる土地が ${plotLand(n)}マス になる。本島のコインで払う`,
         cost: A.clear,
         payWith: 'main',
       });
@@ -2464,10 +2464,10 @@ export function actionsFor(state) {
     const pop = countedPop(state);
     const need = CONFIG.abroad.petshopPop;
     ps.locked = pop < need;
-    ps.detail = ps.locked ? `この島の住民が ${need}人 になると建てられます（いま ${pop}人）` : `ペットのいる家の人が通う。本島で ペットを飼っている人も、ペットと一緒に 引っ越してこられる。一度に ${CONFIG.petshop.levels[0].seats}人。維持費 1日 ${CONFIG.petshop.levels[0].upkeep} Coin`;
+    ps.detail = ps.locked ? `この島の住民が ${need}人 になると建てられます（いま ${pop}人）` : `ペットのいる家の人が通う。本島で ペットを飼っている人も、ペットと一緒に 引っ越してこられる。一度に ${CONFIG.petshop.levels[0].seats}人。維持費 1日 ${CONFIG.petshop.levels[0].upkeep} コイン`;
   }
-  // お金は Shell／オーロラ（片付けは本島の Coin のまま・D371）
-  for (const a of here) if (a.payWith !== 'main' && a.detail) a.detail = a.detail.replaceAll('Coin', moneyOf(state));
+  // お金は Shell／オーロラ（片付けは本島のコインのまま・D371）
+  for (const a of here) if (a.payWith !== 'main' && a.detail) a.detail = a.detail.replaceAll('コイン', moneyOf(state));
   return here;
 }
 
@@ -2477,7 +2477,7 @@ export function applyAction(state, id, place) {
   if (id === 'house_upgrade') return upgradeHouse(state, place?.id);
   const action = actionsFor(state).find((a) => a.id === id);
   if (!action || action.locked) return { ok: false, message: 'いまは できません' };
-  if (action.payWith === 'main') return { ok: false, message: 'いまは できません' }; // 本島の Coin で払うもの（clearPlot）
+  if (action.payWith === 'main') return { ok: false, message: 'いまは できません' }; // 本島のコインで払うもの（clearPlot）
   if (state.coin < action.cost) return { ok: false, message: `${moneyOf(state)} が足りません（あと ${action.cost - state.coin}）` };
   if (action.place) {
     if (!place || !canPlace(action.place, place.c, place.r, state.buildings)) return { ok: false, message: 'そこには建てられません' };
@@ -2525,8 +2525,8 @@ export function applyAction(state, id, place) {
 
 // ---------------------------------------------------------------- あなたの釣り（D304）
 //
-// 画面のミニゲームが「ぴったり／よい／のがした」を決めて、ここに渡す。どの魚が釣れるか・Coin はここで決める。
-// 遊ぶのは何回でも。Coin が出るのは1日 rewardsPerDay 回まで（上限が無いと Coin があふれて「何を建てるか選ぶ」が消える）
+// 画面のミニゲームが「ぴったり／よい／のがした」を決めて、ここに渡す。どの魚が釣れるか・コインはここで決める。
+// 遊ぶのは何回でも。コインが出るのは1日 rewardsPerDay 回まで（上限が無いとコインがあふれて「何を建てるか選ぶ」が消える）
 
 export function fishingLeft(state) {
   return Math.max(0, CONFIG.pond.game.rewardsPerDay - (state.today.fishing?.rewarded || 0));
@@ -2642,7 +2642,7 @@ function upgradeHouse(state, id) {
   if (!h || h.type !== 'house') return { ok: false, message: 'いまは できません' };
   const cost = houseUpgradeCost(h);
   if (cost === null) return { ok: false, message: 'この家は これ以上 広げられません' };
-  if (state.coin < cost) return { ok: false, message: `Coin が足りません（あと ${cost - state.coin}）` };
+  if (state.coin < cost) return { ok: false, message: `コインが足りません（あと ${cost - state.coin}）` };
   h.level = (h.level || 1) + 1;
   state.coin -= cost;
   state.history.push({ t: state.t, action: `house_upgrade:${h.id}`, place: null });
@@ -3695,7 +3695,7 @@ export const islandNow = (world) => world.islands[world.current];
 
 // 海の向こうの島をつくる（はじめは何も無い。住民は あとで本島から移ってくる）。時計と天気は本島に合わせる。
 // 島ごとに 乱数の種を変える（同じ日に同じ天気・同じ出来事にならないように）
-// covered：はじめは 4つの区画とも覆われている（片付けは 本島の Coin・clearPlot）。false は確かめる用
+// covered：はじめは 4つの区画とも覆われている（片付けは 本島のコイン・clearPlot）。false は確かめる用
 export const ABROAD = { shell: 0x5bd1e995, aurora: 0x27d4eb2f };
 export function createIsland(world, id, { covered = true } = {}) {
   if (!ABROAD[id]) return null;
@@ -3713,7 +3713,7 @@ export function createIsland(world, id, { covered = true } = {}) {
 }
 export const createShellIsland = (world, opts) => createIsland(world, 'shell', opts);
 
-// 船着き場をつくる（本島で・本島の Coin）。できたら その島が現れる（はじめは 覆われている）
+// 船着き場をつくる（本島で・本島のコイン）。できたら その島が現れる（はじめは 覆われている）
 export function openRoute(world, id) {
   const main = world.islands.main;
   const res = applyAction(main, `route:${id}`);
@@ -3725,7 +3725,7 @@ export function openRoute(world, id) {
   return res;
 }
 
-// 港をひらく（向こうの島で・本島の Coin・D372）
+// 港をひらく（向こうの島で・本島のコイン・D372）
 export function openAbroadPort(world, id) {
   const state = world.islands[id];
   const main = world.islands.main;
@@ -3733,7 +3733,7 @@ export function openAbroadPort(world, id) {
   syncMap(state);
   const action = actionsFor(state).find((a) => a.id === 'abroad_port');
   if (!action || action.locked) return { ok: false, message: 'いまは できません' };
-  if (main.coin < action.cost) return { ok: false, message: `本島の Coin が足りません（あと ${action.cost - main.coin}）` };
+  if (main.coin < action.cost) return { ok: false, message: `本島のコインが足りません（あと ${action.cost - main.coin}）` };
   main.coin -= action.cost;
   main.history.push({ t: main.t, action: `abroad_port:${id}`, place: null });
   openPort(state);
@@ -3742,13 +3742,13 @@ export function openAbroadPort(world, id) {
   return { ok: true, message: `${ISLE_NAMES[id]}に 港ができました` };
 }
 
-// 区画を片付ける（向こうの島で・本島の Coin）。片付いた区画の土地に 家や店が建てられる
+// 区画を片付ける（向こうの島で・本島のコイン）。片付いた区画の土地に 家や店が建てられる
 export function clearPlot(world, id, n) {
   const state = world.islands[id];
   const main = world.islands.main;
   if (!state?.debris?.[n]) return { ok: false, message: 'いまは できません' };
   const cost = CONFIG.abroad.clear;
-  if (main.coin < cost) return { ok: false, message: `本島の Coin が足りません（あと ${cost - main.coin}）` };
+  if (main.coin < cost) return { ok: false, message: `本島のコインが足りません（あと ${cost - main.coin}）` };
   main.coin -= cost;
   main.history.push({ t: main.t, action: `clear:${id}:${n}`, place: null });
   state.debris[n] = false;
@@ -3768,7 +3768,7 @@ export function visitIsland(world, id) {
 }
 
 // ---------------------------------------------------------------- 両替（D336・D340・D366）
-// 本島の Coin → 向こうの島のお金。10 → 1。1日の上限（本島の Coin で 5,000）は 2つの島で分け合う
+// 本島のコイン → 向こうの島のお金。10 → 1。1日の上限（本島のコインで 5,000）は 2つの島で分け合う
 export function exchangeLeft(world) {
   const X = CONFIG.abroad.exchange;
   const e = world.exchange;
@@ -3782,13 +3782,13 @@ export function exchange(world, id, coin) {
   const left = exchangeLeft(world);
   if (left <= 0) return { ok: false, message: '今日の両替は ここまでです' };
   const paid = Math.floor(Math.min(coin, left, main.coin) / X.rate) * X.rate;
-  if (paid <= 0) return { ok: false, message: '本島の Coin が足りません' };
+  if (paid <= 0) return { ok: false, message: '本島のコインが足りません' };
   const got = paid / X.rate;
   main.coin -= paid;
   to.coin += got;
   const day = dayOf(main.t);
   world.exchange = { day, used: (world.exchange?.day === day ? world.exchange.used : 0) + paid };
-  return { ok: true, paid, got, message: `${paid.toLocaleString()} Coin を ${got.toLocaleString()} ${MONEY_NAME[id]} に両替しました` };
+  return { ok: true, paid, got, message: `${paid.toLocaleString()} コインを ${got.toLocaleString()} ${MONEY_NAME[id]} に両替しました` };
 }
 
 // ---------------------------------------------------------------- 移住（D340・D365）

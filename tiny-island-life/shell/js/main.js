@@ -26,7 +26,7 @@ import { showRewardedAd, adsOn } from './ads.js';
 // 🚨 ほかの版（3日テスト中・ストア版 1.0）と同じサイトに置くので、保存の名前を分ける（D289・D361）
 // シェルの島の版は til.shell.*。はじめの1回だけ 1.0 のセーブ（til.grid.save.v1）を読んで写す。1.0 のほうには書き込まない
 const SAVE_KEY = 'til.shell.save.v1';
-// 島ごとの お金の絵（本島 Coin・シェルの島 Shell・オーロラの島 オーロラ。D354・D366）
+// 島ごとの お金の絵（本島コイン・シェルの島 Shell・オーロラの島 オーロラ。D354・D366）
 const MONEY_ICON = { main: 'coin', shell: 'shell', aurora: 'aurora' };
 const moneyIcon = (isle) => ICONS[MONEY_ICON[isle || 'main']];
 const OLD_SAVE_KEY = 'til.grid.save.v1';
@@ -107,7 +107,7 @@ function frame(now) {
       toast('ドッグレースが始まりました');
     } else if (e.type === 'raceEnd') {
       const mine = e.placed.map((x) => `${x.name}が${x.rank}着`).join('・');
-      toast(`ドッグレース：1着は${e.winner}${mine && !e.winnerOwn ? `。${mine}` : ''}${e.prize ? `（+${e.prize} Coin）` : ''}`);
+      toast(`ドッグレース：1着は${e.winner}${mine && !e.winnerOwn ? `。${mine}` : ''}${e.prize ? `（+${e.prize} コイン）` : ''}`);
     } else if (e.type === 'arrived') {
       toast(`${e.name}が島に引っ越してきました`);
       renderQuest();
@@ -121,7 +121,7 @@ function frame(now) {
       renderQuest();
     } else if (e.type === 'wish') {
       // お願いをかなえた（D335）
-      toast(`${e.name}「ありがとう！」　+${e.coin} Coin`);
+      toast(`${e.name}「ありがとう！」　+${e.coin} コイン`);
       renderQuest();
     } else if (e.type === 'petBought') {
       toast(`${e.owner}の家に ${e.baby}が 来ました`);
@@ -475,12 +475,12 @@ function renderCard() {
       html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">釣り座 ${seatCount(b)}つ。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
       html += `<div class="now">釣りをしている：${who(b.seats.filter(Boolean))}</div>`;
       html += `<div>あなたが釣った魚：${log.length ? log.join('・') : 'まだ いない'}</div>`;
-      html += `<button id="btn-fish" class="card-act go" type="button">${ICONS.fish}釣りをする<span class="cost">${left > 0 ? `今日の Coin あと ${left}回` : '今日の Coin は おしまい'}</span></button>`;
+      html += `<button id="btn-fish" class="card-act go" type="button">${ICONS.fish}釣りをする<span class="cost">${left > 0 ? `今日のコイン あと ${left}回` : '今日のコインは おしまい'}</span></button>`;
     } else if (b.type === 'company') {
       // 会社（D319）
       const C = CONFIG.company;
       const inside = state.residents.filter((r) => r.state === 'WORK' && r.destId === b.id).map((r) => r.id);
-      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${seatCount(b)}人 が勤める（家の近い人から）。${fmt(C.go)}ごろ出勤、お昼は近くのカフェ、${fmt(C.close)}まで。1人 1日 ${C.pay} Coin</div>`;
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${seatCount(b)}人 が勤める（家の近い人から）。${fmt(C.go)}ごろ出勤、お昼は近くのカフェ、${fmt(C.close)}まで。1人 1日 ${C.pay} コイン</div>`;
       html += `<div class="now">いま働いている：${who(inside)}</div>`;
       html += `<div>勤めている人：${who(b.staff || [])}</div>`;
     } else if (b.type === 'arcade') {
@@ -492,7 +492,7 @@ function renderCard() {
       html += `<div class="now">遊んでいる：${who(b.seats.filter(Boolean))}</div>`;
       html += `<div>クレーンゲームの景品：${got || 'まだ ない'}</div>`;
       html += `<div>じゃんけんのスタンプ：${state.stamps || 0} / ${V.game.stamps}${state.decoTickets ? `（飾り券 ${state.decoTickets}まい）` : ''}</div>`;
-      html += `<button id="btn-arcade" class="card-act go" type="button">🎮 ゲームで遊ぶ<span class="cost">${left > 0 ? `今日の Coin あと ${left}回` : '今日の Coin は おしまい'}</span></button>`;
+      html += `<button id="btn-arcade" class="card-act go" type="button">🎮 ゲームで遊ぶ<span class="cost">${left > 0 ? `今日のコイン あと ${left}回` : '今日のコインは おしまい'}</span></button>`;
     } else if (b.type === 'track') {
       // ドッグレース場（D328）
       const R = CONFIG.track;
@@ -556,12 +556,12 @@ function renderCard() {
       const V = CONFIG[b.type];
       const inside = b.seats.filter(Boolean);
       const what = b.type === 'school' ? '小学生が おべんきょうをするところ' : '学生が むずかしい おべんきょうをするところ';
-      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${what}。${fmt(V.start)}〜${fmt(V.close)}。${seatCount(b)}人まで。1人 ${V.fee} Coin</div>`;
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${what}。${fmt(V.start)}〜${fmt(V.close)}。${seatCount(b)}人まで。1人 ${V.fee} コイン</div>`;
       html += `<div class="now">いま ${inside.length}人 が${b.type === 'school' ? '' : ' むずかしい'} おべんきょうをしている${inside.length ? `：${who(inside)}` : ''}</div>`;
       html += `<div>今日 来た${b.type === 'school' ? '子' : '学生'}：${state.today[b.type]?.went || 0}人</div>`;
     } else if (b.type === 'kinder') {
       const K = CONFIG.kinder;
-      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${seatCount(b)}人まで。朝 ${fmt(K.open)}から${fmt(K.close)}まで。1人 ${K.fee} Coin</div>`;
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${seatCount(b)}人まで。朝 ${fmt(K.open)}から${fmt(K.close)}まで。1人 ${K.fee} コイン</div>`;
       html += `<div class="now">いま：${who(b.seats.filter(Boolean))}</div>`;
       html += `<div>今日 来た子：${state.today.kinder?.went || 0}人</div>`;
     } else if (b.type === 'shop') {
@@ -601,7 +601,7 @@ function renderCard() {
     html += cost === null
       ? `<div class="card-note">これ以上は広げられない（${capacityOf(h)}人まで）</div>`
       : `<button id="btn-upgrade" class="card-act" type="button" ${state.coin < cost ? 'disabled' : ''}>${ICONS.house_up}${next.level === 3 ? 'アパートにする' : '2階建てにする'}（${next.capacity}人まで）<span class="cost">${ICONS.coin}${cost.toLocaleString()}</span></button>` +
-        (state.coin < cost ? `<div class="card-note">Coin が あと ${(cost - state.coin).toLocaleString()} 足りません</div>` : '');
+        (state.coin < cost ? `<div class="card-note">コインが あと ${(cost - state.coin).toLocaleString()} 足りません</div>` : '');
   }
   delete card.dataset.stray;
   // 前に書いた文字列と比べる（SVG は innerHTML で読み直すと書き方が変わり、毎コマ描き直してボタンが押せなくなる）
@@ -795,7 +795,7 @@ $('sheet').addEventListener('click', (ev) => {
     $('sheet').hidden = true;
     return startPicking(action);
   }
-  // 海の向こうの島：船着き場（本島で）と 片付け（向こうの島で）。どちらも 本島の Coin で払う（D354・D367）
+  // 海の向こうの島：船着き場（本島で）と 片付け（向こうの島で）。どちらも 本島のコインで払う（D354・D367）
   if (action.id.startsWith('route:') || action.id.startsWith('clear:') || action.id === 'abroad_port') {
     const [kind, arg] = action.id.split(':');
     const res = kind === 'route' ? openRoute(world, arg) : kind === 'clear' ? clearPlot(world, world.current, Number(arg)) : openAbroadPort(world, world.current);
@@ -839,7 +839,13 @@ function openBoat() {
       <span><span class="cost">${moneyIcon(id)}${s.coin.toLocaleString()}</span><span class="need">${here ? 'いまいる島' : ''}</span></span>
     </button>`;
   });
-  // 両替（D366）：本島の Coin → 向こうの島のお金。1日の上限は 2つの島で分け合う
+  openSheet(`<h2>船</h2>${rows.join('')}${exchangeHtml(true)}`);
+  exSheet = 'boat';
+}
+// 両替（D366）：本島のコイン → 向こうの島のお金。1日の上限は 2つの島で分け合う。
+// 船のシートの下と、右上のお金を押したとき（D378：そのほうが すぐ分かる）
+let exSheet = 'boat';
+function exchangeHtml(inBoat) {
   const X = CONFIG.abroad.exchange;
   const left = exchangeLeft(world);
   const coin = world.islands.main.coin;
@@ -850,16 +856,21 @@ function openBoat() {
       const all = Math.min(left, coin);
       const btn = (amt, label) => `<button class="ex-btn" type="button" data-ex="${id}" data-amt="${amt}" ${amt < X.rate ? 'disabled' : ''}>${label}</button>`;
       const buttons = all < X.rate
-        ? `<span class="need">${left < X.rate ? '今日の両替は ここまで' : '本島の Coin が足りません'}</span>`
+        ? `<span class="need">${left < X.rate ? '今日の両替は ここまで' : '本島のコインが足りません'}</span>`
         : `${btn(one, `${ICONS.coin}${one.toLocaleString()} → ${Math.floor(one / X.rate).toLocaleString()}`)}${btn(all, 'のこり全部')}`;
-      return `<div class="ex-row"><span class="ex-name">${moneyIcon(id)}${MONEY_NAME[id]}</span>${buttons}</div>`;
+      return `<div class="ex-row"><span class="ex-name">${moneyIcon(id)}${MONEY_NAME[id]}<small>${world.islands[id].coin.toLocaleString()}</small></span>${buttons}</div>`;
     })
     .join('');
-  openSheet(`<h2>船</h2>${rows.join('')}
-    <h3 class="ex-title">両替</h3>
-    <p class="lead">本島の Coin ${X.rate} で 1。今日は あと ${ICONS.coin}${left.toLocaleString()} まで（2つの島で合わせて）</p>
-    ${ex}`);
+  return `${inBoat ? '<h3 class="ex-title">両替</h3>' : ''}
+    <p class="lead">本島のコイン ${ICONS.coin}${coin.toLocaleString()}。コイン ${X.rate} で 1。今日は あと ${ICONS.coin}${left.toLocaleString()} まで（2つの島で合わせて）</p>
+    ${ex}`;
 }
+function openExchange() {
+  if (placing || Object.keys(world.islands).length < 2) return;
+  openSheet(`<h2>両替</h2>${exchangeHtml(false)}`);
+  exSheet = 'exchange';
+}
+$('hud-coin').addEventListener('click', () => openExchange());
 $('btn-boat').addEventListener('click', () => openBoat());
 $('sheet').addEventListener('click', (ev) => {
   const ex = ev.target.closest('[data-ex]');
@@ -869,7 +880,8 @@ $('sheet').addEventListener('click', (ev) => {
     if (res.ok) {
       updateHud();
       save();
-      openBoat();
+      if (exSheet === 'boat') openBoat();
+      else openExchange();
     }
     return;
   }
@@ -969,7 +981,7 @@ function openBuild(focusId) {
   list.sort((a, b) => Number(!!a.locked) - Number(!!b.locked));
   const items = list
     .map((a) => {
-      // 片付けは 向こうの島にいても 本島の Coin で払う（D354）
+      // 片付けは 向こうの島にいても 本島のコインで払う（D354）
       const payer = a.payWith === 'main' ? 'main' : state.isle;
       const short = a.cost - world.islands[payer || 'main'].coin;
       return `<button class="action" type="button" data-action="${a.id}" ${short > 0 || a.locked ? 'disabled' : ''}>
@@ -1081,7 +1093,7 @@ function tapWhilePlacing(clientX, clientY) {
     const cost = houseUpgradeCost(hb);
     placing.ghost = h;
     $('place-ok').disabled = state.coin < cost;
-    $('place-ok').innerHTML = state.coin < cost ? `Coin が あと ${(cost - state.coin).toLocaleString()} 足りません` : `広げる ${ICONS.coin}${cost.toLocaleString()}`;
+    $('place-ok').innerHTML = state.coin < cost ? `コインが あと ${(cost - state.coin).toLocaleString()} 足りません` : `広げる ${ICONS.coin}${cost.toLocaleString()}`;
     return;
   }
   const { c, r } = renderer.tileAt(clientX, clientY);
@@ -1163,7 +1175,7 @@ function tutorial(trigger) {
   const res = report(state, trigger);
   if (!res) return;
   busyStage = null;
-  if (res.reward > 0) setTimeout(() => toast(`できました　+${res.reward} Coin`), 400);
+  if (res.reward > 0) setTimeout(() => toast(`できました　+${res.reward} コイン`), 400);
   if (res.finished) setTimeout(() => toast('ここからは、島を自由に育ててください'), 3300);
   renderQuest();
   save();
@@ -1292,7 +1304,7 @@ function renderDebug() {
     <button data-dbg="away">留守にする（翌朝まで進める）</button>
     <button data-dbg="speed">速さ ×${speed === 1 ? 10 : 1} にする</button>
     <button data-dbg="rain">今日を雨にする</button>
-    <button data-dbg="coin">Coin +500</button>
+    <button data-dbg="coin">コイン +500</button>
     <button data-dbg="port">港をひらく</button>
     <button data-dbg="unlock">釣り堀・スーパー・プラネタリウムをひらく</button>
     <button data-dbg="pets">ペットを全部 迷い込ませる</button>
@@ -1300,7 +1312,7 @@ function renderDebug() {
     <button data-dbg="wave1">会社・水族館・プールをひらく</button>
     <button data-dbg="family">結婚と出産を早める（留守2回で子ども）</button>
     <button data-dbg="grown">本島の大人5人を「育った大人」にする（移住を試す）</button>
-    <button data-dbg="dock">船着き場をつくれるようにする（育った大人の条件なし・Coin +30,000）</button>
+    <button data-dbg="dock">船着き場をつくれるようにする（育った大人の条件なし・コイン +30,000）</button>
     ${Object.entries(ISLE_NAMES).filter(([id]) => id !== (state.isle || 'main')).map(([id, name]) => `<button data-dbg="isle" data-isle="${id}">${world.islands[id] ? `${name}へ` : `${name}をつくって行く`}</button>`).join('')}
     <button data-dbg="reset">最初からやり直す</button>
     <pre>${(() => {

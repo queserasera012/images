@@ -5,7 +5,8 @@
 // 表示だけを変える。島の動き（sim.js）とセーブは変えない。前の日の日記も この形で見える。
 // 分け方は 行の文面で見る（文面は sim.js が決まった形で書く。変えたら test/diary.test.mjs が落ちる）
 
-const COIN = /（\+([\d,]+) Coin）/;
+// お金の名前は 島ごと（コイン・シェル・オーロラ・D378）。前のセーブの日記は Coin・Shell のまま
+const COIN = /（\+([\d,]+) (?:コイン|シェル|オーロラ|Coin|Shell)）/;
 const num = (s) => Number(String(s).replace(/,/g, ''));
 
 // 島のできごと：家族・解放・お願い・季節・ドッグレース
@@ -19,10 +20,10 @@ const MERGE_EVENTS = [
 ];
 const MERGE_PROBLEMS = [
   {
-    re: /^(.+?)、(.+?)の前で待っていた(?:観光客)? ?(\d+)人 が、.+?（−([\d,]+) Coin）$/,
+    re: /^(.+?)、(.+?)の前で待っていた(?:観光客)? ?(\d+)人 が、.+?（−([\d,]+) (コイン|シェル|オーロラ|Coin|Shell)）$/,
     key: (m) => `lost:${m[2]}`,
     piece: (m) => ({ text: `${m[1]} ${m[3]}人`, coin: num(m[4]) }),
-    make: (ps, m) => `${m[2]}の行列：${ps.map((p) => p.text).join('・')} が帰った（−${ps.reduce((s, p) => s + p.coin, 0).toLocaleString()} Coin）`,
+    make: (ps, m) => `${m[2]}の行列：${ps.map((p) => p.text).join('・')} が帰った（−${ps.reduce((s, p) => s + p.coin, 0).toLocaleString()} ${m[5]}）`,
   },
   { re: /^(.+?)は、もう少し広い家に住みたいようです$/, key: () => 'room', piece: (m) => m[1], make: (ps) => `広い家に住みたい：${ps.join('・')}` },
   { re: /^(.+?)は、一緒に住める家を探しているようです$/, key: () => 'together', piece: (m) => m[1], make: (ps) => `一緒に住める家を探している：${ps.join('・')}` },
@@ -67,7 +68,7 @@ export function diaryView(entry) {
   for (const l of entry.lines) {
     const t = l.text;
     if (/^昨日は.+でした。$/.test(t)) continue; // 天気は見出しに出す
-    const up = t.match(/維持費 −([\d,]+) Coin$/);
+    const up = t.match(/維持費 −([\d,]+) (?:コイン|シェル|オーロラ|Coin|Shell)$/);
     if (up) {
       upkeep += num(up[1]);
       money.push(l);

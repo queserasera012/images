@@ -2,7 +2,7 @@
 //
 // 浮きを見て待つ → 魚がかかると、大きな円がだんだん小さくなる → 円が明るい輪に重なったらタップ。
 // 輪の真ん中ぴったりなら「ぴったり」（大物も釣れる）、輪の中なら「よい」、外なら のがす。
-// どの魚が釣れるか・Coin は sim.js（landFish）が決める。ここは判定と絵だけ。
+// どの魚が釣れるか・コインは sim.js（landFish）が決める。ここは判定と絵だけ。
 
 import { landFish, fishingLeft, addBait, adsLeft } from './sim.js';
 import { showRewardedAd, adsOn } from './ads.js';
@@ -58,7 +58,7 @@ export function openFishing({ getState, onChange, close: onClose }) {
   const showLeft = () => {
     const state = getState();
     const left = fishingLeft(state);
-    root.querySelector('.game-left').textContent = left > 0 ? `今日の Coin：あと ${left}回` : '今日の Coin は おしまい';
+    root.querySelector('.game-left').textContent = left > 0 ? `今日のコイン：あと ${left}回` : '今日のコインは おしまい';
     // 特別なエサ（リワード広告・D309）
     const btn = root.querySelector('.bait-btn');
     root.querySelector('.game-bait').hidden = !adsOn(); // アプリで広告を切っているあいだは出さない（D343）
@@ -84,7 +84,7 @@ export function openFishing({ getState, onChange, close: onClose }) {
     const res = landFish(getState(), grade);
     game.result = res;
     if (res.fish) {
-      const coin = res.coin ? `　+${res.coin} Coin` : '';
+      const coin = res.coin ? `　+${res.coin} コイン` : '';
       msg(`${res.fish.name}が釣れた！${coin}${res.first ? '（はじめての魚）' : ''}`);
     } else {
       msg(text);

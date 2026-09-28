@@ -794,3 +794,7 @@ h3 .dot { width: 14px; height: 14px; }
 }
 .ex-btn:disabled { opacity: 0.4; }
 .ex-btn .icon { width: 16px; height: 16px; }
+
+/* 右上のお金を押すと 両替（向こうの島があるとき・D378） */
+#hud-coin { cursor: pointer; pointer-events: auto; }
+.ex-name small { margin-left: 4px; color: var(--muted); font-size: 12px; font-weight: 700; }
