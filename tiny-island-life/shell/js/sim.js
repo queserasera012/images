@@ -71,6 +71,11 @@ export const moneyOf = (state) => MONEY_NAME[state.isle || 'main'];
 export const grownAdults = (state) => state.residents.filter((r) => r.parents && !r.age && r.state !== 'PENDING').length;
 
 export const WEATHER_LABEL = { sunny: '晴れ', cloudy: 'くもり', rain: '雨' };
+// 「1日◯回まで」の言い方（D379）：戻るのは ゲームの1日（Day・朝5時に切り替わる）。
+// 「今日」だと 現実の1日に聞こえるので、右上と同じ Day の数字で言う
+// 「Day」と数字のあいだで 行が折れないように、つなぐ空白（\u00a0）
+export const dayNow = (state) => `Day\u00a0${dayOf(state.t)}`;
+export const backAt = (state) => `Day\u00a0${dayOf(state.t) + 1} の朝に もどる`;
 
 // ---------------------------------------------------------------- 乱数（state に持つので再現できる）
 
@@ -2630,7 +2635,7 @@ export function callExtraBoat(state, portId = 'main') {
 
 // 釣りの特別なエサ
 export function addBait(state) {
-  if (adsLeft(state, 'bait') <= 0) return { ok: false, message: '今日の特別なエサは おしまい' };
+  if (adsLeft(state, 'bait') <= 0) return { ok: false, message: `特別なエサは ${backAt(state)}` };
   usedAd(state, 'bait');
   state.bait = (state.bait || 0) + 1;
   return { ok: true, message: '特別なエサをつけました' };
@@ -3780,7 +3785,7 @@ export function exchange(world, id, coin) {
   const X = CONFIG.abroad.exchange;
   if (!to || !isAbroad(to)) return { ok: false, message: 'いまは できません' };
   const left = exchangeLeft(world);
-  if (left <= 0) return { ok: false, message: '今日の両替は ここまでです' };
+  if (left <= 0) return { ok: false, message: `${dayNow(main)} の両替は ここまで（${backAt(main)}）` };
   const paid = Math.floor(Math.min(coin, left, main.coin) / X.rate) * X.rate;
   if (paid <= 0) return { ok: false, message: '本島のコインが足りません' };
   const got = paid / X.rate;

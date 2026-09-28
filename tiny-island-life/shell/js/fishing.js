@@ -4,7 +4,7 @@
 // 輪の真ん中ぴったりなら「ぴったり」（大物も釣れる）、輪の中なら「よい」、外なら のがす。
 // どの魚が釣れるか・コインは sim.js（landFish）が決める。ここは判定と絵だけ。
 
-import { landFish, fishingLeft, addBait, adsLeft } from './sim.js';
+import { landFish, fishingLeft, addBait, adsLeft, dayNow, backAt } from './sim.js';
 import { showRewardedAd, adsOn } from './ads.js';
 
 export const RING = { r: 30, half: 7, perfect: 3 }; // 輪の真ん中の半径・幅の半分・ぴったりの幅
@@ -58,13 +58,13 @@ export function openFishing({ getState, onChange, close: onClose }) {
   const showLeft = () => {
     const state = getState();
     const left = fishingLeft(state);
-    root.querySelector('.game-left').textContent = left > 0 ? `今日のコイン：あと ${left}回` : '今日のコインは おしまい';
+    root.querySelector('.game-left').textContent = left > 0 ? `${dayNow(state)} のコイン あと ${left}回` : `コインは ${backAt(state)}`;
     // 特別なエサ（リワード広告・D309）
     const btn = root.querySelector('.bait-btn');
     root.querySelector('.game-bait').hidden = !adsOn(); // アプリで広告を切っているあいだは出さない（D343）
     const baitLeft = adsLeft(state, 'bait');
     btn.disabled = state.bait > 0 || baitLeft <= 0;
-    btn.textContent = state.bait > 0 ? '特別なエサをつけています（次は大物）' : baitLeft > 0 ? `▶ 広告を見て、特別なエサをつける（今日あと ${baitLeft}回）` : '特別なエサは 今日は おしまい';
+    btn.textContent = state.bait > 0 ? '特別なエサをつけています（次は大物）' : baitLeft > 0 ? `▶ 広告を見て、特別なエサをつける（${dayNow(state)} あと ${baitLeft}回）` : `特別なエサは ${backAt(state)}`;
   };
 
   function cast() {

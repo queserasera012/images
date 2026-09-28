@@ -8,7 +8,7 @@
 //   アイスホッケー（シュート）… キーパーの いないところを押す。5本のうち入った数（4本で）
 // 判定は ここの関数（test から呼べる）、お金は sim.js が決める。紙の大きさは どのゲームも同じ（D306）
 
-import { playSport, sportLeft, gameCoin, moneyOf } from './sim.js';
+import { playSport, sportLeft, gameCoin, moneyOf, dayNow, backAt } from './sim.js';
 import { CONFIG } from './config.js';
 
 const SIZE = 280;
@@ -78,7 +78,7 @@ export function openSport({ game, getState, onChange, close: onClose }) {
   const showLeft = () => {
     const state = getState();
     const left = sportLeft(state);
-    root.querySelector('.game-left').textContent = left > 0 ? `今日の ${money()}（${gameCoin(state, CONFIG.sports.coin)}）：あと ${left}回` : `今日の ${money()} は おしまい`;
+    root.querySelector('.game-left').textContent = left > 0 ? `${dayNow(state)} の${money()}（${gameCoin(state, CONFIG.sports.coin)}）あと ${left}回` : `${money()}は ${backAt(state)}`;
   };
   const again = (show) => (root.querySelector('.game-again').hidden = !show);
   const later = (fn, ms) => cur.timers.push(setTimeout(() => cur && fn(), ms));

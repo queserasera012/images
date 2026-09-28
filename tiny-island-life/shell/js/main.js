@@ -5,7 +5,7 @@ import { T, SIZES, PIER, PIERS, OX, OY, AREAS, MAIN, areaById, center, placement
 import {
   step, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
-  migrateWorld, createWorld, islandNow, createIsland, visitIsland, stepWorld, catchUpWorld, isAbroad, openRoute, clearPlot, moverReport, openAbroadPort, sportLeft, SPORTS, ABROAD_VENUES, MONEY_NAME, ISLE_NAMES, exchange, exchangeLeft,
+  migrateWorld, createWorld, islandNow, createIsland, visitIsland, stepWorld, catchUpWorld, isAbroad, openRoute, clearPlot, moverReport, dayNow, backAt, openAbroadPort, sportLeft, SPORTS, ABROAD_VENUES, MONEY_NAME, ISLE_NAMES, exchange, exchangeLeft,
   everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
   labelOf, nextGoal, unlockNow, nameBaby, namePet, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft, decoType, isChild,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
@@ -351,14 +351,14 @@ function boatAdRow(id) {
   if (!adsOn()) return '';
   const left = adsLeft(state, 'boat');
   if (canCallBoat(state, id)) {
-    return `<button id="btn-adboat" data-port="${id}" class="card-act go" type="button">${ICONS.ad}広告を見て、臨時の船を呼ぶ<span class="cost">今日あと ${left}回</span></button>`;
+    return `<button id="btn-adboat" data-port="${id}" class="card-act go" type="button">${ICONS.ad}広告を見て、臨時の船を呼ぶ<span class="cost">${dayNow(state)} あと ${left}回</span></button>`;
   }
   const A = CONFIG.ads.boat;
   const port = portById(state, id);
   const coming = port?.today.some((b) => b.extra && state.t < b.depart);
   const text = coming
-    ? `臨時の船が来ています（今日あと ${left}回 呼べる）`
-    : `臨時の船：${left ? `${fmt(A.from)}〜${fmt(A.until)}に呼べる` : '今日は おしまい'}`;
+    ? `臨時の船が来ています（${dayNow(state)} あと ${left}回 呼べる）`
+    : `臨時の船：${left ? `${fmt(A.from)}〜${fmt(A.until)}に呼べる` : backAt(state)}`;
   return `<div class="card-note">${text}</div>`;
 }
 
@@ -475,7 +475,7 @@ function renderCard() {
       html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">釣り座 ${seatCount(b)}つ。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
       html += `<div class="now">釣りをしている：${who(b.seats.filter(Boolean))}</div>`;
       html += `<div>あなたが釣った魚：${log.length ? log.join('・') : 'まだ いない'}</div>`;
-      html += `<button id="btn-fish" class="card-act go" type="button">${ICONS.fish}釣りをする<span class="cost">${left > 0 ? `今日のコイン あと ${left}回` : '今日のコインは おしまい'}</span></button>`;
+      html += `<button id="btn-fish" class="card-act go" type="button">${ICONS.fish}釣りをする<span class="cost">${left > 0 ? `${dayNow(state)} のコイン あと ${left}回` : `コインは ${backAt(state)}`}</span></button>`;
     } else if (b.type === 'company') {
       // 会社（D319）
       const C = CONFIG.company;
@@ -492,7 +492,7 @@ function renderCard() {
       html += `<div class="now">遊んでいる：${who(b.seats.filter(Boolean))}</div>`;
       html += `<div>クレーンゲームの景品：${got || 'まだ ない'}</div>`;
       html += `<div>じゃんけんのスタンプ：${state.stamps || 0} / ${V.game.stamps}${state.decoTickets ? `（飾り券 ${state.decoTickets}まい）` : ''}</div>`;
-      html += `<button id="btn-arcade" class="card-act go" type="button">🎮 ゲームで遊ぶ<span class="cost">${left > 0 ? `今日のコイン あと ${left}回` : '今日のコインは おしまい'}</span></button>`;
+      html += `<button id="btn-arcade" class="card-act go" type="button">🎮 ゲームで遊ぶ<span class="cost">${left > 0 ? `${dayNow(state)} のコイン あと ${left}回` : `コインは ${backAt(state)}`}</span></button>`;
     } else if (b.type === 'track') {
       // ドッグレース場（D328）
       const R = CONFIG.track;
@@ -526,7 +526,7 @@ function renderCard() {
         const best = state.sportBest?.[b.type];
         const unit = { volley: '回', surf: '本', curling: '点', hockey: '本' }[b.type];
         if (best) html += `<div>あなたの いちばん：${best}${unit}</div>`;
-        html += `<button id="btn-sport" class="card-act go" type="button" data-game="${b.type}">${ICONS[`${b.type}_new`]}あなたも遊ぶ<span class="cost">${left > 0 ? `今日の ${MONEY_NAME[state.isle]} あと ${left}回` : `今日の ${MONEY_NAME[state.isle]} は おしまい`}</span></button>`;
+        html += `<button id="btn-sport" class="card-act go" type="button" data-game="${b.type}">${ICONS[`${b.type}_new`]}あなたも遊ぶ<span class="cost">${left > 0 ? `${dayNow(state)} の${MONEY_NAME[state.isle]} あと ${left}回` : `${MONEY_NAME[state.isle]}は ${backAt(state)}`}</span></button>`;
       }
     } else if (b.type === 'super' || b.type === 'planetarium' || b.type === 'petshop' || b.type === 'stand' || b.type === 'aquarium' || b.type === 'hospital') {
       const V = CONFIG[b.type];
@@ -856,13 +856,13 @@ function exchangeHtml(inBoat) {
       const all = Math.min(left, coin);
       const btn = (amt, label) => `<button class="ex-btn" type="button" data-ex="${id}" data-amt="${amt}" ${amt < X.rate ? 'disabled' : ''}>${label}</button>`;
       const buttons = all < X.rate
-        ? `<span class="need">${left < X.rate ? '今日の両替は ここまで' : '本島のコインが足りません'}</span>`
+        ? `<span class="need">${left < X.rate ? `両替は ${backAt(world.islands.main)}` : '本島のコインが足りません'}</span>`
         : `${btn(one, `${ICONS.coin}${one.toLocaleString()} → ${Math.floor(one / X.rate).toLocaleString()}`)}${btn(all, 'のこり全部')}`;
       return `<div class="ex-row"><span class="ex-name">${moneyIcon(id)}${MONEY_NAME[id]}<small>${world.islands[id].coin.toLocaleString()}</small></span>${buttons}</div>`;
     })
     .join('');
   return `${inBoat ? '<h3 class="ex-title">両替</h3>' : ''}
-    <p class="lead">本島のコイン ${ICONS.coin}${coin.toLocaleString()}。コイン ${X.rate} で 1。今日は あと ${ICONS.coin}${left.toLocaleString()} まで（2つの島で合わせて）</p>
+    <p class="lead">本島のコイン ${ICONS.coin}${coin.toLocaleString()}。コイン ${X.rate} で 1<br>${dayNow(world.islands.main)} は あと ${ICONS.coin}${left.toLocaleString()} まで（2つの島で合わせて・${backAt(world.islands.main)}）</p>
     ${ex}`;
 }
 function openExchange() {

@@ -5,7 +5,7 @@
 // 神経衰弱は 12手以内・もぐらは 12ひき以上。じゃんけんは スタンプ（10こで飾り券）。クレーンゲームは景品を集める。
 // 紙の大きさは どのゲームでも同じ（D306：大きさが変わるとストレス）
 
-import { playArcade, arcadeLeft, gameCoin } from './sim.js';
+import { playArcade, arcadeLeft, gameCoin, dayNow, backAt } from './sim.js';
 import { CONFIG } from './config.js';
 
 const SIZE = 280;
@@ -45,7 +45,7 @@ export function openArcade({ getState, onChange, close: onClose }) {
   const title = (text) => (root.querySelector('.arcade-title').textContent = text);
   const showLeft = () => {
     const left = arcadeLeft(getState());
-    root.querySelector('.game-left').textContent = left > 0 ? `今日のコイン（${gameCoin(getState(), CONFIG.arcade.game.coin)}）：あと ${left}回` : '今日のコインは おしまい';
+    root.querySelector('.game-left').textContent = left > 0 ? `${dayNow(getState())} のコイン（${gameCoin(getState(), CONFIG.arcade.game.coin)}）あと ${left}回` : `コインは ${backAt(getState())}`;
   };
   const buttons = (again, menu) => {
     root.querySelector('.game-again').hidden = !again;
