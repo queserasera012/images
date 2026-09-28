@@ -426,7 +426,19 @@ export function migrate(state) {
   if (state.port.open) state.unlocked.port = true;
   for (const b of state.buildings) if (isVenue(b) && !b.queue) Object.assign(b, { seats: [], queue: [] });
   for (const b of state.buildings) if (b.type === 'house') b.level ||= 1;
+  dropGhosts(state);
   return state;
+}
+
+// 島にいない人の席・列を空ける（D398：帰った観光客が スキー場などの席に残り、入れる人数が減っていた）。読み込むときと 毎朝
+export function dropGhosts(state) {
+  const here = new Set(everyone(state).map((p) => p.id));
+  let n = 0;
+  for (const b of state.buildings) {
+    if (b.seats) b.seats = b.seats.map((id) => (id && !here.has(id) ? (n++, null) : id));
+    if (b.queue) b.queue = b.queue.filter((id) => here.has(id) || (n++, false));
+  }
+  return n;
 }
 
 // 本島だけの地図（17×25）のセーブを、広げられる地図に移す。本島の位置が OX, OY ずれるだけ
@@ -1488,6 +1500,7 @@ function updateVenue(state, b, events) {
 // ---------------------------------------------------------------- 1日の区切り（05:00）
 
 function rolloverDay(state, events) {
+  dropGhosts(state);
   const endedDay = dayOf(state.t) - 1;
   const today = state.today;
   const lines = [];
@@ -1864,12 +1877,13 @@ function updateOnePort(state, port, events) {
     }
     if (boat.spawned && !boat.left && state.t >= boat.depart) {
       boat.left = true;
-      // 乗り遅れた人は 船が待っていてくれた、ということにする（島に取り残さない）
+      // 乗り遅れた人は 船が待っていてくれた、ということにする（島に取り残さない）。
+      // 席と列は カフェだけでなく どの建物からも外す（スキー場・水族館などに 帰った人の席が残っていた・D398）
       for (const v of state.visitors.filter((x) => x.boat === i)) {
-        for (const c of cafes(state)) {
-          const q = c.queue.indexOf(v.id);
+        for (const c of state.buildings) {
+          const q = c.queue ? c.queue.indexOf(v.id) : -1;
           if (q >= 0) c.queue.splice(q, 1);
-          const s = c.seats.indexOf(v.id);
+          const s = c.seats ? c.seats.indexOf(v.id) : -1;
           if (s >= 0) c.seats[s] = null;
         }
       }
