@@ -3867,13 +3867,40 @@ export function createWorld(seed = Date.now()) {
 // 前のセーブ（version 2＝島1つ）は そのまま本島になる。version 3 は島ごとに そろえる
 export function migrateWorld(save) {
   if (!save) return null;
-  if (save.version === 2) return { version: 3, current: 'main', islands: { main: migrate(save) }, savedAt: save.savedAt };
+  if (save.version === 2) {
+    const world = { version: 3, current: 'main', islands: { main: migrate(save) }, savedAt: save.savedAt };
+    renameNumbered(world);
+    return world;
+  }
   if (save.version !== 3 || !save.islands?.main) return null;
   for (const id of Object.keys(save.islands)) migrate(save.islands[id]);
+  renameNumbered(save);
   if (!save.islands[save.current]) save.current = 'main';
   // 最後に本島の地図に戻す（島を並べて進めるときは、見ている島を最後に進める）
   syncMap(save.islands[save.current]);
   return save;
+}
+
+// 名前を使い切って「ユイ2」のような番号がついた人に、名前をつけ直す（D390・D357 の「赤ちゃん」と同じ）。
+// プレイヤーが名前をつけた人は そのまま。見た目は変えない（lookName に前の名前）。日記に1行
+export function renameNumbered(world) {
+  const bases = new Set([...GIVEN_NAMES, ...CONFIG.family.kidNames]);
+  for (const [id, s] of Object.entries(world.islands)) {
+    const lines = [];
+    for (const r of s.residents) {
+      const m = /^(.+?)(\d+)$/.exec(r.name || '');
+      if (!m || !bases.has(m[1]) || r.named || r.lookName || r.tourist) continue;
+      const old = r.name;
+      r.lookName = old;
+      r.name = pickName(s, namesElsewhere(world, id));
+      lines.push({ kind: 'good', text: `${old}は、これから「${r.name}」と よばれます` });
+    }
+    const last = s.diary?.at(-1);
+    if (lines.length && last) {
+      last.lines.push(...lines);
+      last.read = false; // 日記に しるしをつけて 気づけるように
+    }
+  }
 }
 
 export const islandNow = (world) => world.islands[world.current];
