@@ -165,6 +165,10 @@ const MAIN_AREAS = [
 // neck は2つ以上のこともある（D359：切れこみの すみまで埋める）
 // シェルの島（2つ目の本島・D336〜D354）。本島とは別の島なので、同じ格子の上に 別の地図として持つ。
 // 土地の呼び名は本島と同じ 'main'（桟橋・港・引っ越してくる人のしくみを そのまま使うため）
+// 向こうの島を広げる土地（D388）：3つの方角から 好きな順に ひらく（ひらいた数で 何段目かが決まる）
+function abroadAreas(list) {
+  return list.map((a) => ({ ...a, late: true, abroad: true }));
+}
 const SX = 16; // シェルの島の左上のマス
 const SY = 7;
 const SHELL_COLS = 15;
@@ -176,6 +180,28 @@ const SHELL_AREAS = [
     rx: (SHELL_COLS / 2) * T - 14, ry: (SHELL_ROWS / 2) * T - 16,
     pier: { col: SX + 7, dir: [0, 1] },
   },
+  // 島を広げる（D388）：その島のお金で 1段ずつ。今ある土地のマスは1つも変えない（late・本島の2周目と同じしくみ）。
+  // 南は 桟橋と船の通り道なので ひらかない。東・西・北の どれからでも（浜の海水浴場などで ふさがる方角があるので）。人数と値段は config.js の abroad.expand
+  ...abroadAreas([
+    {
+      id: 'shell_e', name: '東の浜', ph: 2.6,
+      cx: 34 * T, cy: 14.6 * T, rx: 4.6 * T, ry: 5.4 * T,
+      neck: { cx: 29.8 * T, cy: 14.6 * T, rx: 2 * T, ry: 4.4 * T },
+      roads: { rows: [[11, 29, 37], [15, 29, 37]], cols: [[34, 10, 19]] },
+    },
+    {
+      id: 'shell_w', name: '西の浜', ph: 0.9,
+      cx: 12 * T, cy: 15.2 * T, rx: 4.6 * T, ry: 5.4 * T,
+      neck: { cx: 16.4 * T, cy: 15 * T, rx: 2 * T, ry: 4.2 * T },
+      roads: { rows: [[11, 9, 17], [15, 8, 16]], cols: [[12, 11, 19]] },
+    },
+    {
+      id: 'shell_n', name: '北の岬', ph: 3.7,
+      cx: 23.5 * T, cy: 4.6 * T, rx: 6 * T, ry: 3.9 * T,
+      neck: { cx: 23.5 * T, cy: 8.2 * T, rx: 3.6 * T, ry: 1.8 * T },
+      roads: { rows: [[5, 18, 29]], cols: [[23, 2, 8]] },
+    },
+  ]),
 ];
 // オーロラの島（北欧・常冬・D365〜D366）。シェルの島と同じく 同じ格子の上の別の地図。
 // 本島の冬（雪）と見分けがつくよう、形で違える：入り組んだ海岸（フィヨルド）。fjords は 切れこみの向き（a）・幅（w）・深さ（d）
@@ -196,6 +222,30 @@ const AURORA_AREAS = [
       { a: 2.35, w: 0.07, d: 0.2 }, // 南西
     ],
   },
+  // 島を広げる（D388）：シェルの島と同じ。広げた土地にも フィヨルド
+  ...abroadAreas([
+    {
+      id: 'aurora_w', name: '西のフィヨルド', ph: 5.2,
+      cx: 10.6 * T, cy: 16.2 * T, rx: 4.8 * T, ry: 5.4 * T,
+      neck: { cx: 15 * T, cy: 16.2 * T, rx: 2 * T, ry: 3.8 * T },
+      roads: { rows: [[16, 6, 15]], cols: [[10, 11, 21]] },
+      fjords: [{ a: -2.2, w: 0.08, d: 0.26 }, { a: 2.5, w: 0.07, d: 0.22 }],
+    },
+    {
+      id: 'aurora_e', name: '東の森', ph: 1.4,
+      cx: 36.4 * T, cy: 16 * T, rx: 4.8 * T, ry: 5.4 * T,
+      neck: { cx: 31.8 * T, cy: 16 * T, rx: 2 * T, ry: 3.8 * T },
+      roads: { rows: [[16, 30, 41]], cols: [[36, 11, 21]] },
+      fjords: [{ a: -0.9, w: 0.08, d: 0.24 }, { a: 0.7, w: 0.07, d: 0.22 }],
+    },
+    {
+      id: 'aurora_n', name: '北の氷原', ph: 3.1,
+      cx: 24 * T, cy: 5.4 * T, rx: 6.4 * T, ry: 3.9 * T,
+      neck: { cx: 23.5 * T, cy: 9 * T, rx: 2.8 * T, ry: 1.8 * T },
+      roads: { rows: [[5, 18, 30]], cols: [[23, 3, 9]] },
+      fjords: [{ a: -1.9, w: 0.07, d: 0.24 }, { a: -0.6, w: 0.07, d: 0.2 }],
+    },
+  ]),
 ];
 
 // いま動かしている島の土地。useAreas で島ごとに切り替える（ES モジュールの let は、読み込んだ側にも切り替えが見える）
@@ -521,13 +571,14 @@ export function useCover(debris = []) {
   }
   if (!covers.has(key)) {
     const set = new Set();
-    for (let i = 0; i < MAP.length; i++) if (MAP[i] === 'land' && debris[plotOf(colOf(i), rowOf(i))]) set.add(i);
+    // 覆うのは はじめからの土地だけ（広げた土地・D388 は 片付けなくても建てられる）
+    for (let i = 0; i < MAP.length; i++) if (MAP[i] === 'land' && BASE.kind[i] === 'land' && debris[plotOf(colOf(i), rowOf(i))]) set.add(i);
     covers.set(key, set);
   }
   COVERED = covers.get(key);
 }
 // その区画の土地のマス数（片付けると 建てられる土地になる）
-export const plotLand = (n) => MAP.reduce((s, k, i) => s + (k === 'land' && plotOf(colOf(i), rowOf(i)) === n ? 1 : 0), 0);
+export const plotLand = (n) => MAP.reduce((s, k, i) => s + (k === 'land' && BASE.kind[i] === 'land' && plotOf(colOf(i), rowOf(i)) === n ? 1 : 0), 0);
 
 // そのマスは どの土地か（本島 or 広げた土地）。住民の一覧で「東の岬の家」のように呼ぶため
 export function areaAt(c, r) {
@@ -615,20 +666,34 @@ export function landBounds(ids = ['main'], { teaser = false } = {}) {
   };
 }
 
+// その土地をひらいたあとの地図
+function mapWith(id) {
+  const list = AREAS.filter((a) => a.id === 'main' || MAP_IDS.includes(a.id) || a.id === id).map((a) => a.id);
+  const key = keyOf(list);
+  if (!MAPS.has(key)) MAPS.set(key, buildMap(list));
+  return MAPS.get(key).kind;
+}
 // その土地の、建てられるマスの数（広げる前に「どのくらい広いか」を見せるため）
 export function landTilesOf(id) {
   if (id === 'main') return BASE.kind.filter((k) => k === 'land').length;
+  if (MAP_IDS.includes(id)) return null;
   const before = MAPS.get(MAP_KEY).kind;
-  const ids = MAP_IDS;
-  if (ids.includes(id)) return null;
-  const list = AREAS.filter((a) => a.id === 'main' || ids.includes(a.id) || a.id === id).map((a) => a.id);
-  const key = keyOf(list);
-  if (!MAPS.has(key)) MAPS.set(key, buildMap(list));
-  const after = MAPS.get(key).kind;
+  const after = mapWith(id);
   let n = 0;
   for (let i = 0; i < after.length; i++) if (after[i] === 'land' && before[i] !== 'land') n += 1;
   return n;
 }
+// その土地をひらくと 変わるマス（浜が 土地や道になる）。そこに建っている物があると ひらけない（D388：浜の海水浴場など）
+export function changedTilesOf(id) {
+  if (MAP_IDS.includes(id)) return new Set();
+  const before = MAPS.get(MAP_KEY).kind;
+  const after = mapWith(id);
+  const set = new Set();
+  for (let i = 0; i < after.length; i++) if (after[i] !== before[i]) set.add(i);
+  return set;
+}
+// 向こうの島を広げる土地（D388）
+export const expandAreasOf = (isle) => (ISLES[isle]?.areas || []).filter((a) => a.abroad);
 
 // ---------------------------------------------------------------- 経路（道の上だけを歩く）
 

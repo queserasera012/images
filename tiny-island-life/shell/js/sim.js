@@ -11,7 +11,7 @@
 import { CONFIG } from './config.js';
 import {
   T, SIZES, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, center, roadPath, roadDistance, accessTile, canPlace, isRoad, idx,
-  useAreas, useCover, plotLand, PLOT_NAMES, coastSide, landTilesOf, placements, HOUSE_FLOOR, areaAt, COLS, OLD_COLS_2, DECO, footprint, occupied, neighbors, ROWS,
+  useAreas, useCover, plotLand, PLOT_NAMES, coastSide, landTilesOf, changedTilesOf, expandAreasOf, placements, HOUSE_FLOOR, areaAt, COLS, OLD_COLS_2, DECO, footprint, occupied, neighbors, ROWS,
 } from './grid.js';
 import { morningWishes, checkWishes, bigWish, petMoveWish } from './wishes.js';
 
@@ -1959,7 +1959,7 @@ function rolloverDay(state, events) {
   // マルシェが売り切れて 買えなかった人（D387）
   if (today.soldOut) lines.push({ kind: 'problem', text: `マルシェの品物が 売り切れて、${today.soldOut}人 が 買えずに帰りました` });
   // 建てられるようになったもの（船着き場・向こうの島の施設・D374）
-  for (const id of ['dock', ...ABROAD_VENUES]) if (state.unlockedOn?.[id] === endedDay) lines.push({ kind: 'good', text: UNLOCK_TEXT[id] });
+  for (const id of ['dock', ...ABROAD_VENUES, ...CONFIG.abroad.expand.map((_, k) => `land${k + 1}`)]) if (state.unlockedOn?.[id] === endedDay) lines.push({ kind: 'good', text: UNLOCK_TEXT[id] });
   const entry = { day: endedDay, weather: state.weather, lines, read: false, earned, tourists: today.tourists || 0 };
   state.diary.push(entry);
   events.push({ type: 'newday', entry });
@@ -2049,7 +2049,13 @@ export function isUnlocked(state, id) {
 export const UNLOCK_TEXT = {
   dock: '海の向こうの島へ 船着き場を つくれるようになりました',
   ...Object.fromEntries(ABROAD_VENUES.map((t) => [t, `${VENUE_NAME[t]}を 建てられるようになりました`])),
+  ...Object.fromEntries(CONFIG.abroad.expand.map((_, k) => [`land${k + 1}`, `島を 広げられるようになりました（${k + 1}段目）`])),
 };
+// 向こうの島で ひらくもの（D374・D388）：その島だけの施設と、島を広げる段。人数の少ない順（同じなら この並び）
+export const isleSteps = (isle) => [
+  ...ABROAD_VENUES.filter((t) => isleHas(t, isle)).map((t) => ({ id: t, pop: CONFIG[t].pop })),
+  ...CONFIG.abroad.expand.map((E, k) => ({ id: `land${k + 1}`, pop: E.pop, stage: k + 1 })),
+].sort((x, y) => x.pop - y.pop);
 function checkIsleUnlocks(state, events) {
   const day = dayOf(state.t);
   state.unlocked ||= {};
@@ -2066,7 +2072,7 @@ function checkIsleUnlocks(state, events) {
     }
     return;
   }
-  for (const t of ABROAD_VENUES) if (isleHas(t, state.isle) && !state.unlocked[t] && countedPop(state) >= CONFIG[t].pop) open(t);
+  for (const x of isleSteps(state.isle)) if (!state.unlocked[x.id] && countedPop(state) >= x.pop) open(x.id);
 }
 
 // 次の目標（まだひらいていない中で いちばん手前）
@@ -2074,9 +2080,14 @@ export function nextGoal(state) {
   if (isAbroad(state)) {
     // 向こうの島（D374）：まず片付け → その島だけの施設（住民の人数）
     if (state.debris && state.debris.every(Boolean)) return { id: 'clear', goal: '島を片付ける', body: '「つくる」の「島」から 区画を片付けると、家を建てられる土地になります（本島のコインで払う）' };
-    const t = ABROAD_VENUES.find((x) => isleHas(x, state.isle) && !state.unlocked?.[x]);
-    if (!t) return null;
-    return { id: t, goal: `${VENUE_NAME[t]}をひらく`, now: countedPop(state), need: CONFIG[t].pop, unit: '人', what: 'この島の住民', note: `${VENUE_NAME[t]}を建てられるようになります` };
+    const x = isleSteps(state.isle).find((y) => !state.unlocked?.[y.id]);
+    if (!x) return null;
+    const base = { id: x.id, now: countedPop(state), need: x.pop, unit: '人', what: 'この島の住民' };
+    if (x.stage) {
+      const names = expandAreasOf(state.isle).map((a) => a.name).join('・');
+      return { ...base, goal: `島を広げる（${x.stage}段目）`, note: `${names}の どれかを ひらけるようになります（${moneyOf(state)}で払う）` };
+    }
+    return { ...base, goal: `${VENUE_NAME[x.id]}をひらく`, note: `${VENUE_NAME[x.id]}を建てられるようになります` };
   }
   // 育つ施設（小学校・大学）は ⭐ 大事なお願いで出すので、はしごには出さない（D347）
   const u = CONFIG.unlocks.find((x) => !x.stage && !isUnlocked(state, x.id));
@@ -2415,6 +2426,29 @@ export function actionsFor(state) {
   const opened = state.areas.filter((id) => id !== 'main' && !areaById(id).island && !areaById(id).late).length;
   for (const a of AREAS) {
     if (a.id === 'main' || state.areas.includes(a.id)) continue;
+    // 向こうの島を広げる（D388）：その島のお金で。東・西・北の どれからでも。ひらいた数で 何段目か（人数・値段）が決まる
+    if (a.abroad) {
+      const done = state.areas.filter((id) => areaById(id)?.abroad).length;
+      const E = CONFIG.abroad.expand[done];
+      const pop = countedPop(state);
+      const ready = !!state.unlocked?.[`land${done + 1}`] || pop >= E.pop;
+      const changed = changedTilesOf(a.id);
+      const blocker = state.buildings.find((b) => footprint(b.type, b.c, b.r).some((t) => changed.has(t)));
+      list.push({
+        id: `expand:${a.id}`,
+        tab: 'island',
+        icon: `expand_${a.id}`,
+        title: `島を広げる：${a.name}`,
+        detail: !ready
+          ? `${done + 1}段目。この島の住民が ${E.pop}人 になると広げられます（いま ${pop}人）`
+          : blocker
+            ? `広げる浜に ${VENUE_NAME[blocker.type] || '建物'}があります。動かすか、ほかの方角から広げられます`
+            : `${done + 1}段目（全${CONFIG.abroad.expand.length}段）。建てられる土地が ${landTilesOf(a.id)}マス 増える。道も通る。片付けは要らない`,
+        cost: E.cost,
+        locked: !ready || !!blocker,
+      });
+      continue;
+    }
     // 橋でつなぐ別の島（D318）。つなぎ方も値段も、となりの土地をひらくのとは別
     // 山の島を広げる（D321）：橋をかけたあと。北東のふもとに土地が増え、カフェも建てられるようになる
     if (a.parent) {

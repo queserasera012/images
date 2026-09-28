@@ -186,6 +186,13 @@ export const ICONS = {
   expand_bay_nw: expandIcon(9, 6, 15, 15),
   expand_bay_n: expandIcon(18, 6, 11, 15),
   expand_bay_e: expandIcon(18.5, 13, 11, 14),
+  // 向こうの島を広げる（D388）：東・西・北
+  expand_shell_e: expandIcon(17.5, 10, 10, 13),
+  expand_shell_w: expandIcon(6.5, 14, 14, 11),
+  expand_shell_n: expandIcon(12, 6.5, 12, 14.5),
+  expand_aurora_w: expandIcon(6.5, 14, 14, 11),
+  expand_aurora_e: expandIcon(17.5, 10, 10, 13),
+  expand_aurora_n: expandIcon(12, 6.5, 12, 14.5),
   // 山の島に橋をかける（D318）：海の向こうの山と、そこへ渡る橋
   expand_mountain: svg(
     `<path d="M11 18l5-9 5 9z" transform="translate(1 1)" fill="${SHADOW}"/>` +
