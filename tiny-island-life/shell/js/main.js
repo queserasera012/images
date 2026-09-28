@@ -617,8 +617,8 @@ function renderCard() {
     const next = CONFIG.house.levels[h.level || 1];
     html += cost === null
       ? `<div class="card-note">これ以上は広げられない（${capacityOf(h)}人まで）</div>`
-      : `<button id="btn-upgrade" class="card-act" type="button" ${state.coin < cost ? 'disabled' : ''}>${ICONS.house_up}${next.level === 3 ? 'アパートにする' : '2階建てにする'}（${next.capacity}人まで）<span class="cost">${ICONS.coin}${cost.toLocaleString()}</span></button>` +
-        (state.coin < cost ? `<div class="card-note">コインが あと ${(cost - state.coin).toLocaleString()} 足りません</div>` : '');
+      : `<button id="btn-upgrade" class="card-act" type="button" ${state.coin < cost ? 'disabled' : ''}>${ICONS.house_up}${next.level === 3 ? 'アパートにする' : '2階建てにする'}（${next.capacity}人まで）<span class="cost">${moneyIcon(state.isle)}${cost.toLocaleString()}</span></button>` +
+        (state.coin < cost ? `<div class="card-note">${MONEY_NAME[state.isle || 'main']}が あと ${(cost - state.coin).toLocaleString()} 足りません</div>` : '');
   }
   delete card.dataset.stray;
   // 前に書いた文字列と比べる（SVG は innerHTML で読み直すと書き方が変わり、毎コマ描き直してボタンが押せなくなる）
@@ -1128,7 +1128,7 @@ function tapWhilePlacing(clientX, clientY) {
     const cost = houseUpgradeCost(hb);
     placing.ghost = h;
     $('place-ok').disabled = state.coin < cost;
-    $('place-ok').innerHTML = state.coin < cost ? `コインが あと ${(cost - state.coin).toLocaleString()} 足りません` : `広げる ${ICONS.coin}${cost.toLocaleString()}`;
+    $('place-ok').innerHTML = state.coin < cost ? `${MONEY_NAME[state.isle || 'main']}が あと ${(cost - state.coin).toLocaleString()} 足りません` : `広げる ${moneyIcon(state.isle)}${cost.toLocaleString()}`;
     return;
   }
   const { c, r } = renderer.tileAt(clientX, clientY);
@@ -1146,7 +1146,7 @@ function tapWhilePlacing(clientX, clientY) {
     const cost = houseUpgradeCost(buildingById(state, h.id));
     placing.ghost = h;
     $('place-ok').disabled = state.coin < cost;
-    $('place-ok').innerHTML = `広げる ${ICONS.coin}${cost.toLocaleString()}`;
+    $('place-ok').innerHTML = `広げる ${moneyIcon(state.isle)}${cost.toLocaleString()}`;
     return;
   }
   const fits = ([cc, rr]) => (placing.move ? canMoveTo(state, placing.move, cc, rr) : canPlace(placing.type, cc, rr, state.buildings));
@@ -1163,7 +1163,7 @@ function tapWhilePlacing(clientX, clientY) {
     return;
   }
   $('place-ok').disabled = state.coin < placing.action.cost;
-  $('place-ok').innerHTML = `${placing.okLabel} ${ICONS.coin}${placing.action.cost.toLocaleString()}`;
+  $('place-ok').innerHTML = `${placing.okLabel} ${moneyIcon(state.isle)}${placing.action.cost.toLocaleString()}`; // 向こうの島は その島のお金（D391）
 }
 
 function endPlacing() {

@@ -2825,7 +2825,7 @@ function upgradeHouse(state, id) {
   if (!h || h.type !== 'house') return { ok: false, message: 'いまは できません' };
   const cost = houseUpgradeCost(h);
   if (cost === null) return { ok: false, message: 'この家は これ以上 広げられません' };
-  if (state.coin < cost) return { ok: false, message: `コインが足りません（あと ${cost - state.coin}）` };
+  if (state.coin < cost) return { ok: false, message: `${moneyOf(state)}が足りません（あと ${cost - state.coin}）` };
   h.level = (h.level || 1) + 1;
   state.coin -= cost;
   state.history.push({ t: state.t, action: `house_upgrade:${h.id}`, place: null });
