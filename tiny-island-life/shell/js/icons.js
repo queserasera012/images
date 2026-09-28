@@ -258,6 +258,25 @@ export const ICONS = {
       `<circle cx="8" cy="15" r="1.8" fill="#ffb627"/><circle cx="12" cy="15" r="1.8" fill="#86c47c"/><circle cx="16" cy="15" r="1.8" fill="#ff6b81"/>`,
     28,
   ),
+  // フェスの舞台（D387）：ビーチフェス＝電球の飾りと音符／オーロラの夜のフェス＝キャンドルと オーロラ
+  beachfest_new: svg(
+    `<rect x="3" y="14" width="19" height="6" rx="1" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<path d="M2 20h20" stroke="#f2d8a7" stroke-width="3"/>` +
+      `<rect x="3" y="14" width="18" height="5" rx="1" fill="#b98b5e" stroke="${INK}" stroke-width="1.1"/>` +
+      `<path d="M3 5q9 5 18 0" fill="none" stroke="${INK}" stroke-width="1"/>` +
+      `<circle cx="6" cy="6.6" r="1.2" fill="#ffb627"/><circle cx="10" cy="7.8" r="1.2" fill="#ff6b81"/><circle cx="14" cy="7.8" r="1.2" fill="#86c47c"/><circle cx="18" cy="6.6" r="1.2" fill="#ffb627"/>` +
+      `<path d="M13 9.5v3.2" stroke="${INK}" stroke-width="1.2"/><ellipse cx="11.9" cy="12.8" rx="1.3" ry="1" fill="${INK}"/><path d="M13 9.5l2.2 0.8" stroke="${INK}" stroke-width="1.2"/>`,
+    28,
+  ),
+  snowfest_new: svg(
+    `<path d="M2 6q5-3 10 0t10 0" fill="none" stroke="#7fe3c4" stroke-width="2.2" stroke-linecap="round"/>` +
+      `<path d="M2 9q5-2.4 10 0t10 0" fill="none" stroke="#b69cf2" stroke-width="1.4" stroke-linecap="round" opacity="0.8"/>` +
+      `<rect x="3" y="14" width="19" height="6" rx="1" transform="translate(1 1)" fill="${SHADOW}"/>` +
+      `<rect x="3" y="14" width="18" height="5" rx="1" fill="#eef4f8" stroke="${INK}" stroke-width="1.1"/>` +
+      `<rect x="7" y="11" width="2" height="3" fill="#fff6ea" stroke="${INK}" stroke-width="0.8"/><path d="M8 9.2q.9 1 0 1.6q-.9-.6 0-1.6z" fill="#ffb627"/>` +
+      `<rect x="15" y="11" width="2" height="3" fill="#fff6ea" stroke="${INK}" stroke-width="0.8"/><path d="M16 9.2q.9 1 0 1.6q-.9-.6 0-1.6z" fill="#ffb627"/>`,
+    28,
+  ),
   // ビーチバレー（D373）：ネットと 球
   volley_new: svg(
     `<path d="M2 19h20" stroke="#f2d8a7" stroke-width="3"/>` +
