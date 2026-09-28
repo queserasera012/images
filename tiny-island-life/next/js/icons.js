@@ -52,13 +52,6 @@ export const ICONS = {
       `<rect x="5" y="3" width="13" height="17" rx="2" fill="${INK}"/><rect x="8" y="3" width="1.6" height="17" fill="${MUSTARD}"/>` +
       `<path d="M11 8h4M11 11h4" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>`,
   ),
-  cafe_upgrade: svg(
-    `<path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z" transform="translate(1 1)" fill="${SHADOW}"/>` +
-      `<path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z" fill="#fff" stroke="${INK}" stroke-width="1.6"/>` +
-      `<path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16" fill="none" stroke="${INK}" stroke-width="1.6"/>` +
-      `<path d="M9 3.5c-1 1.5 1 2 0 3.5M12.5 3.5c-1 1.5 1 2 0 3.5" stroke="${MUSTARD}" stroke-width="1.6" fill="none" stroke-linecap="round"/>`,
-    28,
-  ),
   cafe_new: svg(
     `<rect x="4" y="9" width="16" height="11" rx="1" transform="translate(1 1)" fill="${SHADOW}"/>` +
       `<rect x="4" y="9" width="16" height="11" rx="1" fill="#fff" stroke="${INK}" stroke-width="1.4"/>` +
@@ -299,3 +292,11 @@ export const ICONS = {
     36,
   ),
 };
+
+// 広げる（Lv を上げる）：その建物の絵の右上に「＋」の札。どの建物を広げるのかが絵で分かるように
+const UP_BADGE =
+  `<circle cx="20" cy="5" r="3.8" fill="${MUSTARD}" stroke="${INK}" stroke-width="1.2"/>` +
+  `<path d="M20 3.2v3.6M18.2 5h3.6" stroke="${INK}" stroke-width="1.5" stroke-linecap="round"/>`;
+for (const key of Object.keys(ICONS)) {
+  if (key.endsWith('_new')) ICONS[key.replace(/_new$/, '_up')] = ICONS[key].replace('</svg>', `${UP_BADGE}</svg>`);
+}
