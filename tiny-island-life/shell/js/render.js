@@ -839,8 +839,10 @@ export function createRenderer(canvas) {
     if (strength <= 0) return;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
+    // 幕の下の端（いちばん明るい所）は 日付・目標の紙の下から（紙に隠れていた・D399）。上の方は紙の裏へ消えていく
+    const top = Math.min(topInset, view.h * 0.45);
     theme.sky.forEach((color, k) => {
-      const base = view.h * (0.08 + k * 0.08);
+      const base = top + 50 + k * 30;
       const edge = (x) => base + Math.sin(x * 0.006 + time * 0.25 + k * 1.7) * 26 + Math.sin(x * 0.017 - time * 0.4 + k) * 9;
       const height = (x) => 70 + Math.sin(x * 0.011 + time * 0.3 + k * 2) * 30;
       // 幕は細い たての帯を並べて描く。帯ごとに 下の端が明るく、上へ行くほど消える（下の端も少しぼかす）
