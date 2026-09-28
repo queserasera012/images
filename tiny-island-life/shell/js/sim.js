@@ -866,11 +866,10 @@ function tick(state, h, events) {
   growAffinity(state, h);
   for (const v of venues(state)) updateVenue(state, v, events);
   updateRace(state, events);
-  // 海の向こうの島には 本島の解放のはしご・お願い・迷い込むペットは無い（この島の はしごは あとで・D354）
-  if (!isAbroad(state)) {
-    checkUnlocks(state, events);
-    if (Math.floor(state.t) !== Math.floor(state.t - h)) checkWishes(state, events); // お願い（D335）：1分ごと
-  }
+  // 海の向こうの島には 本島の解放のはしご・迷い込むペットは無い（この島の はしごは checkIsleUnlocks・D374）
+  if (!isAbroad(state)) checkUnlocks(state, events);
+  // お願い（D335）：1分ごと。向こうの島でも（朝のお願いは どの島でも出ていたのに、かなったかを見ていなかった・D395）
+  if (Math.floor(state.t) !== Math.floor(state.t - h)) checkWishes(state, events);
   if (Math.floor(state.t) !== Math.floor(state.t - h)) checkIsleUnlocks(state, events); // D374：1分ごと
   updatePort(state, events);
   if (!isAbroad(state)) spawnStrays(state, events);

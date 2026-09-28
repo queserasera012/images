@@ -107,6 +107,7 @@ export const CONFIG = {
     levels: [
       { level: 1, seats: 6, upkeep: 40 },
       { level: 2, seats: 10, upkeep: 60, cost: 2400 },
+      { level: 3, seats: 16, upkeep: 90, cost: 6000 }, // D395：住民190人で 冬に行列が消えなかった（オーナー）
     ],
     buildCost: 3000,                // D320：2,600 → 3,000
     max: 1,
@@ -680,7 +681,7 @@ export const CONFIG = {
       enabled: true,            // 不具合があれば false にすると、変える選択肢ごと出ない
       cost: 1500,
       upkeep: 15,
-      every: 4,
+      every: 7,                 // D395：4 → 7。店ごとに週1頭（住民190人・店5〜6軒で 増えすぎた・オーナー）
       shelf: 2,
       price: 400,
       want: 0.2,                // ペットのいない家の大人が「飼いたいな」と思う確率（1日）

@@ -121,7 +121,7 @@ function frame(now) {
       renderQuest();
     } else if (e.type === 'wish') {
       // お願いをかなえた（D335）
-      toast(`${e.name}「ありがとう！」　+${e.coin} コイン`);
+      toast(`${e.name}「ありがとう！」　+${e.coin} ${MONEY_NAME[state.isle || 'main']}`);
       renderQuest();
     } else if (e.type === 'petBought') {
       toast(`${e.owner}の家に ${e.baby}が 来ました`);
