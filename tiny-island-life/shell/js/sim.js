@@ -3218,13 +3218,26 @@ function familyEvents(state, day, events) {
   return lines;
 }
 
+// 並んで立つ場所：p の となり。ほかの建物の上には はみ出さない（D400：ついて来た家族が となりの家の上に立っていた）
+function besideSpot(state, p, destId) {
+  const here = tileAt(p.x, p.y);
+  const occ = occupied(state.buildings.filter((b) => b.type !== 'park' && b.id !== destId));
+  for (const [dx, dy] of [[8, 2], [-8, 2], [0, 7], [0, -7], [4, 3]]) {
+    const q = { x: p.x + dx, y: p.y + dy };
+    const t = tileAt(q.x, q.y);
+    if (t === here || !occ.has(t)) return q;
+  }
+  return { x: p.x + 1, y: p.y + 1 };
+}
+
 // 大人が家を出るとき、夫婦や子どもが ついてくることがある
 function bringCompanions(state, r) {
   if (r.age || r.tourist || r.state !== 'WALK' || r.dest === 'home') return;
   const F = CONFIG.family;
   const join = (c) => {
     c.at = r.at;
-    goTo(state, c, r.dest, r.destId, r.nextAt, r.path.length ? { x: r.path[r.path.length - 1].x + 8, y: r.path[r.path.length - 1].y + 2 } : { x: r.tx + 8, y: r.ty });
+    const end = r.path.length ? r.path[r.path.length - 1] : { x: r.tx, y: r.ty };
+    goTo(state, c, r.dest, r.destId, r.nextAt, besideSpot(state, end, r.destId));
     c.x = r.x + 6;
     c.y = r.y + 2;
     c.visible = true;

@@ -2,7 +2,7 @@
 // 見た目の方針は docs/DESIGN.md（切り絵のジオラマ・絵文字は使わない）。格子版（D289）。
 
 import {
-  T, COLS, ROWS, WORLD, SIZES, HOUSE_FLOOR, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, landBounds, shapesOf, islandRadius, edgeRadius, COVERED, COVER_KEY, plotOf, idx, center, neighbors, isRoad, occupied, BRIDGES, boatRoute,
+  T, COLS, ROWS, WORLD, SIZES, HOUSE_FLOOR, DECO, MAP, MAP_KEY, PIER, PIERS, OX, OY, AREAS, areaById, landBounds, shapesOf, islandRadius, edgeRadius, COVERED, COVER_KEY, plotOf, idx, center, neighbors, isRoad, occupied, BRIDGES, boatRoute,
 } from './grid.js';
 import { CONFIG } from './config.js';
 import { wantsRoomHouses, boatsNow, clockOf, inSeason, seatCount, seatPositions, queueSlot, everyone, boatNow, shopLabel, labelOf, beachWater, sportPlayers, SPORTS, marcheCap, FESTS, isFestDay } from './sim.js';
@@ -4081,6 +4081,28 @@ export function createRenderer(canvas) {
     if (night) for (const b of state.buildings) if (b.type === 'streetlamp') lamp(idx(b.c, b.r), true, true);
     if (night) for (const b of state.buildings) if (b.type === 'planetarium') planetariumGlow(b, time);
     if (night) for (const b of state.buildings) if (b.type === 'cafe' && b.bar) barLights(b, true, time);
+    // 建物の後ろ（北の道）にいる人・ペットは、手前の建物に隠れる（D400：屋根の上を歩いて見えた）。
+    // 建物は人より先に まとめて描くので、手前の建物の形（上へ伸びた屋根・階を含む四角）の所だけ 描かない。
+    // その建物の中・戸口・席にいる人（足もとのマスが その建物）は 隠さない
+    const blocks = state.buildings.filter((b) => b.type !== 'park' && !DECO.includes(b.type)).map((b) => {
+      const s = SIZES[b.type];
+      const rise = b.type === 'house' ? 14 + ((b.level || 1) - 1) * HOUSE_FLOOR : 8;
+      return { x0: b.c * T, x1: (b.c + s.w) * T, top: b.r * T - rise, y1: (b.r + s.h) * T, c0: b.c, c1: b.c + s.w, r0: b.r, r1: b.r + s.h };
+    });
+    const behind = (x, y, paint) => {
+      const c = Math.floor(x / T);
+      const r = Math.floor(y / T);
+      // 後ろ＝足もとが 建物のいちばん上のマスより北（横の道にいる人は隠さない）
+      const hide = blocks.filter((k) => x > k.x0 - 12 && x < k.x1 + 12 && y < k.r0 * T + 2 && y > k.top - 46 && !(c >= k.c0 && c < k.c1 && r >= k.r0 && r < k.r1));
+      if (!hide.length) return paint();
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(-1e4, -1e4, 2e4, 2e4);
+      for (const k of hide) ctx.rect(k.x0, k.top, k.x1 - k.x0, k.y1 - k.top);
+      ctx.clip('evenodd');
+      paint();
+      ctx.restore();
+    };
     // 住民・観光客・ペットを、奥（上）から順に
     const things = [
       ...everyone(state).filter((r) => r.visible).map((r) => ({
@@ -4092,11 +4114,12 @@ export function createRenderer(canvas) {
           if (at === 'pool' || at === 'beach') return swimmer(r, time);
           if (at === 'onsen') return bather(r, time);
           if (at === 'surf') return surfer(r, time);
-          return drawResident(state, r, time, r.id === ui.selectedId);
+          return behind(r.x, r.y, () => drawResident(state, r, time, r.id === ui.selectedId));
         },
       })),
       // レースに出ているあいだ、島のペットはコースの上に描く（家のまわりには描かない）
-      ...(state.pets || []).filter((p) => !racing(state, p.id)).map((p) => ({ y: p.y, draw: () => drawPet(state, p, time) })),
+      // 屋根・テラス・ベンチなど 建物の上の居場所にいるペット（spot）は 隠さない
+      ...(state.pets || []).filter((p) => !racing(state, p.id)).map((p) => ({ y: p.y, draw: () => (p.spot ? drawPet(state, p, time) : behind(p.x, p.y, () => drawPet(state, p, time))) })),
     ].sort((a, b) => a.y - b.y);
     for (const t of things) t.draw();
     for (const b of state.buildings) if (b.type === 'onsen') onsenSteam(b, time);

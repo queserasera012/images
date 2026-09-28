@@ -1,7 +1,7 @@
 // 画面の組み立て：時間を流す・保存する・タップと指の操作を受ける。ゲームのルールは sim.js にしか書かない。
 
 import { CONFIG } from './config.js';
-import { T, SIZES, PIER, PIERS, OX, OY, AREAS, MAIN, areaById, center, placements, footprint, canPlace, landBounds, DECO } from './grid.js';
+import { T, SIZES, PIER, PIERS, OX, OY, AREAS, MAIN, areaById, center, placements, footprint, canPlace, landBounds, DECO, isRoad, COLS } from './grid.js';
 import {
   step, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
@@ -1362,6 +1362,19 @@ function renderDebug() {
 if (DEBUG) {
   // 画面テスト用（?debug のときだけ）：マスの画面上の位置
   window.__til = {
+    // 建物の後ろ（北）の道に 住民とペットを置く（D400：建物の上を歩いて見える、の確かめ用）
+    behind: () => {
+      const h = state.buildings.find((b) => b.type === 'house' && b.r > 0 && isRoad((b.r - 1) * COLS + b.c));
+      if (!h) return null;
+      h.level = 3;
+      const p = center((h.r - 1) * COLS + h.c);
+      const r = state.residents.find((x) => !x.age) || state.residents[0];
+      Object.assign(r, { state: 'STROLL', dest: 'stroll', destId: null, visible: true, x: p.x, y: p.y + 4, tx: p.x, ty: p.y + 4, path: [], until: state.t + 600 });
+      const pet = (state.pets || [])[0];
+      if (pet) Object.assign(pet, { x: p.x + 16, y: p.y + 6, tx: p.x + 16, ty: p.y + 6, until: state.t + 600, path: [] });
+      renderer.focus(p.x, p.y + 30);
+      return { c: h.c, r: h.r, pet: !!pet };
+    },
     tileToClient: (c, r) => renderer.toClient((c + 0.5) * T, (r + 0.5) * T),
     placements: (t) => placements(t, state.buildings),
     pets: () => state.pets.map((p) => ({ id: p.id, kind: p.kind, adopted: p.adopted, state: p.state, ...renderer.toClient(p.x, p.y - 8) })),
