@@ -621,12 +621,30 @@ function renderCard() {
       : `<button id="btn-upgrade" class="card-act" type="button" ${state.coin < cost ? 'disabled' : ''}>${ICONS.house_up}${next.level === 3 ? 'アパートにする' : '2階建てにする'}（${next.capacity}人まで）<span class="cost">${moneyIcon(state.isle)}${cost.toLocaleString()}</span></button>` +
         (state.coin < cost ? `<div class="card-note">${MONEY_NAME[state.isle || 'main']}が あと ${(cost - state.coin).toLocaleString()} 足りません</div>` : '');
   }
+  if (selected.kind === 'building') html += growHtml(buildingById(state, selected.id));
   delete card.dataset.stray;
   // 前に書いた文字列と比べる（SVG は innerHTML で読み直すと書き方が変わり、毎コマ描き直してボタンが押せなくなる）
   if (lastCardHtml !== html || !card.innerHTML) {
     card.innerHTML = html;
     lastCardHtml = html;
   }
+}
+
+// 建物のカードから広げる（家と同じように）。つくる の「広げる」タブの その建物の行を、そのまま ボタンにする
+function growHtml(b) {
+  if (!b || b.type === 'house') return '';
+  const rows = actionsFor(state).filter((a) => a.id.split(':')[1] === String(b.id) || (b.type === 'park' && a.id === 'park_roof'));
+  const names = [labelOf(state, b), b.type === 'shop' ? shopLabel(state, b) : null, b.type === 'cafe' ? cafeLabel(state, b) : null].filter(Boolean);
+  return rows
+    .map((a) => {
+      // 「北のカフェを広げる（Lv2）」→「広げる（Lv2）」。カードの見出しに名前が出ているので
+      const name = names.find((n) => a.title.startsWith(n));
+      const title = name ? a.title.slice(name.length).replace(/^[をの]\s*/, '') : a.title;
+      const short = a.cost - state.coin;
+      return `<button class="card-act" type="button" data-grow="${a.id}" ${short > 0 ? 'disabled' : ''}>${ICONS[a.icon]}${title}<span class="cost">${moneyIcon(state.isle)}${a.cost.toLocaleString()}</span></button>` +
+        `<div class="card-note">${a.detail}${short > 0 ? `。${MONEY_NAME[state.isle || 'main']}が あと ${short.toLocaleString()} 足りません` : ''}</div>`;
+    })
+    .join('');
 }
 
 $('card').addEventListener('click', (ev) => {
@@ -708,6 +726,16 @@ $('card').addEventListener('click', (ev) => {
       onChange: () => save(),
       close: () => save(),
     });
+    return;
+  }
+  const grow = ev.target.closest('[data-grow]');
+  if (grow) {
+    const res = applyAction(state, grow.dataset.grow);
+    toast(res.message);
+    if (res.ok) {
+      renderCard();
+      save();
+    }
     return;
   }
   if (ev.target.closest('#btn-upgrade')) {

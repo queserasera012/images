@@ -283,6 +283,9 @@ body.card-open #toast { bottom: calc(env(safe-area-inset-bottom) + 220px); }
   font-size: 14px;
   line-height: 1.7;
   z-index: 4;
+  /* 広げるボタンが並ぶと背が高くなる。せまい画面で上の数字に かぶらないように */
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 180px);
+  overflow-y: auto;
 }
 #card h3 {
   display: flex;
