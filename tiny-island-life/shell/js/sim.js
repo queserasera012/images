@@ -193,6 +193,13 @@ export const SPORTS = ['volley', 'surf', 'curling', 'hockey'];
 export const FESTS = ['beachfest', 'snowfest'];
 export const ABROAD_VENUES = ['beach', 'onsen', 'marche', 'volley', 'curling', ...FESTS, 'surf', 'hockey'];
 // フェスの日（D387）：その島に舞台があって、7日ごとの その日
+// 舞台の前に 人が集まりはじめる時刻（始まる gather 分前・D407）
+export const festGatherAt = (type) => CONFIG[type].open - (CONFIG[type].gather || 0);
+// いま この島で フェスをやっているか（始まってから終わるまで）。やっていれば その種類
+export const festNow = (state) => {
+  const c = clockOf(state.t);
+  return FESTS.find((type) => isFestDay(state, type) && c >= CONFIG[type].open && c < CONFIG[type].close) || null;
+};
 export const isFestDay = (state, type, day = dayOf(state.t)) => ofType(state, type).length > 0 && day % CONFIG[type].every === CONFIG[type].on % CONFIG[type].every;
 export const nextFestDay = (state, type) => {
   const F = CONFIG[type];
@@ -383,8 +390,10 @@ function festChoices(state, r) {
   if (isChild(r)) return [];
   const out = [];
   for (const type of FESTS) {
-    if (r.did?.[type] || !isFestDay(state, type) || !venueOpen(state, type, 30)) continue;
     const P = CONFIG[type];
+    const c = clockOf(state.t);
+    // 始まる前から 場所を取りに行く（D407）
+    if (r.did?.[type] || !isFestDay(state, type) || c < festGatherAt(type) || c >= P.close - 30) continue;
     for (const b of ofType(state, type)) out.push({ cafe: b, w: P.pull * (r.tourist ? P.touristPull : 1) * P.weather[state.weather] * near(r, b.access) });
   }
   return out;
@@ -961,7 +970,8 @@ function buildingOpen(state, b, margin = 0) {
   if (b.type === 'track' && !isRaceDay(state)) return false;
   if (FESTS.includes(b.type) && !isFestDay(state, b.type)) return false; // フェスは その日だけ（D387）
   const c = clockOf(state.t);
-  return c >= CONFIG[b.type].open && c < closeOf(b) - margin;
+  const open = FESTS.includes(b.type) ? festGatherAt(b.type) : CONFIG[b.type].open; // フェスは 始まる前から 席を取れる（D407）
+  return c >= open && c < closeOf(b) - margin;
 }
 const isBarTime = (state, b) => b.bar && clockOf(state.t) >= CONFIG.cafe.close;
 
@@ -1380,6 +1390,11 @@ function decideNext(state, r, { noCafe = false, avoid = null } = {}) {
   if (isChild(r)) return goHome(state, r); // 子どもは ひとりでは出かけない（親についていくか、幼稚園・小学校）
   const job = workDue(state, r);
   if (job) return goWork(state, r, job); // 勤めている人は、仕事の時間は会社へ（D319）
+  // フェスの船で来た人は、フェスを見に来た。まず舞台へ（雨でも・D407）
+  if (r.festGoer) {
+    const fest = festChoices(state, r).find((x) => x.cafe.type !== avoid);
+    if (fest) return goCafe(state, r, fest.cafe);
+  }
   const w = CONFIG.weatherWeights[state.weather];
   const park = parkOf(state);
   let parkW = 0;
@@ -1675,7 +1690,9 @@ function sit(state, r, b, seatIdx) {
     r.y = r.ty = door.y;
   }
   const linger = state.weather === 'rain' ? V.rainLinger || 1 : 1;
-  r.until = state.t + between(state, V.stayMin, V.stayMax) * linger;
+  // フェスは 始まる前に 席を取った人も、始まってから stayMin〜stayMax 聴く（D407）
+  const from = FESTS.includes(b.type) ? Math.max(state.t, Math.floor(state.t / DAY) * DAY + clockToInDay(V.open)) : state.t;
+  r.until = from + between(state, V.stayMin, V.stayMax) * linger;
   // ドッグレースは、レースが終わるまで見る
   if (b.type === 'track') r.until = Math.floor(state.t / DAY) * DAY + clockToInDay(V.start + V.length) + between(state, 1, 5);
   const closeAt = Math.floor(state.t / DAY) * DAY + clockToInDay(closeOf(b));
@@ -2167,6 +2184,7 @@ function spawnTourists(state, port, boatIdx, boat) {
       name: '観光客',
       tourist: true,
       hop: boat?.fest ? 'main' : k >= n - hop ? state.hopFrom || 'main' : undefined, // 島めぐりの人（どの島から来たか）
+      festGoer: boat?.fest || undefined, // フェスの船で来た人（D407）
       boat: boatKey(port, boatIdx),
       pier: at,
       look: Math.floor(rand(state) * 1000),

@@ -833,9 +833,9 @@ export function createRenderer(canvas) {
   }
 
   // オーロラ（オーロラの島の夜空・D365）：海と島の上にかかる光の幕。日が暮れると出て、明け方に消える
-  function auroraSky(clock, time) {
+  function auroraSky(clock, time, boost = 1) {
     const min = clock >= 12 * 60 ? clock - 19 * 60 : clock + 5 * 60; // 19時から数えた分
-    const strength = Math.max(0, Math.min(1, min / 60, (11 * 60 - min) / 60)); // 19〜20時で出て、5〜6時で消える
+    const strength = boost * Math.max(0, Math.min(1, min / 60, (11 * 60 - min) / 60)); // 19〜20時で出て、5〜6時で消える
     if (strength <= 0) return;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
@@ -854,7 +854,7 @@ export function createRenderer(canvas) {
       const W = 6;
       for (let x = 0; x < view.w + W; x += W) {
         // ひだ：ところどころ明るい
-        ctx.globalAlpha = strength * (0.55 + 0.3 * Math.sin(time * 0.6 + k * 2.1) + 0.25 * Math.sin(x * 0.05 + time * 0.8 + k));
+        ctx.globalAlpha = Math.min(1, strength * (0.55 + 0.3 * Math.sin(time * 0.6 + k * 2.1) + 0.25 * Math.sin(x * 0.05 + time * 0.8 + k)));
         if (ctx.globalAlpha <= 0.02) continue;
         ctx.setTransform(view.dpr, 0, 0, view.dpr * height(x), view.dpr * x, view.dpr * edge(x));
         ctx.fillRect(0, -1, W + 0.5, 1.08);
@@ -3476,34 +3476,225 @@ export function createRenderer(canvas) {
       }
     }
   }
-  // 花火（ビーチフェスの最後・D387）：夜空に 開いて 散る（画面の上のほう）
-  function fireworks(time) {
+  // 花火（ビーチフェスの最後・D387・D407）：夜空に 開いて 散る（画面の上のほう）。
+  // 形は 菊（線を引いて開く）・柳（金色で垂れる）・牡丹（点で開く・内と外で2色）・貝（シェルの島の貝の形）。
+  // 最後の5分は スターマイン（いっぺんに たくさん・大きな金の柳）。開いた瞬間、空と海が その色に ほんのり明るむ
+  const FW_COLORS = ['255, 120, 140', '255, 210, 110', '120, 220, 255', '190, 150, 255', '150, 240, 180'];
+  const FW_GOLD = '255, 200, 120';
+  const hash01 = (n) => {
+    const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+    return x - Math.floor(x);
+  };
+  function fireworks(time, finale, since) {
     ctx.save();
+    // 花火のあいだは 島が少し暗くなる（3分かけて）。光が 地面の明るさに負けないように
+    ctx.fillStyle = `rgba(14, 20, 48, ${0.3 * Math.min(1, since / 3)})`;
+    ctx.fillRect(0, 0, view.w, view.h);
     ctx.globalCompositeOperation = 'lighter';
-    const colors = ['255, 120, 140', '255, 210, 110', '120, 220, 255', '190, 150, 255'];
-    for (let k = 0; k < 4; k++) {
-      const cyc = (time * 0.45 + k * 0.27) % 1;
-      const seed = Math.floor(time * 0.45 + k * 0.27) * 7 + k;
-      const cx = view.w * (0.2 + ((seed * 37) % 60) / 100);
-      const cy = view.h * (0.12 + ((seed * 53) % 20) / 100);
-      if (cyc < 0.2) {
-        ctx.fillStyle = `rgba(${colors[k]}, 0.9)`;
+    const slots = finale ? 11 : 5;
+    const speed = finale ? 0.62 : 0.38;
+    const top = Math.min(topInset, view.h * 0.4);
+    let flash = 0;
+    let flashColor = FW_GOLD;
+    for (let k = 0; k < slots; k++) {
+      const run = time * speed + k * 0.37 + hash01(k) * 0.5;
+      const cyc = run % 1;
+      const id = Math.floor(run) * 37 + k;
+      const big = finale && k === 0; // 最後の大きな金の柳
+      const shape = big ? 'yanagi' : ['kiku', 'yanagi', 'botan', 'kai', 'kiku'][Math.floor(hash01(id) * 5)];
+      const color = shape === 'yanagi' ? FW_GOLD : FW_COLORS[Math.floor(hash01(id + 1) * FW_COLORS.length)];
+      const color2 = FW_COLORS[Math.floor(hash01(id + 2) * FW_COLORS.length)];
+      const cx = big ? view.w * 0.5 : view.w * (0.14 + hash01(id + 3) * 0.72);
+      const cy = big ? top + view.h * 0.16 : top + 40 + hash01(id + 4) * view.h * 0.22;
+      const size = (big ? 2.1 : 1) * (finale ? 44 : 56) * (0.8 + hash01(id + 5) * 0.5);
+      const rise = 0.18;
+      if (cyc < rise) {
+        // 打ち上げ：細い尾を引いて のぼる
+        const p = cyc / rise;
+        const y = cy + (1 - p) * view.h * 0.45;
+        ctx.strokeStyle = `rgba(${color}, 0.5)`;
+        ctx.lineWidth = 1.4;
         ctx.beginPath();
-        ctx.arc(cx, cy + (0.2 - cyc) * 400, 2, 0, Math.PI * 2);
+        ctx.moveTo(cx, y);
+        ctx.lineTo(cx + Math.sin(p * 9) * 1.5, y + 16);
+        ctx.stroke();
+        ctx.fillStyle = `rgba(${color}, 0.95)`;
+        ctx.beginPath();
+        ctx.arc(cx, y, 1.8, 0, Math.PI * 2);
         ctx.fill();
         continue;
       }
-      const t = (cyc - 0.2) / 0.8;
-      const rad = 10 + t * 70;
-      ctx.fillStyle = `rgba(${colors[k]}, ${1 - t})`;
-      for (let s = 0; s < 18; s++) {
-        const a = (s / 18) * Math.PI * 2;
+      const tt = (cyc - rise) / (1 - rise);
+      const open = 1 - Math.pow(1 - Math.min(1, tt * 1.6), 3); // すばやく開いて、ゆっくり止まる
+      const fade = Math.pow(1 - tt, shape === 'yanagi' ? 0.8 : 1.3);
+      const fall = tt * tt * (shape === 'yanagi' ? 70 : 22);
+      const rad = size * open;
+      // 開いたところの にじみ
+      if (tt < 0.6) {
+        const halo = ctx.createRadialGradient(cx, cy + fall, 0, cx, cy + fall, rad * 1.15 + 4);
+        halo.addColorStop(0, `rgba(${color}, ${0.28 * (1 - tt / 0.6)})`);
+        halo.addColorStop(1, `rgba(${color}, 0)`);
+        ctx.fillStyle = halo;
         ctx.beginPath();
-        ctx.arc(cx + Math.cos(a) * rad, cy + Math.sin(a) * rad + t * t * 20, 2.2 - t * 1.4, 0, Math.PI * 2);
+        ctx.arc(cx, cy + fall, rad * 1.15 + 4, 0, Math.PI * 2);
         ctx.fill();
       }
+      if (tt < 0.14 && (1 - tt / 0.14) * (big ? 1.6 : 1) > flash) {
+        flash = (1 - tt / 0.14) * (big ? 1.6 : 1);
+        flashColor = color;
+      }
+      if (shape === 'kai') {
+        // 貝：上に開いた扇に 9本の すじ。すじの先を 弧で結ぶ
+        const ribs = 9;
+        const bx = cx;
+        const by = cy + rad * 0.45 + fall;
+        ctx.strokeStyle = `rgba(${color}, ${fade * 0.85})`;
+        ctx.lineWidth = 2;
+        const tips = [];
+        for (let s = 0; s < ribs; s++) {
+          const a = Math.PI * (1.08 + (0.84 * s) / (ribs - 1));
+          const len = rad * (0.85 + 0.15 * Math.sin((s / (ribs - 1)) * Math.PI));
+          const tx = bx + Math.cos(a) * len;
+          const ty = by + Math.sin(a) * len;
+          tips.push([tx, ty]);
+          ctx.beginPath();
+          ctx.moveTo(bx + Math.cos(a) * len * 0.25, by + Math.sin(a) * len * 0.25);
+          ctx.lineTo(tx, ty);
+          ctx.stroke();
+        }
+        ctx.beginPath();
+        tips.forEach(([x, y], s) => (s ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+        ctx.stroke();
+        ctx.fillStyle = `rgba(${color2}, ${fade})`;
+        for (const [x, y] of tips) {
+          ctx.beginPath();
+          ctx.arc(x, y, 2.2 * (1 - tt * 0.5), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        continue;
+      }
+      const n = shape === 'botan' ? 26 : shape === 'yanagi' ? (big ? 30 : 20) : 22;
+      for (let s = 0; s < n; s++) {
+        const a = (s / n) * Math.PI * 2 + hash01(id + 6) * 3;
+        const px = cx + Math.cos(a) * rad;
+        const py = cy + Math.sin(a) * rad + fall;
+        if (shape === 'kiku' || shape === 'yanagi') {
+          // 尾：開いた中心の側へ のびる線。柳は 長く垂れる
+          const tail = shape === 'yanagi' ? 0.5 : 0.3;
+          ctx.strokeStyle = `rgba(${color}, ${fade * 0.6})`;
+          ctx.lineWidth = shape === 'yanagi' ? 1.8 : 1.6;
+          ctx.beginPath();
+          ctx.moveTo(px, py);
+          ctx.lineTo(cx + Math.cos(a) * rad * (1 - tail), cy + Math.sin(a) * rad * (1 - tail) + fall * (1 - tail * 1.4));
+          ctx.stroke();
+        }
+        ctx.fillStyle = `rgba(${shape === 'botan' && s % 2 ? color2 : color}, ${fade})`;
+        ctx.beginPath();
+        ctx.arc(px, py, (shape === 'botan' ? 3.2 : 2.6) * (1 - tt * 0.6), 0, Math.PI * 2);
+        ctx.fill();
+        if (shape === 'botan' && tt < 0.7) {
+          // 内側の輪（ちがう色）
+          ctx.fillStyle = `rgba(${color2}, ${fade * 0.9})`;
+          ctx.beginPath();
+          ctx.arc(cx + Math.cos(a) * rad * 0.5, cy + Math.sin(a) * rad * 0.5 + fall, 1.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+    // 開いた瞬間、空と海が その色に明るむ（下ほど うすく）
+    if (flash > 0) {
+      const g = ctx.createLinearGradient(0, 0, 0, view.h);
+      g.addColorStop(0, `rgba(${flashColor}, ${Math.min(0.16, 0.09 * flash)})`);
+      g.addColorStop(1, `rgba(${flashColor}, ${Math.min(0.07, 0.035 * flash)})`);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, view.w, view.h);
     }
     ctx.restore();
+  }
+
+  // フェスの客席（D407）：暗くなったら 手に灯りを持つ。ビーチ＝色つきのペンライト、オーロラ＝小さなランタン。
+  // 花火・ランタンのあいだは 高く上げて 大きく ふる
+  function festCrowd(state, time) {
+    const clock = clockOf(state.t);
+    for (const b of state.buildings) {
+      if (!FESTS.includes(b.type) || !isFestDay(state, b.type)) continue;
+      const V = CONFIG[b.type];
+      const snow = b.type === 'snowfest';
+      if (clock < (snow ? V.open : 18 * 60 + 30) || clock >= V.close) continue;
+      const peak = clock >= (snow ? V.lanterns : V.fireworks);
+      for (const id of b.seats) {
+        if (!id) continue;
+        const r = everyone(state).find((x) => x.id === id);
+        if (!r || !r.visible || Math.hypot(r.x - r.tx, r.y - r.ty) > 3) continue;
+        const ph = phaseOf(r.id);
+        const side = ph % 2 < 1 ? 1 : -1;
+        const sway = Math.sin(time * (peak ? 5 : 2.4) + ph) * (peak ? 0.55 : 0.3);
+        const hx = r.x + side * 5;
+        const hy = r.y - (peak ? 22 : 16);
+        const len = snow ? 5 : 10;
+        const tx = hx + Math.sin(sway) * len;
+        const ty = hy - Math.cos(sway) * len;
+        if (snow) {
+          // 手さげのランタン：ひもの先に あたたかい灯り
+          ctx.strokeStyle = PALETTE.ink;
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.moveTo(hx, hy);
+          ctx.lineTo(tx, ty);
+          ctx.stroke();
+          ctx.fillStyle = 'rgba(255, 190, 90, 0.35)';
+          ctx.beginPath();
+          ctx.arc(tx, ty, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ffcf7a';
+          ctx.fillRect(tx - 1.6, ty - 2, 3.2, 4);
+          continue;
+        }
+        const color = ['255, 107, 129', '98, 182, 203', '255, 209, 102', '190, 150, 255'][Math.floor(ph * 7) % 4];
+        ctx.strokeStyle = `rgba(${color}, 0.35)`;
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(hx, hy);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
+        ctx.strokeStyle = `rgba(${color}, 1)`;
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+        ctx.lineCap = 'butt';
+      }
+    }
+  }
+
+  // オーロラの夜の締め（D407）：最後の30分、客席から 空へ ランタンを放つ。ゆれながら のぼって、終わったあとも しばらく見える
+  const LANTERN_N = 26;
+  function skyLanterns(state, time) {
+    const V = CONFIG.snowfest;
+    const clock = clockOf(state.t);
+    if (clock < V.lanterns || clock >= V.close + 25 || state.weather === 'rain') return;
+    for (const b of state.buildings) {
+      if (b.type !== 'snowfest' || !isFestDay(state, b.type)) continue;
+      const seats = seatPositions(b);
+      for (let k = 0; k < LANTERN_N; k++) {
+        const launch = V.lanterns + hash01(k + 50) * (V.close - V.lanterns - 6);
+        const age = clock - launch; // ゲームの分
+        if (age < 0) continue;
+        const from = seats[Math.floor(hash01(k + 80) * Math.min(seats.length, 20))];
+        const x = from.x + Math.sin(age * 0.25 + k) * 6 + age * (hash01(k + 90) - 0.5) * 1.6;
+        const y = from.y - 14 - age * 11;
+        const a = Math.max(0, Math.min(1, age / 2, (V.close + 25 - clock) / 8));
+        const flick = 0.8 + Math.sin(time * 7 + k * 3) * 0.2;
+        ctx.fillStyle = `rgba(255, 180, 90, ${0.28 * a * flick})`;
+        ctx.beginPath();
+        ctx.arc(x, y, 13, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = `rgba(255, 214, 150, ${a})`;
+        roundRect(ctx, x - 4.5, y - 7, 9, 11, 3);
+        ctx.fill();
+        ctx.fillStyle = `rgba(255, 150, 70, ${a * flick})`;
+        ctx.fillRect(x - 2.5, y + 1.5, 5, 2.5);
+      }
+    }
   }
 
   // ---------------------------------------------------------------- 運動（D373）
@@ -4067,9 +4258,11 @@ export function createRenderer(canvas) {
       ctx.fillStyle = c;
       ctx.fillRect(0, 0, view.w, view.h);
     }
-    if (theme.sky && state.weather === 'sunny') auroraSky(clock, time);
-    // ビーチフェスの花火（D387）：フェスの日の 最後の30分
-    if (state.weather !== 'rain' && isFestDay(state, 'beachfest') && clock >= CONFIG.beachfest.fireworks && clock < CONFIG.beachfest.close) fireworks(time);
+    // オーロラの夜のフェスで ランタンを放つあいだは、オーロラが強くなる（D407）
+    const lanternNight = isFestDay(state, 'snowfest') && clock >= CONFIG.snowfest.lanterns && clock < CONFIG.snowfest.close + 25;
+    if (theme.sky && state.weather === 'sunny') auroraSky(clock, time, lanternNight ? 1.8 : 1);
+    // ビーチフェスの花火（D387）：フェスの日の 最後の30分。最後の5分は スターマイン（D407）
+    if (state.weather !== 'rain' && isFestDay(state, 'beachfest') && clock >= CONFIG.beachfest.fireworks && clock < CONFIG.beachfest.close) fireworks(time, clock >= CONFIG.beachfest.finale, clock - CONFIG.beachfest.fireworks);
 
     toWorldSpace();
     for (const b of state.buildings) {
@@ -4124,6 +4317,8 @@ export function createRenderer(canvas) {
       ...(state.pets || []).filter((p) => !racing(state, p.id)).map((p) => ({ y: p.y, draw: () => (p.spot ? drawPet(state, p, time) : behind(p.x, p.y, () => drawPet(state, p, time))) })),
     ].sort((a, b) => a.y - b.y);
     for (const t of things) t.draw();
+    festCrowd(state, time);
+    skyLanterns(state, time);
     for (const b of state.buildings) if (b.type === 'onsen') onsenSteam(b, time);
     for (const b of state.buildings) if (SPORTS.includes(b.type) && b.type !== 'surf') sportMotion(state, b, time);
     drawSleep(state, time);

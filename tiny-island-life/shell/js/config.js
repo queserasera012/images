@@ -7,6 +7,7 @@ export const CONFIG = {
   startClock: 7 * 60 + 10,      // 新しいゲームは Day 1 の 07:10 から（開いた瞬間に人が歩いている・D290）
   daySecondsReal: 480,          // 06:00〜22:00（960分）を現実の何秒で流すか
   nightSpeed: 6,                // 夜（22:00〜06:00）は何倍速で流すか
+  festSlow: 3,                  // フェスのあいだ（見ている島の舞台が始まってから終わるまで）は 何分の1の速さで流すか（花火が約45秒・D407）
   morningClock: 7 * 60,         // 留守から戻ったときは「翌朝 07:00」までしか進めない
 
   // ---- 島の住民 ----
@@ -206,7 +207,8 @@ export const CONFIG = {
   // 空の光の対：シェル＝夕暮れのビーチフェス（最後に花火）・オーロラ＝夜の雪の舞台（キャンドルと オーロラ）
   beachfest: {
     isle: 'shell', pop: 25, max: 1, every: 7, on: 3, // Day 3・10・17…
-    open: 17 * 60, close: 21 * 60, fireworks: 20 * 60 + 30,
+    open: 17 * 60, close: 21 * 60, fireworks: 20 * 60 + 30, finale: 20 * 60 + 55, // 最後の5分は スターマイン（D407）
+    gather: 60, // 始まる何分前から 舞台の前に場所を取りに行くか（D407：歩いて30〜50分かかり、始まって1時間 空っぽだった）
     customerValue: 15, stayMin: 60, stayMax: 120, maxQueue: 8, rainLinger: 1,
     pull: 70, touristPull: 1.3, weather: { sunny: 1, cloudy: 0.8, rain: 0.4 },
     levels: [{ level: 1, seats: 20, upkeep: 60 }, { level: 2, seats: 30, upkeep: 90, cost: 15000 }],
@@ -215,6 +217,8 @@ export const CONFIG = {
   snowfest: {
     isle: 'aurora', pop: 25, max: 1, every: 7, on: 0, // Day 7・14・21…
     open: 19 * 60, close: 23 * 60, // 24時をまたぐと 日付の区切りと 船の帰りがぶつかるので 23時まで
+    lanterns: 22 * 60 + 30, // 最後の30分は 客席から 空へ ランタンを放つ（D407）
+    gather: 60,
     customerValue: 15, stayMin: 60, stayMax: 120, maxQueue: 8, rainLinger: 1,
     pull: 70, touristPull: 1.3, weather: { sunny: 1, cloudy: 1, rain: 0.8 },
     levels: [{ level: 1, seats: 20, upkeep: 60 }, { level: 2, seats: 30, upkeep: 90, cost: 15000 }],

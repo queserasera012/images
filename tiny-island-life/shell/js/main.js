@@ -7,7 +7,7 @@ import {
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
   migrateWorld, createWorld, islandNow, createIsland, visitIsland, stepWorld, catchUpWorld, isAbroad, openRoute, clearPlot, moverReport, dayNow, backAt, setMarcheOrder, marcheCap, marcheGoods, FESTS, isFestDay, nextFestDay, canFestBoat, sendFestBoat, openAbroadPort, sportLeft, SPORTS, ABROAD_VENUES, MONEY_NAME, ISLE_NAMES, exchange, exchangeLeft,
   everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
-  labelOf, nextGoal, unlockNow, nameBaby, namePet, parentsOf, portsOf, portById, closeOf, fastForwardNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft, decoType, isChild,
+  labelOf, nextGoal, unlockNow, nameBaby, namePet, parentsOf, portsOf, portById, closeOf, fastForwardNow, festNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft, decoType, isChild,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
   dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft, nameResident, placeLabel, seasonOf,
 } from './sim.js';
@@ -97,7 +97,8 @@ function frame(now) {
   const realDt = Math.min(0.25, (now - lastFrame) / 1000);
   lastFrame = now;
   // 夜の早送りは、島のお店が全部 閉まってから（D299）
-  const rate = DAY_RATE * (fastForwardNow(state) ? CONFIG.nightSpeed : 1) * speed;
+  // フェスのあいだは ゆっくり流す（見ている島だけ・D407）。ルールは変わらない（進む分が減るだけ）
+  const rate = (DAY_RATE * (fastForwardNow(state) ? CONFIG.nightSpeed : 1) * speed) / (festNow(state) ? CONFIG.festSlow : 1);
   const events = stepWorld(world, realDt * rate);
   for (const e of events) {
     if (e.type === 'newday') {
