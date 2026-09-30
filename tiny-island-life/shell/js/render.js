@@ -3625,7 +3625,7 @@ export function createRenderer(canvas) {
       for (const id of b.seats) {
         if (!id) continue;
         const r = everyone(state).find((x) => x.id === id);
-        if (!r || !r.visible || Math.hypot(r.x - r.tx, r.y - r.ty) > 3) continue;
+        if (!r || !r.visible || r.path?.length || Math.hypot(r.x - r.tx, r.y - r.ty) > 3) continue; // 席に着いてから
         const ph = phaseOf(r.id);
         const side = ph % 2 < 1 ? 1 : -1;
         const sway = Math.sin(time * (peak ? 5 : 2.4) + ph) * (peak ? 0.55 : 0.3);
@@ -4309,6 +4309,8 @@ export function createRenderer(canvas) {
           if (at === 'pool' || at === 'beach') return swimmer(r, time);
           if (at === 'onsen') return bather(r, time);
           if (at === 'surf') return surfer(r, time);
+          // 席に着いた人は 隠さない（前の列の足もとが 南どなりの屋根に かかって消え、フェスのペンライトだけが残って見えた・D408）
+          if (at) return drawResident(state, r, time, r.id === ui.selectedId);
           return behind(r.x, r.y, () => drawResident(state, r, time, r.id === ui.selectedId));
         },
       })),

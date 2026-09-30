@@ -1583,7 +1583,12 @@ function updateResident(state, r, h, events) {
       return;
     }
     case 'SEATED':
-      if (r.visible) moveToward(state, r, h);
+      // 席までの道すじ（フェスの舞台の横を回る・D408）があれば たどる
+      if (r.visible && moveToward(state, r, h) && r.path?.length) {
+        const next = r.path.shift();
+        r.tx = next.x;
+        r.ty = next.y;
+      }
       if (t >= r.until) leaveVenue(state, r, events);
       return;
     case 'PARK':
@@ -1683,6 +1688,13 @@ function sit(state, r, b, seatIdx) {
     const s = seatPositions(b)[seatIdx];
     r.tx = s.x;
     r.ty = s.y;
+    // フェスは 舞台の横を回って 客席へ（舞台の上を歩かない・D408）
+    const via = FESTS.includes(b.type) && festDetour(b, r, s);
+    if (via) {
+      r.tx = via[0].x;
+      r.ty = via[0].y;
+      r.path = [via[1], s];
+    }
   } else {
     r.visible = false;
     const door = queueSlot(b, 0);
@@ -1721,6 +1733,17 @@ function enterVenue(state, r, b, events) {
 }
 const enterCafe = enterVenue;
 
+// フェスの舞台（D408）：道と客席のあいだを歩くとき、舞台の上を通らず 横のすきまを通る。
+// 舞台は 建物の上の方（客席より北）。どちらかの端が 客席より北なら、近い方の横へ回る
+function festDetour(b, from, to) {
+  const x0 = b.c * T;
+  const w = SIZES[b.type].w * T;
+  const front = b.r * T + 26; // 舞台の手前の へり（ここから南が 客席）
+  if (from.y >= front && to.y >= front) return null;
+  const side = (from.x + to.x) / 2 < x0 + w / 2 ? x0 + 2 : x0 + w - 2;
+  return [{ x: side, y: from.y }, { x: side, y: to.y }];
+}
+
 function leaveVenue(state, r, events) {
   const b = buildingById(state, r.destId);
   const V = CONFIG[b.type];
@@ -1756,6 +1779,16 @@ function leaveVenue(state, r, events) {
   if (b.type === 'stand') r.carry = 'coffee'; // 持ち帰りのカップ
   events.push({ type: 'served', name: r.name, venue: b.type });
   afterActivity(state, r, b.type === 'super' ? 0.8 : 0.55, { avoid: b.type });
+  // フェスの帰りも 舞台の横を回る（D408）
+  if (FESTS.includes(b.type) && r.state === 'WALK') {
+    const to = { x: r.tx, y: r.ty };
+    const via = festDetour(b, r, to);
+    if (via) {
+      r.path.unshift(via[1], to);
+      r.tx = via[0].x;
+      r.ty = via[0].y;
+    }
+  }
 }
 
 function loseCustomer(state, r, b, waited, events) {
