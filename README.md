@@ -37,6 +37,7 @@ x/<キャンペーン名>/          … X のカード画像（今後）
 | `note/17-shinme-part3/` | しんめ工房、できるまで③共作・発信編（第17弾） |
 | `note/18-web3-to-shinme/` | 続かなかったのは、意志が弱いからではなかった（第18弾） |
 | `tiny-island-life/` | Tiny Island Life の Phase 0 プロトタイプ（原本は private の `app-tiny-island-life`。ここは書き出しだけ） |
+| `bounce-pets-preview/` | Bounce Pets（iOS 版）の Web プレビュー。ビルドしないでスマホのブラウザで確かめる用（原本は `app-bounce-pets`。ここは `npm run export:web` の書き出しだけ） |
 
 ## 注意
 
