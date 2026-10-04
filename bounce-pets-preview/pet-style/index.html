@@ -1,0 +1,29 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bounce Pets Pet Style</title>
+<style>
+:root{--bg:#2340D8;--deep:#1A32B8;--ink:#0F1C5C;--paper:#fff;--sky:#B9C8FF;--sun:#FFC93C}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--paper);font-family:-apple-system,system-ui,sans-serif;padding:24px 16px 48px}
+main{max-width:1080px;margin:0 auto}h1{margin:0 0 6px;font-size:30px}p{margin:0 0 20px;color:var(--sky);max-width:70ch;line-height:1.5}
+.picks{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:32px}
+.pick{background:var(--paper);color:var(--ink);border:4px solid var(--ink);border-radius:16px;box-shadow:6px 6px 0 var(--ink);padding:14px}
+.pick img{width:100%;background:#EEF2FF;border-radius:10px;display:block}.pick h2{margin:10px 0 4px;font-size:20px}.pick small{color:#4a5590;line-height:1.4;display:block}
+.pick a{display:inline-block;margin-top:10px;color:var(--ink);font-weight:700}
+h3{margin:28px 0 10px;font-size:20px}
+.row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.row figure{margin:0}.row img{width:100%;border-radius:12px;border:3px solid var(--ink);display:block}
+figcaption{font-size:13px;color:var(--sky);margin-top:6px}
+@media (max-width:640px){.row{grid-template-columns:1fr 1fr}}
+</style></head><body><main>
+<h1>Pet art: pick a direction</h1>
+<p>The fox redrawn flat, in two ways, so it sits in the app's look instead of floating on top of it. Once a direction is chosen, all six pets and the app icon get redrawn in it. Only the fox is swapped in these samples; the other pets are still the 3D ones, which shows the contrast.</p>
+<div class="picks">
+<div class="pick"><img src="fox-a.png" alt="Fox, style A"><h2>A. Outlined sticker</h2><small>Navy outline and a hard navy shadow, the same as the app's buttons and cards. Reads well at small sizes.</small><a href="../?petstyle=a">Try it in the app</a></div>
+<div class="pick"><img src="fox-b.png" alt="Fox, style B"><h2>B. Cut paper</h2><small>No outline. Flat shapes with one darker tone for shade. Softer and lighter.</small><a href="../?petstyle=b">Try it in the app</a></div>
+<div class="pick"><img src="none-pets.jpg" alt="Current" style="object-fit:cover;object-position:top;aspect-ratio:1"><h2>Now: 3D</h2><small>The current art, for comparison.</small><a href="../">Open the app</a></div>
+</div>
+<h3>A. Outlined sticker</h3>
+<div class="row"><figure><img src="a-home.jpg" alt=""><figcaption>Home</figcaption></figure><figure><img src="a-pets.jpg" alt=""><figcaption>Pets</figcaption></figure><figure><img src="a-egg.jpg" alt=""><figcaption>Egg hatch</figcaption></figure></div>
+<h3>B. Cut paper</h3>
+<div class="row"><figure><img src="b-home.jpg" alt=""><figcaption>Home</figcaption></figure><figure><img src="b-pets.jpg" alt=""><figcaption>Pets</figcaption></figure><figure><img src="b-egg.jpg" alt=""><figcaption>Egg hatch</figcaption></figure></div>
+<h3>Now: 3D</h3>
+<div class="row"><figure><img src="none-home.jpg" alt=""><figcaption>Home</figcaption></figure><figure><img src="none-pets.jpg" alt=""><figcaption>Pets</figcaption></figure><figure><img src="none-egg.jpg" alt=""><figcaption>Egg hatch</figcaption></figure></div>
+</main></body></html>
