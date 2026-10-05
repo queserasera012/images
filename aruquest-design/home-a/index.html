@@ -117,6 +117,51 @@
     font-family:"Shippori Mincho B1"; font-weight:800; font-size:19px; letter-spacing:.2em; color:var(--ink); border:2px solid var(--ink); border-radius:6px; }
   .left { position:absolute; left:0; right:0; bottom:110px; text-align:center; font-size:14px; color:var(--ink-soft); }
 
+  /* ---------- 戦闘 ---------- */
+  .battle-scr { background:radial-gradient(100% 70% at 50% 40%, #E9DBC0 0%, #DCCAA8 70%, #C9B48D 100%); }
+  .battle-scr .where { display:flex; justify-content:space-between; padding:6px 22px 0; font-size:15px; }
+  .battle-scr .where small { color:var(--ink-soft); font-size:13px; }
+  .bg-sketch { position:absolute; left:0; top:90px; width:390px; height:300px; }
+  .foe { position:absolute; left:50%; top:150px; width:230px; height:176px; transform:translateX(-50%); }
+  .foe img { width:230px; height:176px; object-fit:cover; object-position:50% 47%; mix-blend-mode:darken;
+    -webkit-mask-image:radial-gradient(60% 58% at 50% 50%, #000 70%, transparent 100%); mask-image:radial-gradient(60% 58% at 50% 50%, #000 70%, transparent 100%);
+    animation:foe-shake 2.4s infinite; }
+  @keyframes foe-shake { 0%,17%,33%,58%,73%,100% { transform:translateX(0); } 20% { transform:translateX(-5px); } 23% { transform:translateX(5px); } 26% { transform:translateX(-4px); } 29% { transform:translateX(3px); }
+    61% { transform:translateX(-5px); } 64% { transform:translateX(5px); } 67% { transform:translateX(-3px); } }
+  .hp { position:absolute; left:50%; transform:translateX(-50%); width:200px; }
+  .hp .label { display:flex; justify-content:space-between; font-size:13px; }
+  .hp .bar { height:8px; margin-top:3px; border:1.5px solid var(--ink); border-radius:2px; background:rgba(255,250,236,.5); overflow:hidden; }
+  .hp .bar i { display:block; height:100%; background:var(--wax); opacity:.8; }
+  .foe-hp { top:362px; }
+  .foe-hp .bar i { width:72%; animation:hp-drop 2.4s infinite; }
+  @keyframes hp-drop { 0%,19% { width:72%; } 27%,60% { width:52%; } 68%,100% { width:39%; } }
+  .burst { position:absolute; left:50%; top:232px; width:150px; height:150px; transform:translate(-50%,-50%) scale(.3); opacity:0; animation:burst 2.4s infinite; }
+  .burst.skill { animation-name:burst2; }
+  @keyframes burst { 0%,17% { opacity:0; transform:translate(-50%,-50%) scale(.3); } 19% { opacity:1; transform:translate(-50%,-50%) scale(1); } 27%,100% { opacity:0; transform:translate(-50%,-50%) scale(1.25); } }
+  @keyframes burst2 { 0%,58% { opacity:0; transform:translate(-50%,-50%) scale(.3); } 60% { opacity:1; transform:translate(-50%,-50%) scale(1); } 70%,100% { opacity:0; transform:translate(-50%,-50%) scale(1.3); } }
+  .dmg { position:absolute; left:calc(50% + 46px); top:170px; font-family:"Shippori Mincho B1"; font-weight:800; font-size:44px; color:var(--ink);
+    -webkit-text-stroke:5px #F6EBD6; paint-order:stroke fill; opacity:0; animation:dmg 2.4s infinite; }
+  .dmg.two { left:calc(50% - 104px); top:190px; color:var(--sea); animation-name:dmg2; }
+  @keyframes dmg { 0%,19% { opacity:0; transform:translateY(0) scale(.6); } 22% { opacity:1; transform:translateY(-4px) scale(1.2); } 26% { transform:translateY(-8px) scale(1); opacity:1; } 45%,100% { opacity:0; transform:translateY(-28px) scale(1); } }
+  @keyframes dmg2 { 0%,60% { opacity:0; transform:translateY(0) scale(.6); } 63% { opacity:1; transform:translateY(-4px) scale(1.2); } 67% { transform:translateY(-8px) scale(1); opacity:1; } 86%,100% { opacity:0; transform:translateY(-28px) scale(1); } }
+  .allies { position:absolute; left:0; right:0; top:418px; height:280px; display:flex; justify-content:center; gap:0; }
+  .allies .who { position:relative; width:150px; height:280px; }
+  .allies img { width:150px; height:280px; object-fit:cover; object-position:50% 50%; mix-blend-mode:darken;
+    -webkit-mask-image:radial-gradient(70% 60% at 50% 50%, #000 70%, transparent 100%); mask-image:radial-gradient(70% 60% at 50% 50%, #000 70%, transparent 100%); }
+  .allies .hero img { animation:lunge 2.4s infinite; }
+  .allies .mage img { animation:cast 2.4s infinite; }
+  @keyframes lunge { 0%,10%,30%,100% { transform:translate(0,0); } 17% { transform:translate(-14px,-16px); } }
+  @keyframes cast { 0%,50%,68%,100% { transform:translate(0,0); } 57% { transform:translate(10px,-8px); } }
+  .allies .mini { position:absolute; left:50%; bottom:-6px; transform:translateX(-50%); width:120px; }
+  .allies .mini .bar i { background:var(--sea); }
+  .log { position:absolute; left:22px; right:22px; top:722px; font-size:15px; line-height:1.6; border-top:1px solid rgba(58,42,28,.35); padding-top:8px; }
+  .log .l2 { animation:log2 2.4s infinite; }
+  .log .l1 { animation:log1 2.4s infinite; }
+  @keyframes log1 { 0%,18% { opacity:.35; } 20%,100% { opacity:1; } }
+  @keyframes log2 { 0%,59% { opacity:0; } 61%,100% { opacity:1; } }
+  .skip { position:absolute; right:22px; bottom:34px; font-size:14px; color:var(--ink-soft); border-bottom:1px solid var(--ink-soft); }
+  .auto { position:absolute; left:22px; bottom:34px; font-size:14px; color:var(--ink-soft); }
+
   .notes { max-width:720px; margin:40px auto 0; font-size:14px; line-height:1.9; color:#3f342a; }
   .notes h2 { font-family:"Shippori Mincho B1"; font-weight:800; font-size:18px; margin-top:20px; }
   .notes ul { padding-left:1.2em; }
@@ -250,6 +295,43 @@
         <div class="take">受け取る</div>
       </div>
     </figure>
+
+    <figure class="shot">
+      <figcaption><b>戦闘</b>　踏み込み・揺れ・閃き・数字が跳ねる（自動で進む）</figcaption>
+      <div class="phone battle-scr" id="battle">
+        <div class="status"></div>
+        <div class="where"><span>迷いの森の入口</span><small>3手目</small></div>
+        <svg class="bg-sketch" viewBox="0 0 390 300" aria-hidden="true">
+          <g fill="#2F5550" fill-opacity=".28" stroke="#2F5550" stroke-opacity=".5" stroke-width=".7">
+            <path d="M20 240 l9 -26 l9 26z"/><path d="M36 246 l10 -30 l10 30z"/><path d="M330 236 l9 -24 l9 24z"/><path d="M346 244 l10 -30 l10 30z"/><path d="M362 240 l8 -22 l8 22z"/>
+          </g>
+          <path d="M0 262 C80 254 140 266 200 258 S320 262 390 254" fill="none" stroke="#3A2A1C" stroke-opacity=".35" stroke-width="1.2"/>
+        </svg>
+        <div class="foe"><img src="world-samples/a-set/slime.jpg" alt="森のスライム"></div>
+        <svg class="burst" viewBox="0 0 100 100" aria-hidden="true">
+          <path d="M14 82 C38 60 62 38 88 14 C66 42 44 64 18 86Z" fill="#3A2A1C"/>
+          <path d="M22 88 C44 70 66 50 92 28" fill="none" stroke="#FBF4E2" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="16" cy="34" r="2.5" fill="#3A2A1C"/><circle cx="82" cy="70" r="3" fill="#3A2A1C"/><circle cx="72" cy="84" r="1.8" fill="#3A2A1C"/>
+        </svg>
+        <svg class="burst skill" viewBox="0 0 100 100" aria-hidden="true">
+          <circle cx="50" cy="50" r="34" fill="none" stroke="#2F5550" stroke-opacity=".55" stroke-width="10"/>
+          <circle cx="50" cy="50" r="22" fill="#CFE3DD" fill-opacity=".7"/>
+        </svg>
+        <div class="dmg">48</div>
+        <div class="dmg two">31</div>
+        <div class="hp foe-hp"><div class="label"><span>森のスライム</span><span>属性 風</span></div><div class="bar"><i></i></div></div>
+        <div class="allies">
+          <div class="who mage"><img src="world-samples/a-set/mage.jpg" alt="魔法使い"><div class="hp mini"><div class="bar"><i style="width:88%"></i></div></div></div>
+          <div class="who hero"><img src="world-samples/a-set/hero.jpg" alt="主人公"><div class="hp mini"><div class="bar"><i style="width:76%"></i></div></div></div>
+        </div>
+        <div class="log">
+          <div class="l1">ハルトの斬りつけ。スライムに 48。</div>
+          <div class="l2">リラの水の術。スライムに 31。</div>
+        </div>
+        <div class="auto">戦闘は自動で進む</div>
+        <div class="skip">結果まで飛ばす</div>
+      </div>
+    </figure>
   </div>
 
   <div class="notes">
@@ -263,7 +345,8 @@
     <h2>このモックで仮のもの</h2>
     <ul>
       <li>宝箱が開く絵（ふたが開いた状態）はまだ無い。閉じた絵に光としぶきを重ねて代わりにしている。</li>
-      <li>装備の絵はまだ無いので、名前と数字だけ。敵の絵（スライム）は描き直し待ちなので、この2画面には出していない。</li>
+      <li>装備の絵はまだ無いので、名前と数字だけ。</li>
+      <li>戦闘はモックとして同じ動きを2.4秒ごとにくり返している。本番は1手ずつ進み、HPの減りは戻らない。</li>
       <li>地図は線で描いた仮のもの。本番は A-1 の地図のような描いた絵に差し替える。</li>
     </ul>
   </div>
