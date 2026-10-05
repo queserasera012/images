@@ -800,6 +800,8 @@ h3 .dot { width: 14px; height: 14px; }
 
 /* 右上のお金を押すと 両替（向こうの島があるとき・D378） */
 #hud-coin { cursor: pointer; pointer-events: auto; }
+/* お金がマイナス（D406）：困りごとと同じ色。説明は出さない */
+.debt, #coin.debt { color: var(--problem); }
 .ex-name small { margin-left: 4px; color: var(--muted); font-size: 12px; font-weight: 700; }
 /* 名前の下に その島のお金（せまい画面で 名前が2行に折れていた・D401） */
 .ex-who { display: flex; flex-direction: column; line-height: 1.25; white-space: nowrap; }

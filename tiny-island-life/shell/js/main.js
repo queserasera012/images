@@ -5,7 +5,7 @@ import { T, SIZES, PIER, PIERS, OX, OY, AREAS, MAIN, areaById, center, placement
 import {
   step, isNight, dayOf, formatClock, actionsFor, applyAction,
   describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
-  migrateWorld, createWorld, islandNow, createIsland, visitIsland, stepWorld, catchUpWorld, isAbroad, openRoute, clearPlot, moverReport, dayNow, backAt, setMarcheOrder, marcheCap, marcheGoods, FESTS, isFestDay, nextFestDay, canFestBoat, sendFestBoat, openAbroadPort, sportLeft, SPORTS, ABROAD_VENUES, MONEY_NAME, ISLE_NAMES, exchange, exchangeLeft,
+  migrateWorld, createWorld, islandNow, createIsland, visitIsland, stepWorld, catchUpWorld, isAbroad, openRoute, clearPlot, moverReport, dayNow, backAt, setMarcheOrder, marcheCap, marcheGoods, FESTS, isFestDay, isOn, nextFestDay, canFestBoat, sendFestBoat, openAbroadPort, sportLeft, SPORTS, ABROAD_VENUES, MONEY_NAME, ISLE_NAMES, exchange, exchangeLeft,
   everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
   labelOf, nextGoal, unlockNow, nameBaby, namePet, parentsOf, portsOf, portById, closeOf, fastForwardNow, festNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft, decoType, isChild,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
@@ -184,6 +184,7 @@ function updateHud() {
 setHouseSkin(new URLSearchParams(location.search).get('house') || chosenHouseSkin());
   $('clock').textContent = formatClock(state.t);
   $('coin').textContent = state.coin.toLocaleString();
+  $('coin').classList.toggle('debt', state.coin < 0); // マイナス（朝の維持費で 足りなかった）は 赤で（D406：見せ方だけ。説明の文は足さない）
   if (shownIsle !== world.current) {
     // シェルの島では お金が Shell（D354）、オーロラの島では オーロラ（D366）
     $('coin-icon').innerHTML = moneyIcon(state.isle);
@@ -526,7 +527,7 @@ function renderCard() {
       if (FESTS.includes(b.type)) {
         // フェス（D387）：次の日と、本島から船を出すボタン
         const today = isFestDay(state, b.type);
-        html += `<div>${today ? `今日は フェスの日（${fmt(V.open)}〜${fmt(V.close)}）` : `次のフェス：Day ${nextFestDay(state, b.type)}（${fmt(V.open)}〜${fmt(V.close)}）`}</div>`;
+        html += `<div>${!isOn(b.type) ? 'いまは お休みしています' : today ? `今日は フェスの日（${fmt(V.open)}〜${fmt(V.close)}）` : `次のフェス：Day ${nextFestDay(state, b.type)}（${fmt(V.open)}〜${fmt(V.close)}）`}</div>`;
         const can = canFestBoat(world, world.current);
         const B = CONFIG.abroad.festBoat;
         html += can.ok
@@ -536,6 +537,7 @@ function renderCard() {
       if (b.type === 'marche') {
         // マルシェ（D387）：並んでいる品物と、毎朝の定期便（本島のコインで仕入れる）
         const S = V.ship;
+        if (!isOn('marche')) html += '<div>いまは お休みしています</div>';
         html += `<div>並んでいる：${marcheGoods(state).join('・')}（${b.stock} / ${marcheCap(b)}個）</div>`;
         html += `<div class="order-row"><span>毎朝 本島から送る：<b>${b.order}個</b>（本島のコイン ${ICONS.coin}${(b.order * S.cost).toLocaleString()}）</span>
           <button class="ex-btn" type="button" data-order="-${S.step}" ${b.order <= 0 ? 'disabled' : ''}>−${S.step}</button><button class="ex-btn" type="button" data-order="${S.step}" ${b.order >= marcheCap(b) ? 'disabled' : ''}>＋${S.step}</button></div>`;
@@ -901,12 +903,14 @@ function openBoat() {
     return `<button class="action" type="button" data-go="${id}" ${here ? 'disabled' : ''}>
       ${ICONS[`route_${id}`] || ICONS.harbor}
       <span class="text">${ISLE_NAMES[id]}<span class="detail">住民 ${pop}人${covered ? `・覆われている区画 ${covered}` : ''}</span></span>
-      <span><span class="cost">${moneyIcon(id)}${s.coin.toLocaleString()}</span><span class="need">${here ? 'いまいる島' : ''}</span></span>
+      <span><span class="cost">${moneyIcon(id)}${money(s.coin)}</span><span class="need">${here ? 'いまいる島' : ''}</span></span>
     </button>`;
   });
   openSheet(`<h2>船</h2>${rows.join('')}${exchangeHtml(true)}`);
   exSheet = 'boat';
 }
+// お金の数字。マイナスのときは 赤（D406）
+const money = (n) => (n < 0 ? `<span class="debt">${n.toLocaleString()}</span>` : n.toLocaleString());
 // 両替（D366）：本島のコイン → 向こうの島のお金。1日の上限は 2つの島で分け合う。
 // 船のシートの下と、右上のお金を押したとき（D378：そのほうが すぐ分かる）
 let exSheet = 'boat';
@@ -923,11 +927,11 @@ function exchangeHtml(inBoat) {
       const buttons = all < X.rate
         ? `<span class="need">${left < X.rate ? `両替は ${backAt(world.islands.main)}` : '本島のコインが足りません'}</span>`
         : `${btn(one, `${ICONS.coin}${one.toLocaleString()} → ${moneyIcon(id)}${Math.floor(one / X.rate).toLocaleString()}`)}${btn(all, 'のこり全部')}`;
-      return `<div class="ex-row"><span class="ex-name">${moneyIcon(id)}<span class="ex-who">${MONEY_NAME[id]}<small>${world.islands[id].coin.toLocaleString()}</small></span></span>${buttons}</div>`;
+      return `<div class="ex-row"><span class="ex-name">${moneyIcon(id)}<span class="ex-who">${MONEY_NAME[id]}<small>${money(world.islands[id].coin)}</small></span></span>${buttons}</div>`;
     })
     .join('');
   return `${inBoat ? '<h3 class="ex-title">両替</h3>' : ''}
-    <p class="lead">本島のコイン ${ICONS.coin}${coin.toLocaleString()}。コイン ${X.rate} で 1<br>${dayNow(world.islands.main)} は あと ${ICONS.coin}${left.toLocaleString()} まで（2つの島で合わせて・${backAt(world.islands.main)}）</p>
+    <p class="lead">本島のコイン ${ICONS.coin}${money(coin)}。コイン ${X.rate} で 1<br>${dayNow(world.islands.main)} は あと ${ICONS.coin}${left.toLocaleString()} まで（2つの島で合わせて・${backAt(world.islands.main)}）</p>
     ${ex}`;
 }
 function openExchange() {

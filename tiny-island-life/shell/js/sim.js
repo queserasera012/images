@@ -200,7 +200,7 @@ export const festNow = (state) => {
   const c = clockOf(state.t);
   return FESTS.find((type) => isFestDay(state, type) && c >= CONFIG[type].open && c < CONFIG[type].close) || null;
 };
-export const isFestDay = (state, type, day = dayOf(state.t)) => ofType(state, type).length > 0 && day % CONFIG[type].every === CONFIG[type].on % CONFIG[type].every;
+export const isFestDay = (state, type, day = dayOf(state.t)) => isOn(type) && ofType(state, type).length > 0 && day % CONFIG[type].every === CONFIG[type].on % CONFIG[type].every;
 export const nextFestDay = (state, type) => {
   const F = CONFIG[type];
   const d = dayOf(state.t);
@@ -208,6 +208,9 @@ export const nextFestDay = (state, type) => {
 };
 // その施設が この島に建つか（isle は1つの島、または島の一覧・D387）
 export const isleHas = (type, isle) => [].concat(CONFIG[type].isle).includes(isle);
+// 止めるスイッチ（マルシェ・フェス）：CONFIG の enabled が false なら、建てる・広げる選択肢が出ず、建っていても開かない（維持費・仕入れもなし）。
+// 不具合が出たら false にして EAS Update で届ける（ブリーダーと同じ・D403 の予定）
+export const isOn = (type) => CONFIG[type]?.enabled !== false;
 export const VENUE_NAME = {
   cafe: 'カフェ', super: 'スーパー', planetarium: 'プラネタリウム', petshop: 'ペットショップ', pond: '釣り堀', stand: 'コーヒースタンド', ski: 'スキー場',
   aquarium: '水族館', pool: 'プール', track: 'ドッグレース場', arcade: 'ゲームセンター', hospital: '病院', beach: '海水浴場', onsen: '温泉', marche: 'マルシェ', beachfest: 'ビーチフェスの舞台', snowfest: 'オーロラの夜の舞台',
@@ -333,7 +336,8 @@ export function sportPlayers(b) {
 function sportSeats(b) {
   const x0 = b.c * T;
   const w = SIZES[b.type].w * T;
-  const y = (b.r + SIZES[b.type].h) * T - 3;
+  // 見る人は コートの下のふち（2列）。どちらの列も コートのマスの中（前は 下の列が 1マス下の行に出て、家の屋根の上で見ていた）
+  const y = (b.r + SIZES[b.type].h) * T - 6;
   const n = CONFIG[b.type].levels.at(-1).seats - sportPlayers(b).length;
   const watch = [];
   for (let k = 0; k < n; k++) watch.push({ x: x0 + 8 + ((w - 16) * (k + 0.5)) / n, y: y + (k % 2) * 3 });
@@ -966,7 +970,7 @@ function venueOpen(state, type, margin = 0) {
 // 建物ごとの閉店時刻（レストランにしたカフェは夜23時まで・D297・D343）
 export const closeOf = (b) => (b.type === 'cafe' && b.bar ? CONFIG.cafe.bar.close : CONFIG[b.type].close);
 function buildingOpen(state, b, margin = 0) {
-  if (!inSeason(state, b.type)) return false;
+  if (!isOn(b.type) || !inSeason(state, b.type)) return false;
   if (b.type === 'track' && !isRaceDay(state)) return false;
   if (FESTS.includes(b.type) && !isFestDay(state, b.type)) return false; // フェスは その日だけ（D387）
   const c = clockOf(state.t);
@@ -1183,7 +1187,7 @@ function onsenChoices(state, r) {
 
 // マルシェ（D387）：朝市。大人と学生と観光客。1日1回。売り切れていても来る（来て 買えずに帰る＝日記に出る）
 function marcheChoices(state, r) {
-  if (isChild(r) || r.did?.marche || !ofType(state, 'marche').length || !venueOpen(state, 'marche', 20)) return [];
+  if (isChild(r) || r.did?.marche || !isOn('marche') || !ofType(state, 'marche').length || !venueOpen(state, 'marche', 20)) return [];
   const P = CONFIG.marche;
   return ofType(state, 'marche').map((b) => ({ cafe: b, w: P.pull * (r.tourist ? P.touristPull : 1) * P.weather[state.weather] * near(r, b.access) }));
 }
@@ -1955,7 +1959,7 @@ function rolloverDay(state, events) {
 
   // 維持費
   // スキー場は冬のあいだだけ維持費がかかる（開いていない季節に払わせない・D318）
-  const upkeep = venues(state).reduce((s, c) => s + (!inSeason(state, c.type) ? 0 : CONFIG[c.type].levels[c.level - 1].upkeep + (c.bar ? CONFIG.cafe.bar.upkeep : 0) + (c.breeder ? CONFIG.petshop.breeder.upkeep : 0)), 0);
+  const upkeep = venues(state).reduce((s, c) => s + (!inSeason(state, c.type) || !isOn(c.type) ? 0 : CONFIG[c.type].levels[c.level - 1].upkeep + (c.bar ? CONFIG.cafe.bar.upkeep : 0) + (c.breeder ? CONFIG.petshop.breeder.upkeep : 0)), 0);
   const onlyCafes = venues(state).every((v) => v.type === 'cafe');
   const shopUpkeep =
     shops(state).reduce((s, b) => s + CONFIG.shop.levels[b.level - 1].upkeep, 0) +
@@ -2146,7 +2150,7 @@ export const UNLOCK_TEXT = {
 };
 // 向こうの島で ひらくもの（D374・D388）：その島だけの施設と、島を広げる段。人数の少ない順（同じなら この並び）
 export const isleSteps = (isle) => [
-  ...ABROAD_VENUES.filter((t) => isleHas(t, isle)).map((t) => ({ id: t, pop: CONFIG[t].pop })),
+  ...ABROAD_VENUES.filter((t) => isleHas(t, isle) && isOn(t)).map((t) => ({ id: t, pop: CONFIG[t].pop })),
   ...CONFIG.abroad.expand.map((E, k) => ({ id: `land${k + 1}`, pop: E.pop, stage: k + 1 })),
 ].sort((x, y) => x.pop - y.pop);
 function checkIsleUnlocks(state, events) {
@@ -2445,7 +2449,7 @@ export function actionsFor(state) {
   }
   for (const c of [...venues(state), ...ofType(state, 'kinder'), ...ofType(state, 'school'), ...ofType(state, 'college'), ...ofType(state, 'company')]) {
     const next = CONFIG[c.type].levels[c.level];
-    if (!next) continue;
+    if (!next || !isOn(c.type)) continue;
     const unit = ['kinder', 'school', 'college'].includes(c.type) ? '通える子' : c.type === 'company' ? '勤める人' : c.type === 'super' ? '一度に入れる人' : '席';
     list.push({
       id: `${c.type === 'cafe' ? 'cafe' : 'venue'}_upgrade:${c.id}`,
@@ -2651,7 +2655,7 @@ export function actionsFor(state) {
     };
     for (const type of ABROAD_VENUES) {
       const V = CONFIG[type];
-      if (!isleHas(type, state.isle)) continue;
+      if (!isleHas(type, state.isle) || !isOn(type)) continue;
       const pop = countedPop(state);
       const ready = !!state.unlocked?.[type] || pop >= V.pop; // 一度ひらいたら ずっと（D374）
       const full = ofType(state, type).length >= V.max;
@@ -4226,6 +4230,7 @@ function moveAbroad(world) {
 export function shipMarche(world) {
   const main = world.islands.main;
   const day = dayOf(main.t);
+  if (!isOn('marche')) return;
   const S = CONFIG.marche.ship;
   const note = (state, text, kind = 'good') => {
     const last = state.diary.at(-1);
