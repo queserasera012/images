@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アルクエスト 見た目6案</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Zen+Maru+Gothic:wght@500;700;900&family=DotGothic16&family=Zen+Old+Mincho:wght@700;900&family=Klee+One:wght@400;600&family=Dela+Gothic+One&family=M+PLUS+Rounded+1c:wght@500;800&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:"Zen Kaku Gothic New",sans-serif; background:#e9e9ee; color:#1e2330; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1240px; overflow-x:hidden; margin:0 auto; padding:32px 20px 80px; }
+  .intro h1 { font-family:"Zen Kaku Gothic New"; font-weight:900; font-size:clamp(22px,4vw,32px); letter-spacing:-.02em; }
+  .intro .lead { color:#5a6072; margin-top:10px; line-height:1.7; font-size:14px; max-width:760px; }
+  .diag { margin-top:16px; background:#fff; border:1px solid #dcdce4; border-radius:14px; padding:16px 18px; max-width:760px; }
+  .diag b { color:#c0392b; }
+  .diag-title { font-weight:700; font-size:13px; color:#8a90a0; letter-spacing:.08em; margin-bottom:6px; }
+  .diag ul { list-style:none; font-size:13px; line-height:1.9; color:#3a4050; }
+  .diag li::before { content:"▪"; color:#b9bdca; margin-right:8px; }
+  .cols { display:flex; flex-wrap:wrap; gap:28px; margin-top:40px; align-items:flex-start; justify-content:center; }
+  .col { flex:1 1 300px; max-width:360px; min-width:288px; }
+  .concept { margin-bottom:14px; }
+  .concept .tag { font-size:11px; font-weight:700; letter-spacing:.14em; color:#8a90a0; }
+  .concept h2 { font-size:20px; font-weight:900; margin-top:2px; }
+  .concept p { font-size:13px; color:#5a6072; line-height:1.65; margin-top:6px; }
+  .swatches { display:flex; gap:6px; margin-top:12px; }
+  .sw { width:100%; height:30px; border-radius:6px; display:flex; align-items:flex-end; justify-content:center; font-size:8px; color:rgba(255,255,255,.9); padding-bottom:2px; font-weight:700; }
+  .meta { margin-top:12px; font-size:12px; line-height:1.7; color:#4a5060; }
+  .meta .k { color:#8a90a0; font-weight:700; }
+  .use-note { margin-top:12px; background:#f4f5f8; border-left:3px solid #b9bdca; border-radius:0 8px 8px 0; padding:10px 12px; font-size:11.5px; line-height:1.6; color:#4a5060; }
+  .use-note b { color:#2e7d5b; }
+
+  /* ===== phone frame ===== */
+  .phone { margin-top:18px; border-radius:34px; padding:10px; background:#0c0e14; box-shadow:0 24px 50px -18px rgba(20,25,45,.55); }
+  .screen { border-radius:26px; overflow:hidden; position:relative; }
+  .scr-in { position:relative; display:flow-root; }
+  .scr-in::-webkit-scrollbar { width:0; }
+
+  /* pixel sprite */
+  .spr { image-rendering:pixelated; shape-rendering:crispEdges; display:block; }
+
+  /* ============================================================
+     DIRECTION A — 冒険の書 (Night RPG / quest windows)
+     ============================================================ */
+  .a-scr { background:radial-gradient(120% 80% at 50% 0%, #223055 0%, #131c33 55%, #0d1426 100%); color:#eef2fb; font-family:"Zen Kaku Gothic New"; }
+  .a-top { display:flex; align-items:center; justify-content:space-between; padding:16px 16px 8px; }
+  .a-logo { font-family:"Shippori Mincho"; font-weight:800; font-size:17px; color:#f2d489; letter-spacing:.04em; }
+  .a-logo small { font-family:"Zen Kaku Gothic New"; color:#8ea0c8; font-size:9px; letter-spacing:.14em; display:block; font-weight:500; }
+  .a-mute { width:30px; height:30px; border-radius:8px; background:rgba(242,212,137,.12); border:1px solid rgba(242,212,137,.3); display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .a-window { margin:8px 14px; background:linear-gradient(#1c2745,#182036); border-radius:12px; position:relative; }
+  .a-window { border:2px solid #3f4d78; box-shadow:inset 0 0 0 2px #101830, 0 4px 0 rgba(0,0,0,.25); }
+  .a-wtitle { position:absolute; top:-11px; left:14px; background:#e0a53c; color:#2a1c05; font-family:"Shippori Mincho"; font-weight:800; font-size:11px; padding:2px 10px; border-radius:5px; letter-spacing:.06em; }
+  .a-hero { padding:22px 16px 16px; text-align:center; }
+  .a-steps { font-family:"Shippori Mincho"; font-weight:800; font-size:52px; line-height:1; color:#fff; text-shadow:0 2px 0 #e0a53c; }
+  .a-steps small { font-size:16px; color:#8ea0c8; margin-left:4px; }
+  .a-chips { display:flex; gap:8px; justify-content:center; margin-top:12px; }
+  .a-chip { font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; border:1px solid; }
+  .a-chip.f { color:#f7b955; border-color:rgba(247,185,85,.4); background:rgba(247,185,85,.1); }
+  .a-chip.c { color:#f2d489; border-color:rgba(242,212,137,.4); background:rgba(242,212,137,.1); }
+  .a-chip.g { color:#7fe0a8; border-color:rgba(127,224,168,.4); background:rgba(127,224,168,.1); }
+  .a-party { display:flex; justify-content:space-around; padding:20px 10px 14px; }
+  .a-unit { text-align:center; }
+  .a-unit .spr { width:34px; height:44px; margin:0 auto; filter:drop-shadow(0 2px 0 rgba(0,0,0,.4)); }
+  .a-unit .nm { font-size:9px; color:#c7d2ea; margin-top:4px; font-weight:700; }
+  .a-unit .el { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:2px; vertical-align:middle; }
+  .a-quest { padding:18px 16px 12px; }
+  .a-qrow { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px dashed rgba(142,160,200,.25); }
+  .a-qrow:last-child { border-bottom:0; }
+  .a-qi { font-size:16px; width:22px; text-align:center; }
+  .a-qt { flex:1; font-size:12px; color:#dbe3f5; }
+  .a-qbar { height:5px; background:rgba(255,255,255,.1); border-radius:3px; margin-top:4px; overflow:hidden; }
+  .a-qbar i { display:block; height:100%; background:#e0a53c; }
+  .a-qget { font-size:10px; font-weight:800; color:#2a1c05; background:#e0a53c; padding:4px 8px; border-radius:5px; }
+  .a-qdone { font-size:10px; font-weight:700; color:#8ea0c8; }
+  .a-tower { margin:6px 14px 20px; }
+  .a-tower .in { padding:14px 16px; display:flex; align-items:center; gap:12px; }
+  .a-tower .tn { font-family:"Shippori Mincho"; font-weight:800; font-size:15px; color:#f2d489; }
+  .a-tower .ts { font-size:10px; color:#8ea0c8; margin-top:2px; }
+  .a-tower .fl { margin-left:auto; text-align:right; }
+  .a-tower .fl b { font-family:"Shippori Mincho"; font-size:26px; color:#fff; }
+
+  /* ============================================================
+     DIRECTION B — 健やか (Calm wellness / step ring)
+     ============================================================ */
+  .b-scr { background:#f4f7f2; color:#33413a; font-family:"Zen Maru Gothic",sans-serif; }
+  .b-top { display:flex; align-items:center; justify-content:space-between; padding:20px 20px 6px; }
+  .b-logo { font-weight:900; font-size:18px; color:#3f7a5f; }
+  .b-logo small { display:block; font-size:9px; letter-spacing:.16em; color:#9db3a6; font-weight:700; }
+  .b-mute { width:32px; height:32px; border-radius:50%; background:#eaf1e9; display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .b-ringwrap { display:flex; flex-direction:column; align-items:center; padding:14px 0 6px; }
+  .b-ring { position:relative; width:200px; height:200px; }
+  .b-ring svg { transform:rotate(-90deg); }
+  .b-ringc { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .b-ringc .big { font-size:44px; font-weight:900; color:#33413a; line-height:1; }
+  .b-ringc .u { font-size:13px; color:#8fa89a; font-weight:700; }
+  .b-ringc .goal { margin-top:6px; font-size:11px; color:#e0895f; font-weight:700; background:#fdeee6; padding:3px 10px; border-radius:20px; }
+  .b-stats { display:flex; gap:10px; padding:8px 18px 4px; }
+  .b-stat { flex:1; background:#fff; border-radius:18px; padding:12px; text-align:center; box-shadow:0 6px 16px -10px rgba(63,122,95,.4); }
+  .b-stat .n { font-size:20px; font-weight:900; color:#3f7a5f; }
+  .b-stat .l { font-size:10px; color:#9db3a6; font-weight:700; margin-top:2px; }
+  .b-party { display:flex; gap:8px; overflow:hidden; padding:14px 18px 6px; }
+  .b-pu { flex:1; background:#fff; border-radius:20px; padding:12px 4px 8px; text-align:center; box-shadow:0 6px 16px -12px rgba(63,122,95,.5); }
+  .b-pu .spr { width:30px; height:38px; margin:0 auto; }
+  .b-pu .nm { font-size:9px; font-weight:700; color:#5a6f63; margin-top:4px; }
+  .b-pu .lv { font-size:8px; color:#9db3a6; }
+  .b-sec { padding:14px 18px 4px; }
+  .b-sec .h { font-size:12px; font-weight:900; color:#8fa89a; letter-spacing:.06em; margin-bottom:8px; }
+  .b-m { display:flex; align-items:center; gap:12px; background:#fff; border-radius:18px; padding:12px 14px; margin-bottom:8px; box-shadow:0 6px 16px -12px rgba(63,122,95,.4); }
+  .b-mi { width:36px; height:36px; border-radius:12px; background:#eaf1e9; display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .b-mt { flex:1; font-size:12px; font-weight:700; color:#4a5f53; }
+  .b-mt .bar { height:6px; background:#eef3ec; border-radius:4px; margin-top:5px; overflow:hidden; }
+  .b-mt .bar i { display:block; height:100%; background:#7bbf94; border-radius:4px; }
+  .b-mget { font-size:11px; font-weight:900; color:#fff; background:#e0895f; padding:6px 12px; border-radius:20px; }
+  .b-mdone { font-size:11px; font-weight:700; color:#bccabf; }
+  .b-tower { margin:8px 18px 22px; background:linear-gradient(135deg,#5c8f9e,#3f6f7e); border-radius:22px; padding:16px; color:#fff; display:flex; align-items:center; gap:12px; }
+  .b-tower .tn { font-weight:900; font-size:15px; }
+  .b-tower .ts { font-size:10px; opacity:.85; margin-top:2px; }
+  .b-tower .fl { margin-left:auto; font-size:28px; font-weight:900; }
+
+  /* ============================================================
+     DIRECTION C — ドット/レトロ (Pixel arcade HUD)
+     ============================================================ */
+  .c-scr { background:#141f24; color:#e8f0e2; font-family:"DotGothic16",monospace; }
+  .c-body { font-family:"Zen Kaku Gothic New"; }
+  .c-top { display:flex; align-items:center; justify-content:space-between; padding:14px; background:#0e171b; border-bottom:3px solid #f2c14e; }
+  .c-logo { font-family:"DotGothic16"; font-size:16px; color:#f2c14e; letter-spacing:.02em; }
+  .c-logo small { display:block; font-size:8px; color:#6bb3a0; letter-spacing:.1em; }
+  .c-mute { width:30px; height:30px; background:#1e2d33; border:2px solid #33484f; display:flex; align-items:center; justify-content:center; font-size:13px; }
+  .c-hud { margin:12px; border:3px solid #33484f; background:#0e171b; padding:12px; position:relative; }
+  .c-hud::before { content:"STEPS"; position:absolute; top:-9px; left:10px; background:#141f24; color:#6bb3a0; font-family:"DotGothic16"; font-size:9px; padding:0 6px; }
+  .c-steps { font-family:"DotGothic16"; font-size:40px; color:#fff; text-shadow:2px 2px 0 #f2714e; }
+  .c-steps small { font-size:13px; color:#6bb3a0; }
+  .c-hpbar { display:flex; gap:3px; margin-top:10px; }
+  .c-hpbar i { flex:1; height:10px; background:#f2714e; }
+  .c-hpbar i.off { background:#2a3a40; }
+  .c-meta { display:flex; gap:8px; margin-top:10px; font-family:"DotGothic16"; font-size:11px; }
+  .c-meta span { color:#f2c14e; }
+  .c-party { display:flex; justify-content:space-around; margin:12px; padding:14px 6px; background:#0e171b; border:3px solid #33484f; }
+  .c-pu { text-align:center; }
+  .c-pu .spr { width:36px; height:46px; margin:0 auto; }
+  .c-pu .nm { font-family:"DotGothic16"; font-size:8px; color:#cfe0d4; margin-top:5px; }
+  .c-pu .el { display:inline-block; width:8px; height:8px; margin-right:2px; vertical-align:middle; }
+  .c-sec-h { font-family:"DotGothic16"; font-size:11px; color:#6bb3a0; margin:14px 14px 6px; }
+  .c-m { display:flex; align-items:center; gap:10px; margin:0 12px 8px; padding:10px; background:#0e171b; border:3px solid #33484f; }
+  .c-mi { font-size:16px; }
+  .c-mt { flex:1; font-size:11px; color:#dfe9dd; font-weight:700; }
+  .c-mt .bar { display:flex; gap:2px; margin-top:5px; }
+  .c-mt .bar i { flex:1; height:7px; background:#7fce6b; }
+  .c-mt .bar i.off { background:#2a3a40; }
+  .c-mget { font-family:"DotGothic16"; font-size:10px; color:#141f24; background:#f2c14e; padding:5px 8px; }
+  .c-mdone { font-family:"DotGothic16"; font-size:9px; color:#4d6b5c; }
+  .c-tower { margin:6px 12px 20px; padding:14px; background:linear-gradient(#3a2a52,#241a38); border:3px solid #7a5cc0; display:flex; align-items:center; gap:12px; }
+  .c-tower .tn { font-family:"DotGothic16"; font-size:14px; color:#c9b0ff; }
+  .c-tower .ts { font-size:9px; color:#9a86c8; margin-top:3px; }
+  .c-tower .fl { margin-left:auto; font-family:"DotGothic16"; font-size:26px; color:#fff; }
+
+
+  /* 前の3案にも「出発」ボタンを足す（比較をそろえるため） */
+  .a-go { display:block; margin:4px 14px 22px; text-align:center; font-family:"Shippori Mincho"; font-weight:800; font-size:16px; color:#2a1c05; background:linear-gradient(#f2c45f,#e0a53c); border-radius:10px; padding:13px; box-shadow:inset 0 0 0 2px #fbe3a4, 0 4px 0 #8a5e17; letter-spacing:.1em; }
+  .b-go { display:block; margin:4px 18px 24px; text-align:center; font-weight:900; font-size:16px; color:#fff; background:#3f7a5f; border-radius:999px; padding:15px; box-shadow:0 10px 20px -10px rgba(63,122,95,.7); }
+  .c-go { display:block; margin:4px 12px 22px; text-align:center; font-family:"DotGothic16"; font-size:16px; color:#141f24; background:#f2c14e; padding:12px; border:3px solid #fff3c4; box-shadow:4px 4px 0 #8a6a1c; }
+
+  /* ============================================================
+     DIRECTION 04 — 旅の地図（古地図・朱印帳）
+     ============================================================ */
+  .d-scr { background:
+      radial-gradient(60% 40% at 85% 12%, rgba(160,110,40,.13), transparent 70%),
+      radial-gradient(50% 35% at 10% 70%, rgba(160,110,40,.10), transparent 70%),
+      #efe5cf;
+    color:#2b2118; font-family:"Zen Kaku Gothic New",sans-serif; }
+  .d-top { display:flex; align-items:flex-end; justify-content:space-between; padding:18px 18px 10px; border-bottom:1px solid rgba(43,33,24,.25); margin:0 14px; padding-left:4px; padding-right:4px; }
+  .d-logo { font-family:"Zen Old Mincho"; font-weight:900; font-size:20px; letter-spacing:.08em; }
+  .d-day { font-family:"Klee One"; font-size:12px; color:#6b5a45; }
+  .d-steps { padding:16px 18px 0; display:flex; align-items:baseline; gap:8px; }
+  .d-steps .n { font-family:"Zen Old Mincho"; font-weight:900; font-size:54px; line-height:1; letter-spacing:-.01em; }
+  .d-steps .u { font-family:"Zen Old Mincho"; font-size:18px; font-weight:700; }
+  .d-steps .goal { margin-left:auto; font-size:11px; color:#6b5a45; text-align:right; line-height:1.4; }
+  .d-steps .goal b { color:#b8371f; font-size:13px; }
+  .d-map { margin:12px 14px 0; border:1.5px solid #2b2118; border-radius:4px; background:rgba(255,250,236,.55); position:relative; box-shadow:3px 3px 0 rgba(43,33,24,.15); }
+  .d-map svg { display:block; width:100%; height:auto; }
+  .d-map .cap { position:absolute; left:8px; top:8px; font-family:"Klee One"; font-size:12px; color:#2b2118; background:rgba(239,229,207,.9); padding:2px 8px; border-radius:2px; }
+  .d-map .cap b { color:#b8371f; }
+  .d-sec { margin:18px 18px 8px; display:flex; align-items:baseline; gap:8px; }
+  .d-sec h3 { font-family:"Zen Old Mincho"; font-weight:900; font-size:15px; letter-spacing:.06em; }
+  .d-sec span { font-family:"Klee One"; font-size:12px; color:#6b5a45; }
+  .d-seals { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin:0 18px; }
+  .d-seal { aspect-ratio:1; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:"Zen Old Mincho"; font-weight:900; font-size:15px; }
+  .d-seal.on { color:#f7e7d7; background:#b8371f; box-shadow:inset 0 0 0 2px #efe5cf, inset 0 0 0 3px #b8371f; transform:rotate(-8deg); }
+  .d-seal.on:nth-child(2n) { transform:rotate(6deg); }
+  .d-seal.today { color:#b8371f; border:1.5px dashed #b8371f; font-size:11px; font-family:"Klee One"; }
+  .d-wd { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin:4px 18px 0; text-align:center; font-family:"Klee One"; font-size:10px; color:#8a7860; }
+  .d-party { display:flex; justify-content:space-between; margin:0 18px; padding:10px 6px 0; border-bottom:1.5px solid #2b2118; }
+  .d-pu { text-align:center; flex:1; }
+  .d-pu .spr { width:30px; height:39px; margin:0 auto; color:#2b2118; }
+  .d-pu .nm { font-family:"Klee One"; font-weight:600; font-size:12px; margin-top:4px; }
+  .d-pu .lv { font-size:10px; color:#6b5a45; padding-bottom:8px; }
+  .d-note { margin:10px 18px 0; font-family:"Klee One"; font-size:12px; line-height:1.7; color:#5a4a37; }
+  .d-go { display:flex; align-items:center; justify-content:center; gap:10px; margin:18px 18px 24px; padding:14px; background:#b8371f; color:#f7e7d7; font-family:"Zen Old Mincho"; font-weight:900; font-size:17px; letter-spacing:.2em; border-radius:3px; box-shadow:inset 0 0 0 2px #b8371f, inset 0 0 0 4px #efe5cf, inset 0 0 0 5px #b8371f; }
+
+  /* ============================================================
+     DIRECTION 05 — 歩数新聞（リソグラフ2色刷り）
+     ============================================================ */
+  .e-scr { background:#f4f0e6; color:#1d1d1f; font-family:"Zen Kaku Gothic New",sans-serif; position:relative; }
+  .e-scr::before { content:""; position:absolute; inset:0; pointer-events:none;
+    background-image:radial-gradient(rgba(0,120,191,.16) 1px, transparent 1.2px); background-size:6px 6px;
+    -webkit-mask-image:linear-gradient(160deg, #000 0%, transparent 45%); mask-image:linear-gradient(160deg, #000 0%, transparent 45%); }
+  .e-in { position:relative; }
+  .e-mast { margin:0 16px; padding:16px 0 8px; border-bottom:3px double #1d1d1f; display:flex; justify-content:space-between; align-items:flex-end; }
+  .e-logo { font-family:"Dela Gothic One"; font-size:22px; letter-spacing:.02em; color:#0078bf; mix-blend-mode:multiply; }
+  .e-iss { font-size:10px; text-align:right; line-height:1.4; font-weight:700; }
+  .e-big { position:relative; margin:14px 16px 0; height:106px; }
+  .e-big span { position:absolute; left:0; top:0; font-family:"Dela Gothic One"; font-size:86px; line-height:1.1; letter-spacing:-.04em; mix-blend-mode:multiply; }
+  .e-big .p { color:#ff48b0; transform:translate(4px,3px); }
+  .e-big .b { color:#0078bf; }
+  .e-head { margin:0 16px; font-family:"Dela Gothic One"; font-size:19px; line-height:1.35; }
+  .e-head mark { background:linear-gradient(transparent 55%, #ffe800 55%); color:inherit; }
+  .e-row { display:flex; gap:10px; margin:16px 16px 0; }
+  .e-stamp { flex:0 0 112px; height:112px; border-radius:50%; border:3px solid #ff48b0; color:#ff48b0; display:flex; flex-direction:column; align-items:center; justify-content:center; transform:rotate(-9deg); mix-blend-mode:multiply; }
+  .e-stamp b { font-family:"Dela Gothic One"; font-size:44px; line-height:1; }
+  .e-stamp small { font-weight:900; font-size:12px; letter-spacing:.1em; }
+  .e-col { flex:1; font-size:12px; line-height:1.7; border-left:1px solid #1d1d1f; padding-left:10px; }
+  .e-col h4 { font-size:11px; font-weight:900; letter-spacing:.12em; color:#0078bf; }
+  .e-week { display:flex; gap:3px; margin-top:6px; align-items:flex-end; height:44px; }
+  .e-week i { flex:1; background:#0078bf; mix-blend-mode:multiply; }
+  .e-week i.hit { background:#ff48b0; }
+  .e-sec { margin:20px 16px 8px; font-size:11px; font-weight:900; letter-spacing:.14em; border-top:1px solid #1d1d1f; padding-top:6px; display:flex; justify-content:space-between; }
+  .e-party { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:0 16px; }
+  .e-pu { position:relative; text-align:center; padding:10px 0 8px; background:rgba(255,232,0,.55); mix-blend-mode:multiply; }
+  .e-pu .sp { position:relative; width:30px; height:39px; margin:0 auto; }
+  .e-pu .sp svg { position:absolute; inset:0; width:30px; height:39px; mix-blend-mode:multiply; }
+  .e-pu .nm { font-weight:900; font-size:12px; margin-top:6px; }
+  .e-pu .lv { font-family:"Dela Gothic One"; font-size:13px; color:#0078bf; }
+  .e-go { display:flex; justify-content:space-between; align-items:center; margin:20px 16px 26px; padding:14px 18px; background:#1d1d1f; color:#f4f0e6; font-family:"Dela Gothic One"; font-size:18px; box-shadow:5px 5px 0 #ff48b0; }
+  .e-go small { font-family:"Zen Kaku Gothic New"; font-weight:700; font-size:11px; color:#ffe800; }
+
+  /* ============================================================
+     DIRECTION 06 — おもちゃ箱（太い線・ボードゲームの駒）
+     ============================================================ */
+  .f-scr { background-color:#fff3d1; background-image:linear-gradient(rgba(17,17,17,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(17,17,17,.06) 1px, transparent 1px); background-size:22px 22px; color:#111; font-family:"M PLUS Rounded 1c",sans-serif; }
+  .f-top { display:flex; align-items:center; justify-content:space-between; padding:16px 16px 6px; }
+  .f-logo { font-family:"Dela Gothic One"; font-size:20px; background:#111; color:#fff3d1; padding:4px 10px 6px; transform:rotate(-2deg); }
+  .f-coin { font-weight:800; font-size:13px; background:#fff; border:3px solid #111; border-radius:999px; padding:4px 12px; box-shadow:3px 3px 0 #111; }
+  .f-card { margin:12px 16px 0; background:#fff; border:3px solid #111; border-radius:16px; box-shadow:5px 5px 0 #111; }
+  .f-steps { padding:14px 14px 16px; }
+  .f-label { font-weight:800; font-size:12px; display:flex; justify-content:space-between; }
+  .f-digits { display:flex; gap:5px; margin-top:8px; }
+  .f-digits b { flex:1; height:62px; display:flex; align-items:center; justify-content:center; font-family:"Dela Gothic One"; font-size:40px; background:#4cc3ff; border:3px solid #111; border-radius:10px; box-shadow:inset 0 -6px 0 rgba(0,0,0,.15); }
+  .f-digits b.c { flex:0 0 14px; background:none; border:0; box-shadow:none; font-size:30px; }
+  .f-digits b.u { flex:0 0 auto; background:none; border:0; box-shadow:none; font-family:"M PLUS Rounded 1c"; font-weight:800; font-size:16px; align-self:flex-end; height:auto; padding-bottom:4px; }
+  .f-meter { height:20px; margin-top:12px; border:3px solid #111; border-radius:999px; overflow:hidden; background:#fff; position:relative; }
+  .f-meter i { display:block; height:100%; width:100%; background:repeating-linear-gradient(-45deg,#b8f24a 0 10px,#9ad62f 10px 20px); }
+  .f-meter span { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px; }
+  .f-two { display:flex; gap:12px; margin:14px 16px 0; }
+  .f-streak { flex:1; background:#ff5a36; color:#fff; border:3px solid #111; border-radius:16px; box-shadow:5px 5px 0 #111; padding:10px 12px; }
+  .f-streak b { font-family:"Dela Gothic One"; font-size:38px; line-height:1; }
+  .f-streak small { font-weight:800; font-size:12px; }
+  .f-streak .w { display:flex; gap:3px; margin-top:6px; }
+  .f-streak .w i { flex:1; height:10px; background:#fff; border:2px solid #111; border-radius:3px; }
+  .f-streak .w i.o { background:rgba(255,255,255,.3); }
+  .f-next { flex:1; background:#8b5cf6; color:#fff; border:3px solid #111; border-radius:16px; box-shadow:5px 5px 0 #111; padding:10px 12px; font-weight:800; font-size:12px; line-height:1.5; }
+  .f-next b { display:block; font-family:"Dela Gothic One"; font-size:20px; font-weight:400; }
+  .f-h { margin:20px 16px 8px; font-family:"Dela Gothic One"; font-size:16px; }
+  .f-party { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:0 16px; }
+  .f-pu { border:3px solid #111; border-radius:14px; box-shadow:3px 3px 0 #111; text-align:center; padding:10px 0 6px; position:relative; }
+  .f-pu .spr { width:30px; height:39px; margin:0 auto; color:#111; }
+  .f-pu .nm { font-weight:800; font-size:12px; margin-top:4px; }
+  .f-pu .lv { position:absolute; top:-10px; right:-6px; background:#111; color:#fff; font-family:"Dela Gothic One"; font-size:11px; padding:2px 6px; border-radius:999px; }
+  .f-go { display:block; margin:22px 16px 26px; text-align:center; font-family:"Dela Gothic One"; font-size:20px; background:#ff5a36; color:#fff; border:3px solid #111; border-radius:18px; padding:14px; box-shadow:0 7px 0 #111; letter-spacing:.06em; }
+
+  .badge-old { display:inline-block; font-size:10px; font-weight:700; color:#8a90a0; border:1px solid #c9ccd6; border-radius:4px; padding:1px 6px; margin-left:6px; vertical-align:middle; letter-spacing:0; }
+  .tag.new { color:#b8371f; }
+  .cmp { width:100%; border-collapse:collapse; margin-top:16px; font-size:12.5px; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 8px 24px -16px rgba(30,35,48,.4); }
+  .cmp th, .cmp td { padding:10px 8px; text-align:left; border-top:1px solid #e8e8ee; white-space:nowrap; }
+  .cmp thead th { background:#f4f5f8; border-top:0; }
+  .cmp td:first-child { color:#8a90a0; }
+  .tbl { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .rec { background:#fff; border-radius:14px; padding:20px; margin-top:20px; box-shadow:0 8px 24px -16px rgba(30,35,48,.4); font-size:14px; line-height:1.8; color:#3a4050; }
+  @media (max-width:420px){ .wrap{ padding:24px 16px 64px; } .col{ min-width:0; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><symbol id="hero" viewBox="0 0 7 9" fill="currentColor">
+  <rect x="2" y="0" width="3" height="1"/><rect x="1" y="1" width="5" height="2"/>
+  <rect x="2" y="3" width="3" height="1"/><rect x="1" y="4" width="5" height="3"/>
+  <rect x="0" y="4" width="1" height="2"/><rect x="6" y="4" width="1" height="2"/>
+  <rect x="2" y="7" width="1" height="2"/><rect x="4" y="7" width="1" height="2"/>
+</symbol></svg>
+<div class="wrap">
+  <div class="intro">
+    <h1>アルクエスト — 見た目 6案</h1>
+    <p class="lead">同じホーム画面（今日の歩数・ストリーク・仲間・出発ボタン）を、6つの見た目で描き分けた比較です。01〜03 は前の案（<code>docs/handoff/04_ui-design/</code>）。そろえて見比べられるよう、出発ボタンだけ足しました。04〜06 は新しい案で、前の3案（夜のRPG・ヘルスケア・ドット）とは別の方向から考えています。</p>
+    <div class="diag">
+      <div class="diag-title">新しい3案の考え方</div>
+      <ul>
+        <li><b>04 旅の地図</b> — 歩数を「進んだ道のり」として見せる（歩くこととRPGを、地図で直接つなぐ）</li>
+        <li><b>05 歩数新聞</b> — 毎日の記録を「刷り物」として見せる（残したい・人に見せたい）</li>
+        <li><b>06 おもちゃ箱</b> — 画面を「触るおもちゃ」として見せる（軽さ・押す気持ちよさ）</li>
+      </ul>
+    </div>
+  </div>
+  <div class="cols">
+    <div class="col">
+      <div class="concept">
+        <div class="tag">DIRECTION 01<span class="badge-old">前の案</span></div>
+        <h2>冒険の書</h2>
+        <p>夜の冒険をテーマにした本格RPG路線。DQ的な「コマンド窓」を現代化し、群青パネル＋金の縁取りで“ダンジョンの夜”を表現。見出しは明朝体で風格を出す。</p>
+        <div class="swatches">
+          <div class="sw" style="background:#131c33">#131C33</div>
+          <div class="sw" style="background:#1c2745">#1C2745</div>
+          <div class="sw" style="background:#e0a53c;color:#2a1c05">#E0A53C</div>
+          <div class="sw" style="background:#3f9d6d">#3F9D6D</div>
+        </div>
+        <div class="meta">
+          <div><span class="k">書体</span> Shippori Mincho（見出）× Zen Kaku Gothic（本文）</div>
+          <div><span class="k">象徴</span> コマンド窓＋金縁＋ドット勇者</div>
+        </div>
+        <div class="use-note"><b>使いやすさ:</b> 窓＝情報のまとまりが直感的で、RPG経験者に馴染む。ダーク基調で夜間も目に優しい。注意点は明朝の小文字可読性で、数値は必ずゴシックに。</div>
+      </div>
+      <div class="phone"><div class="screen"><div class="scr-in a-scr">
+        <div class="a-top">
+          <div class="a-logo">アルクエスト<small>ARUQUEST</small></div>
+          <div class="a-mute">🔊</div>
+        </div>
+        <div class="a-window">
+          <div class="a-wtitle">本日の歩み</div>
+          <div class="a-hero">
+            <div class="a-steps">7,200<small>歩</small></div>
+            <div class="a-chips">
+              <span class="a-chip f">🔥 12日</span>
+              <span class="a-chip g">目標達成</span>
+              <span class="a-chip c">🪙 4,820</span>
+            </div>
+          </div>
+        </div>
+        <div class="a-party">
+          <div class="a-unit"><svg class="spr" style="color:#f2d489"><use href="#hero"/></svg><div class="nm"><span class="el" style="background:#dc2626"></span>勇者18</div></div>
+          <div class="a-unit"><svg class="spr" style="color:#7fb0ff"><use href="#hero"/></svg><div class="nm"><span class="el" style="background:#2563eb"></span>賢者15</div></div>
+          <div class="a-unit"><svg class="spr" style="color:#7fe0a8"><use href="#hero"/></svg><div class="nm"><span class="el" style="background:#16a34a"></span>司祭14</div></div>
+          <div class="a-unit"><svg class="spr" style="color:#f0b26b"><use href="#hero"/></svg><div class="nm"><span class="el" style="background:#a16207"></span>拳聖12</div></div>
+        </div>
+        <div class="a-window">
+          <div class="a-wtitle">本日の任務</div>
+          <div class="a-quest">
+            <div class="a-qrow"><span class="a-qi">🚶</span><div class="a-qt">3,000歩あるく<div class="a-qbar"><i style="width:100%"></i></div></div><span class="a-qget">受取</span></div>
+            <div class="a-qrow"><span class="a-qi">🎁</span><div class="a-qt">宝箱を3回ひらく<div class="a-qbar"><i style="width:66%"></i></div></div><span class="a-qdone">2/3</span></div>
+            <div class="a-qrow"><span class="a-qi">🗼</span><div class="a-qt">塔に挑戦する<div class="a-qbar"><i style="width:0%"></i></div></div><span class="a-qdone">0/1</span></div>
+          </div>
+        </div>
+        <div class="a-window a-tower"><div class="in">
+          <span style="font-size:26px">🗼</span>
+          <div><div class="tn">果てなき塔</div><div class="ts">最高到達を更新せよ</div></div>
+          <div class="fl"><b>23</b><div class="ts">階</div></div>
+        </div></div>
+        <div class="a-go">出発する</div>
+      </div></div></div>
+    </div>
+
+    <div class="col">
+      <div class="concept">
+        <div class="tag">DIRECTION 02<span class="badge-old">前の案</span></div>
+        <h2>健やか</h2>
+        <p>ヘルスケア×癒し路線（ピクミン/Walkrの系譜）。丸ゴシックと大きな歩数リング、セージ×コーラルの穏やかな配色。誰にでも読みやすく、毎日開きたくなる安心感を最優先。</p>
+        <div class="swatches">
+          <div class="sw" style="background:#f4f7f2;color:#7a8f80">#F4F7F2</div>
+          <div class="sw" style="background:#3f7a5f">#3F7A5F</div>
+          <div class="sw" style="background:#7bbf94;color:#1c3a29">#7BBF94</div>
+          <div class="sw" style="background:#e0895f">#E0895F</div>
+        </div>
+        <div class="meta">
+          <div><span class="k">書体</span> Zen Maru Gothic（丸ゴ・親しみ）</div>
+          <div><span class="k">象徴</span> 大きな歩数リング＋やわらかカード</div>
+        </div>
+        <div class="use-note"><b>使いやすさ:</b> 最も万人向け。<b>大きな文字・高コントラスト・丸い当たり</b>で中高年にも優しく、指摘されたアクセシビリティ課題を最も改善。歩数リングは達成度が一目で分かる王道。</div>
+      </div>
+      <div class="phone"><div class="screen"><div class="scr-in b-scr">
+        <div class="b-top">
+          <div class="b-logo">アルクエスト<small>ARUQUEST</small></div>
+          <div class="b-mute">🔊</div>
+        </div>
+        <div class="b-ringwrap"><div class="b-ring">
+          <svg width="200" height="200" viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="86" fill="none" stroke="#e6efe4" stroke-width="16"/>
+            <circle cx="100" cy="100" r="86" fill="none" stroke="#7bbf94" stroke-width="16" stroke-linecap="round" stroke-dasharray="540" stroke-dashoffset="0"/>
+          </svg>
+          <div class="b-ringc"><div class="big">7,200</div><div class="u">歩 / 目標 3,000</div><div class="goal">🔥 12日つづけて達成</div></div>
+        </div></div>
+        <div class="b-stats">
+          <div class="b-stat"><div class="n">🪙4,820</div><div class="l">コイン</div></div>
+          <div class="b-stat"><div class="n">23<span style="font-size:11px">階</span></div><div class="l">塔 最高</div></div>
+          <div class="b-stat"><div class="n">+18%</div><div class="l">先週比</div></div>
+        </div>
+        <div class="b-party">
+          <div class="b-pu"><svg class="spr" style="color:#e8776a"><use href="#hero"/></svg><div class="nm">勇者</div><div class="lv">Lv.18</div></div>
+          <div class="b-pu"><svg class="spr" style="color:#5b9bd4"><use href="#hero"/></svg><div class="nm">賢者</div><div class="lv">Lv.15</div></div>
+          <div class="b-pu"><svg class="spr" style="color:#6cb98a"><use href="#hero"/></svg><div class="nm">司祭</div><div class="lv">Lv.14</div></div>
+          <div class="b-pu"><svg class="spr" style="color:#d69a5c"><use href="#hero"/></svg><div class="nm">拳聖</div><div class="lv">Lv.12</div></div>
+        </div>
+        <div class="b-sec">
+          <div class="h">きょうのミッション</div>
+          <div class="b-m"><div class="b-mi">🚶</div><div class="b-mt">3,000歩あるく<div class="bar"><i style="width:100%"></i></div></div><div class="b-mget">受取</div></div>
+          <div class="b-m"><div class="b-mi">🎁</div><div class="b-mt">宝箱を3回ひらく<div class="bar"><i style="width:66%"></i></div></div><div class="b-mdone">2/3</div></div>
+        </div>
+        <div class="b-tower">
+          <span style="font-size:26px">🗼</span>
+          <div><div class="tn">果てなき塔</div><div class="ts">きょうも上を目指そう</div></div>
+          <div class="fl">23<span style="font-size:12px">階</span></div>
+        </div>
+        <div class="b-go">出発する</div>
+      </div></div></div>
+    </div>
+    <div class="col">
+      <div class="concept">
+        <div class="tag">DIRECTION 03<span class="badge-old">前の案</span></div>
+        <h2>ドット／レトロ</h2>
+        <p>すでに持っている資産（ドット絵）をUI全体に拡張する路線。ピクセル書体、角ゼロの枠線、セグメント式ゲージ。他のヘルスケアアプリと一目で違う、最も“作品性”の高い方向。</p>
+        <div class="swatches">
+          <div class="sw" style="background:#141f24">#141F24</div>
+          <div class="sw" style="background:#f2c14e;color:#2a2205">#F2C14E</div>
+          <div class="sw" style="background:#f2714e">#F2714E</div>
+          <div class="sw" style="background:#7fce6b;color:#173a12">#7FCE6B</div>
+        </div>
+        <div class="meta">
+          <div><span class="k">書体</span> DotGothic16（UI）× Zen Kaku Gothic（本文）</div>
+          <div><span class="k">象徴</span> セグメントHUD＋角ゼロの枠</div>
+        </div>
+        <div class="use-note"><b>使いやすさ:</b> 個性は最強だが、ピクセル書体は<b>小サイズで可読性が落ちる</b>。数値やラベルのみドット、本文はゴシックに分離する運用が必須。ターゲットはゲーム好き層に絞られる。</div>
+      </div>
+      <div class="phone"><div class="screen"><div class="scr-in c-scr">
+        <div class="c-top">
+          <div class="c-logo">アルクエスト<small>ARUQUEST</small></div>
+          <div class="c-mute">🔊</div>
+        </div>
+        <div class="c-hud">
+          <div class="c-steps">7,200<small> ホ</small></div>
+          <div class="c-hpbar">
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="off"></i><i class="off"></i>
+          </div>
+          <div class="c-meta"><span>🔥12日</span><span>🪙4,820</span><span>⚡5,100</span></div>
+        </div>
+        <div class="c-party">
+          <div class="c-pu"><svg class="spr" style="color:#f2714e"><use href="#hero"/></svg><div class="nm"><span class="el" style="background:#f2714e"></span>ユウシャ18</div></div>
+          <div class="c-pu"><svg class="spr" style="color:#5b9bd4"><use href="#hero"/></svg><div class="nm"><span class="el" style="background:#5b9bd4"></span>ケンジャ15</div></div>
+          <div class="c-pu"><svg class="spr" style="color:#7fce6b"><use href="#hero"/></svg><div class="nm"><span class="el" style="background:#7fce6b"></span>シサイ14</div></div>
+          <div class="c-pu"><svg class="spr" style="color:#f2c14e"><use href="#hero"/></svg><div class="nm"><span class="el" style="background:#f2c14e"></span>ケンセイ12</div></div>
+        </div>
+        <div class="c-sec-h">▼ キョウノミッション</div>
+        <div class="c-m c-body"><div class="c-mi">🚶</div><div class="c-mt">3,000歩あるく<div class="bar"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="c-mget">ウケトル</div></div>
+        <div class="c-m c-body"><div class="c-mi">🎁</div><div class="c-mt">宝箱を3回ひらく<div class="bar"><i></i><i></i><i></i><i></i><i></i><i class="off"></i><i class="off"></i><i class="off"></i></div></div><div class="c-mdone">2/3</div></div>
+        <div class="c-tower">
+          <span style="font-size:24px">🗼</span>
+          <div><div class="tn">ハテナキトウ</div><div class="ts c-body">最高到達を更新せよ</div></div>
+          <div class="fl">23F</div>
+        </div>
+        <div class="c-go">シュッパツ</div>
+      </div></div></div>
+    </div>
+
+    <div class="col">
+      <div class="concept">
+        <div class="tag new">DIRECTION 04 ・ NEW</div>
+        <h2>旅の地図</h2>
+        <p>古地図と御朱印帳。歩いた分だけ地図の上の道が伸び、目標を達成した日には朱印が押される。紙・墨・朱の3色で、RPG を「旅の記録」として見せる。</p>
+        <div class="swatches">
+          <div class="sw" style="background:#efe5cf;color:#8a7860">#EFE5CF</div>
+          <div class="sw" style="background:#2b2118">#2B2118</div>
+          <div class="sw" style="background:#b8371f">#B8371F</div>
+          <div class="sw" style="background:#2e4a62">#2E4A62</div>
+        </div>
+        <div class="meta">
+          <div><span class="k">書体</span> Zen Old Mincho（見出し・数字）× Klee One（手書き風の添え書き）</div>
+          <div><span class="k">象徴</span> 道が伸びる地図＋朱印のストリーク</div>
+        </div>
+        <div class="use-note"><b>狙い:</b> 30〜50代の「歩く人」に、<b>歩数＝進んだ道のり</b>がひと目で伝わる。没入感（★3.5）の弱点に、画面そのものが「旅をしている」感で答える。明るい紙の地で文字が読みやすい。</div>
+      </div>
+      <div class="phone"><div class="screen"><div class="scr-in d-scr">
+        <div class="d-top">
+          <div class="d-logo">アルクエスト</div>
+          <div class="d-day">旅の四十二日目</div>
+        </div>
+        <div class="d-steps">
+          <span class="n">7,200</span><span class="u">歩</span>
+          <div class="goal">今日の目標 3,000歩<br><b>達成 ✓</b></div>
+        </div>
+        <div class="d-map">
+          <svg viewBox="0 0 320 170" aria-hidden="true">
+            <g fill="none" stroke="#2b2118" stroke-width="1" opacity=".35">
+              <path d="M0 140 Q60 128 110 142 T220 136 T320 144"/>
+              <path d="M0 152 Q70 140 120 154 T230 148 T320 156"/>
+            </g>
+            <!-- 山 -->
+            <g fill="none" stroke="#2b2118" stroke-width="1.4" stroke-linejoin="round">
+              <path d="M206 66 l16 -26 l16 26 M218 46 l4 -6 l4 6"/>
+              <path d="M230 66 l14 -20 l14 20"/>
+            </g>
+            <!-- 森 -->
+            <g fill="#2e4a62">
+              <path d="M150 64 l7 -14 l7 14z"/><path d="M162 70 l7 -14 l7 14z"/><path d="M174 62 l7 -14 l7 14z"/>
+            </g>
+            <!-- 塔 -->
+            <g fill="#2b2118"><rect x="290" y="14" width="10" height="34"/><path d="M288 14 l7 -9 l7 9z"/></g>
+            <!-- 道（歩いた分は実線・この先は点線） -->
+            <path d="M20 120 C60 120 70 80 110 86 S150 104 168 84" fill="none" stroke="#b8371f" stroke-width="3" stroke-linecap="round"/>
+            <path d="M168 84 C190 104 230 108 256 94 S286 66 295 52" fill="none" stroke="#2b2118" stroke-width="2" stroke-dasharray="3 5" stroke-linecap="round"/>
+            <!-- 村 -->
+            <g fill="#2b2118"><path d="M12 124 l8 -8 l8 8 v8 h-16z"/></g>
+            <circle cx="168" cy="84" r="6" fill="#efe5cf" stroke="#b8371f" stroke-width="3"/>
+            <g font-family="Klee One" font-size="10" fill="#2b2118">
+              <text x="6" y="146">はじまりの村</text>
+              <text x="140" y="44">迷いの森</text>
+              <text x="210" y="80">竜の山</text>
+              <text x="234" y="22">果てなき塔</text>
+            </g>
+          </svg>
+          <div class="cap">迷いの森まで <b>あと 800歩</b></div>
+        </div>
+        <div class="d-sec"><h3>朱印帳</h3><span>12日つづけて達成</span></div>
+        <div class="d-seals">
+          <div class="d-seal on">歩</div><div class="d-seal on">歩</div><div class="d-seal on">歩</div><div class="d-seal on">歩</div><div class="d-seal on">歩</div><div class="d-seal on">歩</div><div class="d-seal on">歩</div>
+        </div>
+        <div class="d-wd"><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span><span>日</span></div>
+        <div class="d-sec"><h3>旅の仲間</h3><span>あと2日で全員クラスアップ</span></div>
+        <div class="d-party">
+          <div class="d-pu"><svg class="spr"><use href="#hero"/></svg><div class="nm">ハルト</div><div class="lv">聖騎士 Lv.18</div></div>
+          <div class="d-pu"><svg class="spr" style="color:#2e4a62"><use href="#hero"/></svg><div class="nm">魔法使い</div><div class="lv">Lv.15</div></div>
+          <div class="d-pu"><svg class="spr" style="color:#4f6b3a"><use href="#hero"/></svg><div class="nm">僧侶</div><div class="lv">Lv.14</div></div>
+          <div class="d-pu"><svg class="spr" style="color:#8a5a2b"><use href="#hero"/></svg><div class="nm">格闘家</div><div class="lv">Lv.12</div></div>
+        </div>
+        <p class="d-note">森の奥から、低いうなり声が聞こえる。<br>— 今日の冒険には、スタミナが足りている。</p>
+        <div class="d-go">旅に出る</div>
+      </div></div></div>
+    </div>
+
+    <div class="col">
+      <div class="concept">
+        <div class="tag new">DIRECTION 05 ・ NEW</div>
+        <h2>歩数新聞</h2>
+        <p>リソグラフ（孔版）の2色刷りのような、刷り物の見た目。毎日が「1号ずつの新聞」になり、歩数が見出しの大きな数字になる。ピンクと青のずれた重なりが手ざわり。</p>
+        <div class="swatches">
+          <div class="sw" style="background:#f4f0e6;color:#8a8478">#F4F0E6</div>
+          <div class="sw" style="background:#0078bf">#0078BF</div>
+          <div class="sw" style="background:#ff48b0">#FF48B0</div>
+          <div class="sw" style="background:#ffe800;color:#5a5200">#FFE800</div>
+        </div>
+        <div class="meta">
+          <div><span class="k">書体</span> Dela Gothic One（大見出し・数字）× Zen Kaku Gothic New（本文）</div>
+          <div><span class="k">象徴</span> 2色のずれ刷り＋網点＋号数</div>
+        </div>
+        <div class="use-note"><b>狙い:</b> 20〜40代のデザイン好きに、<b>「今日の自分の記録がかっこいい紙面になる」</b>が伝わる。スクショして SNS に出したくなる。ゲームっぽさは弱いので、RPG らしさは文章（記事）で足す。</div>
+      </div>
+      <div class="phone"><div class="screen"><div class="scr-in e-scr"><div class="e-in">
+        <div class="e-mast">
+          <div class="e-logo">アルクエスト新聞</div>
+          <div class="e-iss">第42号<br>10月5日（日）</div>
+        </div>
+        <div class="e-big"><span class="p">7200</span><span class="b">7200</span></div>
+        <div class="e-head">一行、<mark>きょう7,200歩</mark>を踏破。<br>迷いの森が近づく</div>
+        <div class="e-row">
+          <div class="e-stamp"><b>12</b><small>日連続</small></div>
+          <div class="e-col">
+            <h4>今週の歩み</h4>
+            <div class="e-week">
+              <i class="hit" style="height:62%"></i><i class="hit" style="height:80%"></i><i class="hit" style="height:55%"></i><i class="hit" style="height:90%"></i><i class="hit" style="height:70%"></i><i class="hit" style="height:100%"></i><i style="height:84%"></i>
+            </div>
+            目標 3,000歩を毎日達成。<br>先週より <b>+18%</b>
+          </div>
+        </div>
+        <div class="e-sec"><span>本日の顔ぶれ</span><span>宝箱 3個</span></div>
+        <div class="e-party">
+          <div class="e-pu"><div class="sp"><svg style="color:#ff48b0;transform:translate(2px,1px)"><use href="#hero"/></svg><svg style="color:#0078bf"><use href="#hero"/></svg></div><div class="nm">ハルト</div><div class="lv">Lv18</div></div>
+          <div class="e-pu"><div class="sp"><svg style="color:#ff48b0;transform:translate(2px,1px)"><use href="#hero"/></svg><svg style="color:#0078bf"><use href="#hero"/></svg></div><div class="nm">魔法使い</div><div class="lv">Lv15</div></div>
+          <div class="e-pu"><div class="sp"><svg style="color:#ff48b0;transform:translate(2px,1px)"><use href="#hero"/></svg><svg style="color:#0078bf"><use href="#hero"/></svg></div><div class="nm">僧侶</div><div class="lv">Lv14</div></div>
+          <div class="e-pu"><div class="sp"><svg style="color:#ff48b0;transform:translate(2px,1px)"><use href="#hero"/></svg><svg style="color:#0078bf"><use href="#hero"/></svg></div><div class="nm">格闘家</div><div class="lv">Lv12</div></div>
+        </div>
+        <div class="e-go">出発する →<small>森のゴブリン　勝率 約78%</small></div>
+      </div></div></div></div>
+    </div>
+
+    <div class="col">
+      <div class="concept">
+        <div class="tag new">DIRECTION 06 ・ NEW</div>
+        <h2>おもちゃ箱</h2>
+        <p>ボードゲームの駒とカウンター。太い黒線・ずらした影・はっきりした色で、押したくなる「手ざわり」を出す。歩数はめくり式のカウンター、仲間はコマのカード。</p>
+        <div class="swatches">
+          <div class="sw" style="background:#fff3d1;color:#8a7a50">#FFF3D1</div>
+          <div class="sw" style="background:#111">#111111</div>
+          <div class="sw" style="background:#ff5a36">#FF5A36</div>
+          <div class="sw" style="background:#4cc3ff;color:#0b3a52">#4CC3FF</div>
+        </div>
+        <div class="meta">
+          <div><span class="k">書体</span> Dela Gothic One（数字）× M PLUS Rounded 1c（本文）</div>
+          <div><span class="k">象徴</span> めくり式カウンター＋太線のカード</div>
+        </div>
+        <div class="use-note"><b>狙い:</b> カジュアルゲームに慣れた 20〜30代に、<b>「軽く触って楽しい」</b>が伝わる。ボタンが大きく、どこを押すかで迷わない。大人っぽさ・世界観の深さは一番弱い。</div>
+      </div>
+      <div class="phone"><div class="screen"><div class="scr-in f-scr">
+        <div class="f-top">
+          <div class="f-logo">アルクエスト</div>
+          <div class="f-coin">🪙 4,820</div>
+        </div>
+        <div class="f-card"><div class="f-steps">
+          <div class="f-label"><span>きょうの歩数</span><span>目標 3,000</span></div>
+          <div class="f-digits"><b>7</b><b class="c">,</b><b>2</b><b>0</b><b>0</b><b class="u">歩</b></div>
+          <div class="f-meter"><i></i><span>目標クリア！ 240%</span></div>
+        </div></div>
+        <div class="f-two">
+          <div class="f-streak"><b>12</b><small> 日連続</small>
+            <div class="w"><i></i><i></i><i></i><i></i><i></i><i></i><i class="o"></i></div>
+          </div>
+          <div class="f-next">つぎの宝箱まで<b>800歩</b>仲間あと 2人</div>
+        </div>
+        <div class="f-h">パーティ</div>
+        <div class="f-party">
+          <div class="f-pu" style="background:#ff5a36"><span class="lv">18</span><svg class="spr"><use href="#hero"/></svg><div class="nm">ハルト</div></div>
+          <div class="f-pu" style="background:#4cc3ff"><span class="lv">15</span><svg class="spr"><use href="#hero"/></svg><div class="nm">魔法使い</div></div>
+          <div class="f-pu" style="background:#b8f24a"><span class="lv">14</span><svg class="spr"><use href="#hero"/></svg><div class="nm">僧侶</div></div>
+          <div class="f-pu" style="background:#ffc93c"><span class="lv">12</span><svg class="spr"><use href="#hero"/></svg><div class="nm">格闘家</div></div>
+        </div>
+        <div class="f-go">出発する！</div>
+      </div></div></div>
+    </div>
+  </div>
+
+  <div style="max-width:900px;margin:64px auto 0;">
+    <h2 style="font-size:20px;font-weight:900;">比較</h2>
+    <div class="tbl"><table class="cmp">
+      <thead><tr><th>観点</th><th>01 冒険の書</th><th>02 健やか</th><th>03 ドット</th><th>04 旅の地図</th><th>05 歩数新聞</th><th>06 おもちゃ箱</th></tr></thead>
+      <tbody>
+        <tr><td>独自性</td><td>★★★★☆</td><td>★★★☆☆</td><td>★★★★★</td><td>★★★★★</td><td>★★★★☆</td><td>★★★☆☆</td></tr>
+        <tr><td>読みやすさ</td><td>★★★★☆</td><td>★★★★★</td><td>★★☆☆☆</td><td>★★★★☆</td><td>★★★☆☆</td><td>★★★★★</td></tr>
+        <tr><td>世界観（没入感）</td><td>★★★★★</td><td>★★☆☆☆</td><td>★★★★☆</td><td>★★★★★</td><td>★★★☆☆</td><td>★★☆☆☆</td></tr>
+        <tr><td>「歩く」との結びつき</td><td>★★★☆☆</td><td>★★★★☆</td><td>★★☆☆☆</td><td>★★★★★</td><td>★★★★☆</td><td>★★★☆☆</td></tr>
+        <tr><td>ドット絵との相性</td><td>★★★★★</td><td>★★★☆☆</td><td>★★★★★</td><td>★★★★☆</td><td>★★★☆☆</td><td>★★★★☆</td></tr>
+        <tr><td>作る手間</td><td>中</td><td>低</td><td>中</td><td>中〜高（地図）</td><td>中</td><td>低</td></tr>
+        <tr><td>向く人</td><td>RPG 経験者</td><td>健康目的の人</td><td>ゲーム好き</td><td>歩く大人・旅好き</td><td>デザイン好き</td><td>カジュアル層</td></tr>
+      </tbody>
+    </table></div>
+    <div class="rec">
+      <div style="font-size:12px;font-weight:700;color:#8a90a0;letter-spacing:.08em;">推奨</div>
+      <p style="margin-top:8px;"><b>04「旅の地図」を軸にする。</b>理由は3つ。<br>
+      ① 「歩いた分だけ道が伸びる」は、歩数と冒険をいちばん直接つなぐ。ほかの案は歩数を「数字」として見せるが、04 は「道のり」として見せる。<br>
+      ② 最大の課題「没入感」に、画面の作りそのもので答えられる（地名・朱印・添え書きで、世界の温度が出る）。<br>
+      ③ 明るい紙の地で、30〜50代にも読みやすい。数字は大きな明朝で、主役がはっきりしている。<br>
+      <span style="color:#8a90a0;">※ 前の推奨（01 を軸に 02 を取り込む）も十分に強い。04 の地図は描く手間がかかるので、フェーズ0では「地図は1枚の固定画像＋現在地の印だけ」から始める。</span></p>
+    </div>
+  </div>
+</div>
+</body>
+</html>
