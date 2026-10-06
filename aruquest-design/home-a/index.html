@@ -54,6 +54,19 @@
   .party img { height:270px; width:140px; object-fit:cover; object-position:50% 50%; mix-blend-mode:darken;
     -webkit-mask-image:radial-gradient(70% 60% at 50% 50%, #000 70%, transparent 100%); mask-image:radial-gradient(70% 60% at 50% 50%, #000 70%, transparent 100%); }
   .party img.mage { margin-right:-26px; }
+  /* コマ送り：切り抜いた絵（860×1024）を hero.jpg（572×1024）と同じ高さ・中心で重ねる */
+  .frames { position:relative; flex:none; }
+  .frames img { position:absolute; top:0; left:50%; height:100%; width:auto; transform:translateX(-50%); opacity:0;
+    -webkit-mask-image:none; mask-image:none; mix-blend-mode:normal; object-fit:fill; }
+  .frames img.idle { opacity:1; }
+  .party .frames { width:140px; height:270px; }
+  .party .frames img { width:227px; }
+  .walk { animation:bob .36s ease-in-out infinite alternate; }
+  .walk img { animation:show4 .72s step-end infinite; }
+  .walk img:nth-child(1) { animation-delay:-.72s; } .walk img:nth-child(2) { animation-delay:-.54s; }
+  .walk img:nth-child(3) { animation-delay:-.36s; } .walk img:nth-child(4) { animation-delay:-.18s; }
+  @keyframes show4 { 0% { opacity:1; } 25%,100% { opacity:0; } }
+  @keyframes bob { from { transform:translateY(0); } to { transform:translateY(-3px); } }
 
   .ledger { position:absolute; left:0; right:0; top:586px; padding:0 22px; }
   .ledger .head { display:flex; justify-content:space-between; align-items:baseline; border-top:1px solid rgba(58,42,28,.35); padding-top:10px; }
@@ -146,11 +159,22 @@
   @keyframes dmg2 { 0%,60% { opacity:0; transform:translateY(0) scale(.6); } 63% { opacity:1; transform:translateY(-4px) scale(1.2); } 67% { transform:translateY(-8px) scale(1); opacity:1; } 86%,100% { opacity:0; transform:translateY(-28px) scale(1); } }
   .allies { position:absolute; left:0; right:0; top:418px; height:280px; display:flex; justify-content:center; gap:0; }
   .allies .who { position:relative; width:150px; height:280px; }
-  .allies img { width:150px; height:280px; object-fit:cover; object-position:50% 50%; mix-blend-mode:darken;
+  .allies .who.mage { z-index:2; margin-right:34px; }
+  .allies .frames { width:150px; height:280px; }
+  .allies .frames img { width:235px; }
+  .allies .hero .frames { animation:lunge 2.4s infinite; }
+  .allies .mage .frames { animation:cast 2.4s infinite; }
+  .slash .s1 { animation:h1 2.4s step-end infinite; } .slash .s2 { animation:h2 2.4s step-end infinite; } .slash .s3 { animation:h3 2.4s step-end infinite; }
+  @keyframes h1 { 0% { opacity:1; } 10% { opacity:0; } 30%,100% { opacity:1; } }
+  @keyframes h2 { 0% { opacity:0; } 10% { opacity:1; } 16%,100% { opacity:0; } }
+  @keyframes h3 { 0% { opacity:0; } 16% { opacity:1; } 30%,100% { opacity:0; } }
+  .spell .c1 { animation:m1 2.4s step-end infinite; } .spell .c2 { animation:m2 2.4s step-end infinite; } .spell .c3 { animation:m3 2.4s step-end infinite; }
+  @keyframes m1 { 0% { opacity:1; } 52% { opacity:0; } 76%,100% { opacity:1; } }
+  @keyframes m2 { 0% { opacity:0; } 52% { opacity:1; } 60%,100% { opacity:0; } }
+  @keyframes m3 { 0% { opacity:0; } 60% { opacity:1; } 76%,100% { opacity:0; } }
+  .allies img.still { width:150px; height:280px; object-fit:cover; object-position:50% 50%; mix-blend-mode:darken;
     -webkit-mask-image:radial-gradient(70% 60% at 50% 50%, #000 70%, transparent 100%); mask-image:radial-gradient(70% 60% at 50% 50%, #000 70%, transparent 100%); }
-  .allies .hero img { animation:lunge 2.4s infinite; }
-  .allies .mage img { animation:cast 2.4s infinite; }
-  @keyframes lunge { 0%,10%,30%,100% { transform:translate(0,0); } 17% { transform:translate(-14px,-16px); } }
+  @keyframes lunge { 0%,10%,30%,100% { transform:translate(0,0); } 17% { transform:translate(-10px,-10px); } }
   @keyframes cast { 0%,50%,68%,100% { transform:translate(0,0); } 57% { transform:translate(10px,-8px); } }
   .allies .mini { position:absolute; left:50%; bottom:-6px; transform:translateX(-50%); width:120px; }
   .allies .mini .bar i { background:var(--sea); }
@@ -167,6 +191,7 @@
   .notes ul { padding-left:1.2em; }
 
   @media (prefers-reduced-motion: reduce) {
+    .frames, .frames img { animation:none !important; }
     *, *::before, *::after { animation-duration:0s !important; animation-delay:0s !important; }
     .leaf, .splash i { display:none; }
   }
@@ -220,7 +245,9 @@
           </div>
           <div class="party">
             <img class="mage" src="world-samples/a-set/mage.jpg" alt="魔法使い">
-            <img src="world-samples/a-set/hero.jpg" alt="主人公">
+            <div class="frames walk" role="img" aria-label="歩く主人公">
+              <img class="idle" src="world-samples/a-set/motion/cut/hero-walk-1.webp" alt=""><img src="world-samples/a-set/motion/cut/hero-walk-2.webp" alt=""><img src="world-samples/a-set/motion/cut/hero-walk-3.webp" alt=""><img src="world-samples/a-set/motion/cut/hero-walk-4.webp" alt="">
+            </div>
           </div>
         </div>
 
@@ -321,8 +348,8 @@
         <div class="dmg two">31</div>
         <div class="hp foe-hp"><div class="label"><span>森のスライム</span><span>属性 風</span></div><div class="bar"><i></i></div></div>
         <div class="allies">
-          <div class="who mage"><img src="world-samples/a-set/mage.jpg" alt="魔法使い"><div class="hp mini"><div class="bar"><i style="width:88%"></i></div></div></div>
-          <div class="who hero"><img src="world-samples/a-set/hero.jpg" alt="主人公"><div class="hp mini"><div class="bar"><i style="width:76%"></i></div></div></div>
+          <div class="who mage"><div class="frames spell" role="img" aria-label="魔法使い"><img class="c1 idle" src="world-samples/a-set/motion/cut/mage-cast-1.webp" alt=""><img class="c2" src="world-samples/a-set/motion/cut/mage-cast-2.webp" alt=""><img class="c3" src="world-samples/a-set/motion/cut/mage-cast-3.webp" alt=""></div><div class="hp mini"><div class="bar"><i style="width:88%"></i></div></div></div>
+          <div class="who hero"><div class="frames slash" role="img" aria-label="主人公"><img class="s1 idle" src="world-samples/a-set/motion/cut/hero-slash-1.webp" alt=""><img class="s2" src="world-samples/a-set/motion/cut/hero-slash-2.webp" alt=""><img class="s3" src="world-samples/a-set/motion/cut/hero-slash-3.webp" alt=""></div><div class="hp mini"><div class="bar"><i style="width:76%"></i></div></div></div>
         </div>
         <div class="log">
           <div class="l1">ハルトの斬りつけ。スライムに 48。</div>
@@ -347,6 +374,7 @@
       <li>宝箱が開く絵（ふたが開いた状態）はまだ無い。閉じた絵に光としぶきを重ねて代わりにしている。</li>
       <li>装備の絵はまだ無いので、名前と数字だけ。</li>
       <li>戦闘はモックとして同じ動きを2.4秒ごとにくり返している。本番は1手ずつ進み、HPの減りは戻らない。</li>
+      <li>動きの絵：ホームの主人公は歩く4コマ（上下に3px弾む）、戦闘は斬る3コマ・魔法3コマを切り替える。絵は <code>world-samples/a-set/motion/cut/</code>（背景を透明にして大きさをそろえたもの。作り方は <code>tools/cut_frames.py</code>）。</li>
       <li>地図は線で描いた仮のもの。本番は A-1 の地図のような描いた絵に差し替える。</li>
     </ul>
   </div>
