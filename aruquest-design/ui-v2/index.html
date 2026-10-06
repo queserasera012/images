@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アルクエスト 見た目の出し直し</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kaisei+Opti:wght@700&family=Zen+Kaku+Gothic+New:wght@500;700;900&family=DotGothic16&family=Shippori+Mincho+B1:wght@700;800&family=Klee+One:wght@600&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#d7d3cc; color:#26221d; font-family:"Zen Kaku Gothic New", sans-serif; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1260px; margin:0 auto; padding:28px 16px 64px; }
+  .intro { max-width:660px; }
+  .intro h1 { font-weight:900; font-size:24px; }
+  .intro p { margin-top:8px; font-size:14px; line-height:1.8; color:#4a443c; }
+  .dir { margin-top:44px; }
+  .dir h2 { font-weight:900; font-size:21px; }
+  .dir .lead { margin-top:6px; font-size:14px; line-height:1.8; max-width:660px; color:#3b362f; }
+  .facts { margin-top:10px; font-size:13.5px; line-height:1.8; max-width:660px; }
+  .facts dt { font-weight:700; display:inline; }
+  .facts dd { display:inline; margin:0; }
+  .facts div + div { margin-top:2px; }
+  .pair { display:flex; flex-wrap:wrap; gap:28px; margin-top:18px; }
+  .pair figcaption { font-size:13px; color:#4a443c; margin:0 0 8px 4px; }
+
+  .phone { width:390px; height:844px; position:relative; overflow:hidden; border-radius:28px; box-shadow:0 26px 50px -28px rgba(30,20,10,.55); }
+  .phone svg.stage { position:absolute; left:0; width:390px; }
+
+  /* ===== 共通の骨組み（体のパーツを関節で回す）===== */
+  .rig .walk .thL { animation:thighA .9s ease-in-out infinite; } .rig .walk .thR { animation:thighB .9s ease-in-out infinite; }
+  .rig .walk .shL { animation:shinA .9s ease-in-out infinite; } .rig .walk .shR { animation:shinB .9s ease-in-out infinite; }
+  .rig .walk .arF { animation:armA .9s ease-in-out infinite; } .rig .walk .arB { animation:armB .9s ease-in-out infinite; }
+  .rig .walk .bob { animation:bob .45s ease-in-out infinite alternate; }
+  .rig .walk .cape { animation:cape .9s ease-in-out infinite; }
+  @keyframes thighA { 0%,100% { transform:rotate(24deg); } 50% { transform:rotate(-22deg); } }
+  @keyframes thighB { 0%,100% { transform:rotate(-22deg); } 50% { transform:rotate(24deg); } }
+  @keyframes shinA { 0%,40%,100% { transform:rotate(0deg); } 70% { transform:rotate(38deg); } }
+  @keyframes shinB { 0%,90%,100% { transform:rotate(0deg); } 20% { transform:rotate(38deg); } }
+  @keyframes armA { 0%,100% { transform:rotate(-20deg); } 50% { transform:rotate(18deg); } }
+  @keyframes armB { 0%,100% { transform:rotate(18deg); } 50% { transform:rotate(-20deg); } }
+  @keyframes bob { from { transform:translateY(0); } to { transform:translateY(-2.5px); } }
+  @keyframes cape { 0%,100% { transform:skewX(-6deg); } 50% { transform:skewX(4deg); } }
+  .rig .idle .bob { animation:breathe 2.6s ease-in-out infinite; }
+  @keyframes breathe { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-1.2px); } }
+  .rig .idle .cape { animation:cape 3.2s ease-in-out infinite; }
+
+  /* 戦闘：2.4秒でくり返す（本番は1手ずつ） */
+  .rig .attack .bob { animation:lunge 2.4s infinite; }
+  .rig .attack .arF { animation:swing 2.4s infinite; }
+  .rig .attack .thL { transform:rotate(22deg); } .rig .attack .thR { transform:rotate(-18deg); } .rig .attack .shR { transform:rotate(14deg); }
+  @keyframes lunge { 0%,8%,34%,100% { transform:translate(0,0); } 16%,22% { transform:translate(26px,2px); } }
+  @keyframes swing { 0%,8% { transform:rotate(-150deg); } 14% { transform:rotate(-170deg); } 19%,24% { transform:rotate(-40deg); } 34%,100% { transform:rotate(-150deg); } }
+  .rig .cast .arF { animation:raise 2.4s infinite; }
+  @keyframes raise { 0%,50% { transform:rotate(-30deg); } 56%,66% { transform:rotate(-120deg); } 76%,100% { transform:rotate(-30deg); } }
+  .slash { stroke-dasharray:120; stroke-dashoffset:120; animation:slash 2.4s infinite; }
+  @keyframes slash { 0%,17% { stroke-dashoffset:120; opacity:1; } 21% { stroke-dashoffset:0; opacity:1; } 30%,100% { stroke-dashoffset:0; opacity:0; } }
+  .foe { animation:squash 2.4s infinite; transform-box:fill-box; transform-origin:50% 100%; }
+  @keyframes squash { 0%,19%,34%,58%,72%,100% { transform:scale(1,1) translateX(0); } 21% { transform:scale(1.18,.78) translateX(-3px); } 25% { transform:scale(.92,1.1) translateX(3px); } 29% { transform:scale(1.04,.96); }
+    60% { transform:scale(1.16,.8) translateX(3px); } 64% { transform:scale(.94,1.08) translateX(-3px); } }
+  .foe-idle { animation:jelly 1.8s ease-in-out infinite; transform-box:fill-box; transform-origin:50% 100%; }
+  @keyframes jelly { 0%,100% { transform:scale(1,1); } 50% { transform:scale(1.05,.95); } }
+  .flash { opacity:0; animation:flash 2.4s infinite; transform-box:fill-box; transform-origin:50% 50%; }
+  @keyframes flash { 0%,19% { opacity:0; transform:scale(.3); } 20% { opacity:.95; transform:scale(.6); } 27% { opacity:0; transform:scale(1.3); }
+    57%,58% { opacity:0; transform:scale(.3); } 60% { opacity:.9; transform:scale(.6); } 67%,100% { opacity:0; transform:scale(1.3); } }
+  .num { opacity:0; animation:num 2.4s infinite; transform-box:fill-box; transform-origin:50% 50%; }
+  .num.two { animation-name:num2; }
+  @keyframes num { 0%,19% { opacity:0; transform:translateY(0) scale(.6); } 22% { opacity:1; transform:translateY(-4px) scale(1.25); } 26% { opacity:1; transform:translateY(-8px) scale(1); } 46%,100% { opacity:0; transform:translateY(-30px); } }
+  @keyframes num2 { 0%,59% { opacity:0; transform:translateY(0) scale(.6); } 62% { opacity:1; transform:translateY(-4px) scale(1.25); } 66% { opacity:1; transform:translateY(-8px) scale(1); } 84%,100% { opacity:0; transform:translateY(-30px); } }
+  .orb { opacity:0; animation:orb 2.4s infinite; }
+  @keyframes orb { 0%,54% { opacity:0; transform:translate(0,0) scale(.5); } 56% { opacity:1; transform:translate(0,0) scale(1); } 60% { opacity:1; transform:translate(70px,-150px) scale(1.2); } 63%,100% { opacity:0; transform:translate(80px,-160px) scale(1.6); } }
+  .road { stroke-dasharray:420; stroke-dashoffset:420; animation:road 1.2s .2s ease-out forwards; }
+  @keyframes road { to { stroke-dashoffset:0; } }
+  .scroll { animation:scroll 18s linear infinite; }
+  @keyframes scroll { from { transform:translateX(0); } to { transform:translateX(-390px); } }
+  .scroll-slow { animation:scroll 40s linear infinite; }
+  .ui { position:absolute; left:0; right:0; }
+  .btn { position:absolute; left:22px; right:22px; bottom:38px; height:58px; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:20px; letter-spacing:.2em; border-radius:10px; }
+
+  /* ===== A 影絵 ===== */
+  .A { background:linear-gradient(#F6C27F 0%, #E58E6A 30%, #8D5A86 58%, #3A2E52 78%, #2A2440 100%); color:#FFF4E6; font-family:"Zen Kaku Gothic New"; }
+  .A .head { top:58px; padding:0 24px; }
+  .A .date { font-size:14px; opacity:.85; }
+  .A .steps { font-family:"Kaisei Opti"; font-weight:700; font-size:64px; line-height:1.05; margin-top:6px; letter-spacing:-.01em; text-shadow:0 2px 0 rgba(42,36,64,.25); }
+  .A .steps small { font-size:20px; margin-left:4px; }
+  .A .sub { font-size:14px; opacity:.9; }
+  .A .panel { bottom:0; height:250px; background:#1C1828; padding:20px 24px 0; }
+  .A .panel h3 { font-family:"Kaisei Opti"; font-size:16px; color:#F4C96B; }
+  .A .lanterns { display:flex; gap:8px; margin-top:12px; }
+  .A .lanterns span { width:36px; text-align:center; font-size:11px; color:#CBBFD8; }
+  .A .lanterns i { display:block; width:18px; height:24px; margin:0 auto 4px; border-radius:6px 6px 8px 8px; background:#F4C96B; box-shadow:0 0 14px 3px rgba(244,201,107,.55); }
+  .A .lanterns i.rescued { background:transparent; border:2px dashed #F4C96B; box-shadow:none; }
+  .A .lanterns i.off { background:#3A3352; box-shadow:none; }
+  .A .tally { font-size:13px; color:#CBBFD8; margin-top:10px; }
+  .A .btn { background:#F4C96B; color:#1C1828; }
+
+  /* ===== B ドット ===== */
+  .B { background:#F2EAD3; color:#2B2A26; font-family:"Zen Kaku Gothic New"; }
+  .B .sky { position:absolute; inset:0 0 auto 0; height:470px; background:linear-gradient(#9FC6C2, #CFE0C6 70%, #E8E2BE); }
+  .B .head { top:58px; padding:0 22px; }
+  .B .date { font-size:14px; }
+  .B .steps { font-family:"DotGothic16"; font-size:60px; line-height:1.1; color:#2B2A26; margin-top:4px; }
+  .B .steps small { font-size:20px; }
+  .B .sub { font-size:14px; }
+  .B .panel { top:470px; bottom:0; padding:18px 22px 0; background:#F2EAD3; border-top:4px solid #2B2A26; }
+  .B .panel h3 { font-family:"DotGothic16"; font-size:16px; }
+  .B .gems { display:flex; gap:6px; margin-top:12px; }
+  .B .gems span { width:38px; text-align:center; font-size:11px; color:#5b584f; }
+  .B .gems i { display:block; width:20px; height:20px; margin:0 auto 4px; background:#C8643B; box-shadow:inset -4px -4px 0 #9A4527, inset 4px 4px 0 #E58A5E; }
+  .B .gems i.rescued { background:#E8DCC0; box-shadow:inset 0 0 0 3px #C8643B; }
+  .B .gems i.off { background:#D9CFB2; box-shadow:none; }
+  .B .tally { font-size:13px; margin-top:10px; color:#5b584f; }
+  .B .btn { background:#3D5A80; color:#F2EAD3; border-radius:0; box-shadow:0 5px 0 #2B2A26; font-family:"DotGothic16"; letter-spacing:.15em; }
+  .pix { shape-rendering:crispEdges; }
+  .pix .f { opacity:0; } .pix .f.on { opacity:1; }
+  .pix.walking .f { animation:show4 .6s step-end infinite; }
+  .pix.walking .f:nth-child(1) { animation-delay:-.6s; } .pix.walking .f:nth-child(2) { animation-delay:-.45s; }
+  .pix.walking .f:nth-child(3) { animation-delay:-.3s; } .pix.walking .f:nth-child(4) { animation-delay:-.15s; }
+  @keyframes show4 { 0% { opacity:1; } 25%,100% { opacity:0; } }
+  .pix.atk .f1 { animation:pa1 2.4s step-end infinite; } .pix.atk .f2 { animation:pa2 2.4s step-end infinite; }
+  @keyframes pa1 { 0% { opacity:1; } 14% { opacity:0; } 28%,100% { opacity:1; } }
+  @keyframes pa2 { 0% { opacity:0; } 14% { opacity:1; } 28%,100% { opacity:0; } }
+  .pixmove { animation:plunge 2.4s steps(3) infinite; }
+  @keyframes plunge { 0%,10%,30%,100% { transform:translateX(0); } 14%,24% { transform:translateX(24px); } }
+
+  /* ===== C インク線画 ===== */
+  .C { background:#ECE1C9; color:#2F2A24; font-family:"Klee One"; }
+  .C .head { top:58px; padding:0 24px; }
+  .C .date { font-size:14px; }
+  .C .steps { font-family:"Shippori Mincho B1"; font-weight:800; font-size:62px; line-height:1.05; margin-top:4px; }
+  .C .steps small { font-size:20px; margin-left:4px; }
+  .C .sub { font-size:14px; }
+  .C .panel { bottom:0; height:250px; padding:16px 24px 0; }
+  .C .panel h3 { font-family:"Shippori Mincho B1"; font-size:17px; border-top:1px solid rgba(47,42,36,.35); padding-top:10px; }
+  .C .seals { display:flex; gap:10px; margin-top:10px; }
+  .C .seals span { width:34px; text-align:center; font-size:11px; color:#6B5E4E; }
+  .C .seals i { display:block; width:26px; height:26px; margin:0 auto 3px; border-radius:46% 54% 50% 50%; background:#9E2B25; box-shadow:inset 0 0 0 3px #7A1F1A; }
+  .C .seals i.rescued { background:rgba(158,43,37,.25); box-shadow:inset 0 0 0 1.5px #9E2B25; }
+  .C .seals i.off { background:transparent; box-shadow:inset 0 0 0 1.5px rgba(47,42,36,.3); }
+  .C .tally { font-size:13px; margin-top:8px; color:#6B5E4E; }
+  .C .btn { background:#9E2B25; color:#F6EBD6; font-family:"Shippori Mincho B1"; font-weight:800; border-radius:6px; }
+
+  .battle .hpbar { position:absolute; left:60px; right:60px; height:8px; border-radius:2px; overflow:hidden; }
+  .battle .hpbar i { display:block; height:100%; width:72%; animation:hp 2.4s infinite; }
+  @keyframes hp { 0%,19% { width:72%; } 27%,59% { width:52%; } 66%,100% { width:39%; } }
+  .battle .log { position:absolute; left:24px; right:24px; bottom:96px; font-size:15px; line-height:1.7; }
+  .battle .skip { position:absolute; right:24px; bottom:40px; font-size:14px; text-decoration:underline; opacity:.8; }
+  .battle .auto { position:absolute; left:24px; bottom:40px; font-size:14px; opacity:.8; }
+
+  .notes { max-width:720px; margin-top:52px; font-size:14px; line-height:1.9; }
+  .notes h2 { font-weight:900; font-size:19px; }
+  .notes table { border-collapse:collapse; margin-top:10px; font-size:13.5px; width:100%; }
+  .notes th, .notes td { text-align:left; padding:8px 10px; border-bottom:1px solid #bcb5aa; vertical-align:top; }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation:none !important; } .road { stroke-dashoffset:0; } .pix .f1, .pix .f:first-child { opacity:1; } }
+  @media (max-width:420px) { .page { padding:20px 0 48px; } .intro, .dir > :not(.pair), .notes { padding-left:16px; padding-right:16px; } .pair { gap:20px; } .phone { border-radius:0; } .pair figcaption { margin-left:16px; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="intro">
+    <h1>見た目の出し直し：動きをコードで作る3案</h1>
+    <p>1枚絵をコマ送りする作り方をやめ、体をパーツに分けて関節で動かす（または、ドットを並べ替える）作り方にした。キャラも敵も背景もすべてコードで描いているので、動きを足すときも、仲間を増やすときも、絵にお金はかからない。歩数・ストリーク・救済の印など、中身は基本構想のまま。</p>
+  </div>
+
+  <section class="dir">
+    <h2>A　影絵の旅</h2>
+    <p class="lead">夕暮れの空に、切り絵の影で旅人が歩く。顔を描かないので子どもっぽくならず、空の色で地味にもならない。光るのは仲間のマフラーと、ストリークの灯りだけ。</p>
+    <dl class="facts">
+      <div><dt>動きの作り方：</dt><dd>頭・胴・腕・脚を別の形にして、関節を軸に回す（SVG の部品をアニメで回転）。マントとマフラーはゆらす。</dd></div>
+      <div><dt>絵を足すときの費用：</dt><dd>0円。新しい仲間や敵は、形（輪郭）を1つ描き足すだけ。色を塗らないので、描く手間も一番少ない。</dd></div>
+      <div><dt>向かないこと：</dt><dd>表情が出せない。誰が誰かは、帽子・マント・持ち物の形で見分ける。</dd></div>
+    </dl>
+    <div class="pair">
+      <figure><figcaption>ホーム</figcaption><div class="phone A" id="A-home"></div></figure>
+      <figure><figcaption>戦闘</figcaption><div class="phone A battle" id="A-battle"></div></figure>
+    </div>
+  </section>
+
+  <section class="dir">
+    <h2>B　大人のドット</h2>
+    <p class="lead">昔のRPGの「ドット絵」を、落ち着いた色でやり直す。キャラは16×24の点で、文字は本文を普通の書体にして読みやすくする。懐かしさで30〜50代に刺さる。</p>
+    <dl class="facts">
+      <div><dt>動きの作り方：</dt><dd>点の並び（文字の表）から絵を作り、脚の点だけを入れ替えて4コマで歩かせる。攻撃は腕と剣のコマを差し替える。</dd></div>
+      <div><dt>絵を足すときの費用：</dt><dd>0円。16×24の表を1つ書けば1体増える。色は8色の中から選ぶので、そろえるのも簡単。</dd></div>
+      <div><dt>向かないこと：</dt><dd>細かい表情や服の質感は出ない。点が大きいので、画面の中のキャラは小さめになる。</dd></div>
+    </dl>
+    <div class="pair">
+      <figure><figcaption>ホーム</figcaption><div class="phone B" id="B-home"></div></figure>
+      <figure><figcaption>戦闘</figcaption><div class="phone B battle" id="B-battle"></div></figure>
+    </div>
+  </section>
+
+  <section class="dir">
+    <h2>C　インクの線画</h2>
+    <p class="lead">羊皮紙の旅路を引きつぐ案。キャラは線で描いた人形で、関節で動く。オーナーが気に入った「歩いた分だけ道が伸びる」「封蝋」はそのまま残る。</p>
+    <dl class="facts">
+      <div><dt>動きの作り方：</dt><dd>A と同じ骨組み（関節で回す）を、塗りつぶしではなく線と薄い色で描く。道はインクの線として伸びる。</dd></div>
+      <div><dt>絵を足すときの費用：</dt><dd>0円。服の形と色を変えた人形を1つ描き足す。</dd></div>
+      <div><dt>向かないこと：</dt><dd>線が少ないぶん、A-1 の水彩の絵ほどの描き込みは出ない。「手描きの日記の落書き」の手ざわりになる。</dd></div>
+    </dl>
+    <div class="pair">
+      <figure><figcaption>ホーム</figcaption><div class="phone C" id="C-home"></div></figure>
+      <figure><figcaption>戦闘</figcaption><div class="phone C battle" id="C-battle"></div></figure>
+    </div>
+  </section>
+
+  <div class="notes">
+    <h2>くらべ</h2>
+    <table>
+      <tr><th></th><th>A 影絵の旅</th><th>B 大人のドット</th><th>C インクの線画</th></tr>
+      <tr><td>子どもっぽさ</td><td>いちばん低い</td><td>ふつう（色で大人に寄せる）</td><td>低い</td></tr>
+      <tr><td>地味さ</td><td>空の色で華やか</td><td>にぎやか</td><td>いちばん落ち着いている</td></tr>
+      <tr><td>キャラの見分け</td><td>形だけ</td><td>色と形</td><td>色と形</td></tr>
+      <tr><td>描き足す手間</td><td>いちばん少ない</td><td>少ない</td><td>少ない</td></tr>
+      <tr><td>前の案とのつながり</td><td>なし（新しい）</td><td>はじめの「ドット」案に近い</td><td>羊皮紙の旅路を引きつぐ</td></tr>
+    </table>
+  </div>
+</div>
+
+<script>
+/* ===== 骨組み：腰を原点に、脚・胴・腕・頭を部品で組む（A と C で使う） ===== */
+function limb(paint, w, h, fill) {
+  return paint === 'fill'
+    ? `<rect x="${-w/2}" y="0" width="${w}" height="${h}" rx="${w/2}" fill="${fill}"/>`
+    : `<rect x="${-w/2}" y="0" width="${w}" height="${h}" rx="${w/2}" fill="${fill}" stroke="#2F2A24" stroke-width="2"/>`;
+}
+function person(o) {
+  // o: {paint:'fill'|'line', role:'hero'|'mage', mode:'walk'|'idle'|'attack'|'cast', c:{body,skin,coat,coat2,accent}}
+  const P = o.paint, c = o.c, s = P === 'fill' ? '' : ' stroke="#2F2A24" stroke-width="2" stroke-linejoin="round"';
+  const leg = (cls, shin) => `<g class="${cls}">${limb(P, 9, 30, c.legs)}<g transform="translate(0 28)"><g class="${shin}">${limb(P, 8, 28, c.legs)}<rect x="-4" y="22" width="13" height="7" rx="3" fill="${c.boot}"${s}/></g></g></g>`;
+  const heldF = o.role === 'hero'
+    ? (o.mode === 'attack'
+        ? `<rect x="-2" y="18" width="4" height="40" rx="1.5" fill="${c.blade}"${s}/><rect x="-6" y="16" width="12" height="4" rx="2" fill="${c.body}"${s}/>`
+        : '')
+    : `<rect x="-2" y="-58" width="4" height="98" rx="2" fill="${c.staff}"${s}/><circle cx="0" cy="-62" r="5" fill="${c.accent}" ${P === 'fill' ? 'style="filter:drop-shadow(0 0 6px ' + c.accent + ')"' : 'stroke="#2F2A24" stroke-width="2"'}/>`;
+  const arm = (cls, front) => `<g class="${cls}">${limb(P, 8, 22, front ? c.coat : c.coat2)}<g transform="translate(0 20)">${limb(P, 7, 20, front ? c.coat : c.coat2)}<circle cx="0" cy="21" r="4" fill="${c.skin}"${s}/>${front ? heldF : ''}</g></g>`;
+  const cape = o.role === 'hero'
+    ? `<g class="cape"><path d="M-9 -38 C-20 -10 -22 8 -18 18 L8 14 C10 -6 8 -24 9 -38Z" fill="${c.coat2}"${s}/></g>`
+    : `<g class="cape"><path d="M-11 -38 C-24 0 -22 30 -20 52 L18 52 C20 26 18 -6 11 -38Z" fill="${c.coat2}"${s}/></g>`;
+  const torso = o.role === 'hero'
+    ? `<rect x="-10" y="-40" width="20" height="44" rx="8" fill="${c.coat}"${s}/><rect x="-10" y="-6" width="20" height="5" fill="${c.belt}"${s}/>`
+    : `<path d="M-10 -40 L10 -40 L14 48 L-14 48Z" fill="${c.coat}"${s}/>`;
+  const head = o.role === 'hero'
+    ? `<circle cx="0" cy="-52" r="11" fill="${c.skin}"${s}/><path d="M-11 -54 C-11 -66 11 -68 12 -55 C6 -60 -4 -60 -11 -54Z" fill="${c.hair}"${s}/>`
+    : `<circle cx="0" cy="-52" r="10.5" fill="${c.skin}"${s}/><path d="M-14 -46 C-16 -64 -4 -70 2 -69 C12 -68 16 -60 15 -44 C10 -54 -8 -56 -14 -46Z" fill="${c.coat2}"${s}/>`;
+  const scarf = c.scarf ? `<g class="cape"><path d="M-8 -42 L8 -42 L6 -36 L-18 -30 L-20 -35Z" fill="${c.scarf}" ${P === 'fill' ? 'style="filter:drop-shadow(0 0 4px ' + c.scarf + ')"' : s}/></g>` : '';
+  const face = P === 'fill' ? '' : `<circle cx="4" cy="-53" r="1.3" fill="#2F2A24"/><path d="M2 -47 q3 2 6 0" fill="none" stroke="#2F2A24" stroke-width="1.4" stroke-linecap="round"/>`;
+  return `<g class="${o.mode}"><g class="bob">
+    <g transform="translate(0 -32)">${arm('arB', false)}</g>
+    ${cape}
+    <g>${leg('thR', 'shR')}</g>
+    <g>${leg('thL', 'shL')}</g>
+    ${torso}${scarf}${head}${face}
+    <g transform="translate(0 -32)">${arm('arF', true)}</g>
+  </g></g>`;
+}
+function rigSvg(x, y, scale, inner) {
+  return `<g class="rig" transform="translate(${x} ${y}) scale(${scale})">${inner}</g>`;
+}
+function slime(paint, fill, x, y, scale, cls) {
+  const s = paint === 'fill' ? '' : ' stroke="#2F2A24" stroke-width="2.4"';
+  const eyes = paint === 'fill'
+    ? `<circle cx="-12" cy="-26" r="3.2" fill="#F4C96B"/><circle cx="12" cy="-26" r="3.2" fill="#F4C96B"/>`
+    : `<circle cx="-12" cy="-26" r="3.2" fill="#2F2A24"/><circle cx="12" cy="-26" r="3.2" fill="#2F2A24"/><path d="M-26 -38 q6 -8 14 -9" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".8"/>`;
+  return `<g transform="translate(${x} ${y}) scale(${scale})"><g class="${cls}"><path d="M-44 0 C-48 -30 -26 -52 0 -52 C26 -52 48 -30 44 0 C30 4 -30 4 -44 0Z" fill="${fill}"${s}/>${eyes}</g></g>`;
+}
+function battleFx(x, y, ink, numColor, stroke, ring = ink) {
+  return `<circle class="flash" cx="${x}" cy="${y-30}" r="46" fill="none" stroke="${ring}" stroke-width="6"/>
+    <path class="slash" d="M${x-40} ${y-70} Q${x} ${y-20} ${x+44} ${y-4}" fill="none" stroke="${ink}" stroke-width="7" stroke-linecap="round"/>
+    <text class="num" x="${x+10}" y="${y-62}" font-size="40" font-weight="900" fill="${numColor}" stroke="${stroke}" stroke-width="5" paint-order="stroke">48</text>
+    <text class="num two" x="${x-92}" y="${y-48}" font-size="34" font-weight="900" fill="${numColor}" stroke="${stroke}" stroke-width="5" paint-order="stroke">31</text>`;
+}
+const days = ['火','水','木','金','土','日','きょう'];
+const marks = (cls, tag) => days.map((d, i) => `<span><i class="${i === 2 ? 'rescued' : i === 6 ? '' : ''}"></i>${d}</span>`).join('');
+
+/* ===== A 影絵 ===== */
+(function () {
+  const ink = '#1E1A2A';
+  const cA = { legs: ink, boot: ink, coat: ink, coat2: ink, belt: ink, skin: ink, hair: ink, blade: ink, body: ink, staff: ink, accent: '#F4C96B' };
+  const hills = `
+    <path d="M0 330 C60 300 120 316 180 296 S300 300 390 286 L390 520 L0 520Z" fill="#6E4F7A" opacity=".7"/>
+    <g class="scroll-slow"><path d="M0 380 C70 350 140 372 210 352 S330 360 390 346 L390 520 L0 520Z M390 346 C460 332 530 352 600 340 S720 352 780 346 L780 520 L390 520Z" fill="#43375E"/></g>
+    <g class="scroll"><path d="M0 430 L390 430 L390 600 L0 600Z M24 430 l10 -36 l10 36z M60 430 l14 -50 l14 50z M300 430 l12 -42 l12 42z M336 430 l8 -28 l8 28z
+      M414 430 l10 -36 l10 36z M470 430 l14 -50 l14 50z M640 430 l12 -42 l12 42z M700 430 l8 -28 l8 28z M390 430 L780 430 L780 600 L390 600Z" fill="#2A2440"/></g>
+    <circle cx="300" cy="210" r="34" fill="#FBE3B0" opacity=".9"/>`;
+  const home = document.getElementById('A-home');
+  home.innerHTML = `
+    <svg class="stage" viewBox="0 0 390 600" style="top:0;height:600px">${hills}
+      ${rigSvg(140, 418, 1.55, person({ paint: 'fill', role: 'mage', mode: 'walk', c: { ...cA } }))}
+      ${rigSvg(240, 418, 1.6, person({ paint: 'fill', role: 'hero', mode: 'walk', c: { ...cA, scarf: '#F4C96B' } }))}
+    </svg>
+    <div class="ui head"><div class="date">10月6日（月）　旅の四十三日目</div><div class="steps">7,200<small>歩</small></div><div class="sub">きょう歩いた分　迷いの森まで あと800歩</div></div>
+    <div class="ui panel"><h3>灯りの記録</h3><div class="lanterns">${days.map((d, i) => `<span><i class="${i === 2 ? 'rescued' : ''}"></i>${d}</span>`).join('')}</div>
+      <div class="tally">12日つづけて（うち救済1日）。木曜は広告で戻した日</div></div>
+    <div class="btn">出発する</div>`;
+  const battle = document.getElementById('A-battle');
+  battle.innerHTML = `
+    <svg class="stage" viewBox="0 0 390 640" style="top:0;height:640px">
+      <path d="M0 470 C80 450 160 468 240 452 S340 456 390 448 L390 640 L0 640Z" fill="#2A2440"/>
+      ${slime('fill', ink, 296, 452, 1.35, 'foe')}
+      ${rigSvg(90, 400, 1.3, person({ paint: 'fill', role: 'mage', mode: 'cast', c: { ...cA } }))}
+      <circle class="orb" cx="100" cy="320" r="10" fill="#F4C96B" style="filter:drop-shadow(0 0 10px #F4C96B)"/>
+      ${rigSvg(170, 400, 1.35, person({ paint: 'fill', role: 'hero', mode: 'attack', c: { ...cA, scarf: '#F4C96B' } }))}
+      ${battleFx(298, 452, '#FBE3B0', '#FFF4E6', '#1E1A2A', '#FBE3B0')}
+    </svg>
+    <div class="ui head"><div class="date">迷いの森の入口</div><div class="sub" style="margin-top:6px">森のスライム</div></div>
+    <div class="hpbar" style="top:118px;background:rgba(255,244,230,.25)"><i style="background:#F4C96B"></i></div>
+    <div class="log" style="color:#FFF4E6">ハルトの斬りつけ。スライムに 48。<br>リラの火の術。スライムに 31。</div>
+    <div class="auto" style="color:#FFF4E6">戦闘は自動で進む</div><div class="skip" style="color:#FFF4E6">結果まで飛ばす</div>`;
+})();
+
+/* ===== C インク線画 ===== */
+(function () {
+  const cH = { legs: '#6B6152', boot: '#5B4636', coat: '#C59A6B', coat2: '#A57B52', belt: '#5B4636', skin: '#F3E3CC', hair: '#5B4636', blade: '#DCDCD4', body: '#5B4636', scarf: '#9E2B25' };
+  const cM = { legs: '#5B4636', boot: '#5B4636', coat: '#6E9690', coat2: '#4F7A74', belt: '#5B4636', skin: '#F3E3CC', hair: '#2F2A24', staff: '#8A6A48', accent: '#BFE3DC', body: '#5B4636' };
+  const map = `
+    <g stroke="#2F2A24" stroke-width="1.2" fill="none" opacity=".55"><path d="M262 214 l18 -28 l18 28"/><path d="M286 214 l22 -36 l22 36"/></g>
+    <g fill="#4F7A74" fill-opacity=".45" stroke="#2F2A24" stroke-width=".8"><path d="M270 258 l8 -18 l8 18z"/><path d="M284 264 l8 -20 l8 20z"/><path d="M298 256 l7 -16 l7 16z"/></g>
+    <path d="M30 560 C70 540 50 480 90 450 S150 400 170 360 S200 320 214 300" fill="none" stroke="#2F2A24" stroke-width="3.2" stroke-linecap="round" class="road"/>
+    <path d="M214 300 C236 284 262 276 284 262" fill="none" stroke="#2F2A24" stroke-width="2" stroke-dasharray="2 7" stroke-linecap="round" opacity=".6"/>
+    <path d="M0 572 L390 572" stroke="#2F2A24" stroke-opacity=".35" stroke-width="1.2"/>`;
+  const home = document.getElementById('C-home');
+  home.innerHTML = `
+    <svg class="stage" viewBox="0 0 390 600" style="top:0;height:600px">${map}
+      ${rigSvg(200, 470, 1.5, person({ paint: 'line', role: 'mage', mode: 'walk', c: cM }))}
+      ${rigSvg(296, 470, 1.55, person({ paint: 'line', role: 'hero', mode: 'walk', c: cH }))}
+    </svg>
+    <div class="ui head"><div class="date">10月6日（月）　旅の四十三日目</div><div class="steps">7,200<small>歩</small></div><div class="sub">きょう歩いた分<br>迷いの森まで あと800歩</div></div>
+    <div class="ui panel"><h3>封蝋の記録</h3><div class="seals">${days.map((d, i) => `<span><i class="${i === 2 ? 'rescued' : ''}"></i>${d}</span>`).join('')}</div>
+      <div class="tally">12日つづけて（うち救済1日）。木曜は広告で戻した日</div></div>
+    <div class="btn">出発する</div>`;
+  const battle = document.getElementById('C-battle');
+  battle.innerHTML = `
+    <svg class="stage" viewBox="0 0 390 640" style="top:0;height:640px">
+      <path d="M0 470 C80 462 160 474 240 464 S340 468 390 462" fill="none" stroke="#2F2A24" stroke-opacity=".4" stroke-width="1.2"/>
+      ${slime('line', '#7FBF6A', 298, 466, 1.35, 'foe')}
+      ${rigSvg(88, 412, 1.3, person({ paint: 'line', role: 'mage', mode: 'cast', c: cM }))}
+      <circle class="orb" cx="98" cy="330" r="10" fill="#BFE3DC" stroke="#2F2A24" stroke-width="2"/>
+      ${rigSvg(170, 412, 1.35, person({ paint: 'line', role: 'hero', mode: 'attack', c: cH }))}
+      ${battleFx(300, 466, '#2F2A24', '#2F2A24', '#F6EBD6', '#9E2B25')}
+    </svg>
+    <div class="ui head"><div class="date">迷いの森の入口</div><div class="sub" style="margin-top:6px">森のスライム</div></div>
+    <div class="hpbar" style="top:118px;border:1.5px solid #2F2A24"><i style="background:#9E2B25"></i></div>
+    <div class="log">ハルトの斬りつけ。スライムに 48。<br>リラの水の術。スライムに 31。</div>
+    <div class="auto">戦闘は自動で進む</div><div class="skip">結果まで飛ばす</div>`;
+})();
+
+/* ===== B ドット：文字の表から点を並べる ===== */
+(function () {
+  const PAL = { o: '#2B2A26', h: '#5A3B28', s: '#E9C29A', c: '#8C5A3C', C: '#6A4430', w: '#E8DCC0', b: '#3A2A20', p: '#4E5446', k: '#3A2A20', g: '#C9CED6', t: '#3F6E6A', T: '#2C4F4C', y: '#F0C060', r: '#C8643B', G: '#6FA35A', L: '#9ACB7E' };
+  const heroTop = [
+    '.....oooo.......',
+    '....ohhhho......',
+    '...ohhhhhho.....',
+    '...ohssssho.....',
+    '...osososso.....',
+    '...ossssso......',
+    '....ossso.......',
+    '...occwwcco.....',
+    '..occcwwccco....',
+    '..ocscwwcsco....',
+    '..ocsCbbCsco....',
+    '..ooocccccoo....',
+    '....occccco.....',
+    '....oCcccCo.....',
+  ];
+  const mageTop = [
+    '.....oooo.......',
+    '....otttto......',
+    '...otttttto.....',
+    '...otsssstto....',
+    '...tsosossto....',
+    '...ttssssstto...',
+    '...ottsssto.....',
+    '..otttttttto....',
+    '..ottttttttto.y.',
+    '..otsttttstto.o.',
+    '..otsTTTTstto.o.',
+    '..ottttttttto.o.',
+    '..oTTTTTTTTTo.o.',
+    '..oTTTTTTTTTo.o.',
+  ];
+  // 脚の4コマ（列のずれだけで歩かせる）
+  const legs = [
+    ['....op..po.....', '...opp..ppo.....', '...op....po.....', '..okk....kko....', '..ooo....ooo....'],
+    ['.....oppo......', '.....oppo.......', '.....oppo.......', '.....okko.......', '.....oooo.......'],
+    ['....op..po.....', '....pp..ppo.....', '...op....po.....', '..okk....kko....', '..ooo....ooo....'],
+    ['.....oppo......', '.....oppo.......', '.....okpo.......', '.....okko.......', '.....oooo.......'],
+  ];
+  const robeLegs = [
+    ['..oTTTTTTTTTo.o.', '..oTTTTTTTTTo.o.', '...oTTTTTTTo..o.', '...okko.okko....', '...ooo...ooo....'],
+    ['..oTTTTTTTTTo.o.', '..oTTTTTTTTTo.o.', '...oTTTTTTTo..o.', '....okk.kko.....', '....ooo.ooo.....'],
+    ['..oTTTTTTTTTo.o.', '..oTTTTTTTTTo.o.', '...oTTTTTTTo..o.', '...okko.okko....', '...ooo...ooo....'],
+    ['..oTTTTTTTTTo.o.', '..oTTTTTTTTTo.o.', '...oTTTTTTTo..o.', '....okkokko.....', '....ooooooo.....'],
+  ];
+  const slashArm = [ // 攻撃のコマ：腕を前に出して剣を振る
+    '.....oooo.......',
+    '....ohhhho......',
+    '...ohhhhhho.....',
+    '...ohssssho.....',
+    '...osososso.....',
+    '...ossssso......',
+    '....ossso.......',
+    '...occwwccoooo..',
+    '..occcwwcccssog.',
+    '..ocscwwccooo.gg',
+    '..ocsCbbCco....g',
+    '..ooocccccoo....',
+    '....occccco.....',
+    '....oCcccCo.....',
+  ];
+  const slimeRows = [
+    '.....oooooo.....',
+    '...ooLLLGGGoo...',
+    '..oLLwLGGGGGGo..',
+    '.oLLwGGGGGGGGGo.',
+    '.oLGGoGGGGoGGGo.',
+    'oGGGGoGGGGoGGGGo',
+    'oGGGGGGGGGGGGGGo',
+    'oGGGGGGGGGGGGGGo',
+    '.ooooooooooooooo',
+  ];
+  const rects = (rows, px) => rows.map((row, y) => [...row].map((ch, x) => ch === '.' ? '' : `<rect x="${x * px}" y="${y * px}" width="${px}" height="${px}" fill="${PAL[ch]}"/>`).join('')).join('');
+  const frames = (top, legSet, px, cls) => `<g class="pix ${cls}">${legSet.map((l, i) => `<g class="f f${i + 1}${i === 0 ? ' on' : ''}">${rects([...top, ...l], px)}</g>`).join('')}</g>`;
+  const px = 5;
+  const ground = `<rect x="0" y="420" width="390" height="50" fill="#B9C48E"/><rect x="0" y="420" width="390" height="5" fill="#8EA36A"/>
+    <g class="scroll">${[0, 1].map(k => `<g transform="translate(${k * 390} 0)"><rect x="30" y="340" width="10" height="80" fill="#6A4430"/><rect x="10" y="300" width="50" height="50" fill="#5B8A4E"/><rect x="20" y="290" width="30" height="10" fill="#6FA35A"/>
+      <rect x="300" y="360" width="10" height="60" fill="#6A4430"/><rect x="284" y="326" width="42" height="40" fill="#5B8A4E"/><rect x="210" y="404" width="20" height="16" fill="#8EA36A"/></g>`).join('')}</g>
+    <g class="scroll-slow">${[0, 1].map(k => `<path transform="translate(${k * 390} 0)" d="M0 300 L60 260 L120 290 L190 240 L260 280 L330 250 L390 300 L390 330 L0 330Z" fill="#8DB3A6" opacity=".6"/>`).join('')}</g>`;
+  const home = document.getElementById('B-home');
+  home.innerHTML = `<div class="sky"></div>
+    <svg class="stage pix" viewBox="0 0 390 470" style="top:0;height:470px">${ground}
+      <g transform="translate(130 325)">${frames(mageTop, robeLegs, px, 'walking')}</g>
+      <g transform="translate(205 325)">${frames(heroTop, legs, px, 'walking')}</g>
+    </svg>
+    <div class="ui head"><div class="date">10月6日（月）　旅の43日目</div><div class="steps">7,200<small>歩</small></div><div class="sub">きょう歩いた分　森まで あと800歩</div></div>
+    <div class="ui panel"><h3>連続の記録</h3><div class="gems">${days.map((d, i) => `<span><i class="${i === 2 ? 'rescued' : ''}"></i>${d}</span>`).join('')}</div>
+      <div class="tally">12日つづけて（うち救済1日）。木曜は広告で戻した日</div></div>
+    <div class="btn">出発する</div>`;
+  const battle = document.getElementById('B-battle');
+  battle.innerHTML = `<div class="sky" style="height:520px"></div>
+    <svg class="stage pix" viewBox="0 0 390 520" style="top:0;height:520px">
+      <rect x="0" y="450" width="390" height="70" fill="#B9C48E"/><rect x="0" y="450" width="390" height="5" fill="#8EA36A"/>
+      <g transform="translate(245 405)"><g class="foe">${rects(slimeRows, 6)}</g></g>
+      <g transform="translate(70 380)">${frames(mageTop, robeLegs.slice(0, 1), px, '')}</g>
+      <g class="pixmove" transform-origin="0 0"><g transform="translate(140 380)"><g class="pix atk"><g class="f1">${rects([...heroTop, ...legs[0]], px)}</g><g class="f2" style="opacity:0">${rects([...slashArm, ...legs[2]], px)}</g></g></g></g>
+      ${battleFx(292, 452, '#F2EAD3', '#2B2A26', '#F2EAD3', '#F0C060').replace(/font-weight="900"/g, 'font-family="DotGothic16"')}
+    </svg>
+    <div class="ui head"><div class="date">迷いの森の入口</div><div class="sub" style="margin-top:6px">森のスライム</div></div>
+    <div class="hpbar" style="top:118px;border:2px solid #2B2A26;border-radius:0"><i style="background:#C8643B"></i></div>
+    <div class="log" style="font-family:DotGothic16">ハルトの斬りつけ。スライムに 48。<br>リラの水の術。スライムに 31。</div>
+    <div class="auto">戦闘は自動で進む</div><div class="skip">結果まで飛ばす</div>`;
+})();
+</script>
+</body>
+</html>
