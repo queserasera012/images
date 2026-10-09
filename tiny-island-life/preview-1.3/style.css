@@ -694,7 +694,14 @@ h3 .dot { width: 14px; height: 14px; }
   font-weight: 700;
 }
 .ad-btn .icon, .card-act .icon { flex: none; }
-.game-bait { height: 40px; margin-top: 8px; display: flex; justify-content: center; }
+.game-bait { min-height: 40px; margin-top: 8px; display: flex; flex-direction: column; align-items: center; }
+/* 広告なしでおまけ（1.3）：広告のボタンの下に 小さく。おすすめに見えないよう 文字だけ */
+.noads-link, .restore-link { display: block; margin: -4px auto 8px; padding: 6px 10px; border: 0; background: none; color: var(--muted); font-size: 12px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.game-bait .noads-link { margin: 4px auto 0; }
+.store-foot { margin-top: 14px; text-align: center; }
+.noads-what { margin: 14px 0 6px; padding-left: 1.2em; font-size: 14px; line-height: 1.7; text-align: left; }
+.noads-what li { margin: 2px 0; }
+.noads-mock { margin: -4px 0 10px; color: var(--muted); font-size: 12px; }
 .bait-btn {
   height: 36px;
   padding: 0 14px;

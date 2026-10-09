@@ -22,6 +22,13 @@ function write(v) {
 }
 
 export const owns = (id) => id === 'house:default' || read().owned.includes(id);
+// 買ったことを覚える（ストアで買えた・復元できたとき）
+export function grant(id) {
+  const v = read();
+  if (v.owned.includes(id)) return;
+  v.owned.push(id);
+  write(v);
+}
 export const chosenHouseSkin = () => read().houseSkin || 'default';
 export function chooseHouseSkin(id) {
   const v = read();

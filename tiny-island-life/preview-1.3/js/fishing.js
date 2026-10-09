@@ -5,7 +5,8 @@
 // どの魚が釣れるか・コインは sim.js（landFish）が決める。ここは判定と絵だけ。
 
 import { landFish, fishingLeft, addBait, adsLeft, dayNow, backAt } from './sim.js';
-import { showRewardedAd, adsOn, adBusy, AD_FAILED } from './ads.js';
+import { showRewardedAd, adsOn, adBusy, AD_FAILED, noAds } from './ads.js';
+import { noAdsLink, openNoAdsSheet } from './store.js';
 
 export const RING = { r: 30, half: 7, perfect: 3 }; // 輪の真ん中の半径・幅の半分・ぴったりの幅
 export const START_R = 120;
@@ -64,7 +65,15 @@ export function openFishing({ getState, onChange, close: onClose }) {
     root.querySelector('.game-bait').hidden = !adsOn(); // アプリで広告を切っているあいだは出さない（D343）
     const baitLeft = adsLeft(state, 'bait');
     btn.disabled = state.bait > 0 || baitLeft <= 0;
-    btn.textContent = state.bait > 0 ? '特別なエサをつけています（次は大物）' : baitLeft > 0 ? `▶ 広告を見て、特別なエサをつける（${dayNow(state)} あと ${baitLeft}回）` : `特別なエサは ${backAt(state)}`;
+    btn.textContent = state.bait > 0 ? '特別なエサをつけています（次は大物）' : baitLeft > 0 ? `${noAds() ? '' : '▶ 広告を見て、'}特別なエサをつける（${dayNow(state)} あと ${baitLeft}回）` : `特別なエサは ${backAt(state)}`;
+    // 広告なしでおまけ（1.3）の入口。まだ買っていなくて、エサを つけられるときだけ
+    const link = baitLeft > 0 && !(state.bait > 0) ? noAdsLink() : '';
+    const box = root.querySelector('.game-bait');
+    const old = box.querySelector('[data-noads]');
+    if (!!old !== !!link) {
+      old?.remove();
+      if (link) box.insertAdjacentHTML('beforeend', link);
+    }
   };
 
   function cast() {
@@ -119,6 +128,7 @@ export function openFishing({ getState, onChange, close: onClose }) {
 
   root.addEventListener('pointerdown', (ev) => {
     if (ev.target.closest('.game-x')) return close();
+    if (ev.target.closest('[data-noads]')) return openNoAdsSheet({ onDone: showLeft, toast: msg });
     const baitBtn = ev.target.closest('.bait-btn');
     if (baitBtn) {
       if (baitBtn.disabled || adBusy()) return;

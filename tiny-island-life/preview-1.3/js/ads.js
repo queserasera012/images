@@ -3,6 +3,8 @@
 // ウェブ版は本物の広告を出せないので、「ここに広告が流れます」という仮の画面を3秒出す（置き場所と量を試すため）。
 // アプリにするときは、この showRewardedAd の中身だけを AdMob に置き換える（呼ぶ側は変えない）。
 
+import { owns } from './purchases.js';
+
 const WAIT_SEC = 3;
 
 // アプリの中（WebView）で動いているとき：アプリ側に広告を頼み、答えを待つ（D317）
@@ -11,7 +13,10 @@ export const inApp = () => typeof window !== 'undefined' && !!window.__TIL_NATIV
 // アプリで広告のボタンを出すか（D343）。AdMob の審査が通るまでは false で出す → 通ったら true にして EAS Update で届ける
 // ウェブ版（next/）はいつも出す（仮の広告画面）
 export const APP_ADS = false;
-export const adsOn = () => !inApp() || APP_ADS;
+// 広告なしでおまけ（買い切り・1.3）を買った人：広告を見ずに おまけを受け取る。広告を出さないので ATT も聞かない
+export const NO_ADS = 'no_ads_bonus';
+export const noAds = () => owns(NO_ADS);
+export const adsOn = () => !inApp() || APP_ADS || noAds();
 let nextId = 1;
 const waiting = new Map();
 if (typeof window !== 'undefined') {
@@ -40,6 +45,11 @@ export const AD_FAILED = 'いまは広告を出せません';
 // placement：置き場所（diary・boat・bait）。アプリが 置き場所ごとの広告ユニットを選ぶ（A3）
 export function showRewardedAd({ onReward, onCancel, onFail, button, placement = 'diary' }) {
   if (busy) return false;
+  if (noAds()) {
+    // 買った人は 広告なしで そのまま受け取る（1日の回数は 呼ぶ側の sim.js が数える）
+    onReward?.();
+    return true;
+  }
   busy = true;
   const label = button?.innerHTML;
   if (button) {

@@ -21,7 +21,8 @@ import { openArcade, arcadeNow } from './arcade.js';
 import { openSport, sportNow } from './sports.js';
 import { wishOf, wishList, wishPlace } from './wishes.js';
 import { diaryView, morningTitle, tomorrowPlan, diaryGroups } from './diary.js';
-import { showRewardedAd, adsOn, adBusy, AD_LOADING, AD_FAILED, askReviewOnce, nativeFeel, backupSave } from './ads.js';
+import { showRewardedAd, adsOn, adBusy, AD_LOADING, AD_FAILED, askReviewOnce, nativeFeel, backupSave, noAds } from './ads.js';
+import { initStore, noAdsLink, restoreLink, openNoAdsSheet, restoreNoAds } from './store.js';
 
 // 🚨 ほかの版（3日テスト中・ストア版 1.0）と同じサイトに置くので、保存の名前を分ける（D289・D361）
 // シェルの島の版は til.shell.*。はじめの1回だけ 1.0 のセーブ（til.grid.save.v1）を読んで写す。1.0 のほうには書き込まない
@@ -383,7 +384,7 @@ function boatAdRow(id) {
   const left = adsLeft(state, 'boat');
   if (adBusy()) return `<button class="card-act go" type="button" disabled>${AD_LOADING}</button>`; // カードを描き直しても 押せるように戻さない
   if (canCallBoat(state, id)) {
-    return `<button id="btn-adboat" data-port="${id}" class="card-act go" type="button">${ICONS.ad}広告を見て、臨時の船を呼ぶ<span class="cost">${dayNow(state)} あと ${left}回</span></button>`;
+    return `<button id="btn-adboat" data-port="${id}" class="card-act go" type="button">${noAds() ? '' : ICONS.ad}${noAds() ? '臨時の船を呼ぶ' : '広告を見て、臨時の船を呼ぶ'}<span class="cost">${dayNow(state)} あと ${left}回</span></button>${noAdsLink()}`;
   }
   const A = CONFIG.ads.boat;
   const port = portById(state, id);
@@ -398,8 +399,18 @@ function boatAdRow(id) {
 function bonusRow() {
   if (!adsOn()) return '';
   const coin = dailyBonus(state);
-  return coin > 0 ? `<button class="ad-btn" type="button" data-ad="bonus">${ICONS.ad}広告を見て、昨日の売上に +${coin} ${MONEY_NAME[state.isle || 'main']}</button>` : '';
+  if (coin <= 0) return '';
+  // 広告なしでおまけ（1.3）を買った人は「受け取る」だけ
+  const label = noAds() ? `昨日の売上に +${coin} ${MONEY_NAME[state.isle || 'main']} を受け取る` : `${ICONS.ad}広告を見て、昨日の売上に +${coin} ${MONEY_NAME[state.isle || 'main']}`;
+  return `<div class="ad-row"><button class="ad-btn" type="button" data-ad="bonus">${label}</button>${noAdsLink()}</div>`;
 }
+// 広告なしでおまけを買えた・復元できたとき：開いている日記とカードのボタンを書き直す
+function refreshAdRows() {
+  const row = document.querySelector('.ad-row');
+  if (row) row.outerHTML = bonusRow();
+  if (selected) renderCard();
+}
+
 function renderCard() {
   const card = $('card');
   let html = '';
@@ -709,6 +720,7 @@ $('card').addEventListener('click', (ev) => {
     }
     return;
   }
+  if (ev.target.closest('[data-noads]')) return openNoAdsSheet({ onDone: refreshAdRows, toast });
   const adBoat = ev.target.closest('#btn-adboat');
   if (adBoat) {
     const id = adBoat.dataset.port;
@@ -889,6 +901,15 @@ $('sheet').addEventListener('click', (ev) => {
     }
     return;
   }
+  if (ev.target.closest('[data-noads]')) return openNoAdsSheet({ onDone: refreshAdRows, toast });
+  const rs = ev.target.closest('[data-restore]');
+  if (rs) {
+    restoreNoAds().then((res) => {
+      toast(res.message);
+      if (res.ok) refreshAdRows();
+    });
+    return;
+  }
   const adBonus = ev.target.closest('[data-ad="bonus"]');
   if (adBonus) {
     showRewardedAd({
@@ -898,7 +919,7 @@ $('sheet').addEventListener('click', (ev) => {
         const res = claimDailyBonus(state);
         toast(res.message);
         if (res.ok) nativeFeel('coin');
-        adBonus.remove();
+        (adBonus.closest('.ad-row') || adBonus).remove();
         save();
       },
       onFail: () => toast(AD_FAILED),
@@ -1172,7 +1193,7 @@ $('btn-diary').addEventListener('click', () => {
   for (const e of state.diary) e.read = true;
   const entries = [...state.diary].reverse().map(entryHtml).join('');
   if (state.diary.length) tutorial('read_diary');
-  openSheet(`<h2>島の日記</h2>${bonusRow()}${entries ? `<div class="notebook">${entries}</div>` : '<p class="lead">まだ日記はありません。1日が終わると、ここに届きます。</p>'}`);
+  openSheet(`<h2>島の日記</h2>${bonusRow()}${entries ? `<div class="notebook">${entries}</div>` : '<p class="lead">まだ日記はありません。1日が終わると、ここに届きます。</p>'}${restoreLink()}`);
 });
 
 function showMorning(entries, awaySeconds = 0) {
@@ -1741,6 +1762,7 @@ document.querySelector('#btn-diary .i').innerHTML = ICONS.diary;
 document.querySelector('#btn-boat .i').innerHTML = ICONS.boat;
 syncBoat();
 setupKeepAwake();
+initStore().catch(() => {}); // 広告なしでおまけ（1.3）：値段と、買ってあるか
 renderer.resize();
 {
   // 最初はカフェのあたりを見せる
