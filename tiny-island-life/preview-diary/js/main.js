@@ -1,0 +1,1721 @@
+// 画面の組み立て：時間を流す・保存する・タップと指の操作を受ける。ゲームのルールは sim.js にしか書かない。
+
+import { CONFIG } from './config.js';
+import { T, SIZES, PIER, PIERS, OX, OY, AREAS, MAIN, areaById, center, placements, footprint, canPlace, landBounds, DECO, isRoad, COLS } from './grid.js';
+import {
+  step, isNight, dayOf, formatClock, actionsFor, applyAction,
+  describeResident, favoriteText, seatCount, WEATHER_LABEL, buildingById, cafeLabel, nearestCafeSteps, cafes,
+  migrateWorld, createWorld, islandNow, createIsland, visitIsland, stepWorld, catchUpWorld, isAbroad, openRoute, clearPlot, moverReport, dayNow, backAt, setMarcheOrder, marcheCap, marcheGoods, FESTS, isFestDay, isOn, nextFestDay, canFestBoat, sendFestBoat, openAbroadPort, sportLeft, SPORTS, ABROAD_VENUES, MONEY_NAME, ISLE_NAMES, exchange, exchangeLeft,
+  everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
+  labelOf, nextGoal, unlockNow, nameBaby, namePet, parentsOf, portsOf, portById, closeOf, fastForwardNow, festNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft, decoType, isChild,
+  capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
+  dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft, nameResident, placeLabel, seasonOf,
+} from './sim.js';
+import { createRenderer, lookOf, setTheme, setHouseSkin, HOUSE_SKINS } from './render.js';
+import { owns, buy, chosenHouseSkin, chooseHouseSkin, canBuy } from './purchases.js';
+import { ICONS } from './icons.js';
+import { currentStep, report, skipTutorial, busyCafeNow, placeTip } from './tutorial.js';
+import { setupKeepAwake, awakeStatus } from './awake.js';
+import { openFishing, fishingNow } from './fishing.js';
+import { openArcade, arcadeNow } from './arcade.js';
+import { openSport, sportNow } from './sports.js';
+import { wishOf, wishList, wishPlace } from './wishes.js';
+import { diaryView, tomorrowPlan, morningTitle, diaryGroups, diaryHeadline } from './diary.js';
+import { showRewardedAd, adsOn, adBusy, AD_LOADING, AD_FAILED } from './ads.js';
+
+// 🚨 ほかの版（3日テスト中・ストア版 1.0）と同じサイトに置くので、保存の名前を分ける（D289・D361）
+// シェルの島の版は til.shell.*。はじめの1回だけ 1.0 のセーブ（til.grid.save.v1）を読んで写す。1.0 のほうには書き込まない
+// ⚠️ この枝（preview/diary）だけ：images の preview-diary/ に置くので til.pdiary.*。ほかの版のセーブは 読みも書きもしない
+const SAVE_KEY = 'til.pdiary.save.v1';
+// 島ごとの お金の絵（本島コイン・シェルの島 Shell・オーロラの島 オーロラ。D354・D366）
+const MONEY_ICON = { main: 'coin', shell: 'shell', aurora: 'aurora' };
+const moneyIcon = (isle) => ICONS[MONEY_ICON[isle || 'main']];
+const OLD_SAVE_KEY = 'til.grid.save.v1';
+const OPENS_KEY = 'til.pdiary.opens.v1';
+const DEBUG = new URLSearchParams(location.search).has('debug');
+const DAY_RATE = (16 * 60) / CONFIG.daySecondsReal; // 昼のあいだ、現実1秒あたり何分 進むか
+
+const $ = (id) => document.getElementById(id);
+const canvas = $('island');
+const renderer = createRenderer(canvas);
+
+// world：島を並べたもの（本島・シェルの島）。state：いま見ている島
+let world = load() || createWorld();
+let state = islandNow(world);
+let firstRun = !world.savedAt;
+let selected = null; // { kind: 'resident'|'building', id }
+let placing = null; // { action, type, cells, ghost }
+let speed = 1;
+let lastFrame = performance.now();
+let hiddenAt = null;
+const pokes = new Map(); // タップした住民 → 時刻（跳ねる演出だけ。ルールには関係ない）
+let busyStage = null; // 「カフェが混んでいます」の段階：null → 'watch' → 'ask'
+let busyAt = 0;
+
+// ---------------------------------------------------------------- 保存
+
+function load() {
+  try {
+    let raw = localStorage.getItem(SAVE_KEY);
+    // プレビュー：?demo（または ?debug）で はじめて開くと Day 10 の島から（日記の2案を見比べるため）
+    if (!raw && (DEBUG || new URLSearchParams(location.search).has('demo'))) {
+      const x = new XMLHttpRequest();
+      x.open('GET', 'demo-day10.json', false);
+      x.send();
+      if (x.status === 200) raw = x.responseText;
+    }
+    return raw ? migrateWorld(JSON.parse(raw)) : null;
+  } catch {
+    return null;
+  }
+}
+
+function save() {
+  world.savedAt = Date.now();
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(world));
+  } catch {
+    // 保存できない環境（プライベートブラウズ等）でも遊べるようにする
+  }
+}
+
+function recordOpen() {
+  try {
+    const opens = JSON.parse(localStorage.getItem(OPENS_KEY) || '[]');
+    opens.push(new Date().toISOString());
+    localStorage.setItem(OPENS_KEY, JSON.stringify(opens.slice(-200)));
+  } catch {
+    // 記録できなくても遊べる
+  }
+}
+
+// ---------------------------------------------------------------- 留守のあいだ
+
+function returnAfter(seconds) {
+  if (seconds < 3) return;
+  const events = catchUpWorld(world, seconds * DAY_RATE);
+  const days = events.filter((e) => e.type === 'newday');
+  if (days.length > 0) showMorning(days.map((e) => e.entry), seconds);
+  save();
+}
+
+// ---------------------------------------------------------------- ループ
+
+function frame(now) {
+  const realDt = Math.min(0.25, (now - lastFrame) / 1000);
+  lastFrame = now;
+  // 夜の早送りは、島のお店が全部 閉まってから（D299）
+  // フェスのあいだは ゆっくり流す（見ている島だけ・D407）。ルールは変わらない（進む分が減るだけ）
+  const rate = (DAY_RATE * (fastForwardNow(state) ? CONFIG.nightSpeed : 1) * speed) / (festNow(state) ? CONFIG.festSlow : 1);
+  const events = stepWorld(world, realDt * rate);
+  for (const e of events) {
+    if (e.type === 'newday') {
+      toast(`Day ${e.entry.day} の日記が届きました`);
+      $('diary-dot').hidden = false;
+    } else if (e.type === 'raceStart') {
+      toast('ドッグレースが始まりました');
+    } else if (e.type === 'raceEnd') {
+      const mine = e.placed.map((x) => `${x.name}が${x.rank}着`).join('・');
+      toast(`ドッグレース：1着は${e.winner}${mine && !e.winnerOwn ? `。${mine}` : ''}${e.prize ? `（+${e.prize} コイン）` : ''}`);
+    } else if (e.type === 'arrived') {
+      toast(`${e.name}が島に引っ越してきました`);
+      renderQuest();
+    } else if (e.type === 'stray') {
+      toast(`${e.near}のあたりに、${e.label}が迷い込んできたようです`);
+    } else if (e.type === 'boat') {
+      const where = e.port && e.port !== 'main' ? `${areaById(e.port).name}の港に` : '';
+      toast(`${where}船が着きました。観光客が ${e.n}人 降りてきました`);
+    } else if (e.type === 'portOpen') {
+      setTimeout(() => toast('港がひらきました。船が来るようになります'), 3000);
+      renderQuest();
+    } else if (e.type === 'wish') {
+      // お願いをかなえた（D335）
+      toast(`${e.name}「ありがとう！」　+${e.coin} ${MONEY_NAME[state.isle || 'main']}`);
+      renderQuest();
+    } else if (e.type === 'petBought') {
+      toast(`${e.owner}の家に ${e.baby}が 来ました`);
+    } else if (e.type === 'married') {
+      toast(`${e.a}と${e.b}が結婚しました`);
+    } else if (e.type === 'unlock' && e.id !== 'port') {
+      setTimeout(() => toast(e.done), 3000);
+      renderQuest();
+    }
+  }
+  // 赤ちゃんが生まれていたら、名前をつけるカードを出す
+  if (state.naming?.length && !selected && !placing && $('sheet').hidden) select({ kind: 'baby', id: state.naming[0] });
+  // 買われたペットに名前をつける（D355）
+  else if (state.petNaming?.length && !selected && !placing && $('sheet').hidden) select({ kind: 'petname', id: state.petNaming[0] });
+  const quest = currentStep(state);
+  if (quest?.id === 'busy_cafe') {
+    if (busyStage === null && busyCafeNow(state)) {
+      busyStage = 'watch';
+      busyAt = now;
+      renderQuest();
+    } else if (busyStage === 'watch' && now - busyAt > 12000) {
+      busyStage = 'ask';
+      renderQuest();
+    }
+  }
+  renderer.draw(state, now / 1000, {
+    selectedId: selected?.kind === 'resident' ? selected.id : null,
+    selectedBuildingId: selected?.kind === 'building' ? selected.id : null,
+    wishPlaces: wishPlacesNow(),
+    pokes,
+    placing,
+    cafeLabel: (b) => cafeLabel(state, b),
+  });
+  updateHud();
+  if (selected) renderCard();
+  requestAnimationFrame(frame);
+}
+
+// 光らせる お願いの建物（D360）：住民のカードを開いているとき、その人のお願い。
+// 飾りを置く場所を選んでいるときは、その飾りを待っている家ぜんぶ（カードは閉じているので）
+function wishPlacesNow() {
+  if (placing && !placing.move && !placing.pick) {
+    return (state.wishes || []).filter((w) => w.kind === 'deco' && w.type === placing.type).map((w) => wishPlace(state, w)).filter(Boolean);
+  }
+  const p = selected?.kind === 'resident' ? wishPlace(state, wishOf(state, selected.id)) : null;
+  return p ? [p] : [];
+}
+
+let shownWeather = null;
+let shownIsle = null;
+function updateHud() {
+  if (shownWeather !== state.weather) {
+    $('weather').innerHTML = ICONS[state.weather];
+    shownWeather = state.weather;
+  }
+  $('day').textContent = `Day ${dayOf(state.t)}・${seasonOf(state).name}`;
+  syncTheme();
+// 家の色（D314）。?house= があれば見本として使う
+setHouseSkin(new URLSearchParams(location.search).get('house') || chosenHouseSkin());
+  $('clock').textContent = formatClock(state.t);
+  $('coin').textContent = state.coin.toLocaleString();
+  $('coin').classList.toggle('debt', state.coin < 0); // マイナス（朝の維持費で 足りなかった）は 赤で（D406：見せ方だけ。説明の文は足さない）
+  if (shownIsle !== world.current) {
+    // シェルの島では お金が Shell（D354）、オーロラの島では オーロラ（D366）
+    $('coin-icon').innerHTML = moneyIcon(state.isle);
+    $('hud-coin').setAttribute('aria-label', MONEY_NAME[state.isle || 'main']);
+    shownIsle = world.current;
+  }
+  // いま住んでいる人の数（D310）。引っ越してくる途中の人は数えない
+  $('pop').textContent = `${state.residents.filter((r) => r.state !== 'PENDING').length}人`;
+}
+
+// ---------------------------------------------------------------- 指の操作（ドラッグで動かす・2本指で拡大縮小・タップ）
+
+const pointers = new Map();
+let dragMoved = 0;
+let pinchDist = 0;
+
+canvas.addEventListener('pointerdown', (ev) => {
+  canvas.setPointerCapture(ev.pointerId);
+  pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (pointers.size === 1) dragMoved = 0;
+  if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+  }
+});
+
+canvas.addEventListener('pointermove', (ev) => {
+  const prev = pointers.get(ev.pointerId);
+  if (!prev) return;
+  const cur = { x: ev.clientX, y: ev.clientY };
+  pointers.set(ev.pointerId, cur);
+  if (pointers.size === 1) {
+    dragMoved += Math.hypot(cur.x - prev.x, cur.y - prev.y);
+    renderer.panBy(cur.x - prev.x, cur.y - prev.y);
+  } else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (pinchDist > 0) renderer.zoomAt(d / pinchDist, (a.x + b.x) / 2, (a.y + b.y) / 2);
+    pinchDist = d;
+    dragMoved = 999; // 2本指の操作はタップにしない
+  }
+});
+
+function endPointer(ev) {
+  if (!pointers.has(ev.pointerId)) return;
+  pointers.delete(ev.pointerId);
+  if (pointers.size === 0 && dragMoved < 12 && ev.type === 'pointerup') tap(ev.clientX, ev.clientY);
+  if (pointers.size < 2) pinchDist = 0;
+}
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+canvas.addEventListener(
+  'wheel',
+  (ev) => {
+    ev.preventDefault();
+    renderer.zoomAt(ev.deltaY < 0 ? 1.1 : 1 / 1.1, ev.clientX, ev.clientY);
+  },
+  { passive: false },
+);
+
+function tap(clientX, clientY) {
+  if (placing) return tapWhilePlacing(clientX, clientY);
+  const p = renderer.toWorld(clientX, clientY);
+  const pet = (state.pets || [])
+    .map((x) => ({ x, d: Math.hypot(x.x - p.x, x.y - 8 - p.y) }))
+    .filter((o) => o.d < 18)
+    .sort((a, b) => a.d - b.d)[0];
+  if (pet) {
+    pokes.set(pet.x.id, performance.now() / 1000);
+    return select({ kind: 'pet', id: pet.x.id });
+  }
+  const hit = everyone(state)
+    .filter((r) => r.visible)
+    .map((r) => ({ r, d: Math.hypot(r.x - p.x, r.y - 12 - p.y) }))
+    .filter((x) => x.d < 18)
+    .sort((a, b) => a.d - b.d)[0];
+  if (hit) {
+    pokes.set(hit.r.id, performance.now() / 1000);
+    tutorial('tap_resident');
+    return select({ kind: 'resident', id: hit.r.id });
+  }
+  // 港（桟橋と、その先に着く船のあたり）
+  for (const port of portsOf(state)) {
+    const pier = center(PIERS[port.id]);
+    const [dx, dy] = areaById(port.id).pier.dir;
+    const along = (p.x - pier.x) * dx + (p.y - pier.y) * dy;
+    const side = dx ? p.y - pier.y - 16 : p.x - pier.x - 16;
+    if (along > -14 && along < 80 && Math.abs(side) < 40) return select({ kind: 'port', id: port.id });
+  }
+  const b = buildingAt(p);
+  if (b) {
+    if (b.type === 'cafe') tutorial('tap_cafe');
+    return select({ kind: 'building', id: b.id });
+  }
+  select(null);
+}
+
+// 建物のタップ判定。マスより少し広く取る（指は30pxのマスには小さすぎる・屋根はマスの上にはみ出している）
+const HIT_PAD = 10;
+const ROOF_PAD = 16;
+// 家の絵の屋根のてっぺんが、マスの上の端から何 px 上か（render.js の house() と同じ形）
+// 1階建て・2階建ては とんがり屋根（壁の上 12px）、アパートは平らな屋根（壁の上 5px）。壁の上は マスの上から 9px 下
+const houseRoofTop = (b) => houseLift(b) + ((b.level || 1) >= 3 ? 5 : 12) - 9;
+
+function buildingAt(p) {
+  // まず、指の下に「描かれている」建物（屋根・看板の はみ出しを含む）。重なったら手前（下）に描かれた方
+  // D310：前は余白込みの範囲で「真ん中が近い方」を選んでいて、釣り堀のふちを押すと隣の家が選ばれた
+  // D328：家の上の端は、絵の屋根のてっぺん（前は 14px 上まで取っていて、縦に並んだ上の家の壁の下を 下の家が取っていた）
+  let hit = null;
+  for (const b of state.buildings) {
+    const s = SIZES[b.type];
+    const top = b.type === 'house' ? houseRoofTop(b) : 8;
+    if (p.x < b.c * T || p.x > (b.c + s.w) * T || p.y < b.r * T - top || p.y > (b.r + s.h) * T) continue;
+    if (!hit || b.r + s.h > hit.r + SIZES[hit.type].h) hit = b;
+  }
+  if (hit) return hit;
+  // 何も描かれていないところは、少し広めに拾う（指は30pxのマスには小さすぎる）
+  let best = null;
+  for (const b of state.buildings) {
+    const s = SIZES[b.type];
+    const x0 = b.c * T - HIT_PAD;
+    const x1 = (b.c + s.w) * T + HIT_PAD;
+    const y0 = b.r * T - HIT_PAD - ROOF_PAD - (b.type === 'house' ? houseLift(b) : 0);
+    const y1 = (b.r + s.h) * T + HIT_PAD;
+    if (p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1) continue;
+    // 重なったら、真ん中がいちばん近い建物
+    const d = Math.hypot(p.x - (b.c + s.w / 2) * T, p.y - (b.r + s.h / 2) * T);
+    if (!best || d < best.d) best = { b, d };
+  }
+  return best?.b || null;
+}
+
+function select(s) {
+  // 名前をつけずに閉じたら、最初の名前のままにする
+  if (selected?.kind === 'baby' && s?.id !== selected.id) {
+    nameBaby(state, selected.id, '');
+    save();
+  }
+  selected = s;
+  delete $('card').dataset.stray;
+  $('card').hidden = !s;
+  document.body.classList.toggle('card-open', !!s);
+  if (s) renderCard();
+}
+
+// ---------------------------------------------------------------- カード（起きていることだけ。解決策は書かない）
+
+function dot(r) {
+  return `<i class="dot" style="background:${lookOf(r).shirt}"></i>`;
+}
+
+function who(ids) {
+  const list = ids.map((id) => personById(state, id)).filter(Boolean);
+  if (list.length === 0) return 'だれもいない';
+  return `<span class="who">${list.map((r) => `<span>${dot(r)}${r.name}</span>`).join('')}</span>`;
+}
+
+function fmt(clock) {
+  return `${Math.floor(clock / 60)}:${String(clock % 60).padStart(2, '0')}`;
+}
+
+let lastCardHtml = '';
+
+// リワード広告（D309）：臨時の観光船。呼べないときは理由を短く
+function boatAdRow(id) {
+  if (!adsOn()) return '';
+  const left = adsLeft(state, 'boat');
+  if (adBusy()) return `<button class="card-act go" type="button" disabled>${AD_LOADING}</button>`; // カードを描き直しても 押せるように戻さない
+  if (canCallBoat(state, id)) {
+    return `<button id="btn-adboat" data-port="${id}" class="card-act go" type="button">${ICONS.ad}広告を見て、臨時の船を呼ぶ<span class="cost">${dayNow(state)} あと ${left}回</span></button>`;
+  }
+  const A = CONFIG.ads.boat;
+  const port = portById(state, id);
+  const coming = port?.today.some((b) => b.extra && state.t < b.depart);
+  const text = coming
+    ? `臨時の船が来ています（${dayNow(state)} あと ${left}回 呼べる）`
+    : `臨時の船：${left ? `${fmt(A.from)}〜${fmt(A.until)}に呼べる` : backAt(state)}`;
+  return `<div class="card-note">${text}</div>`;
+}
+
+// リワード広告（D309）：朝の日記の上乗せ
+function bonusRow() {
+  if (!adsOn()) return '';
+  const coin = dailyBonus(state);
+  return coin > 0 ? `<button class="ad-btn" type="button" data-ad="bonus">${ICONS.ad}広告を見て、昨日の売上に +${coin} ${MONEY_NAME[state.isle || 'main']}</button>` : '';
+}
+function renderCard() {
+  const card = $('card');
+  let html = '';
+  const at = (t) => fmt(Math.floor(clockOf(t)));
+  if (selected.kind === 'baby') {
+    const baby = state.residents.find((x) => x.id === selected.id);
+    if (!baby) return select(null);
+    if (card.dataset.stray === baby.id) return; // 名前を入力中は描き直さない
+    card.dataset.stray = baby.id;
+    const [p1, p2] = parentsOf(state, baby);
+    lastCardHtml = '';
+    card.innerHTML = `<h3>赤ちゃんが生まれました</h3><div class="sub">${p1 && p2 ? `${p1.name}と${p2.name}の子ども` : '島の子ども'}</div>
+      <div class="adopt"><input id="baby-name" type="text" maxlength="8" value="${baby.name}" aria-label="名前" />
+      <button id="btn-baby" type="button" data-baby="${baby.id}">この名前にする</button></div>`;
+    return;
+  }
+  if (selected.kind === 'petname') {
+    // ペットショップ&ブリーダーで買われた子（D355）
+    const pet = state.pets.find((x) => x.id === selected.id);
+    if (!pet) return select(null);
+    if (card.dataset.stray === `pn:${pet.id}`) return; // 名前を入力中は描き直さない
+    card.dataset.stray = `pn:${pet.id}`;
+    const owner = state.residents.find((r) => r.id === pet.ownerId);
+    lastCardHtml = '';
+    card.innerHTML = `<h3>${owner ? `${owner.name}の家に` : ''} ${CONFIG.petshop.breeder.baby[pet.kind]}が来ました</h3><div class="sub">ペットショップ&ブリーダーから。名前をつけてください</div>
+      <div class="adopt"><input id="pet-new-name" type="text" maxlength="8" value="${pet.name}" aria-label="名前" />
+      <button id="btn-petname" type="button" data-pet="${pet.id}">この名前にする</button></div>`;
+    return;
+  }
+  if (selected.kind === 'pet') {
+    const pet = state.pets.find((x) => x.id === selected.id);
+    if (!pet) return select(null);
+    const label = CONFIG.pets[pet.kind].label;
+    if (!pet.adopted) {
+      if (card.dataset.stray === pet.id) return; // 名前を入力中は描き直さない
+      card.dataset.stray = pet.id;
+      lastCardHtml = '';
+      card.innerHTML = `<h3>${label}</h3><div class="sub">どこからか迷い込んできたようです</div>
+        <div class="adopt"><input id="pet-name" type="text" maxlength="8" value="${CONFIG.pets[pet.kind].name}" aria-label="名前" />
+        <button id="btn-adopt" type="button" data-pet="${pet.id}">この名前で家族にする</button></div>`;
+      return;
+    }
+    const owner = state.residents.find((r) => r.id === pet.ownerId);
+    html = `<h3>${pet.name}</h3><div class="sub">${owner ? `${owner.name}の家の${label}` : label}</div><div class="now">いまは、${describePet(state, pet)}</div>`;
+  } else if (selected.kind === 'resident') {
+    const r = personById(state, selected.id);
+    if (r && selected.renaming) {
+      // 名前を変える（D310）。入力中は描き直さない
+      if (card.dataset.stray === `rename:${r.id}`) return;
+      card.dataset.stray = `rename:${r.id}`;
+      lastCardHtml = '';
+      card.innerHTML = `<h3>${dot(r)}名前を変える</h3><div class="sub">いまの名前：${r.name}</div>
+        <div class="adopt"><input id="res-name" type="text" maxlength="8" value="${r.name}" aria-label="名前" />
+        <button id="btn-rename" type="button">この名前にする</button></div>`;
+      return;
+    }
+    // 建物に入ると カードを閉じる。お願いから開いたときは 家にいても開いたまま（家を光らせるため・D393）
+    if (!r || (!r.visible && !selected.fromWish)) return select(null);
+    const parents = parentsOf(state, r);
+    const spouse = r.spouseId && personById(state, r.spouseId);
+    const sub = r.tourist
+      ? `船で来た人。${at(r.departAt)}の船で帰る`
+      : r.age && parents.length === 2
+        ? `${parents[0].name}と${parents[1].name}の子ども（${{ baby: '赤ちゃん', kid: '幼稚園', pupil: '小学生', student: '学生' }[r.age]}）`
+        : (r.elder ? 'お年寄り。' : '') + favoriteText(r) + (spouse ? `。${spouse.name}と結婚している` : '') + (parents.length === 2 ? `。${parents[0].name}と${parents[1].name}の子` : '');
+    html = `<h3>${dot(r)}${r.name}</h3><div class="sub">${sub}</div><div class="now">いまは、${describeResident(state, r)}</div>`;
+    // お願い（D335）：何をすれば かなうかも出す
+    const wish = wishOf(state, r.id);
+    if (wish) html += `<div class="card-wish"><b>お願い：「${wish.text}」</b><small>${wish.hint}</small></div>`;
+    if (r.thanked) html += `<div>お願いを かなえてあげた：${r.thanked}回</div>`;
+    if (!r.tourist) html += `<button id="btn-rename-open" class="card-btn" type="button">名前を変える</button>`;
+  } else if (selected.kind === 'port' && selected.id && selected.id !== 'main') {
+    const port = portById(state, selected.id);
+    const b = boatNow(state, port);
+    const next = nextBoat(state, port);
+    const sub = b?.phase === 'docked' ? `船が来ています。${at(b.depart)}に出航` : next ? `次の船は ${at(next.arrive)}ごろ` : '今日の船は、もう来ません';
+    const pier = PIERS[port.id];
+    const onIsland = state.visitors.filter((v) => v.visible && v.pier === pier).length;
+    html = `<h3>${areaById(port.id).name}の港</h3><div class="sub">${sub}</div><div class="now">この港から来た観光客：${onIsland}人</div>`;
+    html += boatAdRow(port.id);
+  } else if (selected.kind === 'port') {
+    const N = CONFIG.port.unlockPopulation;
+    if (!state.port.open) {
+      html = `<h3>港</h3><div class="sub">住民が ${N}人 になると、船が来るようになります</div><div class="now">いまの住民：${state.residents.length}人</div>`;
+    } else {
+      const b = boatNow(state);
+      const next = nextBoat(state);
+      const sub = b?.phase === 'docked' ? `船が来ています。${at(b.depart)}に出航` : next ? `次の船は ${at(next.arrive)}ごろ` : '今日の船は、もう来ません';
+      const onIsland = state.visitors.filter((v) => v.visible).length;
+      html = `<h3>港</h3><div class="sub">${sub}</div><div class="now">島にいる観光客：${onIsland}人</div><div>今日来た観光客：${state.today.tourists}人</div>`;
+      html += boatAdRow('main');
+    }
+  } else {
+    const b = buildingById(state, selected.id);
+    if (b.type === 'cafe') {
+      const seated = b.seats.filter(Boolean);
+      const hours = b.bar ? `${fmt(CONFIG.cafe.open)}〜${fmt(CONFIG.cafe.close)} はカフェ、${fmt(closeOf(b))} までは夜のレストラン` : `${fmt(CONFIG.cafe.open)}から${fmt(closeOf(b))}まで`;
+      html = `<h3>${cafeLabel(state, b, true)} Lv${b.level}</h3><div class="sub">席は ${seatCount(b)} つ。${hours}</div>`;
+      html += `<div class="now">座っている：${who(seated)}</div>`;
+      html += `<div>外で待っている：${who(b.queue)}</div>`;
+    } else if (b.type === 'pond') {
+      // 釣り堀（D304）：住民の様子と、あなたの釣り
+      const V = CONFIG.pond;
+      const left = fishingLeft(state);
+      const log = CONFIG.pond.game.fish.filter((f) => state.fishLog?.[f.id]).map((f) => `${f.name} ${state.fishLog[f.id]}`);
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">釣り座 ${seatCount(b)}つ。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
+      html += `<div class="now">釣りをしている：${who(b.seats.filter(Boolean))}</div>`;
+      html += `<div>あなたが釣った魚：${log.length ? log.join('・') : 'まだ いない'}</div>`;
+      html += `<button id="btn-fish" class="card-act go" type="button">${ICONS.fish}釣りをする<span class="cost">${left > 0 ? `${dayNow(state)} のコイン あと ${left}回` : `コインは ${backAt(state)}`}</span></button>`;
+    } else if (b.type === 'company') {
+      // 会社（D319）
+      const C = CONFIG.company;
+      const inside = state.residents.filter((r) => r.state === 'WORK' && r.destId === b.id).map((r) => r.id);
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${seatCount(b)}人 が勤める（家の近い人から）。${fmt(C.go)}ごろ出勤、お昼は近くのカフェ、${fmt(C.close)}まで。1人 1日 ${C.pay} コイン</div>`;
+      html += `<div class="now">いま働いている：${who(inside)}</div>`;
+      html += `<div>勤めている人：${who(b.staff || [])}</div>`;
+    } else if (b.type === 'arcade') {
+      // ゲームセンター（D331）：住民の様子と、あなたのゲーム
+      const V = CONFIG.arcade;
+      const left = arcadeLeft(state);
+      const got = V.game.prizes.filter((p) => state.prizes?.[p.id]).map((p) => p.icon).join('');
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">一度に ${seatCount(b)}人。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
+      html += `<div class="now">遊んでいる：${who(b.seats.filter(Boolean))}</div>`;
+      html += `<div>クレーンゲームの景品：${got || 'まだ ない'}</div>`;
+      html += `<div>じゃんけんのスタンプ：${state.stamps || 0} / ${V.game.stamps}${state.decoTickets ? `（飾り券 ${state.decoTickets}まい）` : ''}</div>`;
+      html += `<button id="btn-arcade" class="card-act go" type="button">🎮 ゲームで遊ぶ<span class="cost">${left > 0 ? `${dayNow(state)} のコイン あと ${left}回` : `コインは ${backAt(state)}`}</span></button>`;
+    } else if (b.type === 'track') {
+      // ドッグレース場（D328）
+      const R = CONFIG.track;
+      const race = state.race;
+      const today = isRaceDay(state);
+      const next = today ? dayOf(state.t) : nextRaceDay(state);
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${R.every}日ごと ${fmt(R.start)}から。${today ? '今日はレースの日' : `次は Day ${next}`}。見に来られるのは ${seatCount(b)}人</div>`;
+      if (race && race.day === dayOf(state.t) && state.t < race.end && state.t >= race.start) {
+        html += `<div class="now">走っている：${race.runners.map((x) => x.name + (x.own ? '' : '（島の外）')).join('・')}</div>`;
+      } else if (race) {
+        html += `<div class="now">前のレース（Day ${race.day}）：${race.order.slice(0, 3).map((id, i) => { const x = race.runners.find((y) => y.id === id); return `${i + 1}着 ${x.name}${x.own ? '' : '（島の外）'}`; }).join('、')}</div>`;
+      } else {
+        html += `<div class="now">島の家族のペットと、島の外から来る犬が走ります。3着までで賞金</div>`;
+      }
+      html += `<div>見ている：${who(b.seats.filter(Boolean))}</div>`;
+    } else if (b.type === 'pool') {
+      // プール（D319）：夏だけ開く
+      const V = CONFIG.pool;
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">一度に ${seatCount(b)}人。夏だけ ${fmt(V.open)}から${fmt(V.close)}まで</div>`;
+      html += inSeason(state, 'pool')
+        ? `<div class="now">泳いでいる：${who(b.seats.filter(Boolean))}</div><div>外で待っている：${who(b.queue)}</div>`
+        : `<div class="now">いまは お休み。夏になると ひらきます（維持費も夏だけ）</div>`;
+    } else if (ABROAD_VENUES.includes(b.type)) {
+      // 海水浴場・温泉（D371）・運動（D373）：その島だけの施設
+      const V = CONFIG[b.type];
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">一度に ${seatCount(b)}人。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
+      const doing = { beach: '泳いでいる', onsen: 'つかっている', surf: '波に乗っている', marche: '買い物中', beachfest: '聴いている', snowfest: '聴いている' }[b.type] || '遊んでいる';
+      html += `<div class="now">${doing}：${who(b.seats.filter(Boolean))}</div><div>外で待っている：${who(b.queue)}</div>`;
+      if (FESTS.includes(b.type)) {
+        // フェス（D387）：次の日と、本島から船を出すボタン
+        const today = isFestDay(state, b.type);
+        html += `<div>${!isOn(b.type) ? 'いまは お休みしています' : today ? `今日は フェスの日（${fmt(V.open)}〜${fmt(V.close)}）` : `次のフェス：Day ${nextFestDay(state, b.type)}（${fmt(V.open)}〜${fmt(V.close)}）`}</div>`;
+        const can = canFestBoat(world, world.current);
+        const B = CONFIG.abroad.festBoat;
+        html += can.ok
+          ? `<div class="card-note">本島のコインで 船を出すと、本島の人が ${B.people}人 フェスに来ます</div><button id="btn-festboat" class="card-act go" type="button">${ICONS.boat}本島から船を出す<span class="cost">${ICONS.coin}${B.cost.toLocaleString()}</span></button>`
+          : `<div class="card-note">本島から船を出す：${state.today.festBoat ? '船を出しました（本島の人が 大勢 来ます）' : can.why}</div>`;
+      }
+      if (b.type === 'marche') {
+        // マルシェ（D387）：並んでいる品物と、毎朝の定期便（本島のコインで仕入れる）
+        const S = V.ship;
+        if (!isOn('marche')) html += '<div>いまは お休みしています</div>';
+        html += `<div>並んでいる：${marcheGoods(state).join('・')}（${b.stock} / ${marcheCap(b)}個）</div>`;
+        html += `<div class="order-row"><span>毎朝 本島から送る：<b>${b.order}個</b>（本島のコイン ${ICONS.coin}${(b.order * S.cost).toLocaleString()}）</span>
+          <button class="ex-btn" type="button" data-order="-${S.step}" ${b.order <= 0 ? 'disabled' : ''}>−${S.step}</button><button class="ex-btn" type="button" data-order="${S.step}" ${b.order >= marcheCap(b) ? 'disabled' : ''}>＋${S.step}</button></div>`;
+      }
+      if (SPORTS.includes(b.type)) {
+        const left = sportLeft(state);
+        const best = state.sportBest?.[b.type];
+        const unit = { volley: '回', surf: '本', curling: '点', hockey: '本' }[b.type];
+        if (best) html += `<div>あなたの いちばん：${best}${unit}</div>`;
+        html += `<button id="btn-sport" class="card-act go" type="button" data-game="${b.type}">${ICONS[`${b.type}_new`]}あなたも遊ぶ<span class="cost">${left > 0 ? `${dayNow(state)} の${MONEY_NAME[state.isle]} あと ${left}回` : `${MONEY_NAME[state.isle]}は ${backAt(state)}`}</span></button>`;
+      }
+    } else if (b.type === 'super' || b.type === 'planetarium' || b.type === 'petshop' || b.type === 'stand' || b.type === 'aquarium' || b.type === 'hospital') {
+      const V = CONFIG[b.type];
+      const inside = b.seats.filter(Boolean);
+      const unit = b.type === 'planetarium' ? `${seatCount(b)}席` : b.type === 'stand' ? '持ち帰り' : `一度に ${seatCount(b)}人 まで`;
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${unit}。${fmt(V.open)}から${fmt(V.close)}まで</div>`;
+      if (b.type === 'hospital') html += `<div>お年寄りが ときどき 診てもらいに来る</div>`;
+      if (b.type === 'petshop' && b.breeder) {
+        // ペットショップ&ブリーダー（D355）
+        const B = CONFIG.petshop.breeder;
+        html = html.replace(`<h3>${labelOf(state, b)}`, `<h3>${labelOf(state, b)}&ブリーダー`);
+        html += `<div>お店にいる子：${b.pets?.length ? b.pets.map((k) => B.baby[k]).join('・') : 'いない'}（${B.shelf}頭まで）</div>`;
+        html += `<div>次の入荷：Day ${b.nextPetDay}${b.pets?.length >= B.shelf ? '（お店がいっぱいなら入らない）' : ''}</div>`;
+      }
+      html += `<div class="now">${{ planetarium: '星を見ている', stand: '注文している', aquarium: '魚を見ている', hospital: '診てもらっている' }[b.type] || '買い物中'}：${who(inside)}</div>`;
+      html += `<div>外で待っている：${who(b.queue)}</div>`;
+    } else if (b.type === 'ski') {
+      // スキー場（D318）：冬だけ開く
+      const V = CONFIG.ski;
+      const winter = isWinter(state);
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">一度に ${seatCount(b)}人。冬だけ ${fmt(V.open)}から${fmt(V.close)}まで</div>`;
+      html += winter
+        ? `<div class="now">滑っている：${who(b.seats.filter(Boolean))}</div><div>外で待っている：${who(b.queue)}</div>`
+        : `<div class="now">いまは お休み。冬になると 山が雪で白くなり、ひらきます（維持費も冬だけ）</div>`;
+    } else if (b.type === 'school' || b.type === 'college') {
+      // 小学校・大学（D347）
+      const V = CONFIG[b.type];
+      const inside = b.seats.filter(Boolean);
+      const what = b.type === 'school' ? '小学生が おべんきょうをするところ' : '学生が むずかしい おべんきょうをするところ';
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${what}。${fmt(V.start)}〜${fmt(V.close)}。${seatCount(b)}人まで。1人 ${V.fee} コイン</div>`;
+      html += `<div class="now">いま ${inside.length}人 が${b.type === 'school' ? '' : ' むずかしい'} おべんきょうをしている${inside.length ? `：${who(inside)}` : ''}</div>`;
+      html += `<div>今日 来た${b.type === 'school' ? '子' : '学生'}：${state.today[b.type]?.went || 0}人</div>`;
+    } else if (b.type === 'kinder') {
+      const K = CONFIG.kinder;
+      html = `<h3>${labelOf(state, b)} Lv${b.level}</h3><div class="sub">${seatCount(b)}人まで。朝 ${fmt(K.open)}から${fmt(K.close)}まで。1人 ${K.fee} コイン</div>`;
+      html += `<div class="now">いま：${who(b.seats.filter(Boolean))}</div>`;
+      html += `<div>今日 来た子：${state.today.kinder?.went || 0}人</div>`;
+    } else if (b.type === 'shop') {
+      const max = CONFIG.shop.levels[b.level - 1].stock;
+      const here = everyone(state).filter((r) => r.state === 'SHOP' && r.destId === b.id).map((r) => r.id);
+      html = `<h3>${shopLabel(state, b)} Lv${b.level}</h3><div class="sub">今日の品物 ${b.stock} / ${max}個。毎朝 入荷。${fmt(CONFIG.shop.open)}から${fmt(CONFIG.shop.close)}まで</div>`;
+      html += `<div class="now">見ている人：${who(here)}</div>`;
+    } else if (b.type === 'park') {
+      const here = state.residents.filter((r) => r.state === 'PARK' && r.destId === b.id).map((r) => r.id);
+      html = `<h3>公園</h3><div class="sub">${b.roof ? '東屋がある' : '屋根はない'}</div>`;
+      html += `<div class="now">いま：${who(here)}</div>`;
+    } else if (DECO.includes(b.type)) {
+      // 飾り（D334）
+      const t = decoType(b.type);
+      const here = everyone(state).filter((r) => r.state === 'STROLL' && r.destId === b.id).map((r) => r.id);
+      html = `<h3>${t.name}</h3><div class="sub">${t.note}${b.access === null ? '。道に面していないので、人は立ち寄らない' : ''}</div>`;
+      if (b.access !== null) html += `<div class="now">いま：${who(here)}</div><div>これまでに立ち寄った人：${b.visits || 0}人</div>`;
+    } else if (b.type !== 'house') {
+      // 知らない種類の建物を「家」と出さない（D310）
+      html = `<h3>${labelOf(state, b)}</h3>`;
+    } else {
+      const living = state.residents.filter((r) => r.homeId === b.id && r.state !== 'PENDING').map((r) => r.id);
+      const free = capacityOf(b) - state.residents.filter((r) => r.homeId === b.id).length;
+      const steps = nearestCafeSteps(state, b);
+      const kind = { 1: '家', 2: '2階建ての家', 3: 'アパート' }[b.level || 1];
+      html = `<h3>${kind}</h3><div class="sub">${free > 0 ? `あと ${free}人 住める` : '満室'}${steps !== null ? `。カフェまで道で ${steps}マス` : ''}</div>`;
+      html += `<div class="now">住んでいる：${who(living)}</div>`;
+      if (wantsRoomHouses(state).includes(b.id)) html += `<div class="card-warn">この家の家族は、もう少し広い家に住みたいようです</div>`;
+    }
+  }
+  if (selected.kind === 'building') html += `<button id="btn-move" class="card-btn" type="button">${ICONS.move}動かす</button>`;
+  if (selected.kind === 'building' && buildingById(state, selected.id)?.type === 'house') {
+    // 家を広げる（D303）。押せないときも出しておく（理由が分かるように）
+    const h = buildingById(state, selected.id);
+    const cost = houseUpgradeCost(h);
+    const next = CONFIG.house.levels[h.level || 1];
+    html += cost === null
+      ? `<div class="card-note">これ以上は広げられない（${capacityOf(h)}人まで）</div>`
+      : `<button id="btn-upgrade" class="card-act" type="button" ${state.coin < cost ? 'disabled' : ''}>${ICONS.house_up}${next.level === 3 ? 'アパートにする' : '2階建てにする'}（${next.capacity}人まで）<span class="cost">${moneyIcon(state.isle)}${cost.toLocaleString()}</span></button>` +
+        (state.coin < cost ? `<div class="card-note">${MONEY_NAME[state.isle || 'main']}が あと ${(cost - state.coin).toLocaleString()} 足りません</div>` : '');
+  }
+  if (selected.kind === 'building') html += growHtml(buildingById(state, selected.id));
+  delete card.dataset.stray;
+  // 前に書いた文字列と比べる（SVG は innerHTML で読み直すと書き方が変わり、毎コマ描き直してボタンが押せなくなる）
+  if (lastCardHtml !== html || !card.innerHTML) {
+    card.innerHTML = html;
+    lastCardHtml = html;
+  }
+}
+
+// 建物のカードから広げる（家と同じように）。つくる の「広げる」タブの その建物の行を、そのまま ボタンにする
+function growHtml(b) {
+  if (!b || b.type === 'house') return '';
+  const rows = actionsFor(state).filter((a) => a.id.split(':')[1] === String(b.id) || (b.type === 'park' && a.id === 'park_roof'));
+  const names = [labelOf(state, b), b.type === 'shop' ? shopLabel(state, b) : null, b.type === 'cafe' ? cafeLabel(state, b) : null].filter(Boolean);
+  return rows
+    .map((a) => {
+      // 「北のカフェを広げる（Lv2）」→「広げる（Lv2）」。カードの見出しに名前が出ているので
+      const name = names.find((n) => a.title.startsWith(n));
+      const title = name ? a.title.slice(name.length).replace(/^[をの]\s*/, '') : a.title;
+      const short = a.cost - state.coin;
+      return `<button class="card-act" type="button" data-grow="${a.id}" ${short > 0 ? 'disabled' : ''}>${ICONS[a.icon]}${title}<span class="cost">${moneyIcon(state.isle)}${a.cost.toLocaleString()}</span></button>` +
+        `<div class="card-note">${a.detail}${short > 0 ? `。${MONEY_NAME[state.isle || 'main']}が あと ${short.toLocaleString()} 足りません` : ''}</div>`;
+    })
+    .join('');
+}
+
+$('card').addEventListener('click', (ev) => {
+  if (ev.target.closest('#btn-rename-open')) {
+    selected = { ...selected, renaming: true };
+    renderCard();
+    $('res-name')?.focus();
+    return;
+  }
+  if (ev.target.closest('#btn-rename')) {
+    const res = nameResident(state, selected.id, $('res-name').value);
+    toast(res.message);
+    if (res.ok) {
+      selected = { kind: 'resident', id: selected.id, fromWish: selected.fromWish };
+      delete $('card').dataset.stray;
+      renderCard();
+      save();
+    }
+    return;
+  }
+  const adBoat = ev.target.closest('#btn-adboat');
+  if (adBoat) {
+    const id = adBoat.dataset.port;
+    showRewardedAd({
+      button: adBoat,
+      onReward: () => {
+        const res = callExtraBoat(state, id);
+        toast(res.message);
+        renderCard();
+        save();
+      },
+      onCancel: () => renderCard(),
+      onFail: () => {
+        toast(AD_FAILED);
+        renderCard();
+      },
+    });
+    return;
+  }
+  if (ev.target.closest('#btn-arcade')) {
+    select(null);
+    openArcade({
+      getState: () => state,
+      onChange: () => save(),
+      close: () => save(),
+    });
+    return;
+  }
+  if (ev.target.closest('#btn-festboat')) {
+    const res = sendFestBoat(world, world.current);
+    toast(res.message);
+    if (res.ok) {
+      updateHud();
+      renderCard();
+      save();
+    }
+    return;
+  }
+  const order = ev.target.closest('[data-order]');
+  if (order && !order.disabled) {
+    const b = buildingById(state, selected?.id);
+    if (b) setMarcheOrder(state, b.id, b.order + Number(order.dataset.order));
+    renderCard();
+    save();
+    return;
+  }
+  if (ev.target.closest('#btn-sport')) {
+    const game = ev.target.closest('#btn-sport').dataset.game;
+    select(null);
+    openSport({
+      game,
+      getState: () => state,
+      onChange: () => {
+        updateHud();
+        save();
+      },
+      close: () => save(),
+    });
+    return;
+  }
+  if (ev.target.closest('#btn-fish')) {
+    select(null);
+    openFishing({
+      getState: () => state,
+      onChange: () => save(),
+      close: () => save(),
+    });
+    return;
+  }
+  const grow = ev.target.closest('[data-grow]');
+  if (grow) {
+    const res = applyAction(state, grow.dataset.grow);
+    toast(res.message);
+    if (res.ok) {
+      renderCard();
+      save();
+    }
+    return;
+  }
+  if (ev.target.closest('#btn-upgrade')) {
+    const res = applyAction(state, 'house_upgrade', { id: selected?.id });
+    toast(res.message);
+    if (res.ok) {
+      renderCard();
+      save();
+    }
+    return;
+  }
+  if (ev.target.closest('#btn-move')) {
+    const b = buildingById(state, selected?.id);
+    if (b) startMoving(b);
+    return;
+  }
+  const pn = ev.target.closest('#btn-petname');
+  if (pn) {
+    const res = namePet(state, pn.dataset.pet, $('pet-new-name').value);
+    toast(res.message);
+    pokes.set(pn.dataset.pet, performance.now() / 1000);
+    select(null);
+    save();
+    return;
+  }
+  const nb = ev.target.closest('#btn-baby');
+  if (nb) {
+    const res = nameBaby(state, nb.dataset.baby, $('baby-name').value);
+    toast(res.message);
+    select(null);
+    save();
+    return;
+  }
+  const btn = ev.target.closest('#btn-adopt');
+  if (!btn) return;
+  const res = adoptPet(state, btn.dataset.pet, $('pet-name').value);
+  toast(res.message);
+  if (res.ok) {
+    pokes.set(btn.dataset.pet, performance.now() / 1000);
+    delete $('card').dataset.stray;
+    renderCard();
+    save();
+  }
+});
+
+// ---------------------------------------------------------------- シート（つくる・日記）
+
+function openSheet(html) {
+  const sheet = $('sheet');
+  const body = sheet.querySelector('.sheet-body');
+  body.innerHTML = `<div class="sheet-top"><button class="close x" type="button" aria-label="とじる">${ICONS.close}</button></div>${html}`;
+  body.scrollTop = 0;
+  sheet.hidden = false;
+  select(null);
+}
+
+$('sheet').addEventListener('click', (ev) => {
+  if (ev.target.id === 'sheet' || ev.target.closest('.close')) {
+    $('sheet').hidden = true;
+    return;
+  }
+  const use = ev.target.closest('[data-skin-use]');
+  if (use) {
+    chooseHouseSkin(use.dataset.skinUse);
+    setHouseSkin(use.dataset.skinUse);
+    return openBuild();
+  }
+  const buySkin = ev.target.closest('[data-skin-buy]');
+  if (buySkin) {
+    const id = buySkin.dataset.skinBuy;
+    buy({
+      id: `house:${id}`,
+      title: `家の色「${HOUSE_SKINS[id].name}」`,
+      price: SKIN_PRICE,
+      onDone: () => {
+        chooseHouseSkin(id);
+        setHouseSkin(id);
+        toast(`家の色を「${HOUSE_SKINS[id].name}」にしました`);
+        openBuild();
+      },
+    });
+    return;
+  }
+  const home = ev.target.closest('[data-house]');
+  if (home) {
+    // その家へ移動して、家のカードを開く
+    const h = buildingById(state, home.dataset.house);
+    $('sheet').hidden = true;
+    if (h) {
+      renderer.focus((h.c + 0.5) * T, (h.r + 0.5) * T);
+      select({ kind: 'building', id: h.id });
+    }
+    return;
+  }
+  const adBonus = ev.target.closest('[data-ad="bonus"]');
+  if (adBonus) {
+    showRewardedAd({
+      button: adBonus,
+      onReward: () => {
+        const res = claimDailyBonus(state);
+        toast(res.message);
+        adBonus.remove();
+        save();
+      },
+      onFail: () => toast(AD_FAILED),
+    });
+    return;
+  }
+  const tab = ev.target.closest('[data-tab]');
+  if (tab) {
+    buildTab = tab.dataset.tab;
+    return openBuild();
+  }
+  const btn = ev.target.closest('[data-action]');
+  if (!btn) return;
+  const action = actionsFor(state).find((a) => a.id === btn.dataset.action);
+  if (!action) return;
+  if (action.place) {
+    $('sheet').hidden = true;
+    return startPlacing(action);
+  }
+  if (action.pick === 'house') {
+    $('sheet').hidden = true;
+    return startPicking(action);
+  }
+  // 海の向こうの島：船着き場（本島で）と 片付け（向こうの島で）。どちらも 本島のコインで払う（D354・D367）
+  if (action.id.startsWith('route:') || action.id.startsWith('clear:') || action.id === 'abroad_port') {
+    const [kind, arg] = action.id.split(':');
+    const res = kind === 'route' ? openRoute(world, arg) : kind === 'clear' ? clearPlot(world, world.current, Number(arg)) : openAbroadPort(world, world.current);
+    toast(res.message);
+    if (res.ok) {
+      $('sheet').hidden = true;
+      syncBoat();
+      updateHud();
+      renderQuest(); // 片付けたら 目標が変わる（D374）
+      save();
+    }
+    return;
+  }
+  const res = applyAction(state, action.id);
+  toast(res.message);
+  if (res.ok) {
+    $('sheet').hidden = true;
+    // 広げた土地・つくった港を見せる
+    const area = action.id.startsWith('expand:') || action.id.startsWith('harbor:') ? areaById(action.id.split(':')[1]) : null;
+    if (area) renderer.focus(area.cx, area.cy);
+    save();
+  }
+});
+
+$('btn-build').addEventListener('click', () => openBuild());
+
+// 船（D367）：船着き場ができたら出る。行き先を選ぶと 船の絵で切り替わる。どの島も そのあいだ動いている
+function syncBoat() {
+  $('btn-boat').hidden = Object.keys(world.islands).length < 2;
+}
+function openBoat() {
+  if (placing) return;
+  const rows = Object.keys(world.islands).map((id) => {
+    const s = world.islands[id];
+    const here = id === world.current;
+    const pop = s.residents.filter((r) => r.state !== 'PENDING').length;
+    const covered = (s.debris || []).filter(Boolean).length;
+    return `<button class="action" type="button" data-go="${id}" ${here ? 'disabled' : ''}>
+      ${ICONS[`route_${id}`] || ICONS.harbor}
+      <span class="text">${ISLE_NAMES[id]}<span class="detail">住民 ${pop}人${covered ? `・覆われている区画 ${covered}` : ''}</span></span>
+      <span><span class="cost">${moneyIcon(id)}${money(s.coin)}</span><span class="need">${here ? 'いまいる島' : ''}</span></span>
+    </button>`;
+  });
+  openSheet(`<h2>船</h2>${rows.join('')}${exchangeHtml(true)}`);
+  exSheet = 'boat';
+}
+// お金の数字。マイナスのときは 赤（D406）
+const money = (n) => (n < 0 ? `<span class="debt">${n.toLocaleString()}</span>` : n.toLocaleString());
+// 両替（D366）：本島のコイン → 向こうの島のお金。1日の上限は 2つの島で分け合う。
+// 船のシートの下と、右上のお金を押したとき（D378：そのほうが すぐ分かる）
+let exSheet = 'boat';
+function exchangeHtml(inBoat) {
+  const X = CONFIG.abroad.exchange;
+  const left = exchangeLeft(world);
+  const coin = world.islands.main.coin;
+  const ex = Object.keys(world.islands)
+    .filter((id) => id !== 'main')
+    .map((id) => {
+      const one = Math.min(X.step, left, coin);
+      const all = Math.min(left, coin);
+      const btn = (amt, label) => `<button class="ex-btn" type="button" data-ex="${id}" data-amt="${amt}" ${amt < X.rate ? 'disabled' : ''}>${label}</button>`;
+      const buttons = all < X.rate
+        ? `<span class="need">${left < X.rate ? `両替は ${backAt(world.islands.main)}` : '本島のコインが足りません'}</span>`
+        : `${btn(one, `${ICONS.coin}${one.toLocaleString()} → ${moneyIcon(id)}${Math.floor(one / X.rate).toLocaleString()}`)}${btn(all, 'のこり全部')}`;
+      return `<div class="ex-row"><span class="ex-name">${moneyIcon(id)}<span class="ex-who">${MONEY_NAME[id]}<small>${money(world.islands[id].coin)}</small></span></span>${buttons}</div>`;
+    })
+    .join('');
+  return `${inBoat ? '<h3 class="ex-title">両替</h3>' : ''}
+    <p class="lead">本島のコイン ${ICONS.coin}${money(coin)}。コイン ${X.rate} で 1<br>${dayNow(world.islands.main)} は あと ${ICONS.coin}${left.toLocaleString()} まで（2つの島で合わせて・${backAt(world.islands.main)}）</p>
+    ${ex}`;
+}
+function openExchange() {
+  if (placing || Object.keys(world.islands).length < 2) return;
+  openSheet(`<h2>両替</h2>${exchangeHtml(false)}`);
+  exSheet = 'exchange';
+}
+$('hud-coin').addEventListener('click', () => openExchange());
+$('btn-boat').addEventListener('click', () => openBoat());
+$('sheet').addEventListener('click', (ev) => {
+  const ex = ev.target.closest('[data-ex]');
+  if (ex && !ex.disabled) {
+    const res = exchange(world, ex.dataset.ex, Number(ex.dataset.amt));
+    toast(res.message);
+    if (res.ok) {
+      updateHud();
+      save();
+      if (exSheet === 'boat') openBoat();
+      else openExchange();
+    }
+    return;
+  }
+  const go = ev.target.closest('[data-go]');
+  if (!go || go.disabled) return;
+  $('sheet').hidden = true;
+  sail(go.dataset.go);
+});
+// 船の絵が横切るあいだに 島を切り替える
+function sail(id) {
+  const v = $('voyage');
+  v.innerHTML = `<div class="ship">${ICONS.harbor}</div><div class="to">${ISLE_NAMES[id]}へ</div>`;
+  v.hidden = false;
+  v.classList.remove('go');
+  void v.offsetWidth;
+  v.classList.add('go');
+  setTimeout(() => goIsland(id), 550);
+  setTimeout(() => {
+    v.hidden = true;
+    v.classList.remove('go');
+  }, 1400);
+}
+
+// 見た目（D314）：家の色。買ったものは島をやり直しても残る
+const SKIN_PRICE = '¥160（仮）';
+function miniHouse(skin) {
+  return `<svg viewBox="0 0 64 30" width="64" height="30" aria-hidden="true">${[0, 1, 2]
+    .map((k) => {
+      const x = 4 + k * 20;
+      const roof = skin.roofs[k % skin.roofs.length];
+      const wall = skin.walls[k % skin.walls.length];
+      return `<rect x="${x}" y="13" width="16" height="14" rx="1.5" fill="${wall}" stroke="rgba(61,90,128,.25)"/><path d="M${x - 2} 14 L${x + 8} 5 L${x + 18} 14 Z" fill="${roof}"/><rect x="${x + 6}" y="19" width="4" height="8" rx="2" fill="${skin.door}"/>`;
+    })
+    .join('')}</svg>`;
+}
+function lookHtml() {
+  const now = chosenHouseSkin();
+  const rows = Object.entries(HOUSE_SKINS)
+    .map(([id, skin]) => {
+      const key = `house:${id}`;
+      const btn = now === id
+        ? '<span class="skin-now">使っている</span>'
+        : owns(key)
+          ? `<button class="skin-use" type="button" data-skin-use="${id}">使う</button>`
+          : canBuy()
+            ? `<button class="skin-buy" type="button" data-skin-buy="${id}">${SKIN_PRICE}</button>`
+            : '<span class="skin-now">準備中</span>';
+      return `<div class="skin-row">${miniHouse(skin)}<span class="skin-name">${skin.name}</span>${btn}</div>`;
+    })
+    .join('');
+  return `<p class="lead">家の屋根・壁・戸の色。島の家が みんな変わる。買った色は、島をやり直しても残る</p><div class="skins">${rows}</div>`;
+}
+
+// 住民の一覧（D311・ご家族の声「どの家に誰が住んでいるか分かると見やすい」「その家をタップすると そこへジャンプ」）
+const HOUSE_KIND = { 1: '家', 2: '2階建て', 3: 'アパート' };
+function openResidents() {
+  if (placing) return;
+  const living = state.residents.filter((r) => r.state !== 'PENDING');
+  const coming = state.residents.length - living.length;
+  const want = new Set(wantsRoomHouses(state));
+  // 北から南へ、西から東へ
+  const list = houses(state).slice().sort((a, b) => a.r - b.r || a.c - b.c);
+  const rows = list.map((h) => {
+    const here = state.residents.filter((r) => r.homeId === h.id);
+    const names = here
+      .map((r) => {
+        const tag = r.state === 'PENDING' ? '（今日 引っ越してくる）' : r.age === 'baby' ? '（赤ちゃん）' : r.age === 'kid' ? '（幼稚園）' : r.age === 'pupil' ? '（小学生）' : r.age === 'student' ? '（学生）' : r.elder ? '（お年寄り）' : '';
+        return `<span>${dot(r)}${r.name}<i class="tag">${tag}</i></span>`;
+      })
+      .join('');
+    return `<button class="home-row" type="button" data-house="${h.id}">${ICONS.house_build}
+      <span class="body"><span class="top">${HOUSE_KIND[h.level || 1]}・${placeLabel(h)}<span class="n">${here.length} / ${capacityOf(h)}人</span></span>
+      <span class="who">${names || '<i class="tag">空き家</i>'}</span>
+      ${want.has(h.id) ? '<span class="warn">もう少し広い家に住みたいようです</span>' : ''}</span>
+      <span class="go">›</span></button>`;
+  });
+  const sub = `家 ${list.length}軒${coming ? `・今日 ${coming}人 引っ越してくる` : ''}`;
+  openSheet(`<h2>島の人たち（${living.length}人）</h2><p class="lead">${sub}。家を押すと、その家へ</p><div class="homes">${rows.join('')}</div>`);
+}
+$('hud-pop').addEventListener('click', () => openResidents());
+
+// つくる：「新しく建てる」と「広げる」のタブ（D296）。新しく建てるものは ほぼ一定、広げるものは建物の数だけ増える
+let buildTab = 'new';
+// 「新しく建てる」「広げる」「島」（島を広げる・港を増やす・D298）
+const tabOf = (a) => a.tab || (a.place ? 'new' : 'grow');
+
+function openBuild(focusId) {
+  if (placing) return;
+  if (buildTab === 'look' && !canBuy()) buildTab = 'new'; // アプリの最初の版は課金なし＝見た目のタブを出さない（D341）
+  const all = actionsFor(state);
+  if (focusId) {
+    const target = all.find((a) => a.id.startsWith(focusId));
+    if (target) buildTab = tabOf(target);
+  }
+  const list = all.filter((a) => tabOf(a) === buildTab);
+  // 建てられるものを上に、まだひらいていないものは下に
+  list.sort((a, b) => Number(!!a.locked) - Number(!!b.locked));
+  const items = list
+    .map((a) => {
+      // 片付けは 向こうの島にいても 本島のコインで払う（D354）
+      const payer = a.payWith === 'main' ? 'main' : state.isle;
+      const short = a.cost - world.islands[payer || 'main'].coin;
+      return `<button class="action" type="button" data-action="${a.id}" ${short > 0 || a.locked ? 'disabled' : ''}>
+        ${ICONS[a.icon]}
+        <span class="text">${a.title}<span class="detail">${a.detail}</span></span>
+        <span><span class="cost">${a.ticket ? '飾り券' : `${moneyIcon(payer)}${a.cost.toLocaleString()}`}</span>${short > 0 && !a.locked ? `<span class="need">あと ${short.toLocaleString()}</span>` : ''}</span>
+      </button>`;
+    })
+    .join('');
+  const count = (tab) => all.filter((a) => tabOf(a) === tab && !a.locked).length;
+  const badge = (tab) => (count(tab) ? `<span class="n">${count(tab)}</span>` : '');
+  const tabs = `<div class="tabs" role="tablist">
+    <button type="button" role="tab" data-tab="new" aria-selected="${buildTab === 'new'}">建てる</button>
+    <button type="button" role="tab" data-tab="deco" aria-selected="${buildTab === 'deco'}">飾り${state.decoTickets ? '<span class="n">券</span>' : ''}</button>
+    <button type="button" role="tab" data-tab="grow" aria-selected="${buildTab === 'grow'}">広げる${badge('grow')}</button>
+    <button type="button" role="tab" data-tab="island" aria-selected="${buildTab === 'island'}">島${badge('island')}</button>
+    ${canBuy() ? `<button type="button" role="tab" data-tab="look" aria-selected="${buildTab === 'look'}">見た目</button>` : ''}
+  </div>`;
+  if (buildTab === 'look') return openSheet(`<h2>つくる</h2>${tabs}${lookHtml()}`);
+  const empty = { deco: '置ける飾りはありません', new: 'いま建てられるものはありません', grow: 'まだ広げられるものはありません', island: '島は これ以上 広げられません' }[buildTab];
+  openSheet(`<h2>つくる</h2>${tabs}${items || `<p class="lead">${empty}</p>`}`);
+  if (focusId) {
+    const el = [...document.querySelectorAll('.action')].find((x) => x.dataset.action.startsWith(focusId));
+    if (el) el.classList.add('focus');
+  }
+}
+
+// 日記の1日（D353）：島のできごと → 困りごと → お店と施設（たたむ）→ 島のようす（たたむ）。同じ種類はまとめる（js/diary.js）
+// 日記の見せ方の案（D350・1.3）：?diary=a（3つに分ける）・?diary=b（大事な1行を大きく）。オーナーが選ぶまで ふだんは いままで
+const DIARY_STYLE = new URLSearchParams(location.search).get('diary');
+function entryHtml(e) {
+  if (DIARY_STYLE === 'a') return entryHtmlA(e);
+  if (DIARY_STYLE === 'b') return entryHtmlB(e);
+  const v = diaryView(e);
+  const p = (l) => `<p class="${l.kind}">${l.text}</p>`;
+  // 売上は見出しの下の1行（見出しの右だと、日記を閉じる × に隠れた）
+  const unit = MONEY_NAME[state.isle || 'main']; // 向こうの島は Shell／オーロラ（D374）
+  const earn = v.earned ? `<p class="d-earn">売上 +${v.earned.toLocaleString()} ${unit}${v.upkeep ? `（維持費 −${v.upkeep.toLocaleString()}）` : ''}</p>` : '';
+  let html = `<div class="entry"><h3>Day ${e.day}${ICONS[e.weather]}${WEATHER_LABEL[e.weather]}</h3>${earn}`;
+  if (v.events.length) html += `<p class="d-head">島のできごと</p>${v.events.map(p).join('')}`;
+  html += v.problems.length ? `<p class="d-head problem">困りごと（${v.problems.length}）</p>${v.problems.map(p).join('')}` : '<p class="d-head">困りごとは ありませんでした</p>';
+  if (v.money.length) html += `<details class="d-more"><summary>お店と施設（${v.places}か所・+${v.earned.toLocaleString()} ${unit}）</summary>${v.money.map(p).join('')}</details>`;
+  if (v.scene.length) html += `<details class="d-more"><summary>島のようす（${v.scene.length}）</summary>${v.scene.map(p).join('')}</details>`;
+  // 明日の予定（B1）：いちばん新しい日の日記の 末尾にだけ
+  const next = e === state.diary.at(-1) ? tomorrowPlan(state) : null;
+  if (next) html += `<p class="d-next">${next}</p>`;
+  return `${html}</div>`;
+}
+
+// 案A：良いこと／困りごと／家族の出来事 の3つに分けて、数字は 末尾にまとめる
+function entryHtmlA(e) {
+  const g = diaryGroups(e);
+  const p = (l) => `<p class="${l.kind}">${l.text}</p>`;
+  const unit = MONEY_NAME[state.isle || 'main'];
+  let html = `<div class="entry d-a"><h3>Day ${e.day}${ICONS[e.weather]}${WEATHER_LABEL[e.weather]}</h3>`;
+  const sec = (title, lines, cls = '') => (lines.length ? `<p class="d-head ${cls}">${title}（${lines.length}）</p>${lines.map(p).join('')}` : '');
+  html += sec('良いこと', g.good);
+  html += g.problems.length ? sec('困りごと', g.problems, 'problem') : '<p class="d-head">困りごとは ありませんでした</p>';
+  html += sec('家族の出来事', g.family);
+  const next = e === state.diary.at(-1) ? tomorrowPlan(state) : null;
+  if (next) html += `<p class="d-next">${next}</p>`;
+  if (g.earned || g.money.length) html += `<details class="d-more d-nums"><summary>数字：売上 +${g.earned.toLocaleString()} ${unit}${g.upkeep ? `・維持費 −${g.upkeep.toLocaleString()}` : ''}</summary>${g.money.map(p).join('')}</details>`;
+  return `${html}</div>`;
+}
+
+// 案B：いちばん大事な1行を 上に大きく。残りは たたむ（中は いまの日記と同じ並び）
+function entryHtmlB(e) {
+  const h = diaryHeadline(e);
+  const v = h.view;
+  const p = (l) => `<p class="${l.kind}">${l.text}</p>`;
+  const unit = MONEY_NAME[state.isle || 'main'];
+  let html = `<div class="entry d-b"><h3>Day ${e.day}${ICONS[e.weather]}${WEATHER_LABEL[e.weather]}</h3>`;
+  html += h.top ? `<p class="d-top ${h.top.kind}">${h.top.text}</p>` : '<p class="d-top">静かな1日でした</p>';
+  const next = e === state.diary.at(-1) ? tomorrowPlan(state) : null;
+  if (next) html += `<p class="d-next">${next}</p>`;
+  const rest = (l) => l !== h.top;
+  let inner = '';
+  const ev = v.events.filter(rest);
+  const pr = v.problems.filter(rest);
+  const sc = v.scene.filter(rest);
+  if (ev.length) inner += `<p class="d-head">島のできごと</p>${ev.map(p).join('')}`;
+  if (pr.length) inner += `<p class="d-head problem">困りごと（${pr.length}）</p>${pr.map(p).join('')}`;
+  if (sc.length) inner += `<p class="d-head">島のようす</p>${sc.map(p).join('')}`;
+  if (v.money.length) inner += `<p class="d-head">お店と施設（${v.places}か所）</p>${v.money.map(p).join('')}`;
+  html += `<details class="d-more"><summary>ほかに ${h.count}件・売上 +${v.earned.toLocaleString()} ${unit}${v.upkeep ? `（維持費 −${v.upkeep.toLocaleString()}）` : ''}</summary>${inner}</details>`;
+  return `${html}</div>`;
+}
+
+$('btn-diary').addEventListener('click', () => {
+  if (placing) return;
+  $('diary-dot').hidden = true;
+  for (const e of state.diary) e.read = true;
+  const entries = [...state.diary].reverse().map(entryHtml).join('');
+  if (state.diary.length) tutorial('read_diary');
+  openSheet(`<h2>島の日記</h2>${bonusRow()}${entries ? `<div class="notebook">${entries}</div>` : '<p class="lead">まだ日記はありません。1日が終わると、ここに届きます。</p>'}`);
+});
+
+function showMorning(entries, awaySeconds = 0) {
+  for (const e of entries) e.read = true;
+  tutorial('read_diary');
+  $('diary-dot').hidden = true;
+  const m = morningTitle(awaySeconds); // 何日ぶりか（B2）
+  openSheet(`<div class="morning">${ICONS.sunrise}<h2>${m.title}</h2><p class="lead">${m.lead}</p></div>${bonusRow()}<div class="notebook">${entries.map(entryHtml).join('')}</div>`);
+}
+
+// ---------------------------------------------------------------- 建てる場所を選ぶ
+
+function startPlacing(action) {
+  const spots = placements(action.place, state.buildings);
+  if (spots.length === 0) return toast('建てられる場所がありません');
+  beginPlacing({ action, type: action.place }, spots, `${action.title}：明るいところをタップ`, 'ここに建てる');
+}
+
+// 建物を動かす（D299）。建てるときと同じ画面で、行き先を選ぶ
+const NAME_OF = { house: '家', park: '公園' };
+function startMoving(b) {
+  const spots = movePlaces(state, b.id);
+  if (spots.length === 0) return toast('動かせる場所がありません');
+  const name = NAME_OF[b.type] || labelOf(state, b);
+  beginPlacing({ action: { title: `${name}を動かす`, cost: 0 }, type: b.type, move: b.id, from: { c: b.c, r: b.r } }, spots, `${name}を動かす：明るいところをタップ`, 'ここに動かす');
+}
+
+// 広げる家を島の上で選ぶ（D303）
+function startPicking(action) {
+  const spots = houses(state).filter((h) => houseUpgradeCost(h) !== null).map((h) => ({ c: h.c, r: h.r, id: h.id }));
+  if (spots.length === 0) return toast('広げられる家がありません');
+  beginPlacing({ action, type: 'house', pick: spots }, spots, '家を広げる：明るい家をタップ', '広げる');
+}
+
+function beginPlacing(p, spots, title, okLabel) {
+  const cells = new Set();
+  for (const s of spots) for (const t of footprint(p.type, s.c, s.r)) cells.add(t);
+  placing = { ...p, cells: [...cells], ghost: null, okLabel };
+  select(null);
+  $('place-title').textContent = title;
+  const tip = placeTip(p.type);
+  $('place-tip').textContent = tip || '';
+  $('place-tip').hidden = !tip;
+  $('place-ok').disabled = true;
+  $('place-ok').textContent = okLabel;
+  $('placebar').hidden = false;
+  $('bar').hidden = true;
+  document.body.classList.add('placing');
+}
+
+function tapWhilePlacing(clientX, clientY) {
+  if (placing.pick) {
+    // 広げる家を選ぶ：屋根を押しても選べるように、島の上の建物の当たり判定を使う（D310）
+    const hb = buildingAt(renderer.toWorld(clientX, clientY));
+    const h = hb && placing.pick.find((x) => x.id === hb.id);
+    if (!h) {
+      placing.ghost = null;
+      $('place-ok').disabled = true;
+      return toast('明るい家をタップしてください');
+    }
+    const cost = houseUpgradeCost(hb);
+    placing.ghost = h;
+    $('place-ok').disabled = state.coin < cost;
+    $('place-ok').innerHTML = state.coin < cost ? `${MONEY_NAME[state.isle || 'main']}が あと ${(cost - state.coin).toLocaleString()} 足りません` : `広げる ${moneyIcon(state.isle)}${cost.toLocaleString()}`;
+    return;
+  }
+  const { c, r } = renderer.tileAt(clientX, clientY);
+  const s = SIZES[placing.type];
+  // タップしたマスが建物の真ん中に来る置き方を優先し、だめなら そのマスを含む置き方を探す
+  const tries = [[c - Math.floor((s.w - 1) / 2), r - Math.floor((s.h - 1) / 2)]];
+  for (let dr = 0; dr < s.h; dr++) for (let dc = 0; dc < s.w; dc++) tries.push([c - dc, r - dr]);
+  if (placing.pick) {
+    const h = placing.pick.find((x) => x.c === c && x.r === r);
+    if (!h) {
+      placing.ghost = null;
+      $('place-ok').disabled = true;
+      return toast('明るい家をタップしてください');
+    }
+    const cost = houseUpgradeCost(buildingById(state, h.id));
+    placing.ghost = h;
+    $('place-ok').disabled = state.coin < cost;
+    $('place-ok').innerHTML = `広げる ${moneyIcon(state.isle)}${cost.toLocaleString()}`;
+    return;
+  }
+  const fits = ([cc, rr]) => (placing.move ? canMoveTo(state, placing.move, cc, rr) : canPlace(placing.type, cc, rr, state.buildings));
+  const ok = tries.find(fits);
+  if (!ok) {
+    placing.ghost = null;
+    $('place-ok').disabled = true;
+    return toast(placing.move ? 'そこには動かせません' : 'そこには建てられません');
+  }
+  placing.ghost = { c: ok[0], r: ok[1] };
+  if (placing.move) {
+    $('place-ok').disabled = false;
+    $('place-ok').textContent = placing.okLabel;
+    return;
+  }
+  $('place-ok').disabled = state.coin < placing.action.cost;
+  $('place-ok').innerHTML = `${placing.okLabel} ${moneyIcon(state.isle)}${placing.action.cost.toLocaleString()}`; // 向こうの島は その島のお金（D391）
+}
+
+function endPlacing() {
+  placing = null;
+  $('placebar').hidden = true;
+  $('bar').hidden = false;
+  document.body.classList.remove('placing');
+}
+
+$('place-cancel').addEventListener('click', endPlacing);
+$('place-ok').addEventListener('click', () => {
+  if (!placing?.ghost) return;
+  if (placing.pick) {
+    const res = applyAction(state, 'house_upgrade', { id: placing.ghost.id });
+    toast(res.message);
+    if (res.ok) {
+      endPlacing();
+      save();
+    }
+    return;
+  }
+  if (placing.move) {
+    const res = moveBuilding(state, placing.move, placing.ghost);
+    toast(res.message);
+    if (res.ok) {
+      endPlacing();
+      save();
+    }
+    return;
+  }
+  const res = applyAction(state, placing.action.id, placing.ghost);
+  toast(res.message);
+  if (res.ok) {
+    const type = placing.type;
+    endPlacing();
+    if (type === 'house') tutorial('build_house');
+    save();
+  }
+});
+
+// ---------------------------------------------------------------- やること（チュートリアル・D290）
+
+function tutorial(trigger) {
+  const res = report(state, trigger);
+  if (!res) return;
+  busyStage = null;
+  if (res.reward > 0) setTimeout(() => toast(`できました　+${res.reward} コイン`), 400);
+  if (res.finished) setTimeout(() => toast('ここからは、島を自由に育ててください'), 3300);
+  renderQuest();
+  save();
+}
+
+function renderQuest() {
+  const el = $('quest');
+  const step = currentStep(state);
+  if (!step) {
+    // チュートリアルのあとは「次の目標」だけを小さく出す（段階的な解放・D295）
+    const g = nextGoal(state);
+    // 島の人のお願い（D335）：押すと その人のところへ。解放のはしごが終わったあとは、お願いが目標になる
+    const wishes = wishList(state)
+      .map((w) => ({ w, r: state.residents.find((x) => x.id === w.who) }))
+      .filter((x) => x.r)
+      .map(({ w, r }) => `<button class="wish${w.big ? ' big' : ''}" type="button" data-wish="${r.id}">${w.big ? '⭐ ' : ''}<b>${r.name}</b>「${w.short}」</button>`)
+      .join('');
+    if (!g && !wishes) {
+      el.hidden = true;
+      return;
+    }
+    el.innerHTML = g?.body
+      ? `<div class="quest-head"><b>目標：${g.goal}</b>${FOLD}</div><p>${g.body}</p>`
+      : g
+      ? `<div class="quest-head"><b>目標：${g.goal}</b><span class="reward">${g.now} / ${g.need}${g.unit}</span>${FOLD}</div><p>${g.what}が ${g.need}${g.unit} になると、${g.note}${g.unit === '人' && state.residents.some(isChild) ? '（小学生までの子どもは数えない）' : ''}</p>${wishes ? `<div class="wishes"><small>お願い</small>${wishes}</div>` : ''}`
+      : `<div class="quest-head"><b>島の人のお願い</b><span class="reward">かなえた ${state.wishDone || 0}</span>${FOLD}</div><div class="wishes">${wishes}</div>`;
+    el.hidden = false;
+    applyFold();
+    return;
+  }
+  if (step.id === 'busy_cafe' && busyStage === null) {
+    el.hidden = true;
+    return;
+  }
+  const reward = step.reward ? `<span class="reward">${ICONS.coin}+${step.reward}</span>` : '';
+  let html = `<div class="quest-head"><b>${step.title}</b>${reward}${FOLD}</div>`;
+  if (step.id === 'busy_cafe' && busyStage === 'ask') {
+    html += `<p>${step.ask}</p><div class="choices">${step.choices.map((c) => `<button type="button" data-choice="${c.id}">${c.label}</button>`).join('')}</div>`;
+  } else {
+    html += `<p>${step.body}</p>`;
+  }
+  if (step.id !== 'busy_cafe') html += `<button class="skip" type="button">とばす（おまけなし）</button>`; // C2：とばすと 残りの やることの おまけ（Coin）は もらえない
+  el.innerHTML = html;
+  el.hidden = false;
+  applyFold();
+}
+
+// やること・目標の紙は たためる（D310：「チュートリアルが邪魔」）。たたむと1行だけ。開いた・たたんだは覚えておく
+const FOLD_KEY = 'til.pdiary.questFold.v1';
+const FOLD = '<button class="fold" type="button" aria-label="たたむ・ひらく"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
+let questFolded = false;
+try {
+  questFolded = localStorage.getItem(FOLD_KEY) === '1';
+} catch {
+  questFolded = false;
+}
+function applyFold() {
+  $('quest').classList.toggle('folded', questFolded);
+}
+
+$('quest').addEventListener('click', (ev) => {
+  if (ev.target.closest('.fold') || (questFolded && ev.target.closest('.quest-head'))) {
+    questFolded = !questFolded;
+    try {
+      localStorage.setItem(FOLD_KEY, questFolded ? '1' : '0');
+    } catch {
+      /* 保存できなくても たためる */
+    }
+    applyFold();
+    return;
+  }
+  if (ev.target.closest('.skip')) {
+    skipTutorial(state);
+    renderQuest();
+    save();
+    return;
+  }
+  const wish = ev.target.closest('[data-wish]');
+  if (wish) {
+    const r = state.residents.find((x) => x.id === wish.dataset.wish);
+    if (r) {
+      // 家の近く・会社の近く・広げるお店のお願いは、その建物へ寄る（人は 島のどこかを歩いていることが多い・D360）
+      const place = wishPlace(state, wishOf(state, r.id));
+      if (place) renderer.focus((place.building.c + SIZES[place.building.type].w / 2) * T, (place.building.r + SIZES[place.building.type].h / 2) * T);
+      else renderer.focus(r.x, r.y);
+      select({ kind: 'resident', id: r.id, fromWish: true });
+    }
+    return;
+  }
+  const choice = ev.target.closest('[data-choice]')?.dataset.choice;
+  if (!choice) return;
+  tutorial('busy_cafe');
+  if (choice !== 'nothing') openBuild(choice);
+});
+
+// ---------------------------------------------------------------- お知らせ
+
+let toastTimer = null;
+function toast(text) {
+  const el = $('toast');
+  el.textContent = text;
+  el.hidden = false;
+  el.style.opacity = 1;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    el.style.opacity = 0;
+    setTimeout(() => (el.hidden = true), 600);
+  }, 2600);
+}
+
+// ---------------------------------------------------------------- テスト用パネル（?debug）
+
+function renderDebug() {
+  let opens = [];
+  try {
+    opens = JSON.parse(localStorage.getItem(OPENS_KEY) || '[]');
+  } catch {
+    opens = [];
+  }
+  const byDate = {};
+  for (const o of opens) {
+    const d = new Date(o).toLocaleDateString('ja-JP');
+    byDate[d] = (byDate[d] || 0) + 1;
+  }
+  $('debug').innerHTML = `
+    <button data-dbg="away">留守にする（翌朝まで進める）</button>
+    <button data-dbg="speed">速さ ×${speed === 1 ? 10 : 1} にする</button>
+    <button data-dbg="rain">今日を雨にする</button>
+    <button data-dbg="coin">コイン +500</button>
+    <button data-dbg="port">港をひらく</button>
+    <button data-dbg="unlock">釣り堀・スーパー・プラネタリウムをひらく</button>
+    <button data-dbg="pets">ペットを全部 迷い込ませる</button>
+    <button data-dbg="expand">島を広げられるようにする（山の島の橋も）</button>
+    <button data-dbg="wave1">会社・水族館・プールをひらく</button>
+    <button data-dbg="family">結婚と出産を早める（留守2回で子ども）</button>
+    <button data-dbg="grown">本島の大人5人を「育った大人」にする（移住を試す）</button>
+    <button data-dbg="dock">船着き場をつくれるようにする（育った大人の条件なし・コイン +30,000）</button>
+    ${Object.entries(ISLE_NAMES).filter(([id]) => id !== (state.isle || 'main')).map(([id, name]) => `<button data-dbg="isle" data-isle="${id}">${world.islands[id] ? `${name}へ` : `${name}をつくって行く`}</button>`).join('')}
+    <button data-dbg="reset">最初からやり直す</button>
+    <pre>${(() => {
+      const m = moverReport(world);
+      return `本島の子ども ${m.kids}人（赤ちゃん ${m.kidsByAge[0]}・幼稚園 ${m.kidsByAge[1]}・小学生 ${m.kidsByAge[2]}・学生 ${m.kidsByAge[3]}）\n移住（本島で育った大人 ${m.grown}人）\n  移れる ${m.ready}人（うち夫婦 ${m.couples}組）\n  結婚 ${m.married}・お年寄り ${m.elder}・ペット ${m.pet}\n${Object.entries(m.rooms).map(([id, n]) => `  ${ISLE_NAMES[id]}の空き ${n}人ぶん`).join('\n')}`;
+    })()}</pre>
+    <pre>画面をつけたまま：${{ on: 'オン', off: 'オフ', unsupported: 'この端末では使えない' }[awakeStatus()]}</pre>
+    <pre>起動の記録（日付: 回数）\n${Object.entries(byDate).map(([d, n]) => `${d}: ${n}`).join('\n') || '—'}</pre>`;
+}
+
+if (DEBUG) {
+  // 画面テスト用（?debug のときだけ）：マスの画面上の位置
+  window.__til = {
+    // 建物の後ろ（北）の道に 住民とペットを置く（D400：建物の上を歩いて見える、の確かめ用）
+    behind: () => {
+      const h = state.buildings.find((b) => b.type === 'house' && b.r > 0 && isRoad((b.r - 1) * COLS + b.c));
+      if (!h) return null;
+      h.level = 3;
+      const p = center((h.r - 1) * COLS + h.c);
+      const r = state.residents.find((x) => !x.age) || state.residents[0];
+      Object.assign(r, { state: 'STROLL', dest: 'stroll', destId: null, visible: true, x: p.x, y: p.y + 4, tx: p.x, ty: p.y + 4, path: [], until: state.t + 600 });
+      const pet = (state.pets || [])[0];
+      if (pet) Object.assign(pet, { x: p.x + 16, y: p.y + 6, tx: p.x + 16, ty: p.y + 6, until: state.t + 600, path: [] });
+      renderer.focus(p.x, p.y + 30);
+      return { c: h.c, r: h.r, pet: !!pet };
+    },
+    tileToClient: (c, r) => renderer.toClient((c + 0.5) * T, (r + 0.5) * T),
+    placements: (t) => placements(t, state.buildings),
+    pets: () => state.pets.map((p) => ({ id: p.id, kind: p.kind, adopted: p.adopted, state: p.state, ...renderer.toClient(p.x, p.y - 8) })),
+    clock: () => clockOf(state.t),
+    shops: () => state.buildings.filter((b) => b.type === 'shop').map((b) => ({ id: b.id, stock: b.stock, ...renderer.toClient((b.c + 1) * T, (b.r + 1) * T) })),
+    adoptAll: () => state.pets.filter((p) => !p.adopted).forEach((p) => adoptPet(state, p.id, '')),
+    wakePets: () => state.pets.forEach((p, i) => { p.state = 'SIT'; p.until = state.t + 999; p.tx = p.x = (OX + 8) * T + 20 + i * 26; p.ty = p.y = (OY + 11) * T + 12; p.facing = i % 2 ? -1 : 1; }),
+    kids: () => state.residents.filter((r) => r.age).map((r) => ({ name: r.name, age: r.age, state: r.state, visible: r.visible, ...renderer.toClient(r.x, r.y - 10) })),
+    building: (type) => state.buildings.filter((b) => b.type === type).map((b) => renderer.toClient((b.c + SIZES[b.type].w / 2) * T, (b.r + SIZES[b.type].h / 2) * T)),
+    pier: (id) => renderer.toClient(center(PIERS[id]).x, center(PIERS[id]).y),
+    focusTile: (c, r) => renderer.focus((c + 0.5) * T, (r + 0.5) * T),
+    focusPier: (id) => renderer.focus(center(PIERS[id]).x + 40, center(PIERS[id]).y),
+    fishing: () => fishingNow(),
+    arcade: () => arcadeNow(),
+    sport: () => sportNow(),
+    // スキー場の絵を見るため：席を住民で埋める（D318）
+    advance: (m) => step(state, m),
+    sunny: () => (state.weather = 'sunny'), // 花火・オーロラの絵を見るため
+    // 向こうの島に 本島の大人を n人 移す（海水浴場・温泉の絵を見るため・D371）。移住と同じ しくみで毎朝2人ずつ来るのを待たない
+    populate: (n) => {
+      state.coin += 100000;
+      world.islands.main.coin += 20000;
+      (state.debris || []).forEach((covered, k) => covered && clearPlot(world, world.current, k));
+      for (let k = 0; k < n; k++) {
+        let spot = placements('house', state.buildings)[0];
+        if (!spot) break;
+        applyAction(state, 'house', spot);
+      }
+      const homes = state.buildings.filter((b) => b.type === 'house');
+      const base = world.islands.main.residents.filter((r) => !r.age);
+      for (let k = 0; k < n; k++) state.residents.push({ ...base[k % base.length], id: `demo${state.residents.length}`, homeId: homes[k % homes.length].id, at: homes[k % homes.length].access, state: 'HOME', visible: false, job: null, spouseId: null, parents: null });
+    },
+    // お願いを1つ出す（D335・画面の確認用）
+    // home：その人を家の中に（家にいる人のお願いを押したときの確かめ用・D393）
+    wish: (home = false) => {
+      const r = state.residents.find((x) => !x.age && x.homeId);
+      if (home) Object.assign(r, { state: 'HOME', visible: false, until: state.t + 600 });
+      CONFIG.deco.pop = Math.min(CONFIG.deco.pop, state.residents.length); // 住民が少なくても飾りを置けるように（確認用）
+      state.wishes = [{ id: 'wdbg', kind: 'deco', type: 'bench', home: r.homeId, who: r.id, day: 1, text: '家の近くに ベンチがあったら うれしいな', short: '家の近くにベンチ', hint: `家から ${CONFIG.wishes.near}マス以内に ベンチを置く（つくる → 飾り）` }];
+      renderQuest();
+      const h = buildingById(state, r.homeId);
+      return { c: h.c, r: h.r, id: r.id };
+    },
+    selectedId: () => selected?.id || null,
+    raceDay: () => isRaceDay(state),
+    worldToClient: (x, y) => renderer.toClient(x, y),
+    stack: () => {
+      // 縦に2軒並べられる場所を探して建てる（D328 の確かめ用）
+      const spots = placements('house', state.buildings);
+      for (const p of spots) {
+        if (!canPlace('house', p.c, p.r + 1, state.buildings)) continue;
+        state.coin += 1000;
+        applyAction(state, 'house', p);
+        applyAction(state, 'house', { c: p.c, r: p.r + 1 });
+        const up = state.buildings.find((b) => b.type === 'house' && b.c === p.c && b.r === p.r);
+        const down = state.buildings.find((b) => b.type === 'house' && b.c === p.c && b.r === p.r + 1);
+        renderer.focus((p.c + 0.5) * T, (p.r + 1) * T);
+        return { c: p.c, r: p.r, up: up.id, down: down.id };
+      }
+      return null;
+    },
+    // 見た目を並べて見るため（D325）：住民に 指定した名前の見た目をつけて、公園の前に並べて止める
+    lineup: (names) => {
+      const at = { x: (OX + 8) * T + 12, y: (OY + 11) * T + 14 };
+      state.residents.slice(0, names.length).forEach((r, i) => {
+        r.lookName = names[i];
+        Object.assign(r, { state: 'SEATED', visible: true, until: state.t + 999, x: at.x + i * 22, y: at.y, tx: at.x + i * 22, ty: at.y, destId: null });
+      });
+      renderer.focus(at.x + names.length * 11, at.y - 10);
+    },
+    fillSki: () => state.buildings.filter((b) => b.type === 'ski').forEach((b) => b.seats.forEach((_, k) => (b.seats[k] = state.residents[k % state.residents.length].id))),
+    markRoom: () => {
+      const h = houses(state).find((x) => state.residents.filter((r) => r.homeId === x.id).length >= capacityOf(x));
+      if (h) state.wantsRoom = [h.id];
+      return h && renderer.toClient((h.c + 0.5) * T, (h.r + 0.5) * T);
+    },
+    zoom: (f) => renderer.zoomAt(f, innerWidth / 2, innerHeight / 2),
+    dogState: () => state.pets.find((p) => p.kind === 'dog')?.state,
+    setStock: (n) => state.buildings.filter((b) => b.type === 'shop').forEach((b) => (b.stock = n)),
+    setTutorial: (n) => {
+      state.tutorial = { step: n, skipped: false };
+      busyStage = null;
+      renderQuest();
+    },
+  };
+  $('debug').hidden = false;
+  renderDebug();
+  $('debug').addEventListener('click', (ev) => {
+    const k = ev.target.dataset.dbg;
+    if (k === 'away') returnAfter(1e7);
+    if (k === 'speed') speed = speed === 1 ? 10 : 1;
+    if (k === 'rain') state.weather = 'rain';
+    if (k === 'coin') state.coin += 500;
+    if (k === 'port') {
+      openPort(state);
+      renderQuest();
+    }
+    if (k === 'pets') {
+      // 迷い込む日時を今日の今にして、まだ来ていない子を全部 呼ぶ
+      for (const kind of Object.keys(CONFIG.pets)) CONFIG.pets[kind] = { ...CONFIG.pets[kind], day: 1, clock: 0 };
+    }
+    if (k === 'expand') {
+      unlockNow(state, 'expand');
+      unlockNow(state, 'bridge');
+      unlockNow(state, 'expand2');
+      unlockNow(state, 'expand3');
+      unlockNow(state, 'expand4');
+      unlockNow(state, 'expand5');
+      renderQuest();
+    }
+    if (k === 'wave1') {
+      for (const id of ['pool', 'aquarium', 'company', 'arcade']) unlockNow(state, id);
+      renderQuest();
+    }
+    if (k === 'family') {
+      // 名前のある独身の2人を仲良しにして、結婚・出産・成長の日数を0にする
+      const two = state.residents.filter((r) => !r.generic && !r.spouseId && !r.age).slice(0, 2);
+      if (two.length === 2) state.affinity[[two[0].id, two[1].id].sort().join('|')] = 9999;
+      Object.assign(CONFIG.family, { marryChance: 1, minDay: 0, birthAfterDays: 0, babyDays: 1 });
+    }
+    if (k === 'unlock') {
+      unlockNow(state, 'port');
+      unlockNow(state, 'pond');
+      unlockNow(state, 'super');
+      unlockNow(state, 'planetarium');
+      renderQuest();
+    }
+    if (k === 'grown') {
+      // 本島の大人を5人 「本島で育った大人」にする（移住を試す用）。移れる人だけ（お年寄り・ペットを飼っている人は選ばない・D375）
+      const main = world.islands.main;
+      const pet = (r) => (main.pets || []).some((p) => p.ownerId === r.id);
+      for (const r of main.residents.filter((x) => !x.age && !x.elder && !x.tourist && !x.parents && !pet(x)).slice(0, 5)) r.parents = ['?', '?'];
+    }
+    if (k === 'dock') {
+      CONFIG.abroad.grownAdults = 0;
+      world.islands.main.coin += 30000;
+      updateHud();
+    }
+    if (k === 'isle') {
+      const id = ev.target.dataset.isle;
+      if (!world.islands[id]) createIsland(world, id);
+      goIsland(id);
+    }
+    if (k === 'reset' && confirm('島を最初からやり直しますか？')) {
+      world = createWorld();
+      state = islandNow(world);
+      syncBoat();
+      firstRun = true;
+      busyStage = null;
+      renderQuest();
+      save();
+    }
+    renderDebug();
+  });
+}
+
+// ---------------------------------------------------------------- 島を行き来する（D354）
+
+function goIsland(id) {
+  const next = visitIsland(world, id);
+  if (!next) return;
+  state = next;
+  selected = null;
+  if (placing) endPlacing();
+  $('sheet').hidden = true;
+  busyStage = null;
+  shownWeather = null;
+  $('diary-dot').hidden = !state.diary.some((e) => !e.read);
+  // 島のまんなかを見せる
+  renderer.focus(MAIN.cx, MAIN.cy);
+  renderQuest();
+  updateHud();
+  syncBoat();
+  save();
+}
+
+// ---------------------------------------------------------------- 起動
+
+window.addEventListener('resize', () => renderer.resize());
+// 画面の上の表示（日付・目標の紙）の高さだけ、カメラが島を下げられるようにする（D324）
+function measureTopInset() {
+  const q = $('quest');
+  const el = q.hidden ? $('hud') : q;
+  renderer.setTopInset(el.getBoundingClientRect().bottom - $('island').getBoundingClientRect().top + 8);
+}
+if (typeof ResizeObserver !== 'undefined') {
+  const ro = new ResizeObserver(measureTopInset);
+  ro.observe($('quest'));
+  ro.observe($('hud'));
+}
+window.addEventListener('resize', measureTopInset);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    hiddenAt = Date.now();
+    save();
+  } else {
+    const away = hiddenAt ? (Date.now() - hiddenAt) / 1000 : 0;
+    hiddenAt = null;
+    if (away >= 60) recordOpen();
+    returnAfter(away);
+    lastFrame = performance.now();
+  }
+});
+window.addEventListener('pagehide', save);
+setInterval(save, 5000);
+
+$('coin-icon').innerHTML = ICONS.coin;
+// 島のテーマ（D312）は季節で自動に変わる（D313）。URL の ?theme= があれば、そちらを見本として使う
+const THEME_PARAM = new URLSearchParams(location.search).get('theme');
+let shownTheme = null;
+function syncTheme() {
+  // 海の向こうの島は季節で変わらない、その島だけの見た目（シェル D363・オーロラ D365）
+  const id = THEME_PARAM || (isAbroad(state) ? state.isle : seasonOf(state).id);
+  if (id !== shownTheme) {
+    setTheme(id);
+    shownTheme = id;
+  }
+}
+syncTheme();
+$('pop-icon').innerHTML = ICONS.people;
+document.querySelector('#btn-build .i').innerHTML = ICONS.build;
+document.querySelector('#btn-diary .i').innerHTML = ICONS.diary;
+document.querySelector('#btn-boat .i').innerHTML = ICONS.boat;
+syncBoat();
+setupKeepAwake();
+renderer.resize();
+{
+  // 最初はカフェのあたりを見せる
+  const c = cafes(state)[0];
+  if (c) renderer.focus((c.c + 1.5) * T, (c.r + 0.5) * T);
+}
+recordOpen();
+if (world.savedAt) returnAfter((Date.now() - world.savedAt) / 1000);
+if (firstRun && !currentStep(state)) {
+  const hint = $('hint');
+  hint.hidden = false;
+  setTimeout(() => {
+    hint.style.opacity = 0;
+    setTimeout(() => (hint.hidden = true), 700);
+  }, 6000);
+}
+if (firstRun) save();
+if (state.diary.some((e) => !e.read)) $('diary-dot').hidden = false;
+renderQuest();
+updateHud();
+requestAnimationFrame(frame);
+
