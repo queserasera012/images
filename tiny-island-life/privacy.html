@@ -35,7 +35,7 @@
 
 <header>
   <h1>Tiny Island Life（小さな島の暮らし）<br>プライバシーポリシー / サポート</h1>
-  <p class="lede">最終更新: 2026年10月7日　—　Tiny Island Life · Privacy Policy &amp; Support</p>
+  <p class="lede">最終更新: 2026年10月11日　—　Tiny Island Life · Privacy Policy &amp; Support</p>
 </header>
 
 <div class="box">
@@ -44,7 +44,11 @@
   <p style="margin:.75rem 0 0">ただし、<strong>広告（Google AdMob）</strong>と<strong>アプリの更新の確認（Expo）</strong>のために、
   下の2つの外部サービスと通信します。</p>
   <p class="en" style="margin:.5rem 0 0">Your island is saved only on your device. The developer does not collect any personal data.
-  The app communicates with Google AdMob (rewarded ads) and Expo (update checks), as described below.</p>
+  The app communicates with Google AdMob (rewarded ads) and Expo (update checks). When you first tap a rewarded-ad button, the app asks once for permission to track (App Tracking Transparency).
+  If you allow it, Google may use your device's advertising identifier (IDFA) to show personalized ads; if you don't, only non-personalized ads are shown.
+  You can change this anytime in Settings &gt; Privacy &amp; Security &gt; Tracking.
+  Payments for the optional one-time purchase ("Bonuses without ads") are handled by Apple; the developer never receives your payment information.
+  Your purchase is tied to your Apple ID; reinstall or switch devices with the same Apple ID and it carries over (or tap Restore Purchases).</p>
 </div>
 
 <h2>1. 端末の中に保存されるもの</h2>
@@ -66,31 +70,44 @@
 <h3>広告：Google AdMob</h3>
 <p>このアプリの広告は、<strong>見たい人が ボタンを押したときだけ</strong>流れる「リワード広告」です
 （見ると ゲームの中で おまけがもらえます）。勝手に流れる広告はありません。</p>
-<p>広告を出すために、Google が次の情報を集めることがあります。</p>
+<p>広告を出すために、Google（AdMob）が次の情報を集めることがあります。</p>
 <table>
-  <tr><th>端末の広告識別子（IDFA）</th><td><strong>使いません。</strong>広告は、あなたに合わせない広告（非パーソナライズ広告）だけです</td></tr>
+  <tr><th>端末の広告識別子（IDFA）</th><td><strong>トラッキングを許可した場合だけ</strong>。あなたに合わせた広告（パーソナライズ広告）を出すため。許可しない場合は使われず、あなたに合わせない広告（非パーソナライズ広告）が出ます</td></tr>
   <tr><th>IP アドレス・おおよその地域</th><td>広告を届けるため</td></tr>
   <tr><th>広告の表示・操作の記録</th><td>広告が見られたか、押されたか</td></tr>
   <tr><th>不具合・性能の情報</th><td>広告が正しく出るようにするため</td></tr>
 </table>
-<p>広告の中身は<strong>全年齢向け（G）に限って</strong>います。
-Google による情報の扱いは <a href="https://policies.google.com/technologies/partner-sites?hl=ja">Google のパートナーのサイトやアプリでのデータ使用</a>・
-<a href="https://policies.google.com/privacy?hl=ja">Google プライバシーポリシー</a>をご覧ください。</p>
+<p>広告の中身は、保護者の目安が要らない程度のもの（<strong>Google の区分で PG まで</strong>）に限っています。</p>
+<p>Google による情報の扱いは <a href="https://policies.google.com/technologies/partner-sites?hl=ja">Google のパートナーのサイトやアプリでのデータ使用</a>・
+<a href="https://policies.google.com/privacy?hl=ja">Google プライバシーポリシー</a>をご覧ください。
+パーソナライズ広告は <a href="https://adssettings.google.com/">広告設定</a> でも止められます。</p>
 
 <h3>アプリの更新の確認：Expo（EAS Update）</h3>
 <p>アプリを開いたときに、ゲームの新しい版があるかを Expo のサーバーに確かめます。
 このとき、アプリの版・端末の種類（iOS）・IP アドレスが送られます。島の記録や名前は送られません。
 Expo による情報の扱いは <a href="https://expo.dev/privacy">Expo のプライバシーポリシー</a>をご覧ください。</p>
 
+<h3>App 内課金：広告なしでおまけ</h3>
+<p>「広告なしでおまけ」（買い切り）を買うときの支払いは、Apple（App Store）が扱います。開発者がお支払いの情報を受け取ることはありません。
+買った記録は あなたの Apple ID に紐づいて Apple が持ちます。機種変更や入れ直しのときは、同じ Apple ID で入れ直せば そのまま使えます（戻らないときは「購入を復元」を押してください）。
+この端末の中には、買ったことを覚えておく印だけを保存します。</p>
+
 <h2>4. トラッキングについて</h2>
-<p>このアプリは<strong>トラッキングをしません</strong>（「トラッキングの許可」も尋ねません）。広告は、あなたに合わせない広告（非パーソナライズ広告）だけです。</p>
+<p>リワード広告のボタンを初めて押したときに、iPhone の「トラッキングの許可」を1回だけ尋ねます。</p>
+<ul>
+  <li><strong>許可した場合</strong>：Google が IDFA を使い、あなたに合わせた広告を出すことがあります</li>
+  <li><strong>許可しない場合</strong>：IDFA は使われません。あなたに合わせない広告だけが出ます</li>
+  <li>どちらを選んでも、ゲームの遊び方や もらえるおまけは変わりません</li>
+  <li>あとから変えるには：iPhone の「設定 → プライバシーとセキュリティ → トラッキング」で Tiny Island Life を切り替えます</li>
+</ul>
+<p>開発者が、あなたの情報を ほかの会社のデータと結びつけることは ありません。</p>
 
 <h2>5. お子さまについて</h2>
 <p>このアプリは、ご家族で一緒に遊べるように作っています（子ども向けの Kids カテゴリではありません）。</p>
 <ul>
   <li>アカウント・チャット・他の利用者と やりとりする機能はありません</li>
-  <li>広告は全年齢向け（G）に限っています</li>
-  <li>アプリ内課金はありません</li>
+  <li>広告の中身は PG までに限っています</li>
+  <li>アプリ内課金は「広告なしでおまけ」（買い切り）の1つだけです。ゲームの中のお金（Coin）は売っていません</li>
 </ul>
 
 <h2>6. ポリシーの変更</h2>
@@ -106,7 +123,7 @@ Expo による情報の扱いは <a href="https://expo.dev/privacy">Expo のプ�
   <tr><th>記録が消えました</th><td>記録は端末の中だけにあります。アプリを削除すると消えます。復元はできません</td></tr>
   <tr><th>機種変更すると記録は引き継げますか</th><td>いまは引き継げません</td></tr>
   <tr><th>広告は必ず見ないといけませんか</th><td>いいえ。広告は見たいときだけ、ボタンを押すと流れます</td></tr>
-  <tr><th>課金はありますか</th><td>ありません</td></tr>
+  <tr><th>課金はありますか</th><td>「広告なしでおまけ」（買い切り）だけです。買わなくても、広告を見なくても、全部遊べます</td></tr>
 </table>
 
 <h3>連絡先</h3>
@@ -122,14 +139,16 @@ Expo による情報の扱いは <a href="https://expo.dev/privacy">Expo のプ�
 Deleting the app deletes this data permanently.</p>
 
 <p class="en"><strong>Advertising:</strong> the app shows opt-in rewarded ads via Google AdMob only when the user taps a button.
-The app does not track users and does not use the advertising identifier (IDFA); only non-personalized ads are requested. Google may collect the IP address and approximate location,
-ad interaction data, and diagnostics. Ads are limited to content rated G. See
+The first time the user taps a rewarded-ad button, the app asks once for tracking permission (App Tracking Transparency). If allowed, Google may use the advertising identifier (IDFA) for personalized ads; otherwise only non-personalized ads are requested.
+Google may collect the IP address and approximate location, ad interaction data, and diagnostics. Ads are limited to content rated up to PG. See
 <a href="https://policies.google.com/technologies/partner-sites">how Google uses data</a>.</p>
 
 <p class="en"><strong>Updates:</strong> on launch the app checks Expo's servers for game updates, sending the app version, platform and IP address.
 No game data is sent. See the <a href="https://expo.dev/privacy">Expo Privacy Policy</a>.</p>
 
-<p class="en">There are no in-app purchases. For support, please contact
+<p class="en"><strong>In-app purchase:</strong> one optional one-time purchase ("Bonuses without ads"). Payments are handled by Apple; the developer never receives payment information. Coin is not sold.</p>
+
+<p class="en">For support, please contact
 <a href="https://x.com/queserasera_012">@queserasera_012</a> on X.</p>
 
 <footer>
