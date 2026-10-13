@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アルクエスト 大人のドット</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#2b1e1c; --paper:#f1e8d0; --paper2:#e6dabb; --muted:#5f574a; --red:#b5463a; --navy:#3d5170; --gold:#e3b54e; --page:#d9d4c8; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--page); color:var(--ink); font-family:"Zen Kaku Gothic New", sans-serif; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1260px; margin:0 auto; padding:28px 16px 64px; }
+  .intro { max-width:680px; }
+  h1 { font-weight:900; font-size:24px; }
+  .intro p { margin-top:8px; font-size:14.5px; line-height:1.85; color:#3f392f; }
+  h2 { font-weight:900; font-size:19px; margin-top:40px; }
+  .changes { margin-top:12px; max-width:680px; font-size:14px; line-height:1.85; }
+  .changes li { margin-left:1.2em; }
+  .changes b { font-weight:700; }
+  canvas { image-rendering:pixelated; image-rendering:crisp-edges; display:block; }
+
+  .compare { display:flex; flex-wrap:wrap; gap:28px; align-items:flex-end; margin-top:16px; }
+  .compare figure { text-align:center; }
+  .compare figcaption { font-size:13px; color:var(--muted); margin-top:8px; }
+  .sheet { display:flex; flex-wrap:wrap; gap:18px; margin-top:16px; align-items:flex-end; }
+  .sheet figure { text-align:center; }
+  .sheet figcaption { font-size:12px; color:var(--muted); margin-top:6px; }
+
+  .pair { display:flex; flex-wrap:wrap; gap:28px; margin-top:18px; }
+  .pair figcaption { font-size:13px; color:var(--muted); margin:0 0 8px 4px; }
+  .frame { width:390px; }
+  .phone { width:390px; height:844px; position:relative; overflow:hidden; border-radius:28px; background:var(--paper); box-shadow:0 26px 50px -28px rgba(30,20,10,.55); transform-origin:0 0; }
+  .phone .scene { position:absolute; left:0; top:0; }
+  .ui { position:absolute; left:0; right:0; }
+
+  /* ドットの窓枠：角を1段落とした太枠 */
+  .win { position:relative; background:var(--paper); border:3px solid var(--ink);
+         box-shadow: 0 0 0 3px var(--paper2) inset, 3px 3px 0 0 rgba(43,30,28,.25); }
+  .win::before, .win::after { content:""; position:absolute; width:3px; height:3px; background:var(--page); }
+
+  .head { top:54px; padding:0 22px; color:var(--ink); }
+  .date { font-size:14px; font-weight:700; }
+  .steps { font-family:"DotGothic16"; font-size:64px; line-height:1.05; margin-top:2px; letter-spacing:.01em; }
+  .steps small { font-size:22px; margin-left:4px; }
+  .sub { font-size:14px; font-weight:500; }
+  .sub b { font-family:"DotGothic16"; font-weight:400; font-size:15px; }
+
+  .panel { top:468px; bottom:0; background:var(--paper); border-top:3px solid var(--ink); padding:16px 18px 0; }
+  .panel::before { content:""; position:absolute; left:0; right:0; top:0; height:3px; background:var(--paper2); }
+  .row { display:flex; justify-content:space-between; align-items:baseline; }
+  .panel h3 { font-family:"DotGothic16"; font-weight:400; font-size:17px; letter-spacing:.06em; }
+  .panel .count { font-family:"DotGothic16"; font-size:15px; }
+  .gems { display:flex; justify-content:space-between; margin-top:10px; padding:0 2px; }
+  .gems span { width:42px; text-align:center; font-size:11.5px; color:var(--muted); }
+  .gems canvas { margin:0 auto 4px; }
+  .tally { font-size:12.5px; margin-top:8px; color:var(--muted); line-height:1.6; }
+  .chestbox { margin-top:14px; display:flex; gap:12px; align-items:center; padding:10px 12px; background:#f7f0dc; border:3px solid var(--ink); box-shadow:inset 0 0 0 2px #fffaf0; }
+  .chestbox .t { font-size:13px; line-height:1.5; }
+  .chestbox .t b { font-family:"DotGothic16"; font-weight:400; font-size:15px; }
+  .meter { height:9px; margin-top:4px; background:#d8ccab; border:2px solid var(--ink); position:relative; }
+  .meter i { position:absolute; left:0; top:0; bottom:0; width:66%; background:var(--gold); box-shadow:inset 0 -2px 0 #b07f2a, inset 0 2px 0 #f6d88a; }
+
+  .btn { position:absolute; left:22px; right:22px; bottom:36px; height:60px; display:flex; align-items:center; justify-content:center;
+         font-family:"DotGothic16"; font-size:22px; letter-spacing:.2em; color:#f6efe0; background:var(--navy);
+         border:3px solid var(--ink); box-shadow:inset 0 3px 0 #5a7596, inset 0 -4px 0 #2c3c55, 0 4px 0 var(--ink); }
+
+  /* 戦闘 */
+  .bhead { top:52px; padding:0 22px; }
+  .place { font-size:13px; font-weight:700; color:var(--muted); }
+  .foe { font-family:"DotGothic16"; font-size:20px; margin-top:2px; }
+  .hp { position:absolute; left:22px; right:22px; top:112px; height:16px; background:#e8dcc0; border:3px solid var(--ink); }
+  .hp i { position:absolute; left:0; top:0; bottom:0; width:100%; background:var(--red); box-shadow:inset 0 -3px 0 #84302a, inset 0 2px 0 #d9705f; transition:width .25s steps(6); }
+  .hp em { position:absolute; right:0; top:-22px; font-style:normal; font-family:"DotGothic16"; font-size:13px; }
+  .dmg { position:absolute; font-family:"DotGothic16"; font-size:30px; color:#fffaf0; opacity:0; pointer-events:none;
+         text-shadow: 3px 0 0 var(--ink), -3px 0 0 var(--ink), 0 3px 0 var(--ink), 0 -3px 0 var(--ink), 3px 3px 0 var(--ink), -3px 3px 0 var(--ink), 3px -3px 0 var(--ink), -3px -3px 0 var(--ink); }
+  .dmg.pop { animation:pop .9s steps(9) forwards; }
+  .dmg.water { color:#b8eef5; }
+  @keyframes pop { 0% { opacity:1; transform:translateY(6px); } 20% { transform:translateY(-14px); } 35% { transform:translateY(-8px); } 80% { opacity:1; } 100% { opacity:0; transform:translateY(-12px); } }
+  .logwin { position:absolute; left:16px; right:16px; top:474px; height:104px; padding:14px 16px; background:var(--paper); border:3px solid var(--ink); box-shadow:inset 0 0 0 3px var(--paper2), 0 4px 0 rgba(43,30,28,.2); }
+  .logwin p { font-size:15px; line-height:1.75; min-height:1.75em; }
+  .logwin p:first-child { color:var(--muted); }
+  .logwin p:empty::before { content:none; }
+  .logwin p::before { content:"▸ "; font-family:"DotGothic16"; color:var(--red); }
+  .party { position:absolute; left:16px; right:16px; top:596px; padding:10px 14px; background:var(--navy); border:3px solid var(--ink); box-shadow:inset 0 0 0 2px #5a7596; color:#f6efe0; }
+  .pm { display:flex; align-items:center; gap:10px; height:30px; font-size:14px; }
+  .pm .nm { width:56px; font-weight:700; }
+  .pm .lv { width:44px; font-family:"DotGothic16"; font-size:13px; color:#c9d6e6; }
+  .pm .bar { flex:1; height:10px; background:#2c3c55; border:2px solid var(--ink); position:relative; }
+  .pm .bar i { position:absolute; left:0; top:0; bottom:0; background:#8fcf7a; box-shadow:inset 0 -2px 0 #5f9a4e; }
+  .pm .num { width:66px; text-align:right; font-family:"DotGothic16"; font-size:13px; }
+  .auto { position:absolute; left:22px; bottom:40px; font-size:13px; color:var(--muted); }
+  .skip { position:absolute; right:22px; bottom:40px; font-size:13px; text-decoration:underline; text-underline-offset:3px; }
+
+  .notes { margin-top:40px; max-width:680px; font-size:14px; line-height:1.85; }
+  .notes dt { font-weight:700; margin-top:10px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="intro">
+    <h1>B 大人のドット：細かく描き直した版</h1>
+    <p>前の B より点を小さくして、1体に使う点の数を約3倍にした。色は1つの素材につき明・中・暗の3段を使い、輪郭は真っ黒ではなく焦げ茶にしている。背景の山・雲・木もすべて点で描き、奥のものほどゆっくり流れる。絵はすべて文字の表から作っているので、描き足しても費用はかからない。</p>
+  </div>
+
+  <h2>画面</h2>
+  <div class="pair">
+    <figure><figcaption>ホーム</figcaption><div class="frame"><div class="phone" id="home"></div></div></figure>
+    <figure><figcaption>戦闘（自動で進む）</figcaption><div class="frame"><div class="phone" id="battle"></div></div></figure>
+  </div>
+
+  <h2>どこを細かくしたか</h2>
+  <ul class="changes">
+    <li><b>点の大きさ</b>：1点 5px → 3px（画面の上で）。キャラは 16×19点 → 24×36点</li>
+    <li><b>頭身</b>：2頭身半 → 3頭身半。30〜50代向けに、子どもっぽさを下げた</li>
+    <li><b>色の段</b>：髪・服・肌・剣それぞれに影と光の色を足した。主人公にマント、魔法使いに水晶の杖</li>
+    <li><b>動き</b>：歩きは脚3コマ＋マントの揺れ。斬るは「振りかぶる→振り抜く」の2コマと斬撃の光。魔法は水晶が光って水の玉が飛ぶ</li>
+  </ul>
+
+  <div class="compare">
+    <figure><canvas id="cmp-old"></canvas><figcaption>前の B</figcaption></figure>
+    <figure><canvas id="cmp-new"></canvas><figcaption>今回（同じ画面の大きさ）</figcaption></figure>
+  </div>
+
+  <h2>キャラの表（拡大）</h2>
+  <div class="sheet" id="sheet"></div>
+
+  <dl class="notes">
+    <dt>描き足すときの費用</dt><dd>0円。仲間1人は 24×36 の文字の表を1枚（頭・胴・脚を分けて書くので、服の色違いは表を書き直さずに作れる）。</dd>
+    <dt>向かないこと</dt><dd>表情の細かい変化（泣き笑いなど）は2〜3点でしか描けない。顔はこの大きさが上限で、これ以上細かくすると「ドット絵」より「縮んだイラスト」に見え始める。</dd>
+    <dt>このあと</dt><dd>この絵柄でよければ、仲間をあと2人（弓・僧侶）と敵2体を足して、フェーズ0の画面（歩数でレベルが上がる）に載せる。</dd>
+  </dl>
+</div>
+
+<script>
+const DATA = {"pal":{"O":"#2b1e1c","s":"#f2cba3","S":"#d49a73","h":"#7a4a2c","H":"#533019","j":"#a06a40","c":"#a87a4c","C":"#7a5236","d":"#c99a68","r":"#b5463a","R":"#84302a","b":"#3e2a1e","y":"#e3b54e","p":"#5c604c","P":"#42463a","k":"#5a3c28","K":"#3a2619","g":"#e2e6ea","G":"#9aa4ae","w":"#f6efe0","n":"#5a7596","N":"#3d5170","m":"#2c3c55","t":"#4f8a83","T":"#366660","u":"#7fb3a8","a":"#8c3f2e","A":"#63291e","e":"#8f6038","E":"#5e3c24","q":"#b8eef5","Q":"#5bb6c9","Y":"#b07f2a","F":"#74ab5c","L":"#a9d88c","D":"#4c7d40","Z":"#35592f","i":"#c28a3a","I":"#8a5a26"},"spr":{"hero_walk1":["........OOOOO","......OOjjhhhOO",".....OjjhhhhhhhO",".....OhhhhhhhhhhO","....OHhhhhjhhhhhO","....OHhhhHhhhHhhhO","....OHHhHsHhhsHssO","....OHHSsssOsssOsO","....OHHSssssssssSO","....OHHhSsssssSSO",".....OHhOSSsssSO",".......OOSSSSOO",".....OnOORrrrRO","....OnOORrrrrrrROO","....OOCcRRrrrrRRccO","...OOCcCcRRRRRccdccO","...OOCcCcccdcccccdcO","...OOCcCOcccdccccOdcO","..OnOCcCOccccdcccOdcO","..OnOCCCOcccccdccOccO","..OnOCCCObbbbbybbOCcO","..OnOSSSOccccccccOSsO",".OnNOSSOOcCcccccCOSsO",".OnNNOONOcCcccccCOOO",".OnNNmNNOCCCCCCCCO",".OnNNmNNOPPpO.OppO","OnNNmNNNOPPpO.OpppO","OnNNmNNOPPpO...OppO","OnNNmNNOPpO....OpppO","OnNNmNOPPpO.....OppO","OnNNmNOPpO......OppO","OnNNmOPPpO.......OppO","OOO.OOKkO........OkkO","....OKKkO........OkkkO","....OKkkO........OkkkkO","....OOOOO........OOOOOO"],"hero_walk2":["........OOOOO","......OOjjhhhOO",".....OjjhhhhhhhO",".....OhhhhhhhhhhO","....OHhhhhjhhhhhO","....OHhhhHhhhHhhhO","....OHHhHsHhhsHssO","....OHHSsssOsssOsO","....OHHSssssssssSO","....OHHhSsssssSSO",".....OHhOSSsssSO",".......OOSSSSOO",".....OnOORrrrRO","....OnOORrrrrrrROO","....OOCcRRrrrrRRccO","...OOCcCcRRRRRccdccO","...OOCcCcccdcccccdcO","...OOCcCOcccdccccOdcO","..OnOCcCOccccdcccOdcO","..OnOCCCOcccccdccOccO","..OnOCCCObbbbbybbOCcO","..OnOSSSOccccccccOSsO",".OnNOSSOOcCcccccCOSsO","..OnNOONOcCcccccCOOO","..OnNNmNOCCCCCCCCO","..OnNNmNOPPpppO",".OnNNmNNOPPpppO",".OnNNmNNOPPpppO",".OnNNmNNOPPpppO",".OnNNmNNOPPppO",".OnNNmNNOPPppO",".OnNNmNNOPPppO",".OOO.OO.OKKkkO","........OKKkkO","........OKKkkkO","........OOOOOOO"],"hero_walk3":["........OOOOO","......OOjjhhhOO",".....OjjhhhhhhhO",".....OhhhhhhhhhhO","....OHhhhhjhhhhhO","....OHhhhHhhhHhhhO","....OHHhHsHhhsHssO","....OHHSsssOsssOsO","....OHHSssssssssSO","....OHHhSsssssSSO",".....OHhOSSsssSO",".......OOSSSSOO",".....OnOORrrrRO","....OnOORrrrrrrROO","....OOCcRRrrrrRRccO","...OOCcCcRRRRRccdccO","...OOCcCcccdcccccdcO","...OOCcCOcccdccccOdcO","..OnOCcCOccccdcccOdcO","..OnOCCCOcccccdccOccO","..OnOCCCObbbbbybbOCcO","..OnOSSSOccccccccOSsO",".OnNOSSOOcCcccccCOSsO",".OnNNOONOcCcccccCOOO",".OnNNmNNOCCCCCCCCO",".OnNNmNNOppO.OPPpO","OnNNmNNNOpppO.OPPpO","OnNNmNNOppO...OPPpO","OnNNmNNOppO....OPpO","OnNNmNOppO......OPpO","OnNNmNOppO.......OPpO","OnNNmOppO.........OPpO","OOO.OOkkO.........OKkO","....OkkkO.........OKKkO","....OkkkkO........OKKkkO","....OOOOOO........OOOOOO"],"hero_atk1":["........OOOOO...OgGO","......OOjjhhhOO.OgGO",".....OjjhhhhhhhOOgGO",".....OhhhhhhhhhhOOgGO","....OHhhhhjhhhhhOOgGO","....OHhhhHhhhHhhhOgGO","....OHHhHsHhhsHssOOgGO","....OHHSsssOsssOsOOgGO","....OHHSssssssssOYyYyYO","....OHHhSsssssSSOOOOO",".....OHhOSSsssSO.OssO",".......OOSSSSOO..OssO",".....OnOORrrrRO..OcdO","....OnOORrrrrrrROOcdO","....OOCcRRrrrrRRcOcdO","...OOCcCcRRRRRccdOcdO","...OOCcCcccdcccccOcdO","...OOCcCOcccdccccO","..OnOCcCOccccdcccO","..OnOCCCOcccccdccO","..OnOCCCObbbbbybbO","..OnOSSSOccccccccO",".OnNOSSOOcCcccccCO","..OnNOONOcCcccccCO","..OnNNmNOCCCCCCCCO","..OnNNmNOppO.OPPpO",".OnNNmNNOpppO.OPPpO",".OnNNmNOppO...OPPpO",".OnNNmNOppO....OPpO",".OnNNmOppO......OPpO",".OnNNmOppO.......OPpO",".OnNNOppO.........OPpO",".OOO.OkkO.........OKkO","....OkkkO.........OKKkO","....OkkkkO........OKKkkO","....OOOOOO........OOOOOO"],"hero_atk2":["........OOOOO","......OOjjhhhOO",".....OjjhhhhhhhO",".....OhhhhhhhhhhO","....OHhhhhjhhhhhO","....OHhhhHhhhHhhhO","....OHHhHsHhhsHssO","....OHHSsssOsssOsO","....OHHSssssssssSO","....OHHhSsssssSSO",".....OHhOSSsssSO",".......OOSSSSOO",".....OnOORrrrRO","....OnOORrrrrrrROO","....OOCcRRrrrrRRccO.....O","...OOCcCcRRRRRccdO......Y","...OOCcCcccdcccccOOOOOO.yOOOOOOOOOO","...OOCcCOcccdccccccccssOyggggggggggO","..OnOCcCOccccdcccCCCCSSOyGGGGGGGGGGO","..OnOCCCOcccccdccOOOOOO.yOOOOOOOOOO","..OnOCCCObbbbbybbO......y","..OnOSSSOccccccccO......O",".OnNOSSOOcCcccccCO",".OnNNOONOcCcccccCO",".OnNNmNNOCCCCCCCCO",".OnNNmNNOPPpO.OppO","OnNNmNNNOPPpO.OpppO","OnNNmNNOPPpO...OppO","OnNNmNNOPpO....OpppO","OnNNmNOPPpO.....OppO","OnNNmNOPpO......OppO","OnNNmOPPpO.......OppO","OOO.OOKkO........OkkO","....OKKkO........OkkkO","....OKkkO........OkkkkO","....OOOOO........OOOOOO"],"mage_walk1":[".........OOOOO.....O",".......OOtuuutOO..OqO","......OtuuttttttOOqqQO",".....OtuttttttttTOqqQQO",".....OutttttttttTOqQQO","....OTtttaaaaaatTOOQO","....OTttaaAaaaaAtOOyO","....OTtTaAsssssssOOeO","....OTtTaSsOsssOsOOeO","....OTtTaSssssssSOOeO","....OTtTaaSsssSSO.OeO","....OTTTaaASSSSO..OeO",".....OTTaaAOOOO...OEO",".....OTTyyyyyyO...OeO",".....OyyyyyyyyyyyOOeO","....OTTtttttytOuttOeO","....OTTtttttytOuttOeO","....OTTtttttytOuttOeO","....OTTtttttytOuttOEO","....OTTtttttytOuttOeO","....OTTtttttytOutOsssO","....OTTtttttytOutOSssO","....OrrrrrrryrrrrrOOO","...OTTtttttRRtttutOeO","...OTTttTtttyttTutOEO","...OTTttTtttyttTtutOO","...OTTttTtttyttTtutOO","...OTTttTtttyttTtutOO","..OTTtttTtttyttTtutOO","..OTTtttTtttyttTtutOO","..OTTtttTtttyttTtutOO","..OTTtttTtttyttTttutO","..OTTtttTtttyttTttutO",".OTTttttTtttyttTttutO",".OTTttttTtttyttTttutO",".OYyYyYyYyYyYyYyYyYyO","..OOkkO...OkkkO...OEO","..OOOOO...OOOOO...OeO","..................OOO","..................OOO"],"mage_walk2":[".........OOOOO.....O",".......OOtuuutOO..OqO","......OtuuttttttOOqqQO",".....OtuttttttttTOqqQQO",".....OutttttttttTOqQQO","....OTtttaaaaaatTOOQO","....OTttaaAaaaaAtOOyO","....OTtTaAsssssssOOeO","....OTtTaSsOsssOsOOeO","....OTtTaSssssssSOOeO","....OTtTaaSsssSSO.OeO","....OTTTaaASSSSO..OeO",".....OTTaaAOOOO...OEO",".....OTTyyyyyyO...OeO",".....OyyyyyyyyyyyOOeO","....OTTtttttytOuttOeO","....OTTtttttytOuttOeO","....OTTtttttytOuttOeO","....OTTtttttytOuttOEO","....OTTtttttytOuttOeO","....OTTtttttytOutOsssO","....OTTtttttytOutOSssO","....OrrrrrrryrrrrrOOO","...OTTtttttRRtttutOeO","...OTTttTtttyttTutOEO","...OTTttTtttyttTtutOO","...OTTttTtttyttTtutOO","...OTTttTtttyttTtutOO","..OTTtttTtttyttTtutOO","..OTTtttTtttyttTtutOO","..OTTtttTtttyttTtutOO","..OTTtttTtttyttTttutO","..OTTtttTtttyttTttutO",".OTTttttTtttyttTttutO",".OTTttttTtttyttTttutO",".OYyYyYyYyYyYyYyYyYyO","....OkkkOkkkO.....OEO","....OOOOOOOOO.....OeO","..................OOO","..................OOO"],"slime1":[".",".",".",".","...........OOOOOO",".........OOLFFFFFOO","........OLLLFFFFFFFO",".......OLwwLFFFFFFFDO","......OLLwLLFFFFFFFDDO",".....OLLLLLLFFFFFFFDDDO",".....OLLLLLLFFFFFFFDDDO","....OLLLLLLLFFFFFFFDDDDO","....OFFFFFFFFFFOFFFDODDO","...OFFFFFFFFFFFOFFFDODDDO","...OFFFFFFFFFFFOFFFDODDDO","...OFFFFFFFFFFFFFFFDDDDDO","..OFFFFFFFFFFFFFFOFDDDDDDO","..ODDDDDDDDDDDDDDDDDDDDDDO","..ODDDDDDDDDDDDDDDDDDDDDDO","..OZZZZZZZZZZZZZZZZZZZZZZO","..OZZZZZZZZZZZZZZZZZZZZZZO","...OOOOOOOOOOOOOOOOOOOOOO"],"slime2":[".",".",".",".",".",".","...........OOOOOO",".........OOLFFFFFOO",".......OOLLLFFFFFFFOO","......OLwwLLFFFFFFFDDO",".....OLLwLLLFFFFFFFDDDO","....OLLLLLLLFFFFFFFDDDDO","...OLLLLLLLLFFFFFFFDDDDDO","...OFFFFFFFFFFFOFFFDODDDO","..OFFFFFFFFFFFFOFFFDODDDDO","..OFFFFFFFFFFFFOFFFDODDDDO","..OFFFFFFFFFFFFFFFFDDDDDDO",".OFFFFFFFFFFFFFFFOFDDDDDDDO",".ODDDDDDDDDDDDDDDDDDDDDDDDO",".OZZZZZZZZZZZZZZZZZZZZZZZZO",".OZZZZZZZZZZZZZZZZZZZZZZZZO","..OOOOOOOOOOOOOOOOOOOOOOOO"],"chest":["..OOOOOOOOOO",".OiiiiiiiiiiO","OiIIIIIIIIIIiO","OOOOOOyyOOOOOO","OiiiiiOYYOiiiO","OiIIIIIOOIIIiO","OiIIIIIIIIIIiO","OOOOOOOOOOOOOO"],"gem":["...OOOO","..OrrdrO",".OrrrrRRO","ORrrrrRRRO",".ORrrRRRO","..ORRRRO","...OOOO"],"gem_rescue":["...OOOO","..O....O",".O..y...O","O..yyy...O",".O..y...O","..O....O","...OOOO"],"gem_off":["...OOOO","..OwwwwO",".OwwwwwwO","OwwwwwwwwO",".OwwwwwwO","..OwwwwO","...OOOO"]}};
+const PAL = DATA.pal, SPR = DATA.spr;
+
+/* ===== 点を描く道具 ===== */
+const hexCache = {};
+function draw(ctx, rows, x, yBottom, opt = {}) {
+  const h = rows.length, flip = opt.flip, w = Math.max(...rows.map(r => r.length));
+  for (let y = 0; y < h; y++) {
+    const r = rows[y];
+    for (let i = 0; i < r.length; i++) {
+      const ch = r[i]; if (ch === '.') continue;
+      let col = PAL[ch];
+      if (opt.flash) col = ch === 'O' ? '#ffffff' : '#fffaf0';
+      ctx.fillStyle = col;
+      ctx.fillRect(x + (flip ? w - 1 - i : i), yBottom - h + y, 1, 1);
+    }
+  }
+}
+function makeCanvas(w, h, scale) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  c.style.width = w * scale + 'px'; c.style.height = h * scale + 'px';
+  const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false;
+  return [c, ctx];
+}
+function spriteCanvas(name, scale) {
+  const rows = SPR[name], w = Math.max(...rows.map(r => r.length));
+  const [c, ctx] = makeCanvas(w, rows.length, scale); draw(ctx, rows, 0, rows.length); return c;
+}
+
+/* ===== 背景：すべて点で描く ===== */
+const BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+function sky(ctx, W, H, cols) {
+  for (let y = 0; y < H; y++) {
+    const t = y / H * (cols.length - 1), i = Math.min(cols.length - 2, Math.floor(t)), f = t - i;
+    for (let x = 0; x < W; x++) {
+      const g = f < 0.72 ? 0 : (f - 0.72) / 0.28 * 16;
+      ctx.fillStyle = (g > BAYER[y & 3][x & 3]) ? cols[i + 1] : cols[i];
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+}
+const CLOUD = ['....wwww.......', '..wwwwwwww.ww..', '.wwwwwwwwwwwwww', 'wwwwwwwwwwwwwwww', '.vvvvvvvvvvvvvv.'];
+function cloud(ctx, x, y) {
+  CLOUD.forEach((r, j) => [...r].forEach((ch, i) => { if (ch === '.') return; ctx.fillStyle = ch === 'w' ? '#f4f1e4' : '#d8e2d6'; ctx.fillRect(Math.round(x) + i, y + j, 1, 1); }));
+}
+function ridge(ctx, W, off, base, amp, seed, cols, snow) {
+  for (let x = 0; x < W; x++) {
+    const gx = x + off;
+    const hgt = Math.round(amp * (0.55 * Math.sin(gx * 0.045 + seed) + 0.3 * Math.sin(gx * 0.11 + seed * 2) + 0.15 * Math.sin(gx * 0.23 + seed * 3)));
+    const top = base - hgt;
+    const slope = Math.sin((gx + 1) * 0.045 + seed) - Math.sin(gx * 0.045 + seed);
+    for (let y = top; y < base + 40; y++) {
+      let c = cols[0];
+      if (slope < 0 && y < top + 10) c = cols[1];
+      if (y > base + 4) c = ((y + gx) & 3) === 0 ? cols[2] : cols[1];
+      if (snow && y < top + 3 && hgt > amp * 0.55) c = (y === top) ? '#f4f1e4' : '#dfe6dc';
+      ctx.fillStyle = c; ctx.fillRect(x, y, 1, 1);
+    }
+  }
+}
+const TREE = [
+  '.....OOOO.....', '...OOGGLLOO...', '..OGGGGLLLLO..', '.OGGGGGGGLLLO.', '.OGDGGGGGGLLO.', 'OGDDGGGGGGGLLO',
+  'OGDGGGDGGGGGLO', 'OGDDGGGGGGGGGO', '.OGDDGGGDGGGO.', '.ODDDGGGGGGDO.', '..ODDDDGGDDO..', '...OODDDDOO...',
+  '.....OkKO.....', '.....OkKO.....', '.....OkKO.....', '....OkkKKO....'];
+const TPAL = { O: '#2b3a28', G: '#5f8f52', L: '#86b46c', D: '#45703f', k: '#7a5236', K: '#533019' };
+function tree(ctx, x, yb) {
+  TREE.forEach((r, j) => [...r].forEach((ch, i) => { if (ch === '.') return; ctx.fillStyle = TPAL[ch]; ctx.fillRect(Math.round(x) + i, yb - TREE.length + j, 1, 1); }));
+}
+function ground(ctx, W, top, H, off) {
+  for (let y = top; y < H; y++) for (let x = 0; x < W; x++) {
+    const gx = x + off; let c = '#a9bd7c';
+    if (y === top) c = '#7f9a5a';
+    else if (y === top + 1) c = ((gx & 1) ? '#8faa66' : '#a9bd7c');
+    else if (y > top + 7 && y < top + 13) { c = '#d9c99a'; if (((gx * 7 + y * 13) % 23) === 0) c = '#b8a77a'; if (y === top + 8 || y === top + 12) c = '#c7b585'; }
+    else if (((gx * 5 + y * 11) % 37) === 0) c = '#8faa66';
+    ctx.fillStyle = c; ctx.fillRect(x, y, 1, 1);
+  }
+  // 草の房と花
+  for (let k = -1; k < W / 16 + 1; k++) {
+    const gx = k * 16 - (off % 16); const v = ((Math.floor((off) / 16) + k) * 97) % 5;
+    ctx.fillStyle = '#7f9a5a'; ctx.fillRect(gx + 3, top - 1, 1, 1); ctx.fillRect(gx + 5, top - 2, 1, 2); ctx.fillRect(gx + 7, top - 1, 1, 1);
+    if (v === 1) { ctx.fillStyle = '#f0d878'; ctx.fillRect(gx + 11, top + 3, 1, 1); }
+    if (v === 3) { ctx.fillStyle = '#e8907a'; ctx.fillRect(gx + 12, top + 4, 1, 1); }
+  }
+}
+function scenery(ctx, W, H, t, groundTop, moving) {
+  const sp = moving ? t / 1000 : 0;
+  sky(ctx, W, groundTop, ['#94bcc0', '#a9c9c3', '#c3d8c5', '#dbe3c4']);
+  cloud(ctx, ((W + 20) - (sp * 2.2 + 10) % (W + 40)) - 20, groundTop - 66);
+  cloud(ctx, ((W + 20) - (sp * 1.6 + 80) % (W + 40)) - 20, groundTop - 54);
+  ridge(ctx, W, Math.floor(sp * 1.5), groundTop - 34, 22, 1.3, ['#97b2ab', '#86a39d', '#86a39d'], true);
+  ridge(ctx, W, Math.floor(sp * 4), groundTop - 14, 10, 4.1, ['#87a882', '#76987a', '#6f9171'], false);
+  const toff = Math.floor(sp * 12);
+  [12, 58, 101, 150].forEach(px => { const x = ((px - toff) % 170 + 170) % 170 - 20; tree(ctx, x, groundTop + 1); });
+  ground(ctx, W, groundTop, H, Math.floor(sp * 12));
+}
+
+/* ===== 前の B と並べる ===== */
+(function () {
+  const OP = { o: '#2B2A26', h: '#5A3B28', s: '#E9C29A', c: '#8C5A3C', C: '#6A4430', w: '#E8DCC0', b: '#3A2A20', p: '#4E5446', k: '#3A2A20' };
+  const old = ['.....oooo.......', '....ohhhho......', '...ohhhhhho.....', '...ohssssho.....', '...osososso.....', '...ossssso......', '....ossso.......', '...occwwcco.....', '..occcwwccco....', '..ocscwwcsco....', '..ocsCbbCsco....', '..ooocccccoo....', '....occccco.....', '....oCcccCo.....', '....op..po.....', '...opp..ppo.....', '...op....po.....', '..okk....kko....', '..ooo....ooo....'];
+  const scale = 2;
+  const [c1, x1] = makeCanvas(48, 64, 5 * scale / 2);
+  x1.fillStyle = '#e6dabb'; x1.fillRect(0, 0, 48, 64);
+  old.forEach((r, j) => [...r].forEach((ch, i) => { if (ch === '.') return; x1.fillStyle = OP[ch]; x1.fillRect(16 + i, 40 - old.length + j + 18, 1, 1); }));
+  c1.style.width = 48 * 5 + 'px'; c1.style.height = 64 * 5 + 'px';
+  document.getElementById('cmp-old').replaceWith(c1);
+  const [c2, x2] = makeCanvas(80, 107, 3);
+  x2.fillStyle = '#e6dabb'; x2.fillRect(0, 0, 80, 107);
+  draw(x2, SPR.mage_walk1, 10, 98); draw(x2, SPR.hero_walk2, 40, 98);
+  document.getElementById('cmp-new').replaceWith(c2);
+})();
+
+/* ===== キャラの表 ===== */
+(function () {
+  const list = [['hero_walk1', '歩く 1'], ['hero_walk2', '歩く 2'], ['hero_walk3', '歩く 3'], ['hero_atk1', '振りかぶる'], ['hero_atk2', '振り抜く'], ['mage_walk1', '魔法使い'], ['slime1', 'スライム'], ['chest', '宝箱']];
+  const sheet = document.getElementById('sheet');
+  list.forEach(([n, label]) => { const f = document.createElement('figure'); f.appendChild(spriteCanvas(n, 5)); const cap = document.createElement('figcaption'); cap.textContent = label; f.appendChild(cap); sheet.appendChild(f); });
+})();
+
+/* ===== ホーム ===== */
+const DAYS = ['火', '水', '木', '金', '土', '日', 'きょう'];
+(function () {
+  const el = document.getElementById('home');
+  el.innerHTML = `
+    <div class="ui head"><div class="date">10月6日（月）　旅の43日目</div><div class="steps">7,200<small>歩</small></div><div class="sub">きょう歩いた分　森まで あと<b>800</b>歩</div></div>
+    <div class="ui panel">
+      <div class="row"><h3>連続の記録</h3><span class="count">12日</span></div>
+      <div class="gems">${DAYS.map((d, i) => `<span data-i="${i}">${d}</span>`).join('')}</div>
+      <div class="tally">うち救済1日。木曜は広告で戻した日</div>
+      <div class="chestbox"><span id="chest-slot"></span><div class="t" style="flex:1">次の宝箱まで あと<b>340</b>歩<div class="meter"><i></i></div></div></div>
+    </div>
+    <div class="btn">出発する</div>`;
+  el.querySelectorAll('.gems span').forEach(s => { const i = +s.dataset.i; s.prepend(spriteCanvas(i === 2 ? 'gem_rescue' : 'gem', 3)); });
+  document.getElementById('chest-slot').appendChild(spriteCanvas('chest', 3));
+  const W = 130, H = 156, GT = 128;
+  const [c, ctx] = makeCanvas(W, H, 3); c.className = 'scene'; el.prepend(c);
+  const walk = ['hero_walk1', 'hero_walk2', 'hero_walk3', 'hero_walk2'], mwalk = ['mage_walk1', 'mage_walk2'];
+  function frame(t) {
+    scenery(ctx, W, H, t, GT, true);
+    const f = Math.floor(t / 170) % 4, bob = (f % 2) ? 0 : -1;
+    draw(ctx, SPR[mwalk[Math.floor(t / 340) % 2]], 38, GT + 6 + ((Math.floor(t / 340) % 2) ? 0 : -1));
+    draw(ctx, SPR[walk[f]], 64, GT + 6 + bob);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+
+/* ===== 戦闘 ===== */
+(function () {
+  const el = document.getElementById('battle');
+  el.innerHTML = `
+    <div class="ui bhead"><div class="place">迷いの森の入口</div><div class="foe">森のスライム</div></div>
+    <div class="hp"><em>HP</em><i></i></div>
+    <div class="dmg" id="d1"></div><div class="dmg water" id="d2"></div>
+    <div class="logwin"><p id="l1">森のスライムが あらわれた。</p><p id="l2"></p></div>
+    <div class="party">
+      <div class="pm"><span class="nm">ハルト</span><span class="lv">Lv 12</span><span class="bar"><i style="width:86%"></i></span><span class="num">172/200</span></div>
+      <div class="pm"><span class="nm">リラ</span><span class="lv">Lv 11</span><span class="bar"><i style="width:100%"></i></span><span class="num">128/128</span></div>
+    </div>
+    <div class="auto">戦闘は自動で進む</div><div class="skip">結果まで飛ばす</div>`;
+  const W = 130, H = 150, GT = 128;
+  const [c, ctx] = makeCanvas(W, H, 3); c.className = 'scene'; el.prepend(c);
+  const hpbar = el.querySelector('.hp i'), d1 = el.querySelector('#d1'), d2 = el.querySelector('#d2');
+  const l1 = el.querySelector('#l1'), l2 = el.querySelector('#l2');
+  const LOOP = 5200;
+  let lastPhase = -1;
+  function log(a, b) { l1.textContent = a; l2.textContent = b; }
+  function pop(d, txt, x, y) { d.textContent = txt; d.style.left = x + 'px'; d.style.top = y + 'px'; d.classList.remove('pop'); void d.offsetWidth; d.classList.add('pop'); }
+  // 斬撃の弧（点）
+  function arc(cx, cy, r, a0, a1, col, th) {
+    for (let a = a0; a <= a1; a += 0.04) for (let k = 0; k < th; k++) {
+      ctx.fillStyle = col; ctx.fillRect(Math.round(cx + Math.cos(a) * (r - k)), Math.round(cy + Math.sin(a) * (r - k)), 1, 1);
+    }
+  }
+  function sparkle(x, y, s, col) { ctx.fillStyle = col; ctx.fillRect(x, y - s, 1, s * 2 + 1); ctx.fillRect(x - s, y, s * 2 + 1, 1); }
+  function orb(x, y) {
+    const o = ['.OO.', 'OqQO', 'OQQO', '.OO.']; const p = { O: '#2c5b6a', q: '#e6fbff', Q: '#7fd3e2' };
+    o.forEach((r, j) => [...r].forEach((ch, i) => { if (ch === '.') return; ctx.fillStyle = p[ch]; ctx.fillRect(Math.round(x) + i, Math.round(y) + j, 1, 1); }));
+  }
+  function frame(now) {
+    const t = now % LOOP;
+    scenery(ctx, W, H, 0, GT, false);
+    const heroX0 = 46, slimeX = 86;
+    let heroX = heroX0, hero = 'hero_walk2', slimeFlash = false, slimeDx = 0;
+    let phase = 0;
+    if (t < 700) { phase = 0; }
+    else if (t < 1000) { phase = 1; hero = 'hero_atk1'; heroX = heroX0 + 4; }
+    else if (t < 1400) { phase = 2; hero = 'hero_atk2'; heroX = heroX0 + 12; }
+    else if (t < 1700) { phase = 3; hero = (Math.floor(t / 120) % 2) ? 'hero_walk1' : 'hero_walk3'; heroX = heroX0 + 12 - Math.round((t - 1400) / 300 * 12); }
+    else if (t < 2300) { phase = 4; }
+    else if (t < 2900) { phase = 5; }
+    else if (t < 3400) { phase = 6; }
+    else phase = 7;
+    // スライム
+    const squash = Math.floor(now / 400) % 2;
+    if (phase === 2 && t < 1150) { slimeFlash = (Math.floor(t / 60) % 2) === 0; slimeDx = 2; }
+    if (phase === 6 && t < 3050) { slimeFlash = (Math.floor(t / 60) % 2) === 0; slimeDx = 2; }
+    draw(ctx, SPR[squash ? 'slime1' : 'slime2'], slimeX + slimeDx, GT + 3, { flash: slimeFlash });
+    // 魔法使い
+    const casting = phase === 4 || phase === 5;
+    draw(ctx, SPR.mage_walk1, 14, GT + 4 + (casting ? 0 : (squash ? 0 : -1)));
+    if (casting) {
+      const k = Math.floor(t / 90) % 3; const cx = 14 + 19, cy = GT + 4 - 38 + 3;
+      sparkle(cx, cy, 2 + k, '#e6fbff'); if (k) sparkle(cx - 5, cy + 4, 1, '#b8eef5'); if (k !== 1) sparkle(cx + 5, cy - 3, 1, '#b8eef5');
+    }
+    if (phase === 5) {
+      const p = (t - 2300) / 600;
+      for (let j = 0; j < 3; j++) { const q = Math.max(0, Math.min(1, p * 1.3 - j * 0.15)); orb(36 + (slimeX + 6 - 36) * q, GT - 38 + (j * 5) + Math.sin(q * Math.PI) * -10 + q * 26, 0); }
+    }
+    if (phase === 6 && t < 3150) { // しぶき
+      const k = (t - 2900) / 250; ctx.fillStyle = '#b8eef5';
+      [[-1, -1], [1, -1], [-1, 0], [1, 0], [0, -1]].forEach(([dx, dy]) => ctx.fillRect(Math.round(slimeX + 12 + dx * k * 10), Math.round(GT - 10 + dy * k * 8), 2, 2));
+    }
+    // 主人公
+    draw(ctx, SPR[hero], heroX, GT + 6);
+    if (phase === 2 && t < 1250) {
+      const k = (t - 1000) / 250; const cx = heroX + 22, cy = GT - 16;
+      arc(cx, cy, 15, -1.5, -1.5 + 2.3 * Math.min(1, k * 1.6), '#fffaf0', 2);
+      arc(cx, cy, 12, -1.3, -1.3 + 1.9 * Math.min(1, k * 1.6), '#e3b54e', 1);
+    }
+    // 文字とHP
+    if (phase !== lastPhase) {
+      if (phase === 0) { hpbar.style.width = '100%'; log('森のスライムが あらわれた。', ''); }
+      if (phase === 2) { hpbar.style.width = '52%'; pop(d1, '48', (slimeX + 6) * 3, (GT - 46) * 3); log('森のスライムが あらわれた。', 'ハルトの斬りつけ。スライムに 48。'); }
+      if (phase === 4) { log('ハルトの斬りつけ。スライムに 48。', 'リラは 水の術を となえた。'); }
+      if (phase === 6) { hpbar.style.width = '21%'; pop(d2, '31', (slimeX + 8) * 3, (GT - 46) * 3); log('リラは 水の術を となえた。', 'スライムに 31。'); }
+      lastPhase = phase;
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+
+/* 小さい画面では、電話の枠ごと縮める */
+function fit() {
+  const s = Math.min(1, (document.documentElement.clientWidth - 32) / 390);
+  document.querySelectorAll('.frame').forEach(f => { const p = f.firstElementChild; p.style.transform = `scale(${s})`; f.style.width = 390 * s + 'px'; f.style.height = 844 * s + 'px'; });
+}
+fit(); addEventListener('resize', fit);
+</script>
+</body>
+</html>
