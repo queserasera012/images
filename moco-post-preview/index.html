@@ -1,4 +1,5 @@
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>モコの えいごポスト</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap">
 <style>
@@ -32,9 +33,37 @@ h2{font-size:1.05rem;margin:0}
 .btn:disabled{opacity:.45;cursor:default}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .center{text-align:center;justify-content:center}
-.envelope{font-size:6rem;line-height:1;text-align:center;cursor:pointer;animation:wiggle 1.6s ease-in-out infinite}
-@keyframes wiggle{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
-@media (prefers-reduced-motion: reduce){ .envelope{animation:none} .drop{animation:none} }
+/* 封筒：CSS で描く。とどく（上から落ちて はずむ）→ ゆれる → ひらく（ふたが開いて 手紙が せり出す）→ きらきら → はがきへ */
+.envwrap{position:relative;height:230px;display:grid;place-items:center;cursor:pointer;perspective:800px;overflow:visible}
+.env{position:relative;width:200px;height:130px;transform-style:preserve-3d;animation:arrive .9s cubic-bezier(.34,1.56,.64,1) both, float 2.6s ease-in-out .9s infinite}
+.env-letter{position:absolute;left:14px;right:14px;top:10px;height:110px;background:var(--post);border:2px solid var(--pline);border-radius:8px;display:grid;gap:9px;padding:14px 12px 0;box-sizing:border-box;transition:transform .7s cubic-bezier(.2,.9,.3,1.1)}
+.env-letter i{display:block;height:6px;border-radius:3px;background:var(--pline);opacity:.55}
+.env-letter i:nth-child(1){width:55%} .env-letter i:nth-child(2){width:85%} .env-letter i:nth-child(3){width:70%}
+.env-body{position:absolute;inset:0;background:linear-gradient(180deg,#f3d9a6,#e8c88b);border:2px solid var(--pline);border-radius:10px;box-sizing:border-box;clip-path:polygon(0 0,50% 48%,100% 0,100% 100%,0 100%)}
+.env-flap{position:absolute;left:0;right:0;top:0;height:66px;background:linear-gradient(180deg,#f7e3b9,#ecd3a0);border:2px solid var(--pline);border-top-width:2px;box-sizing:border-box;border-radius:10px 10px 0 0;clip-path:polygon(0 0,100% 0,50% 100%);transform-origin:top center;transition:transform .55s ease-in;backface-visibility:hidden}
+.env-seal{position:absolute;left:50%;top:50px;transform:translateX(-50%);width:40px;height:40px;border-radius:50%;background:var(--stamp);color:#fff;display:grid;place-items:center;font-size:1.2rem;box-shadow:0 2px 0 rgba(0,0,0,.15);transition:opacity .3s,transform .3s}
+.env-stamp{position:absolute;right:10px;top:8px;width:34px;height:40px;background:#fff;border:2px dashed var(--pline);border-radius:3px;display:grid;place-items:center;font-size:1.1rem;transform:rotate(6deg)}
+.env-addr{position:absolute;left:16px;bottom:14px;font-family:var(--font-title);font-size:.8rem;color:#8a6a3a;letter-spacing:.02em}
+.envwrap.opening .env{animation:none;transform:translateY(10px)}
+.envwrap.opening .env-flap{transform:rotateX(-178deg);transition-delay:0s}
+.envwrap.opening .env-seal{opacity:0;transform:translateX(-50%) scale(.3)}
+.envwrap.opening .env-letter{transform:translateY(-112px) scale(1.06);transition-delay:.45s;z-index:3;box-shadow:0 10px 24px rgba(60,40,20,.18)}
+.envwrap.gone{animation:vanish .35s ease-in forwards}
+.spk{position:absolute;left:50%;top:50%;width:10px;height:10px;border-radius:50%;background:var(--new);opacity:0;pointer-events:none}
+.envwrap.opening .spk{animation:spark .9s ease-out .7s forwards}
+.spk:nth-child(2n){background:var(--stamp)} .spk:nth-child(3n){background:var(--sky)} .spk:nth-child(5n){background:var(--leaf)}
+.spk:nth-child(1){--dx:-90px;--dy:-80px} .spk:nth-child(2){--dx:70px;--dy:-100px} .spk:nth-child(3){--dx:-120px;--dy:-10px} .spk:nth-child(4){--dx:120px;--dy:-30px}
+.spk:nth-child(5){--dx:-60px;--dy:60px} .spk:nth-child(6){--dx:80px;--dy:70px} .spk:nth-child(7){--dx:0;--dy:-130px} .spk:nth-child(8){--dx:-130px;--dy:-60px}
+.spk:nth-child(9){--dx:130px;--dy:-80px} .spk:nth-child(10){--dx:20px;--dy:90px}
+@keyframes arrive{0%{transform:translateY(-260px) rotate(-14deg);opacity:0}60%{opacity:1}100%{transform:translateY(0) rotate(0);opacity:1}}
+@keyframes float{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-8px) rotate(1.5deg)}}
+@keyframes spark{0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}30%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1.2)}}
+@keyframes vanish{to{opacity:0;transform:scale(.9) translateY(-20px)}}
+.postcard.arrive{animation:pcin .6s cubic-bezier(.2,.9,.3,1.05) both}
+@keyframes pcin{from{opacity:0;transform:translateY(40px) rotate(-1deg) scale(.96)}to{opacity:1;transform:rotate(-.6deg)}}
+.pen{display:inline-block;animation:pen .8s ease-in-out infinite}
+@keyframes pen{0%,100%{transform:translate(0,0) rotate(-20deg)}50%{transform:translate(6px,-3px) rotate(-14deg)}}
+@media (prefers-reduced-motion: reduce){ .env,.envwrap.gone,.postcard.arrive,.pen,.spk{animation:none!important} .env-flap,.env-letter,.env-seal{transition:none} .drop{animation:none} }
 .pic{font-size:5rem;line-height:1.1;text-align:center}
 .place{display:flex;gap:10px;align-items:center}
 .day{font-family:var(--font-title);color:#fff;background:var(--sky);border-radius:999px;padding:2px 12px;font-size:.9rem;white-space:nowrap}
@@ -141,7 +170,14 @@ label.inline{display:flex;gap:8px;align-items:center}
   function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]}); }
   function plain(s){ return s.replace(/[{}]/g,''); }
   function mark(s, words){ return esc(s).replace(/\{([^}]+)\}/g,function(_,w){ return '<span class="nw">'+w+'</span>'; }); }
-  function speak(text){ if(!('speechSynthesis' in window)) return; text=String(text).replace(/[.!?,"']+/g,' ').replace(/\s+/g,' ').trim(); if(!text) return; speechSynthesis.cancel(); var u=new SpeechSynthesisUtterance(text); u.lang='en-US'; u.rate=0.85; var v=speechSynthesis.getVoices().filter(function(v){return /^en[-_]US/.test(v.lang)})[0]; if(v) u.voice=v; speechSynthesis.speak(u); }
+  function pickVoice(){ var vs=speechSynthesis.getVoices().filter(function(v){return /^en[-_]/.test(v.lang)}); if(!vs.length) return null;
+    var score=function(v){ var n=v.name, s=0; if(/^en[-_]US/.test(v.lang)) s+=4; if(/Enhanced|Premium|Natural|Neural/i.test(n)) s+=6; if(/Samantha|Ava|Allison|Zoe|Nicky|Karen|Moira|Serena|Google US English/i.test(n)) s+=3; if(/Compact|Eloquence|Fred|Albert|Bad News|Bells|Boing|Bubbles|Cellos|Jester|Organ|Trinoids|Whisper|Wobble|Zarvox/i.test(n)) s-=10; if(v.localService) s+=1; return s; };
+    return vs.sort(function(a,b){return score(b)-score(a)})[0]; }
+  function speak(text){ if(!('speechSynthesis' in window)) return; speechSynthesis.cancel();
+    // 文ごとに分けて読む（間が入る）。記号は読まない（「.」を dot と読む端末がある）
+    var parts=String(text).replace(/[{}"]/g,'').split(/(?<=[.!?])\s+/).map(function(x){return x.replace(/[.!?,]+/g,' ').replace(/\s+/g,' ').trim()}).filter(Boolean);
+    var v=pickVoice();
+    parts.forEach(function(pt){ var u=new SpeechSynthesisUtterance(pt); u.lang='en-US'; u.rate=0.82; u.pitch=1.08; if(v) u.voice=v; speechSynthesis.speak(u); }); }
   if('speechSynthesis' in window){ speechSynthesis.onvoiceschanged=function(){}; }
 
   // --- 進み具合 ---
@@ -162,14 +198,16 @@ label.inline{display:flex;gap:8px;align-items:center}
   function nameFill(x){ var n=S.name||'friend'; if(typeof x==='string') return x.replace(/\{name\}/g,n); if(Array.isArray(x)) return x.map(nameFill); if(x&&typeof x==='object'){ var o={}; Object.keys(x).forEach(function(k){o[k]=nameFill(x[k])}); return o; } return x; }
   function fetchLetter(i){
     var t=tripAt(i);
-    return api('/letter',{level:S.level, day:t.day, place:t.place, placeEn:t.en, known:knownWords()}).then(function(j){
+    var recent=Object.keys(S.done).map(Number).sort(function(a,b){return a-b}).slice(-3).map(function(k){ return {day:L.trip[k].day, place:L.trip[k].en, reply:S.done[k].reply.join(' ')}; });
+    return api('/letter',{level:S.level, day:t.day, place:t.place, placeEn:t.en, known:knownWords(), recent:recent}).then(function(j){
       var lt=nameFill(j.letter); lt.ja=(lt.ja||[]).map(plain); if(S.level>=2||!lt.choices||!lt.choices.length) lt.choices=null; lt.tiles=S.level>=2&&lt.tiles?lt.tiles:[];
       if(S.level<=1 && !lt.choices) throw new Error('no_choices'); if(S.level>=2 && lt.tiles.length<4) throw new Error('no_tiles');
       S.ai=S.ai||{}; S.ai[i]={level:S.level, letter:lt, at:today(), usage:j.usage, off:j.off_list}; S.aiLog=(S.aiLog||[]).concat([{at:today(),what:'letter',day:t.day,usage:j.usage}]).slice(-30); save(); return lt;
     });
   }
   function fetchReply(i, lt, words){
-    return api('/reply',{level:S.level, letter:lt.en.map(plain), reply:words.join(' ')}).then(function(j){
+    var nx = i < L.trip.length-1 ? L.trip[i+1].en : 'home';
+    return api('/reply',{level:S.level, letter:lt.en.map(plain), reply:words.join(' '), nextPlaceEn:nx}).then(function(j){
       S.aiLog=(S.aiLog||[]).concat([{at:today(),what:'reply',day:L.trip[i].day,usage:j.usage}]).slice(-30); save(); return nameFill(j.reply);
     });
   }
@@ -218,25 +256,35 @@ label.inline{display:flex;gap:8px;align-items:center}
     var aiTag = aiAt(i) ? '<span class="note" title="AI が書いた手紙">✨AI</span>' : '';
     if(!done && !S.opened[i]){
       app.innerHTML = '<h1>🐾 モコの えいごポスト</h1><p class="sub">'+(S.name?esc(S.name)+'へ。':'')+'てがみが とどいたよ！</p>'+
-        '<div class="card"><div class="envelope" id="env" role="button" tabindex="0">✉️</div><div class="row center"><button class="btn main big" id="open">ひらく</button></div></div>';
+        '<div class="card"><div class="envwrap" id="env" role="button" tabindex="0">'+'<span class="spk"></span>'.repeat(10)+
+          '<div class="env"><div class="env-letter"><i></i><i></i><i></i></div><div class="env-body"></div><div class="env-addr">To '+esc(S.name||'you')+'</div><div class="env-stamp">'+t.emoji+'</div><div class="env-flap"></div><div class="env-seal">🐾</div></div></div>'+
+          '<p class="note center" id="envmsg">'+esc(t.en)+' から とどいたよ</p><div class="row center"><button class="btn main big" id="open">ひらく</button></div></div>';
+      var busy=false;
       var open=function(){
-        var go=function(){ S.opened[i]=true; save(); renderLetter(); speak(plain(letterAt(i).en[0])); };
+        if(busy) return; busy=true;
+        var btn=document.getElementById('open'), wrap=document.getElementById('env'), msg=document.getElementById('envmsg');
+        var play=function(){
+          btn.disabled=true; msg.textContent='';
+          wrap.classList.add('opening');
+          setTimeout(function(){ wrap.classList.add('gone'); }, 1500);
+          setTimeout(function(){ S.opened[i]=true; S.pcArrive=true; save(); renderLetter(); speak(plain(letterAt(i).en[0])); }, 1850);
+        };
         if(aiOn() && !aiAt(i)){
-          app.innerHTML='<h1>🐾 モコの えいごポスト</h1>'+writing();
-          fetchLetter(i).then(go, function(e){ S.aiErr=String(e&&e.message||e); save(); app.insertAdjacentHTML('beforeend','<p class="note">サーバーに つながらなかったので、きまった てがみを ひらきます（'+esc(S.aiErr)+'）</p>'); setTimeout(go, 1200); });
-        } else go();
+          btn.disabled=true; msg.innerHTML='<span class="pen">✒️</span> モコが てがみを かいてるよ<span class="dots">…</span>';
+          fetchLetter(i).then(play, function(e){ S.aiErr=String(e&&e.message||e); save(); msg.textContent='サーバーに つながらなかったので、きまった てがみを ひらきます（'+S.aiErr+'）'; setTimeout(play, 1500); });
+        } else play();
       };
       document.getElementById('open').onclick=open; document.getElementById('env').onclick=open;
       return;
     }
     var prev = i>0 && S.done[i-1] ? S.done[i-1].reply.join(' ') : null;
     var en = lt.en.slice(), ja = lt.ja.slice();
-    if(prev && S.level>=1){ en.push('Yesterday you said "'+prev+'". Nice!'); ja.push('きのう「'+prev+'」って いってたね。いいね！'); }
+    if(prev && S.level>=1 && !aiAt(i)){ en.push('Yesterday you said "'+prev+'". Nice!'); ja.push('きのう「'+prev+'」って いってたね。いいね！'); }
     var shown = done ? en.length : (S.shown||1);
     var html = '<div class="place"><span class="day">Day '+t.day+'</span><div><b>'+esc(t.place)+'</b><br><small class="sub">'+esc(t.en)+'</small></div></div>'+
-      '<div class="card postcard'+cls+'"><div class="pchead"><div class="pcfrom">From Moco 🐾<br><small>'+esc(t.en)+'</small></div><div class="pcstamp"><span>'+t.emoji+'</span><small>MOCO POST</small></div><div class="pcmark">Day '+t.day+'</div></div>'+aiTag+
+      '<div class="card postcard'+cls+(S.pcArrive?' arrive':'')+'"><div class="pchead"><div class="pcfrom">From Moco 🐾<br><small>'+esc(t.en)+'</small></div><div class="pcstamp"><span>'+t.emoji+'</span><small>MOCO POST</small></div><div class="pcmark">Day '+t.day+'</div></div>'+aiTag+
       (lt.pic?'<div class="pic">'+lt.pic+'</div>':'<div class="pic">'+t.emoji+'</div>')+
-      (S.name?'<div class="pcto">Dear '+esc(S.name)+',</div>':'')+
+      (S.name&&!/^(hello|hi)\b/i.test(plain(lt.en[0]||''))?'<div class="pcto">Dear '+esc(S.name)+',</div>':'')+
       '<div class="en" id="en">'+en.slice(0,shown).map(function(s,k){return '<p data-k="'+k+'">'+mark(s,lt.words)+'<span class="jp"'+(S.autoJa?'':' hidden')+'>'+esc(ja[k])+'</span></p>'}).join('')+'</div>'+
       '<div class="row"><button class="btn" id="sp">🔊 きく</button>'+(shown<en.length?'<button class="btn on" id="next">つぎ ▶</button>':'')+'<span class="note">'+(S.autoJa?'':'文を おすと にほんご')+'</span></div>';
     if(shown>=en.length){
@@ -261,6 +309,7 @@ label.inline{display:flex;gap:8px;align-items:center}
     html += '</div><div id="after"></div>';
     if(done) html += psHtml() + playHtml(i);
     app.innerHTML = '<h1>🐾 モコの えいごポスト</h1>'+html;
+    if(S.pcArrive){ S.pcArrive=false; save(); }
     if(done){ bindPlay(i); bindPs(); }
     document.getElementById('sp').onclick=function(){ S.spBy=S.spBy||{}; S.spBy[i]=(S.spBy[i]||0)+1; save(); speak(en.slice(0,shown).map(plain).join(' ')+(shown>=en.length?' '+lt.q:'')); };
     var nx=document.getElementById('next'); if(nx) nx.onclick=function(){ S.shown=shown+1; save(); renderLetter(); speak(plain(en[shown])); };
