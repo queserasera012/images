@@ -1,0 +1,455 @@
+<meta charset="utf-8">
+<title>モコの えいごポスト</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap">
+<style>
+/* 1画面アプリ。上が内容、下に3つのタブ（てがみ・たび・おうち）。内容は縦スクロール。 */
+:root{
+  --paper:#fbf3e4; --card:#fffaf0; --post:#fffdf6; --rpost:#eef5fb; --pline:#cdb78f; --ink:#3b2f2a; --muted:#8a7868;
+  --stamp:#d9534a; --sky:#4f9bd6; --leaf:#5aa86c; --line:#e4d6bf; --new:#fde28a; --lock:#d9cfbf;
+  --font-ja:'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif;
+  --font-title:'Mochiy Pop One',var(--font-ja);
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --paper:#1e2430; --card:#2a3141; --post:#2d3344; --rpost:#273040; --pline:#4a5366; --ink:#f3ecdf; --muted:#b2a898; --stamp:#f07a70; --sky:#7fbdf0; --leaf:#7fc78f; --line:#3c4556; --new:#8a6d12; --lock:#3c4556; color-scheme:dark } }
+:root[data-theme="dark"]{ --paper:#1e2430; --card:#2a3141; --post:#2d3344; --rpost:#273040; --pline:#4a5366; --ink:#f3ecdf; --muted:#b2a898; --stamp:#f07a70; --sky:#7fbdf0; --leaf:#7fc78f; --line:#3c4556; --new:#8a6d12; --lock:#3c4556; color-scheme:dark }
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--font-ja);font-size:17px;line-height:1.6;margin:0;padding:0 16px;display:flex;flex-direction:column;min-height:100%}
+main{flex:1;max-width:520px;width:100%;margin:0 auto;padding-block:14px 90px;display:grid;gap:14px;align-content:start}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:2px solid var(--line);display:flex;justify-content:center;gap:6px;padding:6px 16px calc(6px + env(safe-area-inset-bottom,0px))}
+nav button{flex:1;max-width:160px;border:0;background:transparent;color:var(--muted);font:inherit;font-weight:700;font-size:.85rem;padding:6px 0;border-radius:12px;cursor:pointer;line-height:1.2}
+nav button span{display:block;font-size:1.5rem}
+nav button[aria-selected="true"]{color:var(--stamp);background:var(--paper)}
+nav button:focus-visible,.btn:focus-visible,.tile:focus-visible,.key:focus-visible{outline:3px solid var(--sky);outline-offset:2px}
+h1{font-family:var(--font-title);font-weight:400;font-size:1.4rem;margin:0;color:var(--stamp);line-height:1.3;text-wrap:balance}
+h2{font-size:1.05rem;margin:0}
+.sub{color:var(--muted);font-size:.9rem;margin:0}
+.card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:16px;display:grid;gap:12px;min-width:0}
+.btn{border:2px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:8px 16px;font:inherit;font-weight:700;font-size:.95rem;cursor:pointer}
+.btn.on{background:var(--sky);border-color:var(--sky);color:#fff}
+.btn.main{background:var(--stamp);border-color:var(--stamp);color:#fff;font-size:1.1rem;padding:12px 22px}
+.btn.big{font-size:1.2rem;padding:14px 26px}
+.btn:disabled{opacity:.45;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.center{text-align:center;justify-content:center}
+.envelope{font-size:6rem;line-height:1;text-align:center;cursor:pointer;animation:wiggle 1.6s ease-in-out infinite}
+@keyframes wiggle{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+@media (prefers-reduced-motion: reduce){ .envelope{animation:none} .drop{animation:none} }
+.pic{font-size:5rem;line-height:1.1;text-align:center}
+.place{display:flex;gap:10px;align-items:center}
+.day{font-family:var(--font-title);color:#fff;background:var(--sky);border-radius:999px;padding:2px 12px;font-size:.9rem;white-space:nowrap}
+.en{font-size:1.3rem;line-height:1.7;display:grid;gap:6px}
+.l0 .en{font-size:1.8rem}
+.en p{margin:0;cursor:pointer}
+[hidden]{display:none!important}
+.en p .jp{display:block;font-size:.85rem;color:var(--muted);font-weight:500}
+.nw{background:var(--new);border-radius:6px;padding:0 4px;border-bottom:2px dotted var(--stamp)}
+.q{background:var(--paper);border-radius:12px;padding:10px 12px;margin:0}
+.q b{color:var(--stamp);font-size:.8rem;display:block}
+.q span{font-size:1.2rem}
+.line{min-height:52px;border:2px dashed var(--line);border-radius:12px;padding:8px 10px;font-size:1.2rem;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.line .ph{color:var(--muted);font-size:.9rem}
+.chip{background:var(--leaf);color:#fff;border-radius:8px;padding:2px 10px}
+.tiles{display:flex;flex-wrap:wrap;gap:8px}
+.choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.choice{border:2px solid var(--line);border-bottom-width:5px;border-radius:16px;background:var(--paper);color:var(--ink);font:inherit;padding:12px 8px;display:grid;gap:4px;justify-items:center;cursor:pointer}
+.choice .ce{font-size:2.6rem;line-height:1.1}
+.choice .cen{font-size:1.05rem;font-weight:700}
+.choice .cja{font-size:.8rem;color:var(--muted)}
+.choice.picked{border-color:var(--leaf);background:var(--card)}
+.choice:disabled:not(.picked){opacity:.4}
+.q small{display:block;font-size:.85rem}
+.tile{background:var(--paper);color:var(--ink);border:2px solid var(--line);border-bottom-width:4px;border-radius:10px;padding:8px 14px;font:inherit;font-size:1.1rem;cursor:pointer}
+.l0 .tile{font-size:1.4rem;padding:12px 20px}
+.tile:active{border-bottom-width:2px;transform:translateY(2px)}
+.moco{background:var(--paper);border-radius:14px;padding:12px 14px;font-size:1.1rem;display:flex;gap:10px;align-items:flex-start}
+.moco .face{font-size:1.8rem;line-height:1}
+.moco .mt{cursor:pointer}
+.moco .jp{display:block;font-size:.85rem;color:var(--muted);font-weight:500;margin-top:4px}
+.post{border:3px solid var(--stamp);border-radius:14px;padding:14px;text-align:center;background:var(--card)}
+.drop{animation:drop .7s cubic-bezier(.2,.9,.3,1.2)}
+.dots{display:inline-block;animation:blink 1s infinite}@keyframes blink{50%{opacity:.2}}
+@keyframes drop{from{transform:translateY(-40px) rotate(-6deg);opacity:0}to{transform:none;opacity:1}}
+.map{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.stop{text-align:center;display:grid;gap:4px;justify-items:center}
+.stop .dot{width:56px;height:56px;border-radius:50%;background:var(--card);border:2px solid var(--line);display:grid;place-items:center;font-size:1.7rem}
+.stop.done .dot{border-color:var(--leaf);background:var(--card)}
+.stop.now .dot{border-color:var(--stamp);box-shadow:0 0 0 4px rgba(217,83,74,.2)}
+.stop.lock .dot{background:var(--lock);color:var(--muted);font-size:1.2rem}
+.stop small{font-size:.7rem;color:var(--muted);line-height:1.2}
+.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.pc{border:2px solid var(--line);border-radius:12px;padding:10px;text-align:center;background:var(--card);display:grid;gap:4px}
+.pc.lock{opacity:.45}
+.pc .e{font-size:2.4rem;line-height:1.1}
+.pc small{font-size:.75rem;color:var(--muted)}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:260px;margin:0 auto}
+.key{border:2px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;font:inherit;font-size:1.3rem;padding:12px 0;cursor:pointer}
+.pinbox{text-align:center;font-size:1.6rem;letter-spacing:.4em;min-height:2.2rem}
+.stat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.stat div{background:var(--paper);border-radius:12px;padding:10px 4px}
+.stat b{display:block;font-family:var(--font-title);font-weight:400;font-size:1.6rem;color:var(--stamp);font-variant-numeric:tabular-nums}
+.stat small{color:var(--muted);font-size:.75rem}
+.log{font-size:.85rem;color:var(--muted);display:grid;gap:4px;margin:0;padding-left:1.2em}
+select,input{font:inherit;padding:8px 10px;border:2px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);min-width:0;max-width:100%}
+label{display:grid;gap:4px;font-size:.9rem}
+label.inline{display:flex;gap:8px;align-items:center}
+.note{font-size:.8rem;color:var(--muted);margin:0}
+.postcard{position:relative;background:var(--post);outline:1px solid var(--pline);outline-offset:-6px;background-image:repeating-linear-gradient(0deg,transparent 0 23px,rgba(120,90,50,.06) 23px 24px),radial-gradient(rgba(120,90,50,.045) 1px,transparent 1.2px);background-size:auto,9px 9px;border:1px solid var(--pline);border-radius:6px;box-shadow:0 3px 0 var(--pline),0 14px 30px rgba(60,40,20,.16);padding:18px 20px 22px;transform:rotate(-.6deg);margin:6px 2px 10px}
+.pchead{display:flex;justify-content:space-between;align-items:flex-start;position:relative;min-height:66px;border-bottom:1.5px solid var(--pline);padding-bottom:8px}
+.pcfrom{font-family:var(--font-title);color:var(--stamp);font-size:.95rem;line-height:1.3;padding-top:6px}
+.pcfrom small{font-family:var(--font-ja);color:var(--muted);font-weight:500;font-size:.75rem}
+.pcstamp{width:50px;height:62px;background:var(--card);border:1px solid var(--pline);outline:3px dashed var(--pline);outline-offset:-5px;display:grid;place-items:center;gap:0;font-size:1.6rem;line-height:1;padding:6px 2px}
+.pcstamp small{font-size:.42rem;letter-spacing:.05em;color:var(--muted);font-weight:700;line-height:1}
+.pcmark{position:absolute;right:38px;top:14px;width:52px;height:52px;border:2px double var(--muted);border-radius:50%;display:grid;place-items:center;font-size:.6rem;font-weight:700;color:var(--muted);transform:rotate(-14deg);opacity:.7;pointer-events:none;background:transparent;font-family:var(--font-title)}
+.pcto{font-family:var(--font-title);font-size:1rem;color:var(--ink)}
+.postcard .en p{border-bottom:1.5px dashed var(--pline);padding-bottom:4px}
+.postcard .en,.postcard .pcto,.postcard .pic{transform:rotate(.6deg)}
+.postcard .q{background:rgba(251,243,228,.9)}
+:root[data-theme="dark"] .postcard .q{background:var(--paper)}
+.postcard .pic{font-size:4.2rem}
+.replycard{background:var(--rpost);background-image:repeating-linear-gradient(135deg,var(--stamp) 0 10px,transparent 10px 20px,var(--sky) 20px 30px,transparent 30px 40px);background-size:100% 6px,auto;background-repeat:no-repeat;background-position:top;border:1px solid var(--pline);border-radius:8px;box-shadow:0 2px 0 var(--pline);padding:18px 16px 16px}
+.rchead{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1.5px solid var(--pline);padding-bottom:6px}
+.rcto{font-family:var(--font-title);color:var(--sky);font-size:1rem}
+.rcfrom{font-size:.8rem;color:var(--muted);font-weight:700}
+.replycard .q{background:rgba(255,255,255,.5)}
+:root[data-theme="dark"] .replycard .q,.replycard .moco{background:var(--card)}
+.scene{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.hid{border:2px dashed var(--line);border-radius:14px;background:var(--paper);font:inherit;padding:10px 4px;display:grid;gap:2px;justify-items:center;cursor:pointer;color:var(--ink)}
+.hid .se{font-size:2rem;line-height:1.1}
+.hid .sen{font-size:.8rem;font-weight:700;visibility:hidden}
+.hid .sja{font-size:.7rem;color:var(--muted);visibility:hidden}
+.hid.got{border-style:solid;border-color:var(--leaf)}
+.hid.got .sen,.hid.got .sja{visibility:visible}
+.ask{border:2px solid var(--sky);border-radius:999px;background:var(--card);color:var(--ink);font:inherit;font-weight:700;padding:8px 14px;cursor:pointer;text-align:left}
+.ask small{display:block;font-weight:500;font-size:.75rem;color:var(--muted)}
+.ask:disabled{opacity:.5}
+.quiz{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.quiz .choice .ce{font-size:3rem}
+.star{font-size:1.6rem;text-align:center}
+</style>
+<main id="app"></main>
+<nav id="nav"></nav>
+<script src="letters.js"></script>
+<script>
+(function(){
+  var L = window.LETTERS, KEY='moco.post.v1', PIN='1234';
+  var S = load();
+  function load(){ try{ var s=JSON.parse(localStorage.getItem(KEY)||'null'); if(s&&s.v===1) return s; }catch(e){} return null; }
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+  function today(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function daysSince(iso){ var a=new Date(iso+'T00:00:00'), b=new Date(today()+'T00:00:00'); return Math.round((b-a)/86400000); }
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]}); }
+  function plain(s){ return s.replace(/[{}]/g,''); }
+  function mark(s, words){ return esc(s).replace(/\{([^}]+)\}/g,function(_,w){ return '<span class="nw">'+w+'</span>'; }); }
+  function speak(text){ if(!('speechSynthesis' in window)) return; text=String(text).replace(/[.!?,"']+/g,' ').replace(/\s+/g,' ').trim(); if(!text) return; speechSynthesis.cancel(); var u=new SpeechSynthesisUtterance(text); u.lang='en-US'; u.rate=0.85; var v=speechSynthesis.getVoices().filter(function(v){return /^en[-_]US/.test(v.lang)})[0]; if(v) u.voice=v; speechSynthesis.speak(u); }
+  if('speechSynthesis' in window){ speechSynthesis.onvoiceschanged=function(){}; }
+
+  // --- 進み具合 ---
+  function maxIndex(){ return Math.min(daysSince(S.start)+S.extra, L.trip.length-1); }
+  function todayIndex(){ for(var i=0;i<=maxIndex();i++){ if(!S.done[i]) return i; } return maxIndex(); }
+  function aiAt(i){ var a=S.ai&&S.ai[i]; return a&&a.level===S.level ? a.letter : null; }
+  function letterAt(i){ return aiAt(i) || L.levels[S.level].letters[i]; }
+  function tripAt(i){ var a=aiAt(i), t=L.trip[i]; return a ? Object.assign({}, t, {scene:a.scene&&a.scene.length?a.scene:t.scene, asks:a.asks&&a.asks.length?a.asks:t.asks}) : t; }
+  // --- サーバー（Cloudflare Workers → Claude）。住所と合言葉は おうち画面で入れる。API キーは ここには無い ---
+  function aiOn(){ return !!(S.useAi && S.server && S.token); }
+  function api(path, body){
+    var url=String(S.server||'').replace(/\/+$/,'')+path;
+    var ctl=new AbortController(); var tm=setTimeout(function(){ctl.abort()}, 45000);
+    return fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+S.token},body:JSON.stringify(body),signal:ctl.signal})
+      .then(function(r){ clearTimeout(tm); return r.json().then(function(j){ if(!r.ok) throw new Error(j.error||('http '+r.status)); return j; }); });
+  }
+  function knownWords(){ var k={}; Object.keys(S.done).forEach(function(d){ (S.done[d].newWords||[]).forEach(function(w){k[w.toLowerCase()]=1}); }); return Object.keys(k); }
+  function nameFill(x){ var n=S.name||'friend'; if(typeof x==='string') return x.replace(/\{name\}/g,n); if(Array.isArray(x)) return x.map(nameFill); if(x&&typeof x==='object'){ var o={}; Object.keys(x).forEach(function(k){o[k]=nameFill(x[k])}); return o; } return x; }
+  function fetchLetter(i){
+    var t=tripAt(i);
+    return api('/letter',{level:S.level, day:t.day, place:t.place, placeEn:t.en, known:knownWords()}).then(function(j){
+      var lt=nameFill(j.letter); lt.ja=(lt.ja||[]).map(plain); if(S.level>=2||!lt.choices||!lt.choices.length) lt.choices=null; lt.tiles=S.level>=2&&lt.tiles?lt.tiles:[];
+      if(S.level<=1 && !lt.choices) throw new Error('no_choices'); if(S.level>=2 && lt.tiles.length<4) throw new Error('no_tiles');
+      S.ai=S.ai||{}; S.ai[i]={level:S.level, letter:lt, at:today(), usage:j.usage, off:j.off_list}; S.aiLog=(S.aiLog||[]).concat([{at:today(),what:'letter',day:t.day,usage:j.usage}]).slice(-30); save(); return lt;
+    });
+  }
+  function fetchReply(i, lt, words){
+    return api('/reply',{level:S.level, letter:lt.en.map(plain), reply:words.join(' ')}).then(function(j){
+      S.aiLog=(S.aiLog||[]).concat([{at:today(),what:'reply',day:L.trip[i].day,usage:j.usage}]).slice(-30); save(); return nameFill(j.reply);
+    });
+  }
+  function writing(){ return '<div class="card"><div class="moco"><span class="face">🐾</span><div class="mt">モコが かいてる<span class="dots">…</span></div></div></div>'; }
+  function mocoBox(en, ja){ return '<div class="moco"><span class="face">🐾</span><div class="mt">'+esc(en)+(ja?'<span class="jp"'+(S.autoJa?'':' hidden')+'>'+esc(ja)+'</span>':'')+'</div></div>'; }
+  function mocoReply(i, reply){
+    var r = reply.join(' ');
+    var next = i < L.trip.length-1 ? L.trip[i+1].en : 'home';
+    return [
+      r+' Yay! Bye-bye!',
+      r+' Me too! I like it. See you tomorrow!',
+      'You said "'+r+'". Nice! Moco likes it too. Tomorrow I go to '+next+'!',
+      '"'+r+'" Great sentence! I will remember it. Tomorrow I write from '+next+'. Good night!'
+    ][S.level];
+  }
+
+  // --- 画面 ---
+  var tab = 'letter'; var app=document.getElementById('app'), nav=document.getElementById('nav');
+  var TABS=[['letter','✉️','てがみ'],['play','🎈','あそぶ'],['map','🗺️','たび'],['parent','👪','おうち']];
+  nav.innerHTML = TABS.map(function(t){return '<button data-t="'+t[0]+'"><span>'+t[1]+'</span>'+t[2]+'</button>'}).join('');
+  nav.querySelectorAll('button').forEach(function(b){ b.onclick=function(){ tab=b.dataset.t; pinOK=false; render(); }; });
+  var pinOK=false, pinBuf='';
+  function render(){
+    nav.querySelectorAll('button').forEach(function(b){ b.setAttribute('aria-selected', b.dataset.t===tab?'true':'false'); });
+    if(!S){ renderSetup(); return; }
+    if(S.autoJa===undefined) S.autoJa = S.level<=1;
+    if(tab==='letter') renderLetter(); else if(tab==='play') renderPlay(); else if(tab==='map') renderMap(); else renderParent();
+    window.scrollTo(0,0);
+  }
+
+  function renderSetup(){
+    app.innerHTML = '<h1>🐾 モコの えいごポスト</h1><p class="sub">おうちの人が さいしょに きめてください。</p>'+
+      '<div class="card"><label>なまえ（英語で よぶ名前・なくてもOK）<input id="nm" maxlength="12" placeholder="Yuki"></label>'+
+      '<label>レベル<select id="lv">'+[0,1,2,3].map(function(k){return '<option value="'+k+'"'+(k===1?' selected':'')+'>'+L.levels[k].label+'：'+L.levels[k].who+'</option>'}).join('')+'</select></label>'+
+      '<p class="note">レベルは あとから「おうち」で変えられます。手紙は 1日1通、ひらいた日から はじまります。</p>'+
+      '<div class="row center"><button class="btn main" id="go">はじめる</button></div></div>';
+    document.getElementById('go').onclick=function(){
+      S={v:1,name:document.getElementById('nm').value.trim(),level:parseInt(document.getElementById('lv').value,10),start:today(),extra:0,done:{},jaTaps:0,opened:{}};
+      save(); tab='letter'; render();
+    };
+  }
+
+  function renderLetter(){
+    var i=todayIndex(), t=tripAt(i), lt=letterAt(i), done=S.done[i];
+    var cls = S.level===0?' l0':'';
+    var aiTag = aiAt(i) ? '<span class="note" title="AI が書いた手紙">✨AI</span>' : '';
+    if(!done && !S.opened[i]){
+      app.innerHTML = '<h1>🐾 モコの えいごポスト</h1><p class="sub">'+(S.name?esc(S.name)+'へ。':'')+'てがみが とどいたよ！</p>'+
+        '<div class="card"><div class="envelope" id="env" role="button" tabindex="0">✉️</div><div class="row center"><button class="btn main big" id="open">ひらく</button></div></div>';
+      var open=function(){
+        var go=function(){ S.opened[i]=true; save(); renderLetter(); speak(plain(letterAt(i).en[0])); };
+        if(aiOn() && !aiAt(i)){
+          app.innerHTML='<h1>🐾 モコの えいごポスト</h1>'+writing();
+          fetchLetter(i).then(go, function(e){ S.aiErr=String(e&&e.message||e); save(); app.insertAdjacentHTML('beforeend','<p class="note">サーバーに つながらなかったので、きまった てがみを ひらきます（'+esc(S.aiErr)+'）</p>'); setTimeout(go, 1200); });
+        } else go();
+      };
+      document.getElementById('open').onclick=open; document.getElementById('env').onclick=open;
+      return;
+    }
+    var prev = i>0 && S.done[i-1] ? S.done[i-1].reply.join(' ') : null;
+    var en = lt.en.slice(), ja = lt.ja.slice();
+    if(prev && S.level>=1){ en.push('Yesterday you said "'+prev+'". Nice!'); ja.push('きのう「'+prev+'」って いってたね。いいね！'); }
+    var shown = done ? en.length : (S.shown||1);
+    var html = '<div class="place"><span class="day">Day '+t.day+'</span><div><b>'+esc(t.place)+'</b><br><small class="sub">'+esc(t.en)+'</small></div></div>'+
+      '<div class="card postcard'+cls+'"><div class="pchead"><div class="pcfrom">From Moco 🐾<br><small>'+esc(t.en)+'</small></div><div class="pcstamp"><span>'+t.emoji+'</span><small>MOCO POST</small></div><div class="pcmark">Day '+t.day+'</div></div>'+aiTag+
+      (lt.pic?'<div class="pic">'+lt.pic+'</div>':'<div class="pic">'+t.emoji+'</div>')+
+      (S.name?'<div class="pcto">Dear '+esc(S.name)+',</div>':'')+
+      '<div class="en" id="en">'+en.slice(0,shown).map(function(s,k){return '<p data-k="'+k+'">'+mark(s,lt.words)+'<span class="jp"'+(S.autoJa?'':' hidden')+'>'+esc(ja[k])+'</span></p>'}).join('')+'</div>'+
+      '<div class="row"><button class="btn" id="sp">🔊 きく</button>'+(shown<en.length?'<button class="btn on" id="next">つぎ ▶</button>':'')+'<span class="note">'+(S.autoJa?'':'文を おすと にほんご')+'</span></div>';
+    if(shown>=en.length){
+      if(!done && lt.choices){
+        html += '<p class="q"><b>モコの しつもん</b><span>'+esc(lt.q)+'</span>'+(lt.qja?'<small class="sub">'+esc(lt.qja)+'</small>':'')+'</p>'+
+          '</div><div class="card replycard'+cls+'"><div class="rchead"><span class="rcto">To Moco 🐾</span><span class="rcfrom">From '+(S.name?esc(S.name):'me')+'</span></div>'+
+          '<div class="lab note">えを おして こたえよう</div><div class="choices">'+lt.choices.map(function(c,k){return '<button class="choice" data-k="'+k+'"><span class="ce">'+c.e+'</span><span class="cen">'+esc(c.en)+'</span><span class="cja">'+esc(c.ja)+'</span></button>'}).join('')+'</div>';
+      } else if(!done){
+        html += '<p class="q"><b>モコの しつもん</b><span>'+esc(lt.q)+'</span></p>'+
+          '</div><div class="card replycard'+cls+'"><div class="rchead"><span class="rcto">To Moco 🐾</span><span class="rcfrom">From '+(S.name?esc(S.name):'me')+'</span></div>'+
+          '<div class="line" id="line"><span class="ph">ブロックを おして へんじを つくろう</span></div>'+
+          '<div class="tiles">'+lt.tiles.map(function(w){return '<button class="tile">'+esc(w)+'</button>'}).join('')+'</div>'+
+          '<div class="row"><button class="btn main" id="send" disabled>✉️ おくる</button><button class="btn" id="clr">けす</button></div>';
+      } else {
+        html += '<p class="q"><b>モコの しつもん</b><span>'+esc(lt.q)+'</span>'+(lt.qja?'<small class="sub">'+esc(lt.qja)+'</small>':'')+'</p>'+
+          '</div><div class="card replycard'+cls+'"><div class="rchead"><span class="rcto">To Moco 🐾</span><span class="rcfrom">From '+(S.name?esc(S.name):'me')+'</span></div>'+
+          '<p class="q"><b>きみの へんじ</b><span>'+esc(done.reply.join(' '))+'</span></p>'+
+          mocoBox(done.moco, done.mocoJa)+
+          (i<maxIndex()&&!S.done[i]? '' : (i>=L.trip.length-1 ? '<p class="note">せかい いっしゅう おめでとう！（試作は ここまで）</p>' : '<p class="note">あしたの てがみを まっててね 🐾</p>'));
+      }
+    }
+    html += '</div><div id="after"></div>';
+    if(done) html += psHtml() + playHtml(i);
+    app.innerHTML = '<h1>🐾 モコの えいごポスト</h1>'+html;
+    if(done){ bindPlay(i); bindPs(); }
+    document.getElementById('sp').onclick=function(){ S.spBy=S.spBy||{}; S.spBy[i]=(S.spBy[i]||0)+1; save(); speak(en.slice(0,shown).map(plain).join(' ')+(shown>=en.length?' '+lt.q:'')); };
+    var nx=document.getElementById('next'); if(nx) nx.onclick=function(){ S.shown=shown+1; save(); renderLetter(); speak(plain(en[shown])); };
+    document.querySelectorAll('.moco .mt').forEach(function(d){ d.onclick=function(){ var j=d.querySelector('.jp'); if(j) j.hidden=!j.hidden; }; });
+    document.querySelectorAll('#en p').forEach(function(p){ p.onclick=function(){ var j=p.querySelector('.jp'); j.hidden=!j.hidden; if(!j.hidden){ S.jaTaps++; S.jaBy=S.jaBy||{}; S.jaBy[i]=(S.jaBy[i]||0)+1; save(); } }; });
+    if(shown>=en.length && !done && lt.choices){
+      document.querySelectorAll('.choice').forEach(function(b){ b.onclick=function(){
+        var c = lt.choices[parseInt(b.dataset.k,10)];
+        document.querySelectorAll('.choice').forEach(function(x){ x.disabled=true; x.classList.toggle('picked', x===b); });
+        speak(c.en);
+        var m = (S.level===0 ? c.e+' '+c.en+' ' : c.en+' ')+(c.m||'Me too!')+(S.level===0 ? ' Bye-bye!' : ' See you tomorrow!');
+        var mja = (c.ja||'').replace(/[！!。]+$/,'')+'！ '+(c.mja||'ぼくも！')+(S.level===0 ? ' ばいばい！' : ' また あした！');
+        S.done[i]={reply:[c.e+' '+c.en], moco:m, mocoJa:mja, at:today(), newWords:Object.keys(lt.words)}; S.shown=1; save();
+        var after=document.getElementById('after');
+        after.innerHTML = '<div class="card">'+mocoBox(m, mja)+
+          '<div class="post drop"><div class="pic">'+(lt.pic||t.emoji)+'</div><b>はがきが とどいた！</b><br><small class="sub">'+esc(t.place)+'</small></div>'+
+          '<div class="row center"><button class="btn main" id="keep">🗺️ ずかんに しまう</button></div></div>';
+        setTimeout(function(){ speak(m); }, 1200);
+        document.getElementById('keep').onclick=function(){ tab='letter'; render(); var ph=document.getElementById('play'); if(ph) ph.scrollIntoView({behavior:'smooth'}); };
+        after.scrollIntoView({behavior:'smooth'});
+      }; });
+    }
+    if(shown>=en.length && !done && !lt.choices){
+      var words=[], line=document.getElementById('line'), send=document.getElementById('send');
+      function draw(){ line.innerHTML = words.length? words.map(function(w){return '<span class="chip">'+esc(w)+'</span>'}).join('') : '<span class="ph">ブロックを おして へんじを つくろう</span>'; send.disabled=!words.length; }
+      document.querySelectorAll('.tile').forEach(function(b){ b.onclick=function(){ if(words.length<8){ words.push(b.textContent); speak(b.textContent); draw(); } }; });
+      document.getElementById('clr').onclick=function(){ words=[]; draw(); };
+      send.onclick=function(){
+        send.disabled=true; document.querySelectorAll('.tile').forEach(function(b){b.disabled=true;});
+        var after=document.getElementById('after');
+        var show=function(m, mja){
+        S.done[i]={reply:words.slice(), moco:m, mocoJa:mja||'', at:today(), newWords:Object.keys(lt.words)}; S.shown=1; save();
+        after.innerHTML = '<div class="card">'+mocoBox(m, mja||'')+
+          '<div class="post drop"><div class="pic">'+(lt.pic||t.emoji)+'</div><b>はがきが とどいた！</b><br><small class="sub">'+esc(t.place)+'</small></div>'+
+          '<div class="row center"><button class="btn main" id="keep">🗺️ ずかんに しまう</button></div></div>';
+        speak(m);
+        document.querySelectorAll('.moco .mt').forEach(function(d){ d.onclick=function(){ var j=d.querySelector('.jp'); if(j) j.hidden=!j.hidden; }; });
+        document.getElementById('keep').onclick=function(){ tab='letter'; render(); var ph=document.getElementById('play'); if(ph) ph.scrollIntoView({behavior:'smooth'}); };
+        after.scrollIntoView({behavior:'smooth'});
+        };
+        if(aiOn()){ after.innerHTML=writing(); after.scrollIntoView({behavior:'smooth'}); fetchReply(i, lt, words).then(function(r){ show(r.en, r.ja); }, function(e){ S.aiErr=String(e&&e.message||e); save(); show(mocoReply(i, words), ''); }); }
+        else show(mocoReply(i, words), '');
+      };
+    }
+  }
+
+  // --- てがみの あとの あそび（1日1通は そのまま。手紙の「うら」で遊ぶ） ---
+  function playHtml(i){
+    var t=tripAt(i); S.found=S.found||{}; S.asked=S.asked||{}; var f=S.found[i]||[], a=S.asked[i]||[];
+    var all = f.length>=t.scene.length;
+    return '<div class="card" id="play"><h2>💬 モコに きいてみる</h2><div class="row" style="flex-direction:column;align-items:stretch">'+t.asks.map(function(q,k){ var d=a.indexOf(k)>=0; return '<button class="ask" data-k="'+k+'"'+(d?' disabled':'')+'>'+esc(q.q)+'<small>'+esc(q.qja)+'</small></button>'+(d?mocoBox(q.a,q.aja):''); }).join('')+'</div>'+
+      (a.length>=t.asks.length?'<p class="note">きょうは ここまで。あしたも きいてね 🐾</p>':'')+'</div>'+
+      '<div class="row center"><button class="btn" id="toplay">🎈 あそぶ へ</button><button class="btn" id="tomap">🗺️ ずかんを みる</button></div>';
+  }
+  function huntHtml(i){
+    var t=tripAt(i); S.found=S.found||{}; var f=S.found[i]||[]; var all=f.length>=t.scene.length;
+    return '<div class="card" id="hunt"><h2>🔍 はがきの えの なかを さがそう</h2><p class="sub">Day '+t.day+' '+esc(t.place)+'</p><p class="note">'+(all?'ぜんぶ みつけた！ ✨':'えを おすと、モコが なまえを いうよ（'+f.length+' / '+t.scene.length+'）')+'</p>'+
+      '<div class="scene">'+t.scene.map(function(o,k){ var g=f.indexOf(k)>=0; return '<button class="hid'+(g?' got':'')+'" data-k="'+k+'"><span class="se">'+o.e+'</span><span class="sen">'+esc(o.en)+'</span><span class="sja">'+esc(o.ja)+'</span></button>'; }).join('')+'</div></div>';
+  }
+  function renderPlay(){
+    var i=todayIndex(), done=S.done[i]; var days=Object.keys(S.done).map(Number);
+    var html='<h1>🎈 あそぶ</h1>';
+    if(done){ html+=huntHtml(i); } else { html+='<div class="card"><h2>🔍 はがきの えの なかを さがそう</h2><p class="note">きょうの てがみに へんじを すると、えの なかを さがせるよ ✉️</p></div>'; }
+    var past=days.filter(function(k){return k!==i});
+    if(past.length) html+='<div class="card"><h2>📮 まえの はがき</h2><div class="row">'+past.map(function(k){return '<button class="btn" data-day="'+k+'">'+L.trip[k].emoji+' Day '+L.trip[k].day+'</button>'}).join('')+'</div><div id="pasthunt"></div></div>';
+    var n=wordPool().length;
+    html+='<div class="card"><h2>🎧 ことばクイズ</h2><p class="note">'+(n>=3?'あつめた ことば '+n+'こ から 5もん。いつでも あそべるよ':'はがきの えで ことばを 3つ あつめると あそべるよ（いま '+n+'こ）')+'</p><div class="row center"><button class="btn main" id="quiz"'+(n>=3?'':' disabled')+'>はじめる</button></div></div>';
+    app.innerHTML=html;
+    if(done) bindHunt(i);
+    document.querySelectorAll('[data-day]').forEach(function(b){ b.onclick=function(){ var k=parseInt(b.dataset.day,10); document.getElementById('pasthunt').innerHTML=huntHtml(k); bindHunt(k); }; });
+    document.getElementById('quiz').onclick=renderQuiz;
+  }
+  function bindHunt(i){
+    var t=tripAt(i);
+    document.querySelectorAll('#hunt .hid').forEach(function(b){ b.onclick=function(){
+      var k=parseInt(b.dataset.k,10), o=t.scene[k]; speak(o.en);
+      var f=S.found[i]||(S.found[i]=[]); if(f.indexOf(k)<0){ f.push(k); save(); }
+      b.classList.add('got'); b.querySelector('.sen').style.visibility='visible'; b.querySelector('.sja').style.visibility=S.autoJa?'visible':'hidden';
+      var note=b.closest('.card').querySelector('.note');
+      note.textContent = f.length>=t.scene.length ? 'ぜんぶ みつけた！ ✨' : 'えを おすと、モコが なまえを いうよ（'+f.length+' / '+t.scene.length+'）';
+      var qb=document.getElementById('quiz'), n=wordPool().length; if(qb){ qb.disabled=n<3; qb.closest('.card').querySelector('.note').textContent = n>=3 ? 'あつめた ことば '+n+'こ から 5もん。いつでも あそべるよ' : 'はがきの えで ことばを 3つ あつめると あそべるよ（いま '+n+'こ）'; }
+    }; });
+  }
+  function bindPlay(i){
+    var t=tripAt(i);
+    document.querySelectorAll('.ask').forEach(function(b){ b.onclick=function(){
+      var k=parseInt(b.dataset.k,10), q=t.asks[k]; var a=S.asked[i]||(S.asked[i]=[]); if(a.indexOf(k)<0){ a.push(k); save(); }
+      b.disabled=true; speak(q.q);
+      setTimeout(function(){ b.insertAdjacentHTML('afterend', mocoBox(q.a,q.aja)); var box=b.nextElementSibling; box.classList.add('drop'); box.querySelector('.mt').onclick=function(){ var j=box.querySelector('.jp'); if(j) j.hidden=!j.hidden; }; speak(q.a); if(a.length>=t.asks.length){ b.closest('.card').insertAdjacentHTML('beforeend','<p class="note">きょうは ここまで。あしたも きいてね 🐾</p>'); } }, 900);
+    }; });
+    var tm=document.getElementById('tomap'); if(tm) tm.onclick=function(){ tab='map'; render(); };
+    var tp=document.getElementById('toplay'); if(tp) tp.onclick=function(){ tab='play'; render(); };
+  }
+  // --- ことばクイズ（いつでも。あつめた ことば から 5もん）---
+  function wordPool(){ var pool=[], seen={}, F=S.found||{}; Object.keys(F).forEach(function(k){ F[k].forEach(function(j){ var o=tripAt(k).scene[j]; if(o && !seen[o.en]){ seen[o.en]=1; pool.push(o); } }); }); return pool; }
+  function renderQuiz(){
+    var pool=wordPool(); if(pool.length<3){ renderMap(); return; }
+    var qs=pool.slice().sort(function(){return Math.random()-.5}).slice(0,5), n=0, ok=0;
+    S.quiz=(S.quiz||0)+1; save();
+    function ask(){
+      if(n>=qs.length){ S.quizLog=(S.quizLog||[]).concat([ok/qs.length]).slice(-10); save(); app.innerHTML='<h1>🎧 ことばクイズ</h1><div class="card"><div class="star">'+'⭐'.repeat(ok)+'☆'.repeat(qs.length-ok)+'</div><p class="q" style="text-align:center"><span>'+ok+' / '+qs.length+'</span></p><div class="row center"><button class="btn main" id="again">もういちど</button><button class="btn" id="back">🗺️ もどる</button></div></div>';
+        document.getElementById('again').onclick=renderQuiz; document.getElementById('back').onclick=function(){ tab='play'; render(); }; return; }
+      var w=qs[n], others=pool.filter(function(o){return o.en!==w.en}).sort(function(){return Math.random()-.5}).slice(0,2), opts=[w].concat(others).sort(function(){return Math.random()-.5});
+      app.innerHTML='<h1>🎧 ことばクイズ</h1><p class="sub">'+(n+1)+' / '+qs.length+'</p><div class="card"><div class="row center"><button class="btn big on" id="hear">🔊 きく</button></div><p class="note" style="text-align:center">きこえた ものを おしてね</p>'+
+        '<div class="quiz">'+opts.map(function(o,k){return '<button class="choice" data-k="'+k+'"><span class="ce">'+o.e+'</span></button>'}).join('')+'</div><p class="note" id="fb" style="text-align:center;min-height:1.2em"></p></div>';
+      document.getElementById('hear').onclick=function(){ speak(w.en); };
+      speak(w.en);
+      document.querySelectorAll('.quiz .choice').forEach(function(b){ b.onclick=function(){
+        var o=opts[parseInt(b.dataset.k,10)]; var fb=document.getElementById('fb');
+        if(o.en===w.en){ ok++; b.classList.add('picked'); fb.textContent='⭕ '+w.en+'（'+w.ja+'）'; document.querySelectorAll('.quiz .choice').forEach(function(x){x.disabled=true}); setTimeout(function(){ n++; ask(); }, 1100); }
+        else { b.disabled=true; fb.textContent='もういちど きいてみよう'; speak(w.en); }
+      }; });
+    }
+    ask();
+  }
+  // --- レベルが上がる仕組み（docs/04-レベル.md）。子に見えない3つの数字 → モコが聞く ---
+  function levelStats(){
+    var i=todayIndex(), from=Math.max(0,i-6), opened=0, n=0, taps=0;
+    for(var k=from;k<=i;k++){ if(S.opened[k]) opened++; if(S.done[k]){ n++; taps+=(S.level>=2?((S.jaBy||{})[k]||0):((S.spBy||{})[k]||0)); } }
+    var ql=(S.quizLog||[]).slice(-3), quiz = ql.length ? ql.reduce(function(a,b){return a+b},0)/ql.length : null;
+    return { opened:opened, tapsAvg: n? taps/n : 0, quiz:quiz, quizN:ql.length, okOpen:opened>=5, okTaps:(n>0 && taps/n<=1), okQuiz:(ql.length>=3 && quiz>=0.8) };
+  }
+  function levelReady(){ var st=levelStats(); return S.level<3 && !S.lockLevel && st.okOpen && st.okTaps && st.okQuiz && !(S.askAfter>todayIndex()); }
+  function psHtml(){
+    if(!levelReady()) return '';
+    return '<div class="card ps" id="ps"><p class="q"><b>P.S. モコから</b><span>Can I write a little longer letter?</span><small class="sub">すこし ながい てがみ、かいてもいい？</small></p>'+
+      '<div class="row center"><button class="btn main" id="psok">いいよ！</button><button class="btn" id="psno">まだ</button></div></div>';
+  }
+  function bindPs(){
+    var ok=document.getElementById('psok'), no=document.getElementById('psno'); if(!ok) return;
+    ok.onclick=function(){ S.level++; S.ladder=S.level===2?5:3; S.levelLog=(S.levelLog||[]).concat([{at:today(),to:S.level,by:'moco'}]); if(S.level>=2) S.autoJa=false; save(); document.getElementById('ps').innerHTML=mocoBox('Yay! Thank you! See you tomorrow!','やったー！ ありがとう！ また あした！'); speak('Yay! Thank you! See you tomorrow!'); };
+    no.onclick=function(){ S.askAfter=todayIndex()+7; save(); document.getElementById('ps').innerHTML=mocoBox('OK! No problem!','いいよ！ だいじょうぶ！'); speak('OK! No problem!'); };
+  }
+  function renderMap(){
+    var now=todayIndex(), mx=maxIndex();
+    var stops = L.trip.map(function(t,i){
+      var st = S.done[i]?'done':(i===now?'now':(i<=mx?'':'lock'));
+      return '<div class="stop '+st+'"><div class="dot">'+(st==='lock'?'?':(i===now&&!S.done[i]?'🐾':t.emoji))+'</div><small>Day '+t.day+'</small></div>';
+    }).join('');
+    var cards = L.trip.map(function(t,i){
+      var d=S.done[i];
+      return '<div class="pc'+(d?'':' lock')+'"><div class="e">'+(d?(letterAt(i).pic||t.emoji):'❔')+'</div><b>'+(d?esc(t.en):'？？？')+'</b><small>'+(d?esc(t.place):'まだ とどいていない')+'</small></div>';
+    }).join('');
+    app.innerHTML = '<h1>🗺️ モコの たび</h1><p class="sub">'+Object.keys(S.done).length+' / '+L.trip.length+' まち</p>'+
+      '<div class="card"><div class="map">'+stops+'</div></div>'+
+      '<h2>📮 はがき ずかん</h2><div class="cards">'+cards+'</div>';
+  }
+
+  function renderParent(){
+    if(!pinOK){
+      app.innerHTML = '<h1>👪 おうちの ひと</h1><p class="sub">あんしょうばんごう を いれてください（試作は 1234）</p>'+
+        '<div class="card"><div class="pinbox" id="pb"></div><div class="keys">'+'123456789'.split('').map(function(k){return '<button class="key">'+k+'</button>'}).join('')+'<button class="key" data-x="1">←</button><button class="key">0</button><button class="key" data-ok="1">OK</button></div></div>';
+      var pb=document.getElementById('pb'); pinBuf='';
+      document.querySelectorAll('.key').forEach(function(k){ k.onclick=function(){
+        if(k.dataset.x) pinBuf=pinBuf.slice(0,-1); else if(k.dataset.ok){ if(pinBuf===PIN){ pinOK=true; renderParent(); return; } pinBuf=''; pb.textContent='ちがいます'; return; } else if(pinBuf.length<4) pinBuf+=k.textContent;
+        pb.textContent='●'.repeat(pinBuf.length);
+      }; });
+      return;
+    }
+    var doneKeys=Object.keys(S.done), read=Object.keys(S.opened).length, learned={}, used={};
+    doneKeys.forEach(function(k){ (S.done[k].newWords||[]).forEach(function(w){learned[w.toLowerCase()]=1}); S.done[k].reply.forEach(function(w){ w.replace(/[^A-Za-z' ]/g,'').split(' ').forEach(function(x){ if(x) used[x.toLowerCase()]=1; }); }); });
+    app.innerHTML = '<h1>👪 おうちの ひと</h1>'+
+      '<div class="card"><h2>こんしゅうの モコから</h2><div class="stat"><div><b>'+read+'</b><small>読んだ手紙</small></div><div><b>'+Object.keys(learned).length+'</b><small>読めた新しい語</small></div><div><b>'+Object.keys(used).length+'</b><small>自分で使った語</small></div></div>'+
+      (doneKeys.length? '<p class="note">えの なかで みつけた ことば：'+Object.keys(S.found||{}).reduce(function(a,k){return a+S.found[k].length},0)+'こ ／ モコに きいた かず：'+Object.keys(S.asked||{}).reduce(function(a,k){return a+S.asked[k].length},0)+'回 ／ ことばクイズ：'+(S.quiz||0)+'回</p>'+
+      '<p class="note">はじめて使った言いかた：「'+esc(S.done[doneKeys[doneKeys.length-1]].reply.join(' '))+'」。「にほんご」を見た回数：'+S.jaTaps+'</p>' : '<p class="note">まだ返事がありません。</p>')+'</div>'+
+      (function(){ var st=levelStats(); var ck=function(b){return b?'✅':'⬜'}; return '<div class="card"><h2>レベル</h2><p class="note">いま：<b>'+L.levels[S.level].label+'</b>（'+L.levels[S.level].who+'）。モコが「すこし ながい てがみ、かいてもいい？」と聞いて、子が「いいよ」と言うと上がります。下がりません。</p>'+
+        '<p class="note">つぎに上がる めやす（直近7通）：<br>'+ck(st.okOpen)+' 開いた手紙 '+st.opened+' / 7（5以上）<br>'+ck(st.okTaps)+' 1通あたり '+(S.level>=2?'「にほんご」':'「きく」')+'を押した回数 '+st.tapsAvg.toFixed(1)+'（1以下）<br>'+ck(st.okQuiz)+' ことばクイズ 直近3回の正答率 '+(st.quiz===null?'—':Math.round(st.quiz*100)+'%')+'（80%以上・'+st.quizN+'/3回）</p>'+
+        '<label class="inline"><input type="checkbox" id="lk"'+(S.lockLevel?' checked':'')+'> レベルを固定する（モコは聞かない）</label>'+
+        ((S.levelLog||[]).length?'<p class="note">これまで：'+S.levelLog.map(function(e){return e.at+' → '+L.levels[e.to].label+'（'+(e.by==='moco'?'モコが聞いた':'おうちの人')+'）'}).join('、')+'</p>':'')+'</div>'; })()+
+      '<div class="card"><h2>せってい</h2><label>なまえ<input id="nm" value="'+esc(S.name)+'" maxlength="12"></label>'+
+      '<label>レベル<select id="lv">'+[0,1,2,3].map(function(k){return '<option value="'+k+'"'+(k===S.level?' selected':'')+'>'+L.levels[k].label+'：'+L.levels[k].who+'</option>'}).join('')+'</select></label>'+
+      '<label class="inline"><input type="checkbox" id="aj"'+(S.autoJa?' checked':'')+'> にほんごを いつも 出す（レベル0〜1 は はじめから ON）</label>'+
+      '<div class="row"><button class="btn on" id="sv">ほぞん</button></div><p class="note">レベルは ここで いつでも 変えられます（上げるのも 下げるのも）。まだ届いていない手紙から変わります。</p></div>'+
+      '<div class="card"><h2>とどいた手紙</h2>'+(doneKeys.length?'<ol class="log">'+doneKeys.map(function(k){return '<li>Day '+L.trip[k].day+' '+esc(L.trip[k].en)+'：「'+esc(S.done[k].reply.join(' '))+'」→ '+esc(S.done[k].moco)+'</li>'}).join('')+'</ol>':'<p class="note">まだ ありません</p>')+'</div>'+
+      '<div class="card"><h2>🤖 AI の手紙（サーバー）</h2><p class="note">Cloudflare に置いたサーバーの住所と合言葉を入れると、手紙とモコの返事を Claude が書きます。空なら決まった文のままです。置きかたは docs/SERVER.md。</p>'+
+      '<label>サーバーの住所<input id="sv_url" value="'+esc(S.server||'')+'" placeholder="https://moco-post-server.xxxx.workers.dev" inputmode="url" autocapitalize="off"></label>'+
+      '<label>合言葉<input id="sv_tok" type="password" value="'+esc(S.token||'')+'" autocapitalize="off"></label>'+
+      '<label class="inline"><input type="checkbox" id="ai"'+(S.useAi?' checked':'')+'> AI の手紙を使う（まだ開いていない手紙から）</label>'+
+      '<div class="row"><button class="btn on" id="sv_save">ほぞん</button><button class="btn" id="sv_test">つながるか ためす</button><button class="btn" id="sv_redo">きょうの手紙を 作りなおす</button></div><p class="note" id="sv_msg">'+
+      (function(){ var g=S.aiLog||[]; if(!g.length) return S.aiErr?'さいごのエラー：'+esc(S.aiErr):''; var tin=0,tout=0; g.forEach(function(e){ if(e.usage){tin+=e.usage.input_tokens||0; tout+=e.usage.output_tokens||0;} }); return 'AI を呼んだ回数：'+g.length+'（手紙 '+g.filter(function(e){return e.what==='letter'}).length+'・返事 '+g.filter(function(e){return e.what==='reply'}).length+'）／ トークン 入 '+tin+'・出 '+tout+(S.aiErr?'<br>さいごのエラー：'+esc(S.aiErr):''); })()+'</p></div>'+
+      '<div class="card"><h2>試作のためのボタン</h2><div class="row"><button class="btn" id="more">つぎの手紙を いま届ける</button><button class="btn" id="reset">さいしょから</button></div>'+
+      '<p class="note">本物では モコの返事は AI が書きます。この試作は決まった文です。レベル0〜1 の返事は「絵を選ぶ」（10/13 の直し）。手紙の文は レベルごとに 10日ぶん 用意してあります。</p></div>';
+    document.getElementById('sv').onclick=function(){ S.name=document.getElementById('nm').value.trim(); var nl=parseInt(document.getElementById('lv').value,10); if(nl!==S.level){ S.levelLog=(S.levelLog||[]).concat([{at:today(),to:nl,by:'parent'}]); S.askAfter=0; } S.level=nl; S.autoJa=document.getElementById('aj').checked; S.lockLevel=document.getElementById('lk').checked; save(); this.textContent='ほぞんした'; };
+    document.getElementById('sv_save').onclick=function(){ S.server=document.getElementById('sv_url').value.trim(); S.token=document.getElementById('sv_tok').value.trim(); S.useAi=document.getElementById('ai').checked; save(); this.textContent='ほぞんした'; };
+    document.getElementById('sv_test').onclick=function(){ var m=document.getElementById('sv_msg'); var u=document.getElementById('sv_url').value.trim().replace(/\/+$/,''); if(!u){ m.textContent='住所が空です'; return; } m.textContent='ためしています…'; fetch(u+'/health').then(function(r){return r.json()}).then(function(j){ m.textContent=j.ok?'つながりました（model: '+j.model+' / prompt '+j.prompt+'）。合言葉が合っているかは、手紙を開くと分かります':'へんな返事：'+JSON.stringify(j); }, function(e){ m.textContent='つながりません：'+e; }); };
+    document.getElementById('sv_redo').onclick=function(){ var i=todayIndex(); if(S.done[i]){ document.getElementById('sv_msg').textContent='きょうの手紙は もう返事を出しています。「つぎの手紙を いま届ける」で次へ'; return; } if(S.ai) delete S.ai[i]; delete S.opened[i]; S.shown=1; save(); tab='letter'; render(); };
+    document.getElementById('more').onclick=function(){ if(maxIndex()<L.trip.length-1){ S.extra++; save(); tab='letter'; render(); } };
+    var armed=false; document.getElementById('reset').onclick=function(){ if(!armed){ armed=true; this.textContent='ほんとうに けす？（もう一度おす）'; return; } S=null; try{localStorage.removeItem(KEY)}catch(e){} tab='letter'; render(); };
+  }
+  render();
+})();
+</script>
