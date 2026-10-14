@@ -200,11 +200,19 @@ label.inline{display:flex;gap:8px;align-items:center}
   function pickVoice(){ var vs=speechSynthesis.getVoices().filter(function(v){return /^en[-_]/.test(v.lang)}); if(!vs.length) return null;
     var score=function(v){ var n=v.name, s=0; if(/^en[-_]US/.test(v.lang)) s+=4; if(/Enhanced|Premium|Natural|Neural/i.test(n)) s+=6; if(/Samantha|Ava|Allison|Zoe|Nicky|Karen|Moira|Serena|Google US English/i.test(n)) s+=3; if(/Compact|Eloquence|Fred|Albert|Bad News|Bells|Boing|Bubbles|Cellos|Jester|Organ|Trinoids|Whisper|Wobble|Zarvox/i.test(n)) s-=10; if(v.localService) s+=1; return s; };
     return vs.sort(function(a,b){return score(b)-score(a)})[0]; }
-  function speak(text){ if(!('speechSynthesis' in window)) return; speechSynthesis.cancel();
+  // speak(text, onDone): 読み終わったら onDone を1回だけ呼ぶ（読めない端末でも呼ぶ）。
+  // 読み上げを「取り消して次を読む」作りなので、続けて読むときは onDone の中で次を speak する
+  function speak(text, onDone){ var done=false; function fin(){ if(done) return; done=true; if(onDone) onDone(); }
+    if(!('speechSynthesis' in window)){ setTimeout(fin,600); return; } speechSynthesis.cancel();
     // 文ごとに分けて読む（間が入る）。記号と絵文字は読まない（「.」を dot、🐢 を turtle と読む端末がある）
     var parts=String(text).replace(/[{}"]/g,'').replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}\u{1F3FB}-\u{1F3FF}\u{20E3}]/gu,' ').split(/(?<=[.!?])\s+/).map(function(x){return x.replace(/[.!?,]+/g,' ').replace(/\s+/g,' ').trim()}).filter(Boolean);
     var v=pickVoice();
-    parts.forEach(function(pt){ var u=new SpeechSynthesisUtterance(pt); u.lang='en-US'; u.rate=0.82; u.pitch=1.08; if(v) u.voice=v; speechSynthesis.speak(u); }); }
+    if(!parts.length){ setTimeout(fin,300); return; }
+    parts.forEach(function(pt,idx){ var u=new SpeechSynthesisUtterance(pt); u.lang='en-US'; u.rate=0.82; u.pitch=1.08; if(v) u.voice=v;
+      if(idx===parts.length-1){ u.onend=function(){ setTimeout(fin,250); }; u.onerror=function(){ setTimeout(fin,250); }; }
+      speechSynthesis.speak(u); });
+    // onend が来ない端末のための保険（1文字 120ms + 2秒）
+    setTimeout(fin, 2000 + String(text).length*120); }
   if('speechSynthesis' in window){ speechSynthesis.onvoiceschanged=function(){}; }
 
   // --- 進み具合 ---
@@ -395,7 +403,6 @@ label.inline{display:flex;gap:8px;align-items:center}
       document.querySelectorAll('.choice').forEach(function(b){ b.onclick=function(){
         var c = lt.choices[parseInt(b.dataset.k,10)];
         document.querySelectorAll('.choice').forEach(function(x){ x.disabled=true; x.classList.toggle('picked', x===b); });
-        speak(c.en);
         var m = (S.level===0 ? c.e+' '+c.en+' ' : c.en+' ')+(c.m||'Me too!')+(S.level===0 ? ' Bye-bye!' : ' See you tomorrow!');
         var mja = (c.ja||'').replace(/[！!。]+$/,'')+'！ '+(c.mja||'ぼくも！')+(S.level===0 ? ' ばいばい！' : ' また あした！');
         S.done[i]={reply:[c.e+' '+c.en], moco:m, mocoJa:mja, at:today(), newWords:Object.keys(lt.words)}; S.shown=1; save();
@@ -403,7 +410,7 @@ label.inline{display:flex;gap:8px;align-items:center}
         after.innerHTML = '<div class="card">'+mocoBox(m, mja)+
           '<div class="post drop">'+artPic(t.id, lt.pic||t.emoji)+'<b>はがきが とどいた！</b><br><small class="sub">'+esc(t.place)+'</small></div>'+
           '<div class="row center"><button class="btn main" id="keep">🗺️ ずかんに しまう</button></div></div>';
-        setTimeout(function(){ speak(m); }, 1200);
+        speak(c.en, function(){ speak(m); });  // えらんだ言葉を読み終えてから モコの返事を読む
         document.getElementById('keep').onclick=function(){ tab='letter'; render(); var ph=document.getElementById('play'); if(ph) ph.scrollIntoView({behavior:'smooth'}); };
         after.scrollIntoView({behavior:'smooth'});
       }; });
@@ -515,8 +522,9 @@ label.inline{display:flex;gap:8px;align-items:center}
     var t=tripAt(i);
     document.querySelectorAll('.ask').forEach(function(b){ b.onclick=function(){
       var k=parseInt(b.dataset.k,10), q=t.asks[k]; var a=S.asked[i]||(S.asked[i]=[]); if(a.indexOf(k)<0){ a.push(k); save(); }
-      b.disabled=true; speak(q.q);
-      setTimeout(function(){ b.insertAdjacentHTML('afterend', mocoBox(q.a,q.aja)); var box=b.nextElementSibling; box.classList.add('drop'); box.querySelector('.mt').onclick=function(){ var j=box.querySelector('.jp'); if(j) j.hidden=!j.hidden; }; speak(q.a); if(a.length>=t.asks.length){ b.closest('.card').insertAdjacentHTML('beforeend','<p class="note">きょうは ここまで。あしたも きいてね 🐾</p>'); } }, 900);
+      b.disabled=true;
+      // 質問を読み終えてから、こたえを出して読む（前は 0.9秒後に読み始めて、質問の途中で こたえが かぶっていた）
+      speak(q.q, function(){ if(!b.isConnected) return; b.insertAdjacentHTML('afterend', mocoBox(q.a,q.aja)); var box=b.nextElementSibling; box.classList.add('drop'); box.querySelector('.mt').onclick=function(){ var j=box.querySelector('.jp'); if(j) j.hidden=!j.hidden; }; speak(q.a); if(a.length>=t.asks.length){ b.closest('.card').insertAdjacentHTML('beforeend','<p class="note">きょうは ここまで。あしたも きいてね 🐾</p>'); } });
     }; });
     var tm=document.getElementById('tomap'); if(tm) tm.onclick=function(){ tab='map'; render(); };
     var tp=document.getElementById('toplay'); if(tp) tp.onclick=function(){ tab='play'; render(); };
