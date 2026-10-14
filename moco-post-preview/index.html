@@ -230,7 +230,7 @@ label.inline{display:flex;gap:8px;align-items:center}
     var url=String(S.server||'').replace(/\/+$/,'')+path;
     var ctl=new AbortController(); var tm=setTimeout(function(){ctl.abort()}, 45000);
     return fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+S.token},body:JSON.stringify(body),signal:ctl.signal})
-      .then(function(r){ clearTimeout(tm); return r.json().then(function(j){ if(!r.ok) throw new Error(j.error||('http '+r.status)); return j; }); });
+      .then(function(r){ clearTimeout(tm); return r.json().then(function(j){ if(!r.ok) throw new Error((j.error||('http '+r.status))+(j.status?' '+j.status:'')+(j.detail?'：'+j.detail:'')); return j; }); });
   }
   function knownWords(){ var k={}; Object.keys(S.done).forEach(function(d){ (S.done[d].newWords||[]).forEach(function(w){k[w.toLowerCase()]=1}); }); return Object.keys(k); }
   function nameFill(x){ var n=S.name||'friend'; if(typeof x==='string') return x.replace(/\{name\}/g,n); if(Array.isArray(x)) return x.map(nameFill); if(x&&typeof x==='object'){ var o={}; Object.keys(x).forEach(function(k){o[k]=nameFill(x[k])}); return o; } return x; }
