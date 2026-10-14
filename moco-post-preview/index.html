@@ -80,6 +80,21 @@ h2{font-size:1.05rem;margin:0}
 .line .ph{color:var(--muted);font-size:.9rem}
 .chip{background:var(--leaf);color:#fff;border-radius:8px;padding:2px 10px}
 .tiles{display:flex;flex-wrap:wrap;gap:8px}
+/* レベル2〜3：文の型＋穴 */
+.frames{display:grid;gap:8px}
+.frame{border:2px solid var(--line);border-bottom-width:4px;border-radius:14px;background:var(--paper);color:var(--ink);font:inherit;padding:10px 12px;text-align:left;cursor:pointer;display:grid;gap:2px}
+.frame b{font-size:1.1rem;font-weight:700}.frame small{color:var(--muted);font-size:.85rem}
+.frame:disabled{opacity:.4}
+.slot{display:inline-block;min-width:44px;text-align:center;background:var(--new);color:var(--ink);border:2px dashed var(--pline);border-radius:8px;padding:0 10px;cursor:pointer}
+.slot.on{border-style:solid;border-color:var(--stamp);box-shadow:0 0 0 3px rgba(217,83,74,.2)}
+.slot.ok{background:var(--leaf);color:#fff;border-color:var(--leaf)}
+.sent{display:inline-flex;flex-wrap:wrap;gap:4px;align-items:center}
+.btabs{display:flex;gap:6px}.btabs button{border:2px solid var(--line);background:var(--card);color:var(--muted);border-radius:999px;padding:4px 12px;font:inherit;font-weight:700;font-size:.85rem;cursor:pointer}
+.btabs button.on{background:var(--sky);border-color:var(--sky);color:#fff}
+.tile .te{margin-right:4px}.tile small{display:block;font-size:.7rem;color:var(--muted);line-height:1.1}
+.dict{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px}
+.dict button{border:2px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);font:inherit;font-size:.85rem;padding:6px 4px;cursor:pointer}
+.dict button span{display:block;font-size:1.4rem}
 .choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
 .choice{border:2px solid var(--line);border-bottom-width:5px;border-radius:16px;background:var(--paper);color:var(--ink);font:inherit;padding:12px 8px;display:grid;gap:4px;justify-items:center;cursor:pointer}
 .choice .ce{font-size:2.6rem;line-height:1.1}
@@ -201,7 +216,7 @@ label.inline{display:flex;gap:8px;align-items:center}
     var recent=Object.keys(S.done).map(Number).sort(function(a,b){return a-b}).slice(-3).map(function(k){ return {day:L.trip[k].day, place:L.trip[k].en, reply:S.done[k].reply.join(' ')}; });
     return api('/letter',{level:S.level, day:t.day, place:t.place, placeEn:t.en, known:knownWords(), recent:recent}).then(function(j){
       var lt=nameFill(j.letter); lt.ja=(lt.ja||[]).map(plain); if(S.level>=2||!lt.choices||!lt.choices.length) lt.choices=null; lt.tiles=S.level>=2&&lt.tiles?lt.tiles:[];
-      if(S.level<=1 && !lt.choices) throw new Error('no_choices'); if(S.level>=2 && lt.tiles.length<4) throw new Error('no_tiles');
+      if(S.level<=1 && !lt.choices) throw new Error('no_choices'); if(S.level>=2 && !(lt.frames&&lt.frames.length>=2) && lt.tiles.length<4) throw new Error('no_frames');
       S.ai=S.ai||{}; S.ai[i]={level:S.level, letter:lt, at:today(), usage:j.usage, off:j.off_list}; S.aiLog=(S.aiLog||[]).concat([{at:today(),what:'letter',day:t.day,usage:j.usage}]).slice(-30); save(); return lt;
     });
   }
@@ -223,6 +238,36 @@ label.inline{display:flex;gap:8px;align-items:center}
       '"'+r+'" Great sentence! I will remember it. Tomorrow I write from '+next+'. Good night!'
     ][S.level];
   }
+
+  // --- レベル2〜3 の返事：文の型 ＋ 穴（有限のまま 言える幅を広げる・2026-10-14） ---
+  var VERBS=[{e:'🍽️',en:'eat',ja:'たべる'},{e:'👀',en:'see',ja:'みる'},{e:'🏊',en:'swim',ja:'およぐ'},{e:'⚽',en:'play',ja:'あそぶ'},{e:'😴',en:'sleep',ja:'ねる'},{e:'🚶',en:'go',ja:'いく'},{e:'🏃',en:'run',ja:'はしる'},{e:'🕊️',en:'fly',ja:'とぶ'}];
+  var ADJS=[{e:'🐘',en:'big',ja:'おおきい'},{e:'🐜',en:'small',ja:'ちいさい'},{e:'🎉',en:'fun',ja:'たのしい'},{e:'😋',en:'yummy',ja:'おいしい'},{e:'🧸',en:'cute',ja:'かわいい'},{e:'🧊',en:'cold',ja:'つめたい'},{e:'🔥',en:'hot',ja:'あつい'},{e:'🌸',en:'pretty',ja:'きれい'}];
+  // 「これ えいごで なに？」の一覧。子どもの自由入力ではなく、ここから選ぶ（AI に届く文は有限のまま）
+  var DICT=[{e:'🐶',en:'dog',ja:'いぬ',c:'noun'},{e:'🐱',en:'cat',ja:'ねこ',c:'noun'},{e:'🐘',en:'elephant',ja:'ぞう',c:'noun'},{e:'🦁',en:'lion',ja:'ライオン',c:'noun'},{e:'🐧',en:'penguin',ja:'ペンギン',c:'noun'},{e:'🦖',en:'dinosaur',ja:'きょうりゅう',c:'noun'},
+    {e:'🍕',en:'pizza',ja:'ピザ',c:'noun'},{e:'🍣',en:'sushi',ja:'おすし',c:'noun'},{e:'🍦',en:'ice cream',ja:'アイス',c:'noun'},{e:'🍛',en:'curry',ja:'カレー',c:'noun'},{e:'🍓',en:'strawberry',ja:'いちご',c:'noun'},{e:'🍜',en:'noodles',ja:'ラーメン',c:'noun'},
+    {e:'⚽',en:'soccer',ja:'サッカー',c:'noun'},{e:'🎮',en:'games',ja:'ゲーム',c:'noun'},{e:'📚',en:'books',ja:'ほん',c:'noun'},{e:'🚗',en:'cars',ja:'くるま',c:'noun'},{e:'🚂',en:'trains',ja:'でんしゃ',c:'noun'},{e:'🚀',en:'rockets',ja:'ロケット',c:'noun'},
+    {e:'🏫',en:'school',ja:'がっこう',c:'noun'},{e:'🏠',en:'home',ja:'いえ',c:'noun'},{e:'🏞️',en:'the park',ja:'こうえん',c:'noun'},{e:'🌊',en:'the sea',ja:'うみ',c:'noun'},{e:'⛰️',en:'the mountains',ja:'やま',c:'noun'},{e:'🎢',en:'the zoo',ja:'どうぶつえん',c:'noun'},
+    {e:'🎨',en:'draw',ja:'えを かく',c:'verb'},{e:'🎤',en:'sing',ja:'うたう',c:'verb'},{e:'💃',en:'dance',ja:'おどる',c:'verb'},{e:'🚴',en:'ride a bike',ja:'じてんしゃに のる',c:'verb'},{e:'📖',en:'read',ja:'よむ',c:'verb'},{e:'🍳',en:'cook',ja:'りょうりする',c:'verb'},
+    {e:'⚡',en:'fast',ja:'はやい',c:'adj'},{e:'🐢',en:'slow',ja:'おそい',c:'adj'},{e:'😊',en:'happy',ja:'うれしい',c:'adj'},{e:'😮',en:'surprised',ja:'びっくり',c:'adj'},{e:'🌈',en:'beautiful',ja:'うつくしい',c:'adj'},{e:'💪',en:'strong',ja:'つよい',c:'adj'}];
+  var CAT=[['noun','もの'],['verb','すること'],['adj','ようす']];
+  function fixedFrames(){
+    var f=[{en:'I like ___.',ja:'___ が すき。',slots:['noun']},{en:'I want to ___.',ja:'___ したい。',slots:['verb']},{en:'Do you like ___?',ja:'___ すき？',slots:['noun']},{en:'___ is ___!',ja:'___ は ___！',slots:['noun','adj']}];
+    if(S.level>=3) f.push({en:'I want to go to ___ because I like ___.',ja:'___ が すきだから、___ に いきたい。',slots:['noun','noun']});
+    return f;
+  }
+  function frameSet(i, lt){
+    var fs = (lt.frames&&lt.frames.length>=2) ? lt.frames : fixedFrames();
+    var bank={noun:[],verb:[],adj:[]}, seen={};
+    var add=function(c,o){ if(!o||!o.en||seen[o.en.toLowerCase()]) return; seen[o.en.toLowerCase()]=1; bank[c].push(o); };
+    if(lt.bank){ CAT.forEach(function(c){ (lt.bank[c[0]]||[]).forEach(function(o){add(c[0],o)}); }); }
+    var t=tripAt(i); (t.scene||[]).forEach(function(o){add('noun',o)});
+    Object.keys(lt.words||{}).forEach(function(w){ add('noun',{e:'✨',en:w,ja:lt.words[w]}); });
+    (S.gotWords||[]).forEach(function(o){add(o.c,o)});
+    wordPool().forEach(function(o){add('noun',o)});            // ずかんで あつめた ことば
+    if(!lt.bank){ VERBS.forEach(function(o){add('verb',o)}); ADJS.forEach(function(o){add('adj',o)}); }
+    return {frames:fs, bank:bank};
+  }
+  function sentenceText(sn){ var k=0; var t=sn.frame.en.replace(/___/g,function(){ var w=sn.fills[k++]; return w? w.en : '___'; }); return t.charAt(0).toUpperCase()+t.slice(1); }
 
   // --- 画面 ---
   var tab = 'letter'; var app=document.getElementById('app'), nav=document.getElementById('nav');
@@ -295,8 +340,11 @@ label.inline{display:flex;gap:8px;align-items:center}
       } else if(!done){
         html += '<p class="q"><b>モコの しつもん</b><span>'+esc(lt.q)+'</span></p>'+
           '</div><div class="card replycard'+cls+'"><div class="rchead"><span class="rcto">To Moco 🐾</span><span class="rcfrom">From '+(S.name?esc(S.name):'me')+'</span></div>'+
-          '<div class="line" id="line"><span class="ph">ブロックを おして へんじを つくろう</span></div>'+
-          '<div class="tiles">'+lt.tiles.map(function(w){return '<button class="tile">'+esc(w)+'</button>'}).join('')+'</div>'+
+          '<div class="lab note">① かたを えらぶ → ② あなに ことばを 入れる'+(S.level>=3?'（2文まで）':'')+'</div>'+
+          '<div class="frames" id="frames"></div>'+
+          '<div class="line" id="line"><span class="ph">かたを えらぼう</span></div>'+
+          '<div class="btabs" id="btabs"></div><div class="tiles" id="bank"></div>'+
+          '<div class="row"><button class="btn" id="askw">💬 これ えいごで なに？</button><span class="note" id="askn"></span></div><div class="dict" id="dict" hidden></div>'+
           '<div class="row"><button class="btn main" id="send" disabled>✉️ おくる</button><button class="btn" id="clr">けす</button></div>';
       } else {
         html += '<p class="q"><b>モコの しつもん</b><span>'+esc(lt.q)+'</span>'+(lt.qja?'<small class="sub">'+esc(lt.qja)+'</small>':'')+'</p>'+
@@ -333,12 +381,47 @@ label.inline{display:flex;gap:8px;align-items:center}
       }; });
     }
     if(shown>=en.length && !done && !lt.choices){
-      var words=[], line=document.getElementById('line'), send=document.getElementById('send');
-      function draw(){ line.innerHTML = words.length? words.map(function(w){return '<span class="chip">'+esc(w)+'</span>'}).join('') : '<span class="ph">ブロックを おして へんじを つくろう</span>'; send.disabled=!words.length; }
-      document.querySelectorAll('.tile').forEach(function(b){ b.onclick=function(){ if(words.length<8){ words.push(b.textContent); speak(b.textContent); draw(); } }; });
-      document.getElementById('clr').onclick=function(){ words=[]; draw(); };
+      var FS=frameSet(i, lt), sents=[], cat='noun', words=[];
+      var line=document.getElementById('line'), send=document.getElementById('send'), fr=document.getElementById('frames'), bk=document.getElementById('bank'), bt=document.getElementById('btabs');
+      var maxS = S.level>=3 ? 2 : 1;
+      function cur(){ return sents.length ? sents[sents.length-1] : null; }
+      function slotIdx(sn){ for(var k=0;k<sn.frame.slots.length;k++){ if(!sn.fills[k]) return k; } return -1; }
+      function complete(){ return sents.length>0 && sents.every(function(sn){return slotIdx(sn)<0}); }
+      function drawFrames(){ var canAdd = !cur() || (slotIdx(cur())<0 && sents.length<maxS);
+        fr.innerHTML = FS.frames.map(function(f,k){ return '<button class="frame" data-k="'+k+'"'+(canAdd?'':' disabled')+'><b>'+esc(f.en)+'</b><small>'+esc(f.ja)+'</small></button>'; }).join('');
+        fr.querySelectorAll('.frame').forEach(function(b){ b.onclick=function(){ var f=FS.frames[parseInt(b.dataset.k,10)]; sents.push({frame:f, fills:[]}); cat=f.slots[0]; speak(f.en.replace(/___/g,'something')); draw(); }; }); }
+      function drawLine(){
+        if(!sents.length){ line.innerHTML='<span class="ph">かたを えらぼう</span>'; return; }
+        line.innerHTML = sents.map(function(sn,si){ var k=0, act=slotIdx(sn), last=si===sents.length-1;
+          var parts=sn.frame.en.split('___'); var h='<span class="sent">';
+          parts.forEach(function(pt,pi){ h+=esc(pt); if(pi<parts.length-1){ var w=sn.fills[pi]; h+='<span class="slot'+(w?' ok':'')+(last&&pi===act?' on':'')+'" data-s="'+si+'" data-k="'+pi+'">'+(w?esc(w.en):'？')+'</span>'; } });
+          return h+'</span>'; }).join(' ');
+        line.querySelectorAll('.slot').forEach(function(el){ el.onclick=function(){ var sn=sents[parseInt(el.dataset.s,10)], k=parseInt(el.dataset.k,10); sn.fills[k]=null; cat=sn.frame.slots[k]; draw(); }; });
+      }
+      function drawBank(){ var sn=cur(), need = sn && slotIdx(sn)>=0 ? sn.frame.slots[slotIdx(sn)] : null;
+        bt.innerHTML = CAT.map(function(c){ return '<button data-c="'+c[0]+'" class="'+(c[0]===cat?'on':'')+'">'+c[1]+(c[0]===need?' ←':'')+'</button>'; }).join('');
+        bt.querySelectorAll('button').forEach(function(b){ b.onclick=function(){ cat=b.dataset.c; drawBank(); }; });
+        var list=FS.bank[cat]||[];
+        bk.innerHTML = list.length ? list.map(function(o,k){ return '<button class="tile" data-k="'+k+'"'+(need?'':' disabled')+'><span class="te">'+(o.e||'')+'</span>'+esc(o.en)+'<small>'+esc(o.ja||'')+'</small></button>'; }).join('') : '<span class="note">まだ ことばが ありません</span>';
+        bk.querySelectorAll('.tile').forEach(function(b){ b.onclick=function(){ var sn=cur(); if(!sn) return; var k=slotIdx(sn); if(k<0) return; var o=list[parseInt(b.dataset.k,10)]; sn.fills[k]=o; speak(o.en); var nk=slotIdx(sn); if(nk>=0) cat=sn.frame.slots[nk]; draw(); if(nk<0) speak(sentenceText(sn)); }; }); }
+      function draw(){ drawFrames(); drawLine(); drawBank(); send.disabled=!complete(); }
+      // これ えいごで なに？（1日 2回）
+      var askw=document.getElementById('askw'), askn=document.getElementById('askn'), dict=document.getElementById('dict');
+      function askLeft(){ S.askedWord=S.askedWord||{}; return 2-(S.askedWord[i]||0); }
+      function drawAsk(){ askn.textContent='のこり '+askLeft()+'回'; askw.disabled=askLeft()<=0; }
+      askw.onclick=function(){ if(askLeft()<=0) return; if(!dict.hidden){ dict.hidden=true; return; }
+        var have={}; CAT.forEach(function(c){ FS.bank[c[0]].forEach(function(o){have[o.en.toLowerCase()]=1}); });
+        var list=DICT.filter(function(o){return !have[o.en.toLowerCase()]});
+        dict.innerHTML = '<div class="note" style="grid-column:1/-1">にほんごで えらぶと、モコが えいごを おしえてくれるよ</div>'+list.map(function(o,k){return '<button data-k="'+k+'"><span>'+o.e+'</span>'+esc(o.ja)+'</button>'}).join('');
+        dict.hidden=false;
+        dict.querySelectorAll('button').forEach(function(b){ b.onclick=function(){ var o=list[parseInt(b.dataset.k,10)]; S.gotWords=(S.gotWords||[]).concat([o]); S.askedWord[i]=(S.askedWord[i]||0)+1; save();
+          FS.bank[o.c].push(o); cat=o.c; dict.hidden=true; drawAsk(); draw();
+          var after=document.getElementById('after'); after.innerHTML='<div class="card">'+mocoBox('"'+o.ja+'" is "'+o.en+'" '+o.e, '「'+o.ja+'」は 「'+o.en+'」だよ')+'</div>'; speak(o.en); }; }); };
+      drawAsk(); draw();
+      document.getElementById('clr').onclick=function(){ sents=[]; cat='noun'; draw(); };
       send.onclick=function(){
-        send.disabled=true; document.querySelectorAll('.tile').forEach(function(b){b.disabled=true;});
+        words = sents.map(sentenceText);
+        send.disabled=true; document.querySelectorAll('.tile,.frame,.slot,#askw,#clr').forEach(function(b){b.disabled=true;}); document.getElementById('after').innerHTML='';
         var after=document.getElementById('after');
         var show=function(m, mja){
         S.done[i]={reply:words.slice(), moco:m, mocoJa:mja||'', at:today(), newWords:Object.keys(lt.words)}; S.shown=1; save();
