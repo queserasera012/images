@@ -155,6 +155,8 @@ label.inline{display:flex;gap:8px;align-items:center}
 .postcard .en,.postcard .pcto,.postcard .pic{transform:rotate(.6deg)}
 .postcard .q{background:rgba(251,243,228,.9)}
 :root[data-theme="dark"] .postcard .q{background:var(--paper)}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .postcard .q{background:var(--paper)} :root:not([data-theme="light"]) .replycard .q{background:rgba(255,255,255,.08)} }
+:root[data-theme="dark"] .replycard .q{background:rgba(255,255,255,.08)}
 .postcard .pic{font-size:4.2rem}
 .replycard{background:var(--rpost);background-image:repeating-linear-gradient(135deg,var(--stamp) 0 10px,transparent 10px 20px,var(--sky) 20px 30px,transparent 30px 40px);background-size:100% 6px,auto;background-repeat:no-repeat;background-position:top;border:1px solid var(--pline);border-radius:8px;box-shadow:0 2px 0 var(--pline);padding:18px 16px 16px}
 .rchead{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1.5px solid var(--pline);padding-bottom:6px}
