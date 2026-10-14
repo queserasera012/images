@@ -65,6 +65,9 @@ h2{font-size:1.05rem;margin:0}
 @keyframes pen{0%,100%{transform:translate(0,0) rotate(-20deg)}50%{transform:translate(6px,-3px) rotate(-14deg)}}
 @media (prefers-reduced-motion: reduce){ .env,.envwrap.gone,.postcard.arrive,.pen,.spk{animation:none!important} .env-flap,.env-letter,.env-seal{transition:none} .drop{animation:none} }
 .pic{font-size:5rem;line-height:1.1;text-align:center}
+/* 場所の絵（art/<day>.jpg）。無ければ onerror で絵文字に戻る */
+.pic.art{font-size:0}.pic.art img{width:100%;max-width:300px;aspect-ratio:1;object-fit:cover;border-radius:12px;border:2px solid var(--pline);box-shadow:0 3px 0 rgba(60,40,20,.12)}
+.post .pic.art img{max-width:150px}.pc .e img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px}
 .place{display:flex;gap:10px;align-items:center}
 .day{font-family:var(--font-title);color:#fff;background:var(--sky);border-radius:999px;padding:2px 12px;font-size:.9rem;white-space:nowrap}
 .en{font-size:1.3rem;line-height:1.7;display:grid;gap:6px}
@@ -267,6 +270,7 @@ label.inline{display:flex;gap:8px;align-items:center}
     if(!lt.bank){ VERBS.forEach(function(o){add('verb',o)}); ADJS.forEach(function(o){add('adj',o)}); }
     return {frames:fs, bank:bank};
   }
+  function artPic(day, fallback, cls){ return '<div class="pic art'+(cls||'')+'"><img src="art/'+day+'.jpg" alt="" onerror="var p=this.parentNode;p.className=\'pic\';p.textContent=\''+fallback+'\'"></div>'; }
   function sentenceText(sn){ var k=0; var t=sn.frame.en.replace(/___/g,function(){ var w=sn.fills[k++]; return w? w.en : '___'; }); return t.charAt(0).toUpperCase()+t.slice(1); }
 
   // --- 画面 ---
@@ -328,7 +332,7 @@ label.inline{display:flex;gap:8px;align-items:center}
     var shown = done ? en.length : (S.shown||1);
     var html = '<div class="place"><span class="day">Day '+t.day+'</span><div><b>'+esc(t.place)+'</b><br><small class="sub">'+esc(t.en)+'</small></div></div>'+
       '<div class="card postcard'+cls+(S.pcArrive?' arrive':'')+'"><div class="pchead"><div class="pcfrom">From Moco 🐾<br><small>'+esc(t.en)+'</small></div><div class="pcstamp"><span>'+t.emoji+'</span><small>MOCO POST</small></div><div class="pcmark">Day '+t.day+'</div></div>'+aiTag+
-      (lt.pic?'<div class="pic">'+lt.pic+'</div>':'<div class="pic">'+t.emoji+'</div>')+
+      artPic(t.day, lt.pic||t.emoji)+
       (S.name&&!/^(hello|hi)\b/i.test(plain(lt.en[0]||''))?'<div class="pcto">Dear '+esc(S.name)+',</div>':'')+
       '<div class="en" id="en">'+en.slice(0,shown).map(function(s,k){return '<p data-k="'+k+'">'+mark(s,lt.words)+'<span class="jp"'+(S.autoJa?'':' hidden')+'>'+esc(ja[k])+'</span></p>'}).join('')+'</div>'+
       '<div class="row"><button class="btn" id="sp">🔊 きく</button>'+(shown<en.length?'<button class="btn on" id="next">つぎ ▶</button>':'')+'<span class="note">'+(S.autoJa?'':'文を おすと にほんご')+'</span></div>';
@@ -373,7 +377,7 @@ label.inline{display:flex;gap:8px;align-items:center}
         S.done[i]={reply:[c.e+' '+c.en], moco:m, mocoJa:mja, at:today(), newWords:Object.keys(lt.words)}; S.shown=1; save();
         var after=document.getElementById('after');
         after.innerHTML = '<div class="card">'+mocoBox(m, mja)+
-          '<div class="post drop"><div class="pic">'+(lt.pic||t.emoji)+'</div><b>はがきが とどいた！</b><br><small class="sub">'+esc(t.place)+'</small></div>'+
+          '<div class="post drop">'+artPic(t.day, lt.pic||t.emoji)+'<b>はがきが とどいた！</b><br><small class="sub">'+esc(t.place)+'</small></div>'+
           '<div class="row center"><button class="btn main" id="keep">🗺️ ずかんに しまう</button></div></div>';
         setTimeout(function(){ speak(m); }, 1200);
         document.getElementById('keep').onclick=function(){ tab='letter'; render(); var ph=document.getElementById('play'); if(ph) ph.scrollIntoView({behavior:'smooth'}); };
@@ -426,7 +430,7 @@ label.inline{display:flex;gap:8px;align-items:center}
         var show=function(m, mja){
         S.done[i]={reply:words.slice(), moco:m, mocoJa:mja||'', at:today(), newWords:Object.keys(lt.words)}; S.shown=1; save();
         after.innerHTML = '<div class="card">'+mocoBox(m, mja||'')+
-          '<div class="post drop"><div class="pic">'+(lt.pic||t.emoji)+'</div><b>はがきが とどいた！</b><br><small class="sub">'+esc(t.place)+'</small></div>'+
+          '<div class="post drop">'+artPic(t.day, lt.pic||t.emoji)+'<b>はがきが とどいた！</b><br><small class="sub">'+esc(t.place)+'</small></div>'+
           '<div class="row center"><button class="btn main" id="keep">🗺️ ずかんに しまう</button></div></div>';
         speak(m);
         document.querySelectorAll('.moco .mt').forEach(function(d){ d.onclick=function(){ var j=d.querySelector('.jp'); if(j) j.hidden=!j.hidden; }; });
@@ -534,7 +538,7 @@ label.inline{display:flex;gap:8px;align-items:center}
     }).join('');
     var cards = L.trip.map(function(t,i){
       var d=S.done[i];
-      return '<div class="pc'+(d?'':' lock')+'"><div class="e">'+(d?(letterAt(i).pic||t.emoji):'❔')+'</div><b>'+(d?esc(t.en):'？？？')+'</b><small>'+(d?esc(t.place):'まだ とどいていない')+'</small></div>';
+      return '<div class="pc'+(d?'':' lock')+'">'+(d?'<div class="e"><img src="art/'+t.day+'.jpg" alt="" onerror="this.parentNode.textContent=\''+(letterAt(i).pic||t.emoji)+'\'"></div>':'<div class="e">❔</div>')+'<b>'+(d?esc(t.en):'？？？')+'</b><small>'+(d?esc(t.place):'まだ とどいていない')+'</small></div>';
     }).join('');
     app.innerHTML = '<h1>🗺️ モコの たび</h1><p class="sub">'+Object.keys(S.done).length+' / '+L.trip.length+' まち</p>'+
       '<div class="card"><div class="map">'+stops+'</div></div>'+
