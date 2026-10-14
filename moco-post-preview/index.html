@@ -253,7 +253,7 @@ label.inline{display:flex;gap:8px;align-items:center}
   function renderLetter(){
     var i=todayIndex(), t=tripAt(i), lt=letterAt(i), done=S.done[i];
     var cls = S.level===0?' l0':'';
-    var aiTag = aiAt(i) ? '<span class="note" title="AI が書いた手紙">✨AI</span>' : '';
+    var aiTag = aiAt(i) ? '<span class="note" title="AI が書いた手紙">✨AI</span>' : (aiOn() ? '<span class="note">きまった文（AI が書く前に ひらいた手紙）</span>' : '');
     if(!done && !S.opened[i]){
       app.innerHTML = '<h1>🐾 モコの えいごポスト</h1><p class="sub">'+(S.name?esc(S.name)+'へ。':'')+'てがみが とどいたよ！</p>'+
         '<div class="card"><div class="envwrap" id="env" role="button" tabindex="0">'+'<span class="spk"></span>'.repeat(10)+
@@ -279,7 +279,7 @@ label.inline{display:flex;gap:8px;align-items:center}
     }
     var prev = i>0 && S.done[i-1] ? S.done[i-1].reply.join(' ') : null;
     var en = lt.en.slice(), ja = lt.ja.slice();
-    if(prev && S.level>=1 && !aiAt(i)){ en.push('Yesterday you said "'+prev+'". Nice!'); ja.push('きのう「'+prev+'」って いってたね。いいね！'); }
+    if(prev && S.level>=1 && !aiOn() && !aiAt(i)){ en.push('Yesterday you said "'+prev+'". Nice!'); ja.push('きのう「'+prev+'」って いってたね。いいね！'); }
     var shown = done ? en.length : (S.shown||1);
     var html = '<div class="place"><span class="day">Day '+t.day+'</span><div><b>'+esc(t.place)+'</b><br><small class="sub">'+esc(t.en)+'</small></div></div>'+
       '<div class="card postcard'+cls+(S.pcArrive?' arrive':'')+'"><div class="pchead"><div class="pcfrom">From Moco 🐾<br><small>'+esc(t.en)+'</small></div><div class="pcstamp"><span>'+t.emoji+'</span><small>MOCO POST</small></div><div class="pcmark">Day '+t.day+'</div></div>'+aiTag+
@@ -492,7 +492,7 @@ label.inline{display:flex;gap:8px;align-items:center}
       (function(){ var g=S.aiLog||[]; if(!g.length) return S.aiErr?'さいごのエラー：'+esc(S.aiErr):''; var tin=0,tout=0; g.forEach(function(e){ if(e.usage){tin+=e.usage.input_tokens||0; tout+=e.usage.output_tokens||0;} }); return 'AI を呼んだ回数：'+g.length+'（手紙 '+g.filter(function(e){return e.what==='letter'}).length+'・返事 '+g.filter(function(e){return e.what==='reply'}).length+'）／ トークン 入 '+tin+'・出 '+tout+(S.aiErr?'<br>さいごのエラー：'+esc(S.aiErr):''); })()+'</p></div>'+
       '<div class="card"><h2>試作のためのボタン</h2><div class="row"><button class="btn" id="more">つぎの手紙を いま届ける</button><button class="btn" id="reset">さいしょから</button></div>'+
       '<p class="note">本物では モコの返事は AI が書きます。この試作は決まった文です。レベル0〜1 の返事は「絵を選ぶ」（10/13 の直し）。手紙の文は レベルごとに 10日ぶん 用意してあります。</p></div>';
-    document.getElementById('sv').onclick=function(){ S.name=document.getElementById('nm').value.trim(); var nl=parseInt(document.getElementById('lv').value,10); if(nl!==S.level){ S.levelLog=(S.levelLog||[]).concat([{at:today(),to:nl,by:'parent'}]); S.askAfter=0; } S.level=nl; S.autoJa=document.getElementById('aj').checked; S.lockLevel=document.getElementById('lk').checked; save(); this.textContent='ほぞんした'; };
+    document.getElementById('sv').onclick=function(){ S.name=document.getElementById('nm').value.trim(); var nl=parseInt(document.getElementById('lv').value,10); if(nl!==S.level){ S.levelLog=(S.levelLog||[]).concat([{at:today(),to:nl,by:'parent'}]); S.askAfter=0; var ti=todayIndex(); if(!S.done[ti]){ if(S.ai) delete S.ai[ti]; delete S.opened[ti]; S.shown=1; } } S.level=nl; S.autoJa=document.getElementById('aj').checked; S.lockLevel=document.getElementById('lk').checked; save(); this.textContent='ほぞんした'; };
     document.getElementById('sv_save').onclick=function(){ S.server=document.getElementById('sv_url').value.trim(); S.token=document.getElementById('sv_tok').value.trim(); S.useAi=document.getElementById('ai').checked; save(); this.textContent='ほぞんした'; };
     document.getElementById('sv_test').onclick=function(){ var m=document.getElementById('sv_msg'); var u=document.getElementById('sv_url').value.trim().replace(/\/+$/,''); if(!u){ m.textContent='住所が空です'; return; } m.textContent='ためしています…'; fetch(u+'/health').then(function(r){return r.json()}).then(function(j){ m.textContent=j.ok?'つながりました（model: '+j.model+' / prompt '+j.prompt+'）。合言葉が合っているかは、手紙を開くと分かります':'へんな返事：'+JSON.stringify(j); }, function(e){ m.textContent='つながりません：'+e; }); };
     document.getElementById('sv_redo').onclick=function(){ var i=todayIndex(); if(S.done[i]){ document.getElementById('sv_msg').textContent='きょうの手紙は もう返事を出しています。「つぎの手紙を いま届ける」で次へ'; return; } if(S.ai) delete S.ai[i]; delete S.opened[i]; S.shown=1; save(); tab='letter'; render(); };
