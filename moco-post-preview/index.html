@@ -91,6 +91,8 @@ h2{font-size:1.05rem;margin:0}
 .slot{display:inline-block;min-width:44px;text-align:center;background:var(--new);color:var(--ink);border:2px dashed var(--pline);border-radius:8px;padding:0 10px;cursor:pointer}
 .slot.on{border-style:solid;border-color:var(--stamp);box-shadow:0 0 0 3px rgba(217,83,74,.2)}
 .slot.ok{background:var(--leaf);color:#fff;border-color:var(--leaf)}
+.slot.obj{min-width:0;border-color:var(--muted);color:var(--muted);background:transparent;font-size:.85em;padding:0 8px}.slot.obj.ok{background:var(--leaf);color:#fff;border-color:var(--leaf);font-size:1em}
+.skipobj{border:2px solid var(--line);background:var(--card);color:var(--muted);border-radius:999px;padding:4px 12px;font:inherit;font-weight:700;font-size:.85rem;cursor:pointer;margin-left:auto}
 .sent{display:inline-flex;flex-wrap:wrap;gap:4px;align-items:center}
 .btabs{display:flex;gap:6px}.btabs button{border:2px solid var(--line);background:var(--card);color:var(--muted);border-radius:999px;padding:4px 12px;font:inherit;font-weight:700;font-size:.85rem;cursor:pointer}
 .btabs button.on{background:var(--sky);border-color:var(--sky);color:#fff}
@@ -289,7 +291,9 @@ label.inline{display:flex;gap:8px;align-items:center}
     return {frames:fs, bank:bank};
   }
   function artPic(id, fallback, cls){ return '<div class="pic art'+(cls||'')+'"><img src="art/'+id+'.jpg" alt="" onerror="var p=this.parentNode;p.className=\'pic\';p.textContent=\''+fallback+'\'"></div>'; }
-  function sentenceText(sn){ var k=0; var t=sn.frame.en.replace(/___/g,function(){ var w=sn.fills[k++]; return w? w.en : '___'; }); return t.charAt(0).toUpperCase()+t.slice(1); }
+  function sentenceText(sn){ var k=0; var t=sn.frame.en.replace(/___/g,function(){ var j=k++, w=sn.fills[j], o=(sn.objs||[])[j]; return w? w.en+(o?' '+o.en:'') : '___'; }); return t.charAt(0).toUpperCase()+t.slice(1); }
+  // 「すること」の穴は、そのあとに「もの」を足せる（足さなくてもいい）。ただし すぐ次が別の穴のときは足せない（I want to ___ ___ にならないように）
+  function canObj(sn,k){ if(sn.frame.slots[k]!=='verb') return false; var rest=sn.frame.en.split('___').slice(k+1).join('___'); return !/^\s*___/.test(rest); }
 
   // --- 画面 ---
   var tab = 'letter'; var app=document.getElementById('app'), nav=document.getElementById('nav');
@@ -362,7 +366,7 @@ label.inline{display:flex;gap:8px;align-items:center}
       } else if(!done){
         html += '<p class="q"><b>モコの しつもん</b><span>'+esc(lt.q)+'</span></p>'+
           '</div><div class="card replycard'+cls+'"><div class="rchead"><span class="rcto">To Moco 🐾</span><span class="rcfrom">From '+(S.name?esc(S.name):'me')+'</span></div>'+
-          '<div class="lab note">① かたを えらぶ → ② あなに ことばを 入れる'+(S.level>=3?'（2文まで）':'')+'</div>'+
+          '<div class="lab note">① かたを えらぶ → ② あなに ことばを 入れる（「すること」のあとに「もの」も足せる）'+(S.level>=3?'（2文まで）':'')+'</div>'+
           '<div class="frames" id="frames"></div>'+
           '<div class="line" id="line"><span class="ph">かたを えらぼう</span></div>'+
           '<div class="btabs" id="btabs"></div><div class="tiles" id="bank"></div>'+
@@ -403,7 +407,7 @@ label.inline{display:flex;gap:8px;align-items:center}
       }; });
     }
     if(shown>=en.length && !done && !lt.choices){
-      var FS=frameSet(i, lt), sents=[], cat='noun', words=[];
+      var FS=frameSet(i, lt), sents=[], cat='noun', words=[], objOpen=null;
       var line=document.getElementById('line'), send=document.getElementById('send'), fr=document.getElementById('frames'), bk=document.getElementById('bank'), bt=document.getElementById('btabs');
       var maxS = S.level>=3 ? 2 : 1;
       function cur(){ return sents.length ? sents[sents.length-1] : null; }
@@ -411,21 +415,28 @@ label.inline{display:flex;gap:8px;align-items:center}
       function complete(){ return sents.length>0 && sents.every(function(sn){return slotIdx(sn)<0}); }
       function drawFrames(){ var canAdd = !cur() || (slotIdx(cur())<0 && sents.length<maxS);
         fr.innerHTML = FS.frames.map(function(f,k){ return '<button class="frame" data-k="'+k+'"'+(canAdd?'':' disabled')+'><b>'+esc(f.en)+'</b><small>'+esc(f.ja)+'</small></button>'; }).join('');
-        fr.querySelectorAll('.frame').forEach(function(b){ b.onclick=function(){ var f=FS.frames[parseInt(b.dataset.k,10)]; sents.push({frame:f, fills:[]}); cat=f.slots[0]; speak(f.en.replace(/___/g,'something')); draw(); }; }); }
+        fr.querySelectorAll('.frame').forEach(function(b){ b.onclick=function(){ var f=FS.frames[parseInt(b.dataset.k,10)]; sents.push({frame:f, fills:[], objs:[]}); objOpen=null; cat=f.slots[0]; speak(f.en.replace(/___/g,'something')); draw(); }; }); }
       function drawLine(){
         if(!sents.length){ line.innerHTML='<span class="ph">かたを えらぼう</span>'; return; }
         line.innerHTML = sents.map(function(sn,si){ var k=0, act=slotIdx(sn), last=si===sents.length-1;
           var parts=sn.frame.en.split('___'); var h='<span class="sent">';
-          parts.forEach(function(pt,pi){ h+=esc(pt); if(pi<parts.length-1){ var w=sn.fills[pi]; h+='<span class="slot'+(w?' ok':'')+(last&&pi===act?' on':'')+'" data-s="'+si+'" data-k="'+pi+'">'+(w?esc(w.en):'？')+'</span>'; } });
+          parts.forEach(function(pt,pi){ h+=esc(pt); if(pi<parts.length-1){ var w=sn.fills[pi]; h+='<span class="slot'+(w?' ok':'')+(last&&pi===act?' on':'')+'" data-s="'+si+'" data-k="'+pi+'">'+(w?esc(w.en):'？')+'</span>';
+              if(w && canObj(sn,pi)){ var o=(sn.objs||[])[pi], open=last&&objOpen===pi; h+=' <span class="slot obj'+(o?' ok':'')+(open?' on':'')+'" data-s="'+si+'" data-o="'+pi+'">'+(o?esc(o.en):'＋もの')+'</span>'; } } });
           return h+'</span>'; }).join(' ');
-        line.querySelectorAll('.slot').forEach(function(el){ el.onclick=function(){ var sn=sents[parseInt(el.dataset.s,10)], k=parseInt(el.dataset.k,10); sn.fills[k]=null; cat=sn.frame.slots[k]; draw(); }; });
+        line.querySelectorAll('.slot:not(.obj)').forEach(function(el){ el.onclick=function(){ var sn=sents[parseInt(el.dataset.s,10)], k=parseInt(el.dataset.k,10); sn.fills[k]=null; (sn.objs||[])[k]=null; objOpen=null; cat=sn.frame.slots[k]; draw(); }; });
+        line.querySelectorAll('.slot.obj').forEach(function(el){ el.onclick=function(){ var si=parseInt(el.dataset.s,10), sn=sents[si], k=parseInt(el.dataset.o,10); if(sn.objs[k]){ sn.objs[k]=null; } if(si!==sents.length-1) return; objOpen=k; cat='noun'; draw(); }; });
       }
-      function drawBank(){ var sn=cur(), need = sn && slotIdx(sn)>=0 ? sn.frame.slots[slotIdx(sn)] : null;
-        bt.innerHTML = CAT.map(function(c){ return '<button data-c="'+c[0]+'" class="'+(c[0]===cat?'on':'')+'">'+c[1]+(c[0]===need?' ←':'')+'</button>'; }).join('');
-        bt.querySelectorAll('button').forEach(function(b){ b.onclick=function(){ cat=b.dataset.c; drawBank(); }; });
+      function drawBank(){ var sn=cur(), waitObj = sn && objOpen!=null && !sn.objs[objOpen], need = sn && slotIdx(sn)>=0 ? sn.frame.slots[slotIdx(sn)] : (waitObj ? 'noun' : null);
+        bt.innerHTML = CAT.map(function(c){ return '<button data-c="'+c[0]+'" class="'+(c[0]===cat?'on':'')+'">'+c[1]+(c[0]===need?' ←':'')+'</button>'; }).join('')+(waitObj?'<button class="skipobj" id="skipobj">いらない</button>':'');
+        bt.querySelectorAll('button[data-c]').forEach(function(b){ b.onclick=function(){ cat=b.dataset.c; drawBank(); }; });
+        var sk=document.getElementById('skipobj'); if(sk) sk.onclick=function(){ objOpen=null; var s2=cur(), nk=slotIdx(s2); cat = nk>=0 ? s2.frame.slots[nk] : cat; draw(); };
         var list=FS.bank[cat]||[];
         bk.innerHTML = list.length ? list.map(function(o,k){ return '<button class="tile" data-k="'+k+'"'+(need?'':' disabled')+'><span class="te">'+(o.e||'')+'</span>'+esc(o.en)+'<small>'+esc(o.ja||'')+'</small></button>'; }).join('') : '<span class="note">まだ ことばが ありません</span>';
-        bk.querySelectorAll('.tile').forEach(function(b){ b.onclick=function(){ var sn=cur(); if(!sn) return; var k=slotIdx(sn); if(k<0) return; var o=list[parseInt(b.dataset.k,10)]; sn.fills[k]=o; speak(o.en); var nk=slotIdx(sn); if(nk>=0) cat=sn.frame.slots[nk]; draw(); if(nk<0) speak(sentenceText(sn)); }; }); }
+        bk.querySelectorAll('.tile').forEach(function(b){ b.onclick=function(){ var sn=cur(); if(!sn) return; var o=list[parseInt(b.dataset.k,10)];
+          if(objOpen!=null && cat==='noun'){ sn.objs[objOpen]=o; objOpen=null; speak(o.en); var nk2=slotIdx(sn); if(nk2>=0) cat=sn.frame.slots[nk2]; draw(); if(nk2<0) speak(sentenceText(sn)); return; }
+          var k=slotIdx(sn); if(k<0) return; sn.fills[k]=o; speak(o.en);
+          if(canObj(sn,k)){ objOpen=k; cat='noun'; draw(); return; }   // 動詞のあとは「もの」を足せる（足さなくてもいい）
+          var nk=slotIdx(sn); if(nk>=0) cat=sn.frame.slots[nk]; draw(); if(nk<0) speak(sentenceText(sn)); }; }); }
       function draw(){ drawFrames(); drawLine(); drawBank(); send.disabled=!complete(); }
       // これ えいごで なに？（1日 2回）
       var askw=document.getElementById('askw'), askn=document.getElementById('askn'), dict=document.getElementById('dict');
@@ -440,7 +451,7 @@ label.inline{display:flex;gap:8px;align-items:center}
           FS.bank[o.c].push(o); cat=o.c; dict.hidden=true; drawAsk(); draw();
           var after=document.getElementById('after'); after.innerHTML='<div class="card">'+mocoBox('"'+o.ja+'" is "'+o.en+'" '+o.e, '「'+o.ja+'」は 「'+o.en+'」だよ')+'</div>'; speak(o.en); }; }); };
       drawAsk(); draw();
-      document.getElementById('clr').onclick=function(){ sents=[]; cat='noun'; draw(); };
+      document.getElementById('clr').onclick=function(){ sents=[]; objOpen=null; cat='noun'; draw(); };
       send.onclick=function(){
         words = sents.map(sentenceText);
         send.disabled=true; document.querySelectorAll('.tile,.frame,.slot,#askw,#clr').forEach(function(b){b.disabled=true;}); document.getElementById('after').innerHTML='';
