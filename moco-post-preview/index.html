@@ -235,7 +235,7 @@ label.inline{display:flex;gap:8px;align-items:center}
   function fetchLetter(i){
     var t=tripAt(i);
     var recent=Object.keys(S.done).map(Number).sort(function(a,b){return a-b}).slice(-3).map(function(k){ return {day:L.trip[k].day, place:L.trip[k].en, reply:S.done[k].reply.join(' ')}; });
-    return api('/letter',{level:S.level, day:t.day, place:t.place, placeEn:t.en, known:knownWords(), recent:recent}).then(function(j){
+    return api('/letter',{level:S.level, day:t.day, place:t.place, placeEn:t.en, known:knownWords(), recent:recent, sceneWords:(t.scene||[]).map(function(o){return o.en}), fact:(t.fact||{}).en||''}).then(function(j){
       var lt=nameFill(j.letter); lt.ja=(lt.ja||[]).map(plain); if(S.level>=2||!lt.choices||!lt.choices.length) lt.choices=null; lt.tiles=S.level>=2&&lt.tiles?lt.tiles:[];
       if(S.level<=1 && !lt.choices) throw new Error('no_choices'); if(S.level>=2 && !(lt.frames&&lt.frames.length>=2) && lt.tiles.length<4) throw new Error('no_frames');
       S.ai=S.ai||{}; S.ai[i]={level:S.level, letter:lt, at:today(), usage:j.usage, off:j.off_list}; S.aiLog=(S.aiLog||[]).concat([{at:today(),what:'letter',day:t.day,usage:j.usage}]).slice(-30); save(); return lt;
