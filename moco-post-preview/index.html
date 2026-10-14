@@ -201,8 +201,8 @@ label.inline{display:flex;gap:8px;align-items:center}
     var score=function(v){ var n=v.name, s=0; if(/^en[-_]US/.test(v.lang)) s+=4; if(/Enhanced|Premium|Natural|Neural/i.test(n)) s+=6; if(/Samantha|Ava|Allison|Zoe|Nicky|Karen|Moira|Serena|Google US English/i.test(n)) s+=3; if(/Compact|Eloquence|Fred|Albert|Bad News|Bells|Boing|Bubbles|Cellos|Jester|Organ|Trinoids|Whisper|Wobble|Zarvox/i.test(n)) s-=10; if(v.localService) s+=1; return s; };
     return vs.sort(function(a,b){return score(b)-score(a)})[0]; }
   function speak(text){ if(!('speechSynthesis' in window)) return; speechSynthesis.cancel();
-    // 文ごとに分けて読む（間が入る）。記号は読まない（「.」を dot と読む端末がある）
-    var parts=String(text).replace(/[{}"]/g,'').split(/(?<=[.!?])\s+/).map(function(x){return x.replace(/[.!?,]+/g,' ').replace(/\s+/g,' ').trim()}).filter(Boolean);
+    // 文ごとに分けて読む（間が入る）。記号と絵文字は読まない（「.」を dot、🐢 を turtle と読む端末がある）
+    var parts=String(text).replace(/[{}"]/g,'').replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}\u{1F3FB}-\u{1F3FF}\u{20E3}]/gu,' ').split(/(?<=[.!?])\s+/).map(function(x){return x.replace(/[.!?,]+/g,' ').replace(/\s+/g,' ').trim()}).filter(Boolean);
     var v=pickVoice();
     parts.forEach(function(pt){ var u=new SpeechSynthesisUtterance(pt); u.lang='en-US'; u.rate=0.82; u.pitch=1.08; if(v) u.voice=v; speechSynthesis.speak(u); }); }
   if('speechSynthesis' in window){ speechSynthesis.onvoiceschanged=function(){}; }
