@@ -114,7 +114,7 @@ h2{font-size:1.05rem;margin:0}
 .moco{background:var(--paper);border-radius:14px;padding:12px 14px;font-size:1.1rem;display:flex;gap:10px;align-items:flex-start}
 .moco .face{font-size:1.8rem;line-height:1}
 .moco .mt{cursor:pointer}
-.fix{background:#fff7e6;border:2px dashed #e8b86d;border-radius:14px;padding:10px 14px;margin-top:10px}.fix b.lab{display:block;font-size:.85rem;color:#8a5a1a;margin-bottom:4px}.fix .fx{font-size:1.15rem;cursor:pointer}.fix .fx mark{background:#ffe08a;border-radius:4px;padding:0 3px}.fix .tip{display:block;font-size:.95rem;color:#555;margin-top:4px}
+.fix{background:#fff7e6;color:#3b2f2a;border:2px dashed #e8b86d;border-radius:14px;padding:10px 14px;margin-top:10px}.fix b.lab{display:block;font-size:.85rem;color:#8a5a1a;margin-bottom:4px}.fix .fx{font-size:1.15rem;font-weight:700;color:#3b2f2a;cursor:pointer}.fix .fx mark{background:#ffd54f;color:#3b2f2a;border-radius:4px;padding:0 3px}.fix .tip{display:block;font-size:.95rem;color:#5a4a40;margin-top:4px}
 .moco .jp{display:block;font-size:.85rem;color:var(--muted);font-weight:500;margin-top:4px}
 .post{border:3px solid var(--stamp);border-radius:14px;padding:14px;text-align:center;background:var(--card)}
 .drop{animation:drop .7s cubic-bezier(.2,.9,.3,1.2)}
@@ -306,7 +306,7 @@ label.inline{display:flex;gap:8px;align-items:center}
     {e:'⚡',en:'fast',ja:'はやい',c:'adj'},{e:'🐢',en:'slow',ja:'おそい',c:'adj'},{e:'😊',en:'happy',ja:'うれしい',c:'adj'},{e:'😮',en:'surprised',ja:'びっくり',c:'adj'},{e:'🌈',en:'beautiful',ja:'うつくしい',c:'adj'},{e:'💪',en:'strong',ja:'つよい',c:'adj'}];
   var CAT=[['noun','もの'],['verb','すること'],['adj','ようす']];
   function fixedFrames(){
-    var f=[{en:'I like ___.',ja:'___ が すき。',slots:['noun']},{en:'I want to ___.',ja:'___ したい。',slots:['verb']},{en:'Do you like ___?',ja:'___ すき？',slots:['noun']},{en:'___ is ___!',ja:'___ は ___！',slots:['noun','adj']}];
+    var f=[{en:'I like ___.',ja:'___ が すき。',slots:['noun']},{en:'I want to ___.',ja:'___ したい。',slots:['verb']},{en:'I like to ___.',ja:'___ するのが すき。',slots:['verb']},{en:'Do you like ___?',ja:'___ すき？',slots:['noun']},{en:'___ is ___!',ja:'___ は ___！',slots:['noun','adj']}];
     if(S.level>=3) f.push({en:'I want to go to ___ because I like ___.',ja:'___ が すきだから、___ に いきたい。',slots:['noun','noun']});
     return f;
   }
@@ -462,7 +462,7 @@ label.inline{display:flex;gap:8px;align-items:center}
         bt.querySelectorAll('button[data-c]').forEach(function(b){ b.onclick=function(){ cat=b.dataset.c; drawBank(); }; });
         var sk=document.getElementById('skipobj'); if(sk) sk.onclick=function(){ objOpen=null; var s2=cur(), nk=slotIdx(s2); cat = nk>=0 ? s2.frame.slots[nk] : cat; draw(); };
         var list=FS.bank[cat]||[];
-        bk.innerHTML = list.length ? list.map(function(o,k){ return '<button class="tile" data-k="'+k+'"'+(need?'':' disabled')+'><span class="te">'+(o.e||'')+'</span>'+esc(o.en)+'<small>'+esc(o.ja||'')+'</small></button>'; }).join('') : '<span class="note">まだ ことばが ありません</span>';
+        bk.innerHTML = list.length ? list.map(function(o,k){ return '<button class="tile" data-k="'+k+'"'+(need&&cat===need?'':' disabled')+'><span class="te">'+(o.e||'')+'</span>'+esc(o.en)+'<small>'+esc(o.ja||'')+'</small></button>'; }).join('') : '<span class="note">まだ ことばが ありません</span>';
         bk.querySelectorAll('.tile').forEach(function(b){ b.onclick=function(){ var sn=cur(); if(!sn) return; var o=list[parseInt(b.dataset.k,10)];
           // 文が完成したら 文だけを読む（言葉→文 と続けると、言葉の読みが途中で切れて 文の中でもう一度読まれる）
           if(objOpen!=null && cat==='noun'){ sn.objs[objOpen]=o; objOpen=null; var nk2=slotIdx(sn); if(nk2>=0) cat=sn.frame.slots[nk2]; draw(); speak(nk2<0 ? sentenceText(sn) : o.en); return; }
