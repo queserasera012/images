@@ -425,7 +425,7 @@ label.inline{display:flex;gap:8px;align-items:center}
         after.innerHTML = '<div class="card">'+mocoBox(m, mja)+
           '<div class="post drop">'+artPic(t.id, lt.pic||t.emoji)+'<b>はがきが とどいた！</b><br><small class="sub">'+esc(t.place)+'</small></div>'+
           '<div class="row center"><button class="btn main" id="keep">🗺️ ずかんに しまう</button></div></div>';
-        speak(c.en, function(){ speak(m); });  // えらんだ言葉を読み終えてから モコの返事を読む
+        speak(m);  // モコの返事は えらんだ言葉で始まるので、言葉を別に読まない（読むと「Penguin! Penguin!」と2回になる・2026-10-15）
         document.getElementById('keep').onclick=function(){ tab='letter'; render(); var ph=document.getElementById('play'); if(ph) ph.scrollIntoView({behavior:'smooth'}); };
         after.scrollIntoView({behavior:'smooth'});
       }; });
@@ -457,10 +457,11 @@ label.inline{display:flex;gap:8px;align-items:center}
         var list=FS.bank[cat]||[];
         bk.innerHTML = list.length ? list.map(function(o,k){ return '<button class="tile" data-k="'+k+'"'+(need?'':' disabled')+'><span class="te">'+(o.e||'')+'</span>'+esc(o.en)+'<small>'+esc(o.ja||'')+'</small></button>'; }).join('') : '<span class="note">まだ ことばが ありません</span>';
         bk.querySelectorAll('.tile').forEach(function(b){ b.onclick=function(){ var sn=cur(); if(!sn) return; var o=list[parseInt(b.dataset.k,10)];
-          if(objOpen!=null && cat==='noun'){ sn.objs[objOpen]=o; objOpen=null; speak(o.en); var nk2=slotIdx(sn); if(nk2>=0) cat=sn.frame.slots[nk2]; draw(); if(nk2<0) speak(sentenceText(sn)); return; }
-          var k=slotIdx(sn); if(k<0) return; sn.fills[k]=o; speak(o.en);
-          if(canObj(sn,k)){ objOpen=k; cat='noun'; draw(); return; }   // 動詞のあとは「もの」を足せる（足さなくてもいい）
-          var nk=slotIdx(sn); if(nk>=0) cat=sn.frame.slots[nk]; draw(); if(nk<0) speak(sentenceText(sn)); }; }); }
+          // 文が完成したら 文だけを読む（言葉→文 と続けると、言葉の読みが途中で切れて 文の中でもう一度読まれる）
+          if(objOpen!=null && cat==='noun'){ sn.objs[objOpen]=o; objOpen=null; var nk2=slotIdx(sn); if(nk2>=0) cat=sn.frame.slots[nk2]; draw(); speak(nk2<0 ? sentenceText(sn) : o.en); return; }
+          var k=slotIdx(sn); if(k<0) return; sn.fills[k]=o;
+          if(canObj(sn,k)){ objOpen=k; cat='noun'; draw(); speak(o.en); return; }   // 動詞のあとは「もの」を足せる（足さなくてもいい）
+          var nk=slotIdx(sn); if(nk>=0) cat=sn.frame.slots[nk]; draw(); speak(nk<0 ? sentenceText(sn) : o.en); }; }); }
       function draw(){ drawFrames(); drawLine(); drawBank(); send.disabled=!complete(); }
       // これ えいごで なに？（1日 2回）
       var askw=document.getElementById('askw'), askn=document.getElementById('askn'), dict=document.getElementById('dict');
