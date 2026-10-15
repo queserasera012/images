@@ -205,8 +205,8 @@ label.inline{display:flex;gap:8px;align-items:center}
   // 読み上げを「取り消して次を読む」作りなので、続けて読むときは onDone の中で次を speak する
   function speak(text, onDone){ var done=false; function fin(){ if(done) return; done=true; if(onDone) onDone(); }
     if(!('speechSynthesis' in window)){ setTimeout(fin,600); return; } speechSynthesis.cancel();
-    // 文ごとに分けて読む（間が入る）。記号と絵文字は読まない（「.」を dot、🐢 を turtle と読む端末がある）
-    var parts=String(text).replace(/[{}"]/g,'').replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}\u{1F3FB}-\u{1F3FF}\u{20E3}]/gu,' ').split(/(?<=[.!?])\s+/).map(function(x){return x.replace(/[.!?,]+/g,' ').replace(/\s+/g,' ').trim()}).filter(Boolean);
+    // 文ごとに分けて読む（間が入る）。記号と絵文字は読まない（「.」を dot、🐢 を turtle と読む端末がある）。国旗（🇯🇵）は Extended_Pictographic に入らないので Regional_Indicator と So も落とす（2026-10-15）
+    var parts=String(text).replace(/[{}"]/g,'').replace(/[\p{Extended_Pictographic}\p{Regional_Indicator}\p{So}\u{FE00}-\u{FE0F}\u{200D}\u{1F3FB}-\u{1F3FF}\u{20E3}\u{E0020}-\u{E007F}]/gu,' ').split(/(?<=[.!?])\s+/).map(function(x){return x.replace(/[.!?,]+/g,' ').replace(/\s+/g,' ').trim()}).filter(Boolean);
     var v=pickVoice();
     if(!parts.length){ setTimeout(fin,300); return; }
     parts.forEach(function(pt,idx){ var u=new SpeechSynthesisUtterance(pt); u.lang='en-US'; u.rate=0.82; u.pitch=1.08; if(v) u.voice=v;
