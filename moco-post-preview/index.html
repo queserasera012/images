@@ -114,6 +114,7 @@ h2{font-size:1.05rem;margin:0}
 .moco{background:var(--paper);border-radius:14px;padding:12px 14px;font-size:1.1rem;display:flex;gap:10px;align-items:flex-start}
 .moco .face{font-size:1.8rem;line-height:1}
 .moco .mt{cursor:pointer}
+.fix{background:#fff7e6;border:2px dashed #e8b86d;border-radius:14px;padding:10px 14px;margin-top:10px}.fix b.lab{display:block;font-size:.85rem;color:#8a5a1a;margin-bottom:4px}.fix .fx{font-size:1.15rem;cursor:pointer}.fix .fx mark{background:#ffe08a;border-radius:4px;padding:0 3px}.fix .tip{display:block;font-size:.95rem;color:#555;margin-top:4px}
 .moco .jp{display:block;font-size:.85rem;color:var(--muted);font-weight:500;margin-top:4px}
 .post{border:3px solid var(--stamp);border-radius:14px;padding:14px;text-align:center;background:var(--card)}
 .drop{animation:drop .7s cubic-bezier(.2,.9,.3,1.2)}
@@ -277,6 +278,10 @@ label.inline{display:flex;gap:8px;align-items:center}
     });
   }
   function writing(){ return '<div class="card"><div class="moco"><span class="face">🐾</span><div class="mt">モコが かいてる<span class="dots">…</span></div></div></div>'; }
+  // 「モコなら こう かくよ」：子の文と AI の fixed が違うときだけ出す。違う語に印（2026-10-16・オーナー「間違えてると気づけないのは可哀想」）
+  function normW(t){ return String(t||'').toLowerCase().replace(/[^a-z' ]/g,' ').split(/\s+/).filter(Boolean); }
+  function sameSent(a,b){ return normW(a).join(' ')===normW(b).join(' '); }
+  function fixBox(sent, fixed, tip){ if(!fixed || sameSent(sent,fixed)) return ''; var had={}; normW(sent).forEach(function(w){had[w]=1}); var html=esc(fixed).split(' ').map(function(w){ var k=w.toLowerCase().replace(/[^a-z']/g,''); return (k&&!had[k]) ? '<mark>'+w+'</mark>' : w; }).join(' '); return '<div class="fix drop"><b class="lab">✏️ モコなら こう かくよ</b><div class="fx" data-say="'+esc(fixed)+'">'+html+'</div>'+(tip?'<span class="tip">'+esc(tip)+'</span>':'')+'</div>'; }
   function mocoBox(en, ja){ return '<div class="moco"><span class="face">🐾</span><div class="mt">'+esc(en)+(ja?'<span class="jp"'+(S.autoJa?'':' hidden')+'>'+esc(ja)+'</span>':'')+'</div></div>'; }
   function mocoReply(i, reply){
     var r = reply.join(' ');
@@ -403,7 +408,7 @@ label.inline{display:flex;gap:8px;align-items:center}
         html += '<p class="q"><b>モコの しつもん</b><span>'+esc(lt.q)+'</span>'+(lt.qja?'<small class="sub">'+esc(lt.qja)+'</small>':'')+'</p>'+
           '</div><div class="card replycard'+cls+'"><div class="rchead"><span class="rcto">To Moco 🐾</span><span class="rcfrom">From '+(S.name?esc(S.name):'me')+'</span></div>'+
           '<p class="q"><b>きみの へんじ</b><span>'+esc(done.reply.join(' '))+'</span></p>'+
-          mocoBox(done.moco, done.mocoJa)+
+          mocoBox(done.moco, done.mocoJa)+(done.fixed?fixBox(done.reply.join(' '), done.fixed, done.tip):'')+
           (i<maxIndex()&&!S.done[i]? '' : (i>=L.trip.length-1 ? '<p class="note">せかい いっしゅう おめでとう！（試作は ここまで）</p>' : '<p class="note">あしたの てがみを まっててね 🐾</p>'));
       }
     }
@@ -483,17 +488,19 @@ label.inline{display:flex;gap:8px;align-items:center}
         words = sents.map(sentenceText);
         send.disabled=true; document.querySelectorAll('.tile,.frame,.slot,#askw,#clr').forEach(function(b){b.disabled=true;}); document.getElementById('after').innerHTML='';
         var after=document.getElementById('after');
-        var show=function(m, mja){
-        S.done[i]={reply:words.slice(), moco:m, mocoJa:mja||'', at:today(), newWords:Object.keys(lt.words)}; S.shown=1; save(); setTimeout(prefetchNext, 1500);
-        after.innerHTML = '<div class="card">'+mocoBox(m, mja||'')+
+        var show=function(m, mja, fixed, tip){
+        var sent=words.join(' ');
+        S.done[i]={reply:words.slice(), moco:m, mocoJa:mja||'', fixed:fixed||'', tip:tip||'', same: fixed ? sameSent(sent,fixed) : null, at:today(), newWords:Object.keys(lt.words)}; S.shown=1; save(); setTimeout(prefetchNext, 1500);
+        after.innerHTML = '<div class="card">'+mocoBox(m, mja||'')+fixBox(sent, fixed, tip)+
           '<div class="post drop">'+artPic(t.id, lt.pic||t.emoji)+'<b>はがきが とどいた！</b><br><small class="sub">'+esc(t.place)+'</small></div>'+
           '<div class="row center"><button class="btn main" id="keep">🗺️ ずかんに しまう</button></div></div>';
         speak(m);
         document.querySelectorAll('.moco .mt').forEach(function(d){ d.onclick=function(){ var j=d.querySelector('.jp'); if(j) j.hidden=!j.hidden; }; });
+        document.querySelectorAll('.fix .fx').forEach(function(d){ d.onclick=function(){ speak(d.dataset.say); }; });
         document.getElementById('keep').onclick=function(){ tab='letter'; render(); var ph=document.getElementById('play'); if(ph) ph.scrollIntoView({behavior:'smooth'}); };
         after.scrollIntoView({behavior:'smooth'});
         };
-        if(aiOn()){ after.innerHTML=writing(); after.scrollIntoView({behavior:'smooth'}); fetchReply(i, lt, words).then(function(r){ show(r.en, r.ja); }, function(e){ S.aiErr=String(e&&e.message||e); save(); show(mocoReply(i, words), ''); }); }
+        if(aiOn()){ after.innerHTML=writing(); after.scrollIntoView({behavior:'smooth'}); fetchReply(i, lt, words).then(function(r){ show(r.en, r.ja, r.fixed, r.tip); }, function(e){ S.aiErr=String(e&&e.message||e); save(); show(mocoReply(i, words), ''); }); }
         else show(mocoReply(i, words), '');
       };
     }
@@ -630,6 +637,7 @@ label.inline{display:flex;gap:8px;align-items:center}
       (function(){ var st=levelStats(); var ck=function(b){return b?'✅':'⬜'}; return '<div class="card"><h2>レベル</h2><p class="note">いま：<b>'+L.levels[S.level].label+'</b>（'+L.levels[S.level].who+'）。モコが「すこし ながい てがみ、かいてもいい？」と聞いて、子が「いいよ」と言うと上がります。下がりません。</p>'+
         '<p class="note">つぎに上がる めやす（直近7通）：<br>'+ck(st.okOpen)+' 開いた手紙 '+st.opened+' / 7（5以上）<br>'+ck(st.okTaps)+' 1通あたり '+(S.level>=2?'「にほんご」':'「きく」')+'を押した回数 '+st.tapsAvg.toFixed(1)+'（1以下）<br>'+ck(st.okQuiz)+' ことばクイズ 直近3回の正答率 '+(st.quiz===null?'—':Math.round(st.quiz*100)+'%')+'（80%以上・'+st.quizN+'/3回）</p>'+
         '<label class="inline"><input type="checkbox" id="lk"'+(S.lockLevel?' checked':'')+'> レベルを固定する（モコは聞かない）</label>'+
+        (function(){ var ks=Object.keys(S.done).filter(function(k){return S.done[k].same!==null&&S.done[k].same!==undefined}); if(!ks.length) return ''; var ok=ks.filter(function(k){return S.done[k].same}).length; return '<p class="note">✏️ 書く力（レベル2〜3・AI の手紙）：そのまま通った文 '+ok+' / '+ks.length+'（直しが入った文は「モコなら こう かくよ」で見せています）</p>'; })()+
         ((S.levelLog||[]).length?'<p class="note">これまで：'+S.levelLog.map(function(e){return e.at+' → '+L.levels[e.to].label+'（'+(e.by==='moco'?'モコが聞いた':'おうちの人')+'）'}).join('、')+'</p>':'')+'</div>'; })()+
       '<div class="card"><h2>せってい</h2><label>なまえ（えいごの てがみに 出る）<input id="nm" value="'+esc(S.name)+'" maxlength="12"></label>'+
       '<label>にほんごの なまえ（にほんごの 文に 出る・空なら 上と同じ）<input id="nmja" value="'+esc(S.nameJa||'')+'" maxlength="12" placeholder="そうすけ"></label>'+
