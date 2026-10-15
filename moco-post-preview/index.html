@@ -595,10 +595,18 @@ label.inline{display:flex;gap:8px;align-items:center}
       '<h2>📮 はがき ずかん</h2><div class="cards">'+cards+'</div>';
   }
 
+  // 試作のためのボタン（本物には無い）。テスト中は あんしょうばんごう の手前にも置く（2026-10-15 オーナー依頼・いちいち番号を打つのが大変）
+  function protoButtonsHtml(){ return '<div class="card"><h2>試作のためのボタン</h2><div class="row"><button class="btn" id="more">つぎの手紙を いま届ける</button><button class="btn" id="reset">さいしょから</button></div>'; }
+  function bindProtoButtons(){
+    document.getElementById('more').onclick=function(){ if(maxIndex()<L.trip.length-1){ S.extra++; save(); tab='letter'; render(); } };
+    var armed=false; document.getElementById('reset').onclick=function(){ if(!armed){ armed=true; this.textContent='ほんとうに けす？（もう一度おす）'; return; } S=null; try{localStorage.removeItem(KEY)}catch(e){} tab='letter'; render(); };
+  }
   function renderParent(){
     if(!pinOK){
       app.innerHTML = '<h1>👪 おうちの ひと</h1><p class="sub">あんしょうばんごう を いれてください（試作は 1234）</p>'+
-        '<div class="card"><div class="pinbox" id="pb"></div><div class="keys">'+'123456789'.split('').map(function(k){return '<button class="key">'+k+'</button>'}).join('')+'<button class="key" data-x="1">←</button><button class="key">0</button><button class="key" data-ok="1">OK</button></div></div>';
+        '<div class="card"><div class="pinbox" id="pb"></div><div class="keys">'+'123456789'.split('').map(function(k){return '<button class="key">'+k+'</button>'}).join('')+'<button class="key" data-x="1">←</button><button class="key">0</button><button class="key" data-ok="1">OK</button></div></div>'+
+        protoButtonsHtml()+'<p class="note">テスト中だけ ここに出しています。本物では あんしょうばんごう の奥です。</p></div>';
+      bindProtoButtons();
       var pb=document.getElementById('pb'); pinBuf='';
       document.querySelectorAll('.key').forEach(function(k){ k.onclick=function(){
         if(k.dataset.x) pinBuf=pinBuf.slice(0,-1); else if(k.dataset.ok){ if(pinBuf===PIN){ pinOK=true; renderParent(); return; } pinBuf=''; pb.textContent='ちがいます'; return; } else if(pinBuf.length<4) pinBuf+=k.textContent;
@@ -627,14 +635,13 @@ label.inline{display:flex;gap:8px;align-items:center}
       '<label class="inline"><input type="checkbox" id="ai"'+(S.useAi?' checked':'')+'> AI の手紙を使う（まだ開いていない手紙から）</label>'+
       '<div class="row"><button class="btn on" id="sv_save">ほぞん</button><button class="btn" id="sv_test">つながるか ためす</button><button class="btn" id="sv_redo">きょうの手紙を 作りなおす</button></div><p class="note" id="sv_msg">'+
       (function(){ var g=S.aiLog||[]; if(!g.length) return S.aiErr?'さいごのエラー：'+esc(S.aiErr):''; var tin=0,tout=0; g.forEach(function(e){ if(e.usage){tin+=e.usage.input_tokens||0; tout+=e.usage.output_tokens||0;} }); return 'AI を呼んだ回数：'+g.length+'（手紙 '+g.filter(function(e){return e.what==='letter'}).length+'・返事 '+g.filter(function(e){return e.what==='reply'}).length+'）／ トークン 入 '+tin+'・出 '+tout+(function(){ var ms=g.filter(function(e){return e.ms}).map(function(e){return e.ms}); return ms.length?'／ 手紙1通の時間 さいきん '+Math.round(ms[ms.length-1]/1000)+'秒（さいだい '+Math.round(Math.max.apply(null,ms)/1000)+'秒）':''; })()+(function(){ var n=todayIndex(); if(S.done[n]) n++; return n<L.trip.length ? '<br>あしたの手紙：'+(aiAt(n)?'✅ さきよみ ずみ':'まだ（へんじを出したあと・開いたときに 作っておきます）') : ''; })()+(S.aiErr?'<br>さいごのエラー：'+esc(S.aiErr):''); })()+'</p></div>'+
-      '<div class="card"><h2>試作のためのボタン</h2><div class="row"><button class="btn" id="more">つぎの手紙を いま届ける</button><button class="btn" id="reset">さいしょから</button></div>'+
+      protoButtonsHtml()+
       '<p class="note">本物では モコの返事は AI が書きます。この試作は決まった文です。レベル0〜1 の返事は「絵を選ぶ」（10/13 の直し）。手紙の文は レベルごとに 10日ぶん 用意してあります。</p></div>';
     document.getElementById('sv').onclick=function(){ S.name=document.getElementById('nm').value.trim(); var nl=parseInt(document.getElementById('lv').value,10); if(nl!==S.level){ S.levelLog=(S.levelLog||[]).concat([{at:today(),to:nl,by:'parent'}]); S.askAfter=0; var ti=todayIndex(); if(!S.done[ti]){ if(S.ai) delete S.ai[ti]; delete S.opened[ti]; S.shown=1; } } S.level=nl; S.autoJa=document.getElementById('aj').checked; S.lockLevel=document.getElementById('lk').checked; save(); this.textContent='ほぞんした'; };
     document.getElementById('sv_save').onclick=function(){ S.server=document.getElementById('sv_url').value.trim(); S.token=document.getElementById('sv_tok').value.trim(); S.useAi=document.getElementById('ai').checked; save(); this.textContent='ほぞんした'; };
     document.getElementById('sv_test').onclick=function(){ var m=document.getElementById('sv_msg'); var u=document.getElementById('sv_url').value.trim().replace(/\/+$/,''); if(!u){ m.textContent='住所が空です'; return; } m.textContent='ためしています…'; var tk=document.getElementById('sv_tok').value.trim(); fetch(u+'/health',{headers: tk?{'Authorization':'Bearer '+tk}:{}}).then(function(r){return r.json()}).then(function(j){ if(!j.ok){ m.textContent='へんな返事：'+JSON.stringify(j); return; } var a = j.tokenOk===true ? '合言葉も OK' : j.tokenOk===false ? '🚨 合言葉が ちがいます（入れ直して「ほぞん」）' : tk ? '合言葉の確認は サーバーを更新したあとに できます' : '合言葉が 空です'; m.textContent='つながりました（model: '+j.model+' / prompt '+j.prompt+'）。'+a; }, function(e){ m.textContent='つながりません：'+e; }); };
     document.getElementById('sv_redo').onclick=function(){ var i=todayIndex(); if(S.done[i]){ document.getElementById('sv_msg').textContent='きょうの手紙は もう返事を出しています。「つぎの手紙を いま届ける」で次へ'; return; } if(S.ai) delete S.ai[i]; delete S.opened[i]; S.shown=1; save(); tab='letter'; render(); };
-    document.getElementById('more').onclick=function(){ if(maxIndex()<L.trip.length-1){ S.extra++; save(); tab='letter'; render(); } };
-    var armed=false; document.getElementById('reset').onclick=function(){ if(!armed){ armed=true; this.textContent='ほんとうに けす？（もう一度おす）'; return; } S=null; try{localStorage.removeItem(KEY)}catch(e){} tab='letter'; render(); };
+    bindProtoButtons();
   }
   render(); setTimeout(prefetchNext, 3000);  // 開いたときにも あしたの手紙を さきよみ
 })();
