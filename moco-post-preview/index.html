@@ -111,6 +111,11 @@ h2{font-size:1.05rem;margin:0}
 .tile{background:var(--paper);color:var(--ink);border:2px solid var(--line);border-bottom-width:4px;border-radius:10px;padding:8px 14px;font:inherit;font-size:1.1rem;cursor:pointer}
 .l0 .tile{font-size:1.4rem;padding:12px 20px}
 .tile:active{border-bottom-width:2px;transform:translateY(2px)}
+.order{margin-top:8px;background:var(--post);border:2px solid var(--pline);border-radius:12px;padding:10px}.order .olab{font-size:.9rem;color:var(--muted);margin-bottom:6px}
+.order .built{min-height:46px;border:2px dashed var(--line);border-radius:10px;padding:6px 8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:1.15rem}
+.order .built .w{background:var(--leaf);color:#fff;border-radius:8px;padding:0 10px;cursor:pointer}.order .built .w.ng{background:var(--stamp)}.order .built .w.hint{background:transparent;color:var(--muted);border:2px dashed var(--line)}
+.order .pool{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.order .pool .tile{font-size:1.05rem;padding:6px 12px}
+.order .omsg{margin-top:6px;font-size:.95rem}.order .omsg.ok{color:var(--leaf);font-weight:700}.order .omsg.ng{color:var(--stamp)}
 .moco{background:var(--paper);border-radius:14px;padding:12px 14px;font-size:1.1rem;display:flex;gap:10px;align-items:flex-start}
 .moco .face{font-size:1.8rem;line-height:1}
 .moco .mt{cursor:pointer}
@@ -398,9 +403,9 @@ label.inline{display:flex;gap:8px;align-items:center}
       } else if(!done){
         html += '<p class="q"><b>モコの しつもん</b><span>'+esc(lt.q)+'</span></p>'+
           '</div><div class="card replycard'+cls+'"><div class="rchead"><span class="rcto">To Moco 🐾</span><span class="rcfrom">From '+(S.name?esc(S.name):'me')+'</span></div>'+
-          '<div class="lab note">① かたを えらぶ → ② あなに ことばを 入れる（「すること」のあとに「もの」も足せる）'+(S.level>=3?'（2文まで）':'')+'</div>'+
+          '<div class="lab note">① かたを えらぶ → ② あなに ことばを 入れる（「すること」のあとに「もの」も足せる）'+(S.level>=3?' → ③ ことばを ならべる（2文まで）':'')+'</div>'+
           '<div class="frames" id="frames"></div>'+
-          '<div class="line" id="line"><span class="ph">かたを えらぼう</span></div>'+
+          '<div class="line" id="line"><span class="ph">かたを えらぼう</span></div><div class="order" id="order" hidden></div>'+
           '<div class="btabs" id="btabs"></div><div class="tiles" id="bank"></div>'+
           '<div class="row"><button class="btn" id="askw">💬 これ えいごで なに？</button><span class="note" id="askn"></span></div><div class="dict" id="dict" hidden></div>'+
           '<div class="row"><button class="btn main" id="send" disabled>✉️ おくる</button><button class="btn" id="clr">けす</button></div>';
@@ -443,8 +448,30 @@ label.inline{display:flex;gap:8px;align-items:center}
       var maxS = S.level>=3 ? 2 : 1;
       function cur(){ return sents.length ? sents[sents.length-1] : null; }
       function slotIdx(sn){ for(var k=0;k<sn.frame.slots.length;k++){ if(!sn.fills[k]) return k; } return -1; }
-      function complete(){ return sents.length>0 && sents.every(function(sn){return slotIdx(sn)<0}); }
-      function drawFrames(){ var canAdd = !cur() || (slotIdx(cur())<0 && sents.length<maxS);
+      // ③ ならべかえ（レベル3・2026-10-16 オーナー「並べかえからやろう」）：穴を埋めた文の ことばを バラして 自分で並べる。
+      // 2回まちがえたら モコが正しい順を見せる。順番の間違いに「気づく」ための段で、送る前に必ず通る
+      var ORDER = S.level>=3, od=document.getElementById('order');
+      function orderNeeded(sn){ return ORDER && slotIdx(sn)<0 && !(sn.order&&sn.order.done); }
+      function complete(){ return sents.length>0 && sents.every(function(sn){return slotIdx(sn)<0 && !orderNeeded(sn)}); }
+      function startOrder(sn){ var ws=sentenceText(sn).split(' '); if(ws.length<3){ sn.order={done:true,ok:true,tries:0,skipped:true}; return; }
+        var pool; for(var t=0;t<20;t++){ pool=ws.map(function(w,k){return {w:w,k:k}}).sort(function(){return Math.random()-.5}); if(pool.some(function(o,j){return o.k!==j})) break; }
+        sn.order={words:ws, pool:pool, placed:[], tries:0, done:false, ok:null}; }
+      function drawOrder(){ var sn=cur(), o=sn&&sn.order; if(!sn || !ORDER || !o || (o.done && !o.pending)){ od.hidden=true; return; }
+        od.hidden=false;
+        var built=o.placed.map(function(c,j){ var cls='w'+(o.marks&&o.marks[j]===false?' ng':''); return '<span class="'+cls+'" data-j="'+j+'">'+esc(c.w)+'</span>'; }).join('');
+        for(var j=o.placed.length;j<o.words.length;j++) built+='<span class="w hint">？</span>';
+        od.innerHTML='<div class="olab">③ ことばを ならべよう（'+esc(sn.frame.ja.replace(/___/g,'…'))+'）</div><div class="built" id="obuilt">'+built+'</div>'+
+          '<div class="pool">'+o.pool.map(function(c,j){ return '<button class="tile" data-j="'+j+'">'+esc(c.w)+'</button>'; }).join('')+'</div>'+
+          (o.msg?'<div class="omsg '+o.msgCls+'">'+o.msg+'</div>':'');
+        od.querySelectorAll('.pool .tile').forEach(function(b){ b.onclick=function(){ var j=parseInt(b.dataset.j,10); o.placed.push(o.pool.splice(j,1)[0]); o.marks=null; o.msg=''; speak(o.placed[o.placed.length-1].w); if(o.placed.length===o.words.length) checkOrder(sn); else drawOrder(); }; });
+        od.querySelectorAll('#obuilt .w:not(.hint)').forEach(function(el){ el.onclick=function(){ var j=parseInt(el.dataset.j,10); o.pool=o.pool.concat(o.placed.splice(j)); o.marks=null; o.msg=''; drawOrder(); }; }); }
+      function checkOrder(sn){ var o=sn.order, ok=o.placed.every(function(c,j){return c.k===j});
+        if(ok){ o.done=true; o.ok=o.tries===0; o.msg=''; speak(sentenceText(sn)); draw(); flashOrder('✨ ぴったり！'); return; }
+        o.tries++; o.marks=o.placed.map(function(c,j){return c.k===j});
+        if(o.tries>=2){ o.placed=o.words.map(function(w,k){return {w:w,k:k}}); o.pool=[]; o.marks=null; o.done=true; o.ok=false; o.msg='モコなら こう ならべるよ：'+esc(sentenceText(sn)); o.msgCls='ok'; o.pending=true; speak(sentenceText(sn)); drawOrder(); setTimeout(function(){ o.pending=false; draw(); }, 2500); return; }
+        o.msg='ちがう ところが あるよ。あかい ことばを おして やりなおそう'; o.msgCls='ng'; drawOrder(); }
+      function flashOrder(t){ od.hidden=false; od.innerHTML='<div class="omsg ok">'+t+'</div>'; setTimeout(function(){ drawOrder(); }, 1200); }
+      function drawFrames(){ var canAdd = !cur() || (slotIdx(cur())<0 && !orderNeeded(cur()) && sents.length<maxS);
         fr.innerHTML = FS.frames.map(function(f,k){ return '<button class="frame" data-k="'+k+'"'+(canAdd?'':' disabled')+'><b>'+esc(f.en)+'</b><small>'+esc(f.ja)+'</small></button>'; }).join('');
         fr.querySelectorAll('.frame').forEach(function(b){ b.onclick=function(){ var f=FS.frames[parseInt(b.dataset.k,10)]; sents.push({frame:f, fills:[], objs:[]}); objOpen=null; cat=f.slots[0]; speak(f.en.replace(/___/g,'something')); draw(); }; }); }
       function drawLine(){
@@ -454,7 +481,7 @@ label.inline{display:flex;gap:8px;align-items:center}
           parts.forEach(function(pt,pi){ h+=esc(pt); if(pi<parts.length-1){ var w=sn.fills[pi]; h+='<span class="slot'+(w?' ok':'')+(last&&pi===act?' on':'')+'" data-s="'+si+'" data-k="'+pi+'">'+(w?esc(w.en):'？')+'</span>';
               if(w && canObj(sn,pi)){ var o=(sn.objs||[])[pi], open=last&&objOpen===pi; h+=' <span class="slot obj'+(o?' ok':'')+(open?' on':'')+'" data-s="'+si+'" data-o="'+pi+'">'+(o?esc(o.en):'＋もの')+'</span>'; } } });
           return h+'</span>'; }).join(' ');
-        line.querySelectorAll('.slot:not(.obj)').forEach(function(el){ el.onclick=function(){ var sn=sents[parseInt(el.dataset.s,10)], k=parseInt(el.dataset.k,10); sn.fills[k]=null; (sn.objs||[])[k]=null; objOpen=null; cat=sn.frame.slots[k]; draw(); }; });
+        line.querySelectorAll('.slot:not(.obj)').forEach(function(el){ el.onclick=function(){ var sn=sents[parseInt(el.dataset.s,10)], k=parseInt(el.dataset.k,10); if(sn.order&&sn.order.done&&sn.order.ok===false) return; sn.order=null; sn.fills[k]=null; (sn.objs||[])[k]=null; objOpen=null; cat=sn.frame.slots[k]; draw(); }; });
         line.querySelectorAll('.slot.obj').forEach(function(el){ el.onclick=function(){ var si=parseInt(el.dataset.s,10), sn=sents[si], k=parseInt(el.dataset.o,10); if(sn.objs[k]){ sn.objs[k]=null; } if(si!==sents.length-1) return; objOpen=k; cat='noun'; draw(); }; });
       }
       function drawBank(){ var sn=cur(), waitObj = sn && objOpen!=null && !sn.objs[objOpen], need = sn && slotIdx(sn)>=0 ? sn.frame.slots[slotIdx(sn)] : (waitObj ? 'noun' : null);
@@ -469,7 +496,8 @@ label.inline{display:flex;gap:8px;align-items:center}
           var k=slotIdx(sn); if(k<0) return; sn.fills[k]=o;
           if(canObj(sn,k)){ objOpen=k; cat='noun'; draw(); speak(o.en); return; }   // 動詞のあとは「もの」を足せる（足さなくてもいい）
           var nk=slotIdx(sn); if(nk>=0) cat=sn.frame.slots[nk]; draw(); speak(nk<0 ? sentenceText(sn) : o.en); }; }); }
-      function draw(){ drawFrames(); drawLine(); drawBank(); send.disabled=!complete(); }
+      function draw(){ var sn=cur(); if(sn && ORDER && slotIdx(sn)<0 && objOpen==null && !sn.order) startOrder(sn);
+        var ordering = sn && sn.order && !sn.order.done; drawFrames(); drawLine(); drawBank(); drawOrder(); bt.hidden=!!ordering; bk.hidden=!!ordering; send.disabled=!complete(); }
       // これ えいごで なに？（1日 2回）
       var askw=document.getElementById('askw'), askn=document.getElementById('askn'), dict=document.getElementById('dict');
       function askLeft(){ S.askedWord=S.askedWord||{}; return 2-(S.askedWord[i]||0); }
@@ -490,7 +518,8 @@ label.inline{display:flex;gap:8px;align-items:center}
         var after=document.getElementById('after');
         var show=function(m, mja, fixed, tip){
         var sent=words.join(' ');
-        S.done[i]={reply:words.slice(), moco:m, mocoJa:mja||'', fixed:fixed||'', tip:tip||'', same: fixed ? sameSent(sent,fixed) : null, at:today(), newWords:Object.keys(lt.words)}; S.shown=1; save(); setTimeout(prefetchNext, 1500);
+        var ord = ORDER ? sents.filter(function(sn){return sn.order&&!sn.order.skipped}).map(function(sn){return {ok:sn.order.ok, tries:sn.order.tries}}) : null;
+        S.done[i]={reply:words.slice(), moco:m, mocoJa:mja||'', fixed:fixed||'', tip:tip||'', same: fixed ? sameSent(sent,fixed) : null, at:today(), newWords:Object.keys(lt.words), order:ord}; S.shown=1; save(); setTimeout(prefetchNext, 1500);
         after.innerHTML = '<div class="card">'+mocoBox(m, mja||'')+fixBox(sent, fixed, tip)+
           '<div class="post drop">'+artPic(t.id, lt.pic||t.emoji)+'<b>はがきが とどいた！</b><br><small class="sub">'+esc(t.place)+'</small></div>'+
           '<div class="row center"><button class="btn main" id="keep">🗺️ ずかんに しまう</button></div></div>';
@@ -637,7 +666,7 @@ label.inline{display:flex;gap:8px;align-items:center}
       (function(){ var st=levelStats(); var ck=function(b){return b?'✅':'⬜'}; return '<div class="card"><h2>レベル</h2><p class="note">いま：<b>'+L.levels[S.level].label+'</b>（'+L.levels[S.level].who+'）。モコが「すこし ながい てがみ、かいてもいい？」と聞いて、子が「いいよ」と言うと上がります。下がりません。</p>'+
         '<p class="note">つぎに上がる めやす（直近7通）：<br>'+ck(st.okOpen)+' 開いた手紙 '+st.opened+' / 7（5以上）<br>'+ck(st.okTaps)+' 1通あたり '+(S.level>=2?'「にほんご」':'「きく」')+'を押した回数 '+st.tapsAvg.toFixed(1)+'（1以下）<br>'+ck(st.okQuiz)+' ことばクイズ 直近3回の正答率 '+(st.quiz===null?'—':Math.round(st.quiz*100)+'%')+'（80%以上・'+st.quizN+'/3回）</p>'+
         '<label class="inline"><input type="checkbox" id="lk"'+(S.lockLevel?' checked':'')+'> レベルを固定する（モコは聞かない）</label>'+
-        (function(){ var ks=Object.keys(S.done).filter(function(k){return S.done[k].same!==null&&S.done[k].same!==undefined}); if(!ks.length) return ''; var ok=ks.filter(function(k){return S.done[k].same}).length; return '<p class="note">✏️ 書く力（レベル2〜3・AI の手紙）：そのまま通った文 '+ok+' / '+ks.length+'（直しが入った文は「モコなら こう かくよ」で見せています）</p>'; })()+
+        (function(){ var ks=Object.keys(S.done).filter(function(k){return S.done[k].same!==null&&S.done[k].same!==undefined}); if(!ks.length) return ''; var ok=ks.filter(function(k){return S.done[k].same}).length; var oa=[]; Object.keys(S.done).forEach(function(k){ (S.done[k].order||[]).forEach(function(r){oa.push(r)}); }); var o1=oa.filter(function(r){return r.ok}).length; return '<p class="note">✏️ 書く力（レベル2〜3・AI の手紙）：そのまま通った文 '+ok+' / '+ks.length+'（直しが入った文は「モコなら こう かくよ」で見せています）'+(oa.length?'<br>🔀 ならべかえ（レベル3）：1回で ぴったり '+o1+' / '+oa.length+'文':'')+'</p>'; })()+
         ((S.levelLog||[]).length?'<p class="note">これまで：'+S.levelLog.map(function(e){return e.at+' → '+L.levels[e.to].label+'（'+(e.by==='moco'?'モコが聞いた':'おうちの人')+'）'}).join('、')+'</p>':'')+'</div>'; })()+
       '<div class="card"><h2>せってい</h2><label>なまえ（えいごの てがみに 出る）<input id="nm" value="'+esc(S.name)+'" maxlength="12"></label>'+
       '<label>にほんごの なまえ（にほんごの 文に 出る・空なら 上と同じ）<input id="nmja" value="'+esc(S.nameJa||'')+'" maxlength="12" placeholder="そうすけ"></label>'+
