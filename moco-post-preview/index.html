@@ -238,9 +238,11 @@ label.inline{display:flex;gap:8px;align-items:center}
   function aiOn(){ return !!(S.useAi && S.server && S.token); }
   function api(path, body){
     var url=String(S.server||'').replace(/\/+$/,'')+path;
-    var ctl=new AbortController(); var tm=setTimeout(function(){ctl.abort()}, 45000);
+    // 手紙1通は 20〜60秒かかる（作り直しが入ると倍）。45秒で切っていたのが「つながらない」の主因だった（2026-10-15）
+    var ctl=new AbortController(); var tm=setTimeout(function(){ctl.abort()}, 100000); var t0=Date.now();
     return fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+S.token},body:JSON.stringify(body),signal:ctl.signal})
-      .then(function(r){ clearTimeout(tm); return r.json().then(function(j){ if(!r.ok) throw new Error((j.error||('http '+r.status))+(j.status?' '+j.status:'')+(j.detail?'：'+j.detail:'')); return j; }); });
+      .then(function(r){ clearTimeout(tm); return r.json().then(function(j){ if(!r.ok) throw new Error((j.error||('http '+r.status))+(j.status?' '+j.status:'')+(j.detail?'：'+j.detail:'')); j._ms=Date.now()-t0; return j; }); },
+            function(e){ clearTimeout(tm); throw new Error(e&&e.name==='AbortError' ? 'timeout（100秒 まっても 返事が なかった）' : 'network（'+String(e&&e.message||e)+'）'); });
   }
   function knownWords(){ var k={}; Object.keys(S.done).forEach(function(d){ (S.done[d].newWords||[]).forEach(function(w){k[w.toLowerCase()]=1}); }); return Object.keys(k); }
   function nameFill(x){ var n=S.name||'friend'; if(typeof x==='string') return x.replace(/\{name\}/g,n); if(Array.isArray(x)) return x.map(nameFill); if(x&&typeof x==='object'){ var o={}; Object.keys(x).forEach(function(k){o[k]=nameFill(x[k])}); return o; } return x; }
@@ -250,8 +252,16 @@ label.inline{display:flex;gap:8px;align-items:center}
     return api('/letter',{level:S.level, day:t.day, place:t.place, placeEn:t.en, known:knownWords(), recent:recent, sceneWords:(t.scene||[]).map(function(o){return o.en}), fact:(t.fact||{}).en||''}).then(function(j){
       var lt=nameFill(j.letter); lt.ja=(lt.ja||[]).map(plain); if(S.level>=2||!lt.choices||!lt.choices.length) lt.choices=null; lt.tiles=S.level>=2&&lt.tiles?lt.tiles:[];
       if(S.level<=1 && !lt.choices) throw new Error('no_choices'); if(S.level>=2 && !(lt.frames&&lt.frames.length>=2) && lt.tiles.length<4) throw new Error('no_frames');
-      S.ai=S.ai||{}; S.ai[i]={level:S.level, letter:lt, at:today(), usage:j.usage, off:j.off_list}; S.aiLog=(S.aiLog||[]).concat([{at:today(),what:'letter',day:t.day,usage:j.usage}]).slice(-30); save(); return lt;
+      S.ai=S.ai||{}; S.ai[i]={level:S.level, letter:lt, at:today(), usage:j.usage, off:j.off_list, ms:j._ms}; S.aiLog=(S.aiLog||[]).concat([{at:today(),what:'letter',day:t.day,usage:j.usage,ms:j._ms}]).slice(-30); save(); return lt;
     });
+  }
+  // あしたの手紙を いまのうちに作っておく（へんじを出したあと・アプリを開いたとき）。
+  // 朝ひらいた瞬間に 60秒待たせない・待っている間に時間切れにならない ための作り
+  var prefetching=null;
+  function prefetchNext(){
+    if(!aiOn()) return; var n=todayIndex(); if(S.done[n]) n=n+1; if(n>=L.trip.length || aiAt(n) || prefetching===n) return;
+    if(!S.done[n-1] && n>0) return;  // きょうの手紙が まだなら、あしたの分は作らない
+    prefetching=n; fetchLetter(n).then(function(){ prefetching=null; }, function(e){ prefetching=null; S.aiErr='（さきよみ）'+String(e&&e.message||e); save(); });
   }
   function fetchReply(i, lt, words){
     var nx = i < L.trip.length-1 ? L.trip[i+1].en : 'home';
@@ -352,7 +362,7 @@ label.inline{display:flex;gap:8px;align-items:center}
         };
         if(aiOn() && !aiAt(i)){
           btn.disabled=true; msg.innerHTML='<span class="pen">✒️</span> モコが てがみを かいてるよ<span class="dots">…</span>';
-          fetchLetter(i).then(play, function(e){ S.aiErr=String(e&&e.message||e); save(); msg.textContent='サーバーに つながらなかったので、きまった てがみを ひらきます（'+S.aiErr+'）'; setTimeout(play, 1500); });
+          fetchLetter(i).then(play, function(e){ S.aiErr=String(e&&e.message||e); save(); msg.textContent='モコの てがみが とどかなかったので、きまった てがみを ひらきます（'+S.aiErr+'）'; setTimeout(play, 1500); });
         } else play();
       };
       document.getElementById('open').onclick=open; document.getElementById('env').onclick=open;
@@ -405,7 +415,7 @@ label.inline{display:flex;gap:8px;align-items:center}
         document.querySelectorAll('.choice').forEach(function(x){ x.disabled=true; x.classList.toggle('picked', x===b); });
         var m = (S.level===0 ? c.e+' '+c.en+' ' : c.en+' ')+(c.m||'Me too!')+(S.level===0 ? ' Bye-bye!' : ' See you tomorrow!');
         var mja = (c.ja||'').replace(/[！!。]+$/,'')+'！ '+(c.mja||'ぼくも！')+(S.level===0 ? ' ばいばい！' : ' また あした！');
-        S.done[i]={reply:[c.e+' '+c.en], moco:m, mocoJa:mja, at:today(), newWords:Object.keys(lt.words)}; S.shown=1; save();
+        S.done[i]={reply:[c.e+' '+c.en], moco:m, mocoJa:mja, at:today(), newWords:Object.keys(lt.words)}; S.shown=1; save(); setTimeout(prefetchNext, 1500);
         var after=document.getElementById('after');
         after.innerHTML = '<div class="card">'+mocoBox(m, mja)+
           '<div class="post drop">'+artPic(t.id, lt.pic||t.emoji)+'<b>はがきが とどいた！</b><br><small class="sub">'+esc(t.place)+'</small></div>'+
@@ -466,7 +476,7 @@ label.inline{display:flex;gap:8px;align-items:center}
         send.disabled=true; document.querySelectorAll('.tile,.frame,.slot,#askw,#clr').forEach(function(b){b.disabled=true;}); document.getElementById('after').innerHTML='';
         var after=document.getElementById('after');
         var show=function(m, mja){
-        S.done[i]={reply:words.slice(), moco:m, mocoJa:mja||'', at:today(), newWords:Object.keys(lt.words)}; S.shown=1; save();
+        S.done[i]={reply:words.slice(), moco:m, mocoJa:mja||'', at:today(), newWords:Object.keys(lt.words)}; S.shown=1; save(); setTimeout(prefetchNext, 1500);
         after.innerHTML = '<div class="card">'+mocoBox(m, mja||'')+
           '<div class="post drop">'+artPic(t.id, lt.pic||t.emoji)+'<b>はがきが とどいた！</b><br><small class="sub">'+esc(t.place)+'</small></div>'+
           '<div class="row center"><button class="btn main" id="keep">🗺️ ずかんに しまう</button></div></div>';
@@ -615,7 +625,7 @@ label.inline{display:flex;gap:8px;align-items:center}
       '<label>合言葉<input id="sv_tok" type="password" value="'+esc(S.token||'')+'" autocapitalize="off"></label>'+
       '<label class="inline"><input type="checkbox" id="ai"'+(S.useAi?' checked':'')+'> AI の手紙を使う（まだ開いていない手紙から）</label>'+
       '<div class="row"><button class="btn on" id="sv_save">ほぞん</button><button class="btn" id="sv_test">つながるか ためす</button><button class="btn" id="sv_redo">きょうの手紙を 作りなおす</button></div><p class="note" id="sv_msg">'+
-      (function(){ var g=S.aiLog||[]; if(!g.length) return S.aiErr?'さいごのエラー：'+esc(S.aiErr):''; var tin=0,tout=0; g.forEach(function(e){ if(e.usage){tin+=e.usage.input_tokens||0; tout+=e.usage.output_tokens||0;} }); return 'AI を呼んだ回数：'+g.length+'（手紙 '+g.filter(function(e){return e.what==='letter'}).length+'・返事 '+g.filter(function(e){return e.what==='reply'}).length+'）／ トークン 入 '+tin+'・出 '+tout+(S.aiErr?'<br>さいごのエラー：'+esc(S.aiErr):''); })()+'</p></div>'+
+      (function(){ var g=S.aiLog||[]; if(!g.length) return S.aiErr?'さいごのエラー：'+esc(S.aiErr):''; var tin=0,tout=0; g.forEach(function(e){ if(e.usage){tin+=e.usage.input_tokens||0; tout+=e.usage.output_tokens||0;} }); return 'AI を呼んだ回数：'+g.length+'（手紙 '+g.filter(function(e){return e.what==='letter'}).length+'・返事 '+g.filter(function(e){return e.what==='reply'}).length+'）／ トークン 入 '+tin+'・出 '+tout+(function(){ var ms=g.filter(function(e){return e.ms}).map(function(e){return e.ms}); return ms.length?'／ 手紙1通の時間 さいきん '+Math.round(ms[ms.length-1]/1000)+'秒（さいだい '+Math.round(Math.max.apply(null,ms)/1000)+'秒）':''; })()+(function(){ var n=todayIndex(); if(S.done[n]) n++; return n<L.trip.length ? '<br>あしたの手紙：'+(aiAt(n)?'✅ さきよみ ずみ':'まだ（へんじを出したあと・開いたときに 作っておきます）') : ''; })()+(S.aiErr?'<br>さいごのエラー：'+esc(S.aiErr):''); })()+'</p></div>'+
       '<div class="card"><h2>試作のためのボタン</h2><div class="row"><button class="btn" id="more">つぎの手紙を いま届ける</button><button class="btn" id="reset">さいしょから</button></div>'+
       '<p class="note">本物では モコの返事は AI が書きます。この試作は決まった文です。レベル0〜1 の返事は「絵を選ぶ」（10/13 の直し）。手紙の文は レベルごとに 10日ぶん 用意してあります。</p></div>';
     document.getElementById('sv').onclick=function(){ S.name=document.getElementById('nm').value.trim(); var nl=parseInt(document.getElementById('lv').value,10); if(nl!==S.level){ S.levelLog=(S.levelLog||[]).concat([{at:today(),to:nl,by:'parent'}]); S.askAfter=0; var ti=todayIndex(); if(!S.done[ti]){ if(S.ai) delete S.ai[ti]; delete S.opened[ti]; S.shown=1; } } S.level=nl; S.autoJa=document.getElementById('aj').checked; S.lockLevel=document.getElementById('lk').checked; save(); this.textContent='ほぞんした'; };
@@ -625,6 +635,6 @@ label.inline{display:flex;gap:8px;align-items:center}
     document.getElementById('more').onclick=function(){ if(maxIndex()<L.trip.length-1){ S.extra++; save(); tab='letter'; render(); } };
     var armed=false; document.getElementById('reset').onclick=function(){ if(!armed){ armed=true; this.textContent='ほんとうに けす？（もう一度おす）'; return; } S=null; try{localStorage.removeItem(KEY)}catch(e){} tab='letter'; render(); };
   }
-  render();
+  render(); setTimeout(prefetchNext, 3000);  // 開いたときにも あしたの手紙を さきよみ
 })();
 </script>
