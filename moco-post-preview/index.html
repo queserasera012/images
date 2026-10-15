@@ -247,13 +247,17 @@ label.inline{display:flex;gap:8px;align-items:center}
   }
   function knownWords(){ var k={}; Object.keys(S.done).forEach(function(d){ (S.done[d].newWords||[]).forEach(function(w){k[w.toLowerCase()]=1}); }); return Object.keys(k); }
   function nameFill(x){ var n=S.name||'friend'; if(typeof x==='string') return x.replace(/\{name\}/g,n); if(Array.isArray(x)) return x.map(nameFill); if(x&&typeof x==='object'){ var o={}; Object.keys(x).forEach(function(k){o[k]=nameFill(x[k])}); return o; } return x; }
+  // 累計メーター：「さいしょから」で消えない（原価の実測用・2026-10-15）。セーブとは別のキー
+  var METER='moco.post.meter';
+  function meterAdd(what, usage, ms){ try{ var m=JSON.parse(localStorage.getItem(METER)||'{}'); m.calls=(m.calls||0)+1; m[what]=(m[what]||0)+1; m.tin=(m.tin||0)+((usage||{}).input_tokens||0); m.tout=(m.tout||0)+((usage||{}).output_tokens||0); if(ms){ m.msSum=(m.msSum||0)+ms; m.msN=(m.msN||0)+1; } m.since=m.since||today(); localStorage.setItem(METER, JSON.stringify(m)); }catch(e){} }
+  function meterText(){ try{ var m=JSON.parse(localStorage.getItem(METER)||'{}'); if(!m.calls) return ''; return '📟 累計（「さいしょから」でも消えない・'+(m.since||'')+' から）：呼んだ回数 '+m.calls+'（手紙 '+(m.letter||0)+'・返事 '+(m.reply||0)+'）／ トークン 入 '+(m.tin||0)+'・出 '+(m.tout||0)+(m.msN?'／ 手紙1通 平均 '+Math.round(m.msSum/m.msN/1000)+'秒':''); }catch(e){ return ''; } }
   function fetchLetter(i){
     var t=tripAt(i);
     var recent=Object.keys(S.done).map(Number).sort(function(a,b){return a-b}).slice(-3).map(function(k){ return {day:L.trip[k].day, place:L.trip[k].en, reply:S.done[k].reply.join(' ')}; });
     return api('/letter',{level:S.level, day:t.day, place:t.place, placeEn:t.en, known:knownWords(), recent:recent, sceneWords:(t.scene||[]).map(function(o){return o.en}), fact:(t.fact||{}).en||''}).then(function(j){
       var lt=nameFill(j.letter); lt.ja=(lt.ja||[]).map(plain); if(S.level>=2||!lt.choices||!lt.choices.length) lt.choices=null; lt.tiles=S.level>=2&&lt.tiles?lt.tiles:[];
       if(S.level<=1 && !lt.choices) throw new Error('no_choices'); if(S.level>=2 && !(lt.frames&&lt.frames.length>=2) && lt.tiles.length<4) throw new Error('no_frames');
-      S.ai=S.ai||{}; S.ai[i]={level:S.level, letter:lt, at:today(), usage:j.usage, off:j.off_list, ms:j._ms}; S.aiLog=(S.aiLog||[]).concat([{at:today(),what:'letter',day:t.day,usage:j.usage,ms:j._ms}]).slice(-30); save(); return lt;
+      S.ai=S.ai||{}; S.ai[i]={level:S.level, letter:lt, at:today(), usage:j.usage, off:j.off_list, ms:j._ms}; S.aiLog=(S.aiLog||[]).concat([{at:today(),what:'letter',day:t.day,usage:j.usage,ms:j._ms}]).slice(-30); meterAdd('letter', j.usage, j._ms); save(); return lt;
     });
   }
   // あしたの手紙を いまのうちに作っておく（へんじを出したあと・アプリを開いたとき）。
@@ -267,7 +271,7 @@ label.inline{display:flex;gap:8px;align-items:center}
   function fetchReply(i, lt, words){
     var nx = i < L.trip.length-1 ? L.trip[i+1].en : 'home';
     return api('/reply',{level:S.level, letter:lt.en.map(plain), reply:words.join(' '), nextPlaceEn:nx}).then(function(j){
-      S.aiLog=(S.aiLog||[]).concat([{at:today(),what:'reply',day:L.trip[i].day,usage:j.usage}]).slice(-30); save(); return nameFill(j.reply);
+      S.aiLog=(S.aiLog||[]).concat([{at:today(),what:'reply',day:L.trip[i].day,usage:j.usage}]).slice(-30); meterAdd('reply', j.usage); save(); return nameFill(j.reply);
     });
   }
   function writing(){ return '<div class="card"><div class="moco"><span class="face">🐾</span><div class="mt">モコが かいてる<span class="dots">…</span></div></div></div>'; }
@@ -634,7 +638,7 @@ label.inline{display:flex;gap:8px;align-items:center}
       '<label>合言葉<input id="sv_tok" type="text" class="secret" value="'+esc(S.token||'')+'" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></label>'+
       '<label class="inline"><input type="checkbox" id="ai"'+(S.useAi?' checked':'')+'> AI の手紙を使う（まだ開いていない手紙から）</label>'+
       '<div class="row"><button class="btn on" id="sv_save">ほぞん</button><button class="btn" id="sv_test">つながるか ためす</button><button class="btn" id="sv_redo">きょうの手紙を 作りなおす</button></div><p class="note" id="sv_msg">'+
-      (function(){ var g=S.aiLog||[]; if(!g.length) return S.aiErr?'さいごのエラー：'+esc(S.aiErr):''; var tin=0,tout=0; g.forEach(function(e){ if(e.usage){tin+=e.usage.input_tokens||0; tout+=e.usage.output_tokens||0;} }); return 'AI を呼んだ回数：'+g.length+'（手紙 '+g.filter(function(e){return e.what==='letter'}).length+'・返事 '+g.filter(function(e){return e.what==='reply'}).length+'）／ トークン 入 '+tin+'・出 '+tout+(function(){ var ms=g.filter(function(e){return e.ms}).map(function(e){return e.ms}); return ms.length?'／ 手紙1通の時間 さいきん '+Math.round(ms[ms.length-1]/1000)+'秒（さいだい '+Math.round(Math.max.apply(null,ms)/1000)+'秒）':''; })()+(function(){ var n=todayIndex(); if(S.done[n]) n++; return n<L.trip.length ? '<br>あしたの手紙：'+(aiAt(n)?'✅ さきよみ ずみ':'まだ（へんじを出したあと・開いたときに 作っておきます）') : ''; })()+(S.aiErr?'<br>さいごのエラー：'+esc(S.aiErr):''); })()+'</p></div>'+
+      (function(){ var mt=meterText(); if(mt) mt='<br>'+mt; var g=S.aiLog||[]; if(!g.length) return (S.aiErr?'さいごのエラー：'+esc(S.aiErr):'')+mt; var tin=0,tout=0; g.forEach(function(e){ if(e.usage){tin+=e.usage.input_tokens||0; tout+=e.usage.output_tokens||0;} }); return 'AI を呼んだ回数：'+g.length+'（手紙 '+g.filter(function(e){return e.what==='letter'}).length+'・返事 '+g.filter(function(e){return e.what==='reply'}).length+'）／ トークン 入 '+tin+'・出 '+tout+(function(){ var ms=g.filter(function(e){return e.ms}).map(function(e){return e.ms}); return ms.length?'／ 手紙1通の時間 さいきん '+Math.round(ms[ms.length-1]/1000)+'秒（さいだい '+Math.round(Math.max.apply(null,ms)/1000)+'秒）':''; })()+(function(){ var n=todayIndex(); if(S.done[n]) n++; return n<L.trip.length ? '<br>あしたの手紙：'+(aiAt(n)?'✅ さきよみ ずみ':'まだ（へんじを出したあと・開いたときに 作っておきます）') : ''; })()+(S.aiErr?'<br>さいごのエラー：'+esc(S.aiErr):'')+mt; })()+'</p></div>'+
       protoButtonsHtml()+
       '<p class="note">本物では モコの返事は AI が書きます。この試作は決まった文です。レベル0〜1 の返事は「絵を選ぶ」（10/13 の直し）。手紙の文は レベルごとに 10日ぶん 用意してあります。</p></div>';
     document.getElementById('sv').onclick=function(){ S.name=document.getElementById('nm').value.trim(); var nl=parseInt(document.getElementById('lv').value,10); if(nl!==S.level){ S.levelLog=(S.levelLog||[]).concat([{at:today(),to:nl,by:'parent'}]); S.askAfter=0; var ti=todayIndex(); if(!S.done[ti]){ if(S.ai) delete S.ai[ti]; delete S.opened[ti]; S.shown=1; } } S.level=nl; S.autoJa=document.getElementById('aj').checked; S.lockLevel=document.getElementById('lk').checked; save(); this.textContent='ほぞんした'; };
