@@ -391,7 +391,7 @@ label.inline{display:flex;gap:8px;align-items:center}
           btn.disabled=true; msg.textContent='';
           wrap.classList.add('opening');
           setTimeout(function(){ wrap.classList.add('gone'); }, 1500);
-          setTimeout(function(){ S.opened[i]=true; S.pcArrive=true; save(); renderLetter(); speak(plain(letterAt(i).en[0])); }, 1850);
+          setTimeout(function(){ S.opened[i]=true; S.pcArrive=true; save(); renderLetter(); var l0=letterAt(i); speak(plain(l0.en[0])+(l0.en.length<=1?' '+l0.q:'')); }, 1850);
         };
         if(aiOn() && !aiAt(i)){
           btn.disabled=true; msg.innerHTML='<span class="pen">✒️</span> モコが てがみを かいてるよ<span class="dots">…</span>';
@@ -439,7 +439,7 @@ label.inline{display:flex;gap:8px;align-items:center}
     if(S.pcArrive){ S.pcArrive=false; save(); }
     if(done){ bindPlay(i); bindPs(); }
     document.getElementById('sp').onclick=function(){ S.spBy=S.spBy||{}; S.spBy[i]=(S.spBy[i]||0)+1; save(); speak(en.slice(0,shown).map(plain).join(' ')+(shown>=en.length?' '+lt.q:'')); };
-    var nx=document.getElementById('next'); if(nx) nx.onclick=function(){ S.shown=shown+1; save(); renderLetter(); speak(plain(en[shown])); };
+    var nx=document.getElementById('next'); if(nx) nx.onclick=function(){ S.shown=shown+1; save(); renderLetter(); speak(plain(en[shown])+(shown+1>=en.length?' '+lt.q:'')); };  // 最後の1文のあとは「モコの しつもん」も続けて読む（2026-10-16・オーナー）
     document.querySelectorAll('.moco .mt').forEach(function(d){ d.onclick=function(){ var j=d.querySelector('.jp'); if(j) j.hidden=!j.hidden; }; });
     document.querySelectorAll('#en p').forEach(function(p){ p.onclick=function(){ var j=p.querySelector('.jp'); j.hidden=!j.hidden; if(!j.hidden){ S.jaTaps++; S.jaBy=S.jaBy||{}; S.jaBy[i]=(S.jaBy[i]||0)+1; save(); } }; });
     if(shown>=en.length && !done && lt.choices){
