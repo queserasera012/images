@@ -47,7 +47,11 @@ h2{font-size:1.05rem;margin:0}
 .env-flap{position:absolute;left:0;right:0;top:0;height:66px;background:linear-gradient(180deg,#f7e3b9,#ecd3a0);border:2px solid var(--pline);border-top-width:2px;box-sizing:border-box;border-radius:10px 10px 0 0;clip-path:polygon(0 0,100% 0,50% 100%);transform-origin:top center;transition:transform .55s ease-in;backface-visibility:hidden}
 .env-seal{position:absolute;left:50%;top:50px;transform:translateX(-50%);width:40px;height:40px;border-radius:50%;background:var(--stamp);color:#fff;display:grid;place-items:center;font-size:1.2rem;box-shadow:0 2px 0 rgba(0,0,0,.15);transition:opacity .3s,transform .3s}
 .env-stamp{position:absolute;right:10px;top:8px;width:34px;height:40px;background:#fff;border:2px dashed var(--pline);border-radius:3px;display:grid;place-items:center;font-size:1.1rem;transform:rotate(6deg)}
-.env-addr{position:absolute;left:16px;bottom:14px;font-family:var(--font-title);font-size:.8rem;color:#8a6a3a;letter-spacing:.02em}
+.env-addr{position:absolute;left:16px;bottom:12px;font-family:var(--font-title);font-size:.85rem;color:#8a6a3a;letter-spacing:.02em}
+.env-addr b{font-weight:400;font-size:1.35rem;color:#5a3a1a;margin-left:4px}
+/* 子どもの名前は 大きく（2026-10-17・オーナー「あなたのために送ってるよ感」） */
+.toname{font-family:var(--font-title);font-size:1.9rem;color:var(--stamp);margin:0;line-height:1.2}
+.nm{font-family:var(--font-title);font-size:1.25em;color:var(--stamp)}
 .envwrap.opening .env{animation:none;transform:translateY(10px)}
 .envwrap.opening .env-flap{transform:rotateX(-178deg);transition-delay:0s}
 .envwrap.opening .env-seal{opacity:0;transform:translateX(-50%) scale(.3)}
@@ -162,7 +166,7 @@ label.inline{display:flex;gap:8px;align-items:center}
 .pcstamp{width:50px;height:62px;background:var(--card);border:1px solid var(--pline);outline:3px dashed var(--pline);outline-offset:-5px;display:grid;place-items:center;gap:0;font-size:1.6rem;line-height:1;padding:6px 2px}
 .pcstamp small{font-size:.42rem;letter-spacing:.05em;color:var(--muted);font-weight:700;line-height:1}
 .pcmark{position:absolute;right:38px;top:14px;width:52px;height:52px;border:2px double var(--muted);border-radius:50%;display:grid;place-items:center;font-size:.6rem;font-weight:700;color:var(--muted);transform:rotate(-14deg);opacity:.7;pointer-events:none;background:transparent;font-family:var(--font-title)}
-.pcto{font-family:var(--font-title);font-size:1rem;color:var(--ink)}
+.pcto{font-family:var(--font-title);font-size:1.4rem;color:var(--stamp)}
 .postcard .en p{border-bottom:1.5px dashed var(--pline);padding-bottom:4px}
 .postcard .en,.postcard .pcto,.postcard .pic{transform:rotate(.6deg)}
 .postcard .q{background:rgba(251,243,228,.9)}
@@ -228,7 +232,9 @@ label.inline{display:flex;gap:8px;align-items:center}
   function daysSince(iso){ var a=new Date(iso+'T00:00:00'), b=new Date(today()+'T00:00:00'); return Math.round((b-a)/86400000); }
   function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]}); }
   function plain(s){ return s.replace(/[{}]/g,''); }
-  function mark(s, words){ return esc(s).replace(/\{([^}]+)\}/g,function(_,w){ return '<span class="nw">'+w+'</span>'; }); }
+  function mark(s, words){ return nameMark(esc(s).replace(/\{([^}]+)\}/g,function(_,w){ return '<span class="nw">'+w+'</span>'; })); }
+  // 文の中の 子どもの名前を 大きく。esc 済みの HTML に掛ける（名前も esc してから探す）
+  function nameMark(h){ var ns=[S&&S.name, S&&S.nameJa].filter(function(n){return n&&n.length>=2}); ns.forEach(function(n){ var e=esc(n).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); h=h.replace(new RegExp('(^|[^\\w>])('+e+')(?=$|[^\\w\\p{sc=Hiragana}\\p{sc=Katakana}\\p{sc=Han}]|[はへがのもにと]|くん|ちゃん)','gu'), function(_,a,b){ return a+'<span class="nm">'+b+'</span>'; }); }); return h; }  // 「そう」が「そうだね」に当たらないよう、名前の後ろは 記号・助詞・くん/ちゃん だけ
   function pickVoice(){ var vs=speechSynthesis.getVoices().filter(function(v){return /^en[-_]/.test(v.lang)}); if(!vs.length) return null;
     var score=function(v){ var n=v.name, s=0; if(/^en[-_]US/.test(v.lang)) s+=4; if(/Enhanced|Premium|Natural|Neural/i.test(n)) s+=6; if(/Samantha|Ava|Allison|Zoe|Nicky|Karen|Moira|Serena|Google US English/i.test(n)) s+=3; if(/Compact|Eloquence|Fred|Albert|Bad News|Bells|Boing|Bubbles|Cellos|Jester|Organ|Trinoids|Whisper|Wobble|Zarvox/i.test(n)) s-=10; if(v.localService) s+=1; return s; };
     return vs.sort(function(a,b){return score(b)-score(a)})[0]; }
@@ -407,9 +413,9 @@ label.inline{display:flex;gap:8px;align-items:center}
     var cls = S.level===0?' l0':'';
     var aiTag = aiAt(i) ? '<span class="note" title="AI が書いた手紙">✨AI</span>' : (aiOn() ? '<span class="note">きまった文（AI が書く前に ひらいた手紙）</span>' : '');
     if(!done && !S.opened[i]){
-      app.innerHTML = '<h1>🐾 モコの えいごポスト</h1><p class="sub">'+(S.name?esc(S.name)+'へ。':'')+'てがみが とどいたよ！</p>'+
+      app.innerHTML = '<h1>🐾 モコの えいごポスト</h1>'+(S.name?'<p class="toname">'+esc(S.nameJa||S.name)+' へ</p>':'')+'<p class="sub">てがみが とどいたよ！</p>'+
         '<div class="card"><div class="envwrap" id="env" role="button" tabindex="0">'+'<span class="spk"></span>'.repeat(10)+
-          '<div class="env"><div class="env-letter"><i></i><i></i><i></i></div><div class="env-body"></div><div class="env-addr">To '+esc(S.name||'you')+'</div><div class="env-stamp">'+t.emoji+'</div><div class="env-flap"></div><div class="env-seal">🐾</div></div></div>'+
+          '<div class="env"><div class="env-letter"><i></i><i></i><i></i></div><div class="env-body"></div><div class="env-addr">To<b>'+esc(S.name||'you')+'</b></div><div class="env-stamp">'+t.emoji+'</div><div class="env-flap"></div><div class="env-seal">🐾</div></div></div>'+
           '<p class="note center" id="envmsg">'+esc(t.en)+' から とどいたよ</p><div class="row center"><button class="btn main big" id="open">ひらく</button></div></div>';
       var busy=false;
       var open=function(){
@@ -436,8 +442,8 @@ label.inline{display:flex;gap:8px;align-items:center}
     var html = '<div class="place"><span class="day">Day '+t.day+'</span><div><b>'+esc(t.place)+'</b><br><small class="sub">'+esc(t.en)+'</small></div></div>'+
       '<div class="card postcard'+cls+(S.pcArrive?' arrive':'')+'"><div class="pchead"><div class="pcfrom">From Moco 🐾<br><small>'+esc(t.en)+'</small></div><div class="pcstamp"><span>'+t.emoji+'</span><small>MOCO POST</small></div><div class="pcmark">Day '+t.day+'</div></div>'+aiTag+
       artPic(t.id, lt.pic||t.emoji)+
-      (S.name&&!/^(hello|hi)\b/i.test(plain(lt.en[0]||''))?'<div class="pcto">Dear '+esc(S.name)+',</div>':'')+
-      '<div class="en" id="en">'+en.slice(0,shown).map(function(s,k){return '<p data-k="'+k+'">'+mark(s,lt.words)+'<span class="jp"'+(S.autoJa?'':' hidden')+'>'+esc(ja[k])+'</span></p>'}).join('')+'</div>'+
+      (S.name&&plain(lt.en[0]||'').indexOf(S.name)<0?'<div class="pcto">Dear '+esc(S.name)+',</div>':'')+  // 1文目に 名前が無ければ 宛名を大きく出す（2026-10-17）
+      '<div class="en" id="en">'+en.slice(0,shown).map(function(s,k){return '<p data-k="'+k+'">'+mark(s,lt.words)+'<span class="jp"'+(S.autoJa?'':' hidden')+'>'+nameMark(esc(ja[k]))+'</span></p>'}).join('')+'</div>'+
       '<div class="row"><button class="btn" id="sp">🔊 きく</button>'+(shown<en.length?'<button class="btn on" id="next">つぎ ▶</button>':'')+'<span class="note">'+(S.autoJa?'':'文を おすと にほんご')+'</span></div>';
     if(shown>=en.length){
       if(!done && lt.choices){
