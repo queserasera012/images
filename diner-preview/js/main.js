@@ -1,6 +1,7 @@
 // 時間を流す・画面に描く・タップを sim に渡す・保存。ルールはここに書かない。
 import * as S from './sim.js';
 import { personSVG, LOOK_COUNT } from './people.js';
+import { stationSVG } from './kitchen-art.js';
 import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS } from './config.js';
 
 const SAVE_KEY = 'diner.proto.v1';
@@ -55,6 +56,7 @@ function paintGuest(el, g, mood) {
   el.innerHTML = personSVG(g.look % LOOK_COUNT, mood);
   for (const k of keep) el.append(k);
 }
+const staffLook = (x) => [...x.name].reduce((a, c) => a + c.charCodeAt(0), 0) % LOOK_COUNT;
 function moodOf(today, g) {
   if (g.state === 'eating') return today.t - g.servedAt < 1.2 ? 'happy' : 'eat';
   const p = S.patienceLeft(today, g);
@@ -159,13 +161,15 @@ function renderService() {
     if (el.dataset.sig !== sig) {
       el.dataset.sig = sig;
       el.className = `station ${st.type} ${state === 'cook' ? 'cooking' : state}`;
-      const lbl = `<span class="lbl">${STATIONS[st.type].name}</span>${staff ? `<span class="staff">${staff.name}</span>` : ''}`;
-      if (!job) el.innerHTML = `${lbl}<span class="idle">あいている</span>`;
-      else if (state === 'cook') el.innerHTML = `${lbl}<span class="food">${DISHES[job.dish].icon}</span><span class="prog"><i></i></span>`;
+      const lbl = `<span class="lbl">${STATIONS[st.type].name}</span>`;
+      const art = stationSVG(st.type, state === 'cook' ? 'cook' : state === 'ready' ? 'ready' : 'idle');
+      const chef = staff ? `<span class="chef">${personSVG(staffLook(staff), 'idle', { chef: true })}<b>${staff.name}</b></span>` : '';
+      if (!job) el.innerHTML = `${art}${lbl}${chef}`;
+      else if (state === 'cook') el.innerHTML = `${art}${lbl}${chef}<span class="food">${DISHES[job.dish].icon}</span><span class="prog"><i></i></span>`;
       else {
         const steps = DISHES[job.dish].steps;
         const next = job.step + 1 < steps.length ? `${STATIONS[steps[job.step + 1][0]].name}へ` : '台へ出す';
-        el.innerHTML = `${lbl}<span class="food">${DISHES[job.dish].icon}</span><span class="done">できた！${staff ? '' : `→${next}`}</span>`;
+        el.innerHTML = `${art}${lbl}${chef}<span class="food">${DISHES[job.dish].icon}</span><span class="done">できた！${staff ? '' : `→${next}`}</span>`;
       }
     }
     if (job && state === 'cook') el.querySelector('.prog i').style.width = `${Math.min(100, (job.prog / DISHES[job.dish].steps[job.step][1]) * 100)}%`;

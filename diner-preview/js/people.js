@@ -53,7 +53,7 @@ function face(mood) {
 
 export const LOOK_COUNT = 12;
 
-export function personSVG(look, mood = 'idle') {
+export function personSVG(look, mood = 'idle', opts = {}) {
   const style = look % STYLES.length;
   const round = Math.floor(look / STYLES.length);
   const hair = HAIR[(look * 5 + 1 + round * 2) % HAIR.length];
@@ -61,11 +61,18 @@ export function personSVG(look, mood = 'idle') {
   const shirt = SHIRT[(look * 7 + 2 + round * 3) % SHIRT.length];
   // 帽子の色は服と別にする
   const cap = SHIRT[(look * 7 + 5 + round) % SHIRT.length];
-  const [back, front] = STYLES[style](style === 5 ? '#d9d6e6' : hair, cap);
+  let [back, front] = STYLES[style](style === 5 ? '#d9d6e6' : hair, cap);
+  let shirtFill = shirt;
+  if (opts.chef) {
+    // コック帽と白い服（髪は短髪にそろえる）
+    back = '';
+    front = `${STYLES[0](hair)[1]}<path d="M11 16 C4 14 6 2 15 4 C17 -2 31 -2 33 4 C42 2 44 14 37 16Z" fill="#ffffff"/><rect x="11" y="12" width="26" height="7" rx="2" fill="#ffffff"/>`;
+    shirtFill = '#ffffff';
+  }
   const cheek = mood === 'angry' ? 0.9 : 0.55;
   return `<svg viewBox="0 0 48 54" class="person" aria-hidden="true">
     <g stroke="${LINE}" stroke-width="2" stroke-linejoin="round">
-      <path d="M7 54 C7 44 13 39.5 24 39.5 C35 39.5 41 44 41 54Z" fill="${shirt}"/>
+      <path d="M7 54 C7 44 13 39.5 24 39.5 C35 39.5 41 44 41 54Z" fill="${shirtFill}"/>
       ${back}
       <circle cx="24" cy="24" r="16" fill="${skin}"/>
       ${front}

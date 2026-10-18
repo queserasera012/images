@@ -82,18 +82,30 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 
 /* ---- 厨房 ---- */
 .kitchen{margin-top:12px;display:grid;grid-template-columns:repeat(var(--cols,3),minmax(0,1fr));gap:8px}
-.station{position:relative;height:clamp(84px,14vh,128px);border-radius:14px;border:3px solid var(--line);box-shadow:0 4px 0 var(--line);background:var(--sc);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
-.station.board{--sc:#ffe2a8}.station.stove{--sc:#ffc2b8}.station.fryer{--sc:#ffd88a}
-.station .lbl{position:absolute;top:4px;left:8px;font-size:11px;font-weight:800}
-.station .food{font-size:30px;line-height:1}
-.station .prog{width:70%;height:7px;border-radius:5px;background:rgba(255,255,255,.7);border:2px solid var(--line);overflow:hidden}
+.station{position:relative;height:clamp(88px,14vh,128px);border-radius:14px;border:3px solid var(--line);box-shadow:0 4px 0 var(--line);background:var(--sc);overflow:hidden}
+.station.board{--sc:#ffe9c4}.station.stove{--sc:#ffd6cf}.station.fryer{--sc:#fff0b8}
+.station .k-art{position:absolute;left:4%;right:4%;bottom:6px;width:92%;height:auto;max-height:78%}
+.station .lbl{position:absolute;top:4px;left:7px;font-size:10px;font-weight:800;background:rgba(255,255,255,.8);border-radius:6px;padding:0 5px;z-index:2}
+.station .food{position:absolute;left:50%;top:18%;transform:translateX(-50%);font-size:28px;line-height:1;z-index:3;filter:drop-shadow(0 2px 0 rgba(42,35,80,.25))}
+.station .prog{position:absolute;left:12%;right:12%;bottom:5px;height:7px;border-radius:5px;background:rgba(255,255,255,.85);border:2px solid var(--line);overflow:hidden;z-index:3}
 .station .prog i{display:block;height:100%;background:var(--mint)}
-.station .idle{font-size:11px;color:var(--ink2);font-weight:800}
 .station.ready{background:var(--yolk);animation:bounce .6s infinite}
-.station.ready .done{font-family:var(--pop);font-size:13px;color:var(--red-d)}
-.station .staff{position:absolute;right:4px;top:4px;font-size:9px;font-weight:800;background:var(--paper);border:2px solid var(--line);border-radius:8px;padding:0 4px}
+.station.ready .k-art{opacity:.55}
+.station .done{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-family:var(--pop);font-weight:800;font-size:13px;color:var(--red-d);text-shadow:0 0 4px #fff,0 0 4px #fff;z-index:3}
+.station .chef{position:absolute;right:2px;top:2px;width:26px;z-index:2;display:flex;flex-direction:column;align-items:center}
+.station .chef .person{width:26px;height:30px;overflow:visible}
+.station .chef b{font-size:8px;background:#fff;border:1.5px solid var(--line);border-radius:5px;padding:0 3px;margin-top:-4px;white-space:nowrap}
 .station.cooking .food{animation:sizzle .5s infinite}
-
+.k-chop{animation:chop .35s infinite;transform-box:view-box}
+.k-fire{animation:flicker .3s infinite alternate;transform-origin:44px 38px;transform-box:view-box}
+.k-steam path{animation:steam 1.2s infinite;transform-box:view-box}
+.k-steam path:nth-child(2){animation-delay:.4s}.k-steam path:nth-child(3){animation-delay:.8s}
+.k-bubbles circle{animation:bubble .8s infinite;transform-box:fill-box;transform-origin:center}
+.k-bubbles circle:nth-child(2){animation-delay:.27s}.k-bubbles circle:nth-child(3){animation-delay:.53s}
+@keyframes chop{0%,100%{transform:rotate(0)}50%{transform:rotate(-14deg)}}
+@keyframes flicker{0%{transform:scaleY(.85)}100%{transform:scaleY(1.1)}}
+@keyframes steam{0%{opacity:0;transform:translateY(6px)}40%{opacity:.9}100%{opacity:0;transform:translateY(-6px)}}
+@keyframes bubble{0%{transform:scale(.3);opacity:0}50%{opacity:1}100%{transform:scale(1.2);opacity:0}}
 /* ---- 受け渡し台 ---- */
 .pass-wrap{margin-top:12px;background:var(--wood);border:3px solid var(--line);border-radius:12px;box-shadow:0 4px 0 var(--line);padding:6px 8px;display:flex;align-items:center;gap:8px;min-height:64px}
 .pass-label{font-family:var(--pop);font-size:12px;color:#fff;writing-mode:vertical-rl;letter-spacing:.1em;text-shadow:0 2px 0 var(--wood-d)}
