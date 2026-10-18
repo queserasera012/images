@@ -488,11 +488,12 @@ export function openPlay({ game, getState, onChange, close: onClose }) {
     ctx.lineTo(-24, 9);
     ctx.closePath();
     ctx.fill();
+    ctx.strokeStyle = C.ink;
+    ctx.lineWidth = 1.5;
+    ctx.stroke(); // 尻尾にも ふち（白い魚は ふちが無いと 水に とけて 切れて見えた）
     ctx.beginPath();
     ctx.ellipse(0, 0, 17, 11, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = C.ink;
-    ctx.lineWidth = 1.5;
     ctx.stroke();
     if (f.stripe) {
       ctx.save();

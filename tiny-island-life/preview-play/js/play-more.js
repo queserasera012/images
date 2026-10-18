@@ -60,6 +60,11 @@ export const BELL = { notes: 16, hitX: 70, ok: 18, gap: 640, speed: 0.14 }; // s
 export const bellHit = (x) => Math.abs(x - BELL.hitX) <= BELL.ok;
 
 export const COUNT = { rounds: 8, show: 1700, min: 2, max: 9 };
+// 風船の数：はじめは 2〜3こ、1回ごとに 多くなる（いきなり 9こ だと 面食らう・2026-10-19 オーナー）
+export const countRange = (round) => {
+  const hi = Math.min(COUNT.max, 3 + round);
+  return [Math.max(COUNT.min, hi - 3), hi];
+};
 export function countChoices(n) {
   const near = shuffle([n - 1, n + 1, n - 2, n + 2].filter((k) => k >= 1));
   return shuffle([n, near[0], near[1]]);
@@ -828,7 +833,8 @@ export const MORE = {
     make(api) {
       const S = { n: 0, balls: [], choices: [], t0: 0, picked: null, results: [] };
       const newQ = (now) => {
-        const n = Math.floor(rand(COUNT.min, COUNT.max + 1));
+        const [lo, hi] = countRange(S.n);
+        const n = Math.floor(rand(lo, hi + 1));
         const balls = [];
         while (balls.length < n) {
           const b = { x: rand(36, 244), y: rand(40, 170), col: pick([C.red, C.mustard, C.sky, C.green]) };
