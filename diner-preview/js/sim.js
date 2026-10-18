@@ -42,7 +42,7 @@ export function createState(seed = (Date.now() >>> 0)) {
     v: SAVE_VERSION, seed, day: 1, money: START.money, rep: REP.start, stage: 0, totalSales: 0,
     seats: START.seats, stations, staff: [], menu, prep, known: Object.keys(menu), tried: [],
     regulars, ads: 0, boosts: { market: false, flyer: false, freeTrial: false },
-    history: [], lastReport: null, today: null, phase: 'night',
+    history: [], log: [{ day: 1, kind: 'open', text: '屋台を開いた' }], lastReport: null, today: null, phase: 'night',
   };
 }
 
@@ -81,6 +81,9 @@ export function buy(s, kind) {
   return { ok: true };
 }
 
+// あゆみ（外観のタブに出す出来事）
+function note(s, kind, text) { s.log.push({ day: s.day, kind, text }); if (s.log.length > 40) s.log.shift(); }
+
 export function canHire(s, role) {
   if (s.staff.length >= stageOf(s).maxStaff) return { ok: false, why: `${stageOf(s).name}では ここまで` };
   if (role !== 'hall' && !s.stations.some((st) => st.type === role)) return { ok: false, why: `${STATIONS[role].name}が無い` };
@@ -92,6 +95,7 @@ export function hire(s, role) {
   const used = new Set(s.staff.map((x) => x.name));
   const name = STAFF_NAMES.find((n) => !used.has(n)) || `スタッフ${s.staff.length + 1}`;
   s.staff.push({ id: `st${s.day}_${s.staff.length}`, name, role });
+  if (!s.log.some((x) => x.kind === 'staff')) note(s, 'staff', `はじめてのスタッフ ${name}さん`);
   return { ok: true, name };
 }
 export function fire(s, staffId) { s.staff = s.staff.filter((x) => x.id !== staffId); }
@@ -108,6 +112,7 @@ export function expand(s) {
   if (!n || !n.ready || !n.affordable) return { ok: false };
   s.money -= n.price;
   s.stage += 1;
+  note(s, 'stage', `${n.name}になった`);
   return { ok: true, name: n.name };
 }
 
@@ -126,6 +131,7 @@ export function tryRecipe(s, a, b) {
     s.known.push(id);
     s.menu[id] = { on: true, price: d.base };
     s.prep[id] = 6;
+    note(s, 'recipe', `${d.name}を考えた`);
     return { ok: true, found: id };
   }
   return { ok: true, found: null };
@@ -412,7 +418,9 @@ function closeDay(s) {
   }
   const wage = wages(s);
   s.money -= wage;
+  const before = s.totalSales;
   s.totalSales += st.sales;
+  for (const m of [10000, 50000, 100000, 300000, 1000000]) if (before < m && s.totalSales >= m) note(s, 'sales', `売上の合計が ${m.toLocaleString('ja-JP')}円に`);
 
   // 常連さんのようす
   const notes = [];
@@ -460,6 +468,6 @@ export function parseSave(text) {
     const o = JSON.parse(text);
     if (!o || o.v !== SAVE_VERSION || typeof o.money !== 'number' || !Array.isArray(o.stations)) return null;
     const base = createState(o.seed);
-    return { ...base, ...o, regulars: { ...base.regulars, ...o.regulars }, boosts: { ...base.boosts, ...o.boosts }, today: null };
+    return { ...base, ...o, regulars: { ...base.regulars, ...o.regulars }, log: Array.isArray(o.log) ? o.log : base.log, boosts: { ...base.boosts, ...o.boosts }, today: null };
   } catch { return null; }
 }

@@ -2,6 +2,7 @@
 import * as S from './sim.js';
 import { personSVG, LOOK_COUNT } from './people.js';
 import { stationSVG } from './kitchen-art.js';
+import { exteriorSVG } from './exterior.js';
 import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS } from './config.js';
 
 const SAVE_KEY = 'diner.proto.v1';
@@ -14,7 +15,7 @@ let s = load() || S.createState();
 let ui = loadUi();
 let paused = false;
 let lastEv = 0;
-let tab = 'menu';
+let tab = 'look';
 
 function load() { try { const t = localStorage.getItem(SAVE_KEY); return t ? S.parseSave(t) : null; } catch { return null; } }
 function save() { try { localStorage.setItem(SAVE_KEY, S.serialize(s)); } catch { /* 保存できなくても遊べる */ } }
@@ -306,7 +307,7 @@ function countUp(el, to) {
 }
 
 // ---- 夜の準備 ----
-const TABS = [['menu', 'メニュー'], ['prep', '仕込み'], ['shop', 'お店'], ['staff', '人'], ['book', 'レシピ帳']];
+const TABS = [['look', '外観'], ['menu', 'メニュー'], ['prep', '仕込み'], ['shop', '設備'], ['staff', '人'], ['book', 'レシピ']];
 function renderNight() {
   const ns = S.nextStage(s);
   $('nightTitle').textContent = `${s.day}日目の準備`;
@@ -323,6 +324,25 @@ function renderNight() {
 }
 
 const PANELS = {
+  look() {
+    const st = S.stageOf(s), ns = S.nextStage(s);
+    const facts = [['席', `${s.seats}`], ['台', `${s.stations.length}`], ['スタッフ', `${s.staff.length}人`], ['評判', `${Math.round(s.rep)}`]]
+      .map(([k, v]) => `<div><small>${k}</small><b>${v}</b></div>`).join('');
+    let next = '';
+    if (ns) {
+      const a = Math.min(1, s.totalSales / ns.unlock.totalSales), b = Math.min(1, s.rep / ns.unlock.rep);
+      next = `<div class="sec">つぎの姿：${ns.name}</div>
+        <div class="ghost">${exteriorSVG(s, s.stage + 1)}${ns.ready ? '<span class="ok">広げられる！</span>' : '<span>？</span>'}</div>
+        <small style="font-weight:800">売上の合計 ${yen(s.totalSales)} / ${yen(ns.unlock.totalSales)}</small><div class="meter"><i style="width:${a * 100}%"></i></div>
+        <small style="font-weight:800">評判 ${Math.round(s.rep)} / ${ns.unlock.rep}</small><div class="meter"><i style="width:${b * 100}%"></i></div>
+        ${ns.ready ? '<small style="font-weight:800;color:var(--ink2)">「設備」のタブから 広げられる</small>' : ''}`;
+    }
+    const log = s.log.slice().reverse().map((e) => `<li class="k-${e.kind}"><small><em>${e.day}</em>日目</small>${e.text}</li>`).join('');
+    return `<div class="exwrap">${exteriorSVG(s)}<div class="exname">${st.name}</div></div>
+      <div class="facts">${facts}</div>
+      ${next}
+      <div class="sec">あゆみ</div><ol class="ayumi">${log}</ol>`;
+  },
   menu() {
     const rows = s.known.map((id) => {
       const d = DISHES[id], m = s.menu[id];

@@ -174,7 +174,7 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 .switch.on{background:var(--mint)}.switch.on::after{left:19px}
 .sec{font-family:var(--pop);font-size:14px;margin:4px 2px 0}
 .boosts{display:flex;gap:8px;flex-wrap:wrap}
-.meter{height:10px;border-radius:6px;background:#eee;border:2px solid var(--line);overflow:hidden;margin-top:3px}
+.meter{flex-shrink:0;height:10px;border-radius:6px;background:#eee;border:2px solid var(--line);overflow:hidden;margin-top:3px}
 .meter i{display:block;height:100%;background:var(--mint)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chips button{font-weight:800;font-size:13px;padding:7px 11px;border-radius:999px;border:2.5px solid var(--line);background:#fff;box-shadow:0 2px 0 var(--line)}
@@ -213,3 +213,23 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 @keyframes fall{0%{transform:translateY(0) rotate(0)}100%{transform:translateY(110vh) rotate(720deg)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media (max-height:700px){.scene{min-height:150px}.seat{height:58px}.kitchen,.pass-wrap{margin-top:8px}.rail-title{margin-top:8px}}
+/* 外観タブ */
+.exwrap{position:relative}
+.exterior{display:block;width:100%;height:auto;border:2.5px solid var(--line);border-radius:16px;background:#fff}
+.exname{position:absolute;left:10px;top:10px;font-family:var(--pop);font-size:15px;background:#fff;border:2.5px solid var(--line);border-radius:999px;padding:3px 12px;box-shadow:0 3px 0 var(--line)}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.facts div{background:#fff;border:2.5px solid var(--line);border-radius:12px;padding:4px 0;text-align:center;line-height:1.1}
+.facts small{display:block;font-size:10px;font-weight:800;color:var(--ink2)}
+.facts b{font-family:var(--num);font-size:16px}
+.ghost{position:relative}
+.ghost .exterior{filter:grayscale(1) brightness(1.15);opacity:.5}
+.ghost span{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--pop);font-size:44px;color:var(--line);opacity:.6}
+.ghost span.ok{font-size:20px;opacity:1}
+.ghost span.ok::before{content:'';position:absolute;inset:auto;width:auto}
+.ayumi{list-style:none;margin:0;padding:0 0 0 14px;border-left:3px dotted var(--line);display:flex;flex-direction:column;gap:6px}
+.ayumi li{position:relative;font-weight:800;font-size:13px;background:#fff;border:2px solid var(--line);border-radius:10px;padding:5px 10px}
+.ayumi li::before{content:'';position:absolute;left:-23px;top:9px;width:12px;height:12px;border-radius:50%;background:var(--yel,#ffd23f);border:2px solid var(--line)}
+.ayumi li.k-stage::before{background:#ff4f5e}
+.ayumi li small{color:var(--ink2);margin-right:8px;font-size:11px}
+.ayumi li em{font-style:normal;font-family:var(--num);font-size:13px;margin-right:1px}
+.tab{font-size:11px}
