@@ -188,7 +188,7 @@ export function startDay(s) {
   arrivals.sort((a, b) => a - b);
   // 常連さん（来る日を決める）
   const regs = REGULARS.filter((r) => s.day >= 2 && rand(today) < REGULAR.chance + s.regulars[r.id].love * 0.08);
-  today.arrivals = arrivals.map((at, i) => ({ at, look: Math.floor(rand(today) * 6), reg: null, i }));
+  today.arrivals = arrivals.map((at, i) => ({ at, look: Math.floor(rand(today) * 12), reg: null, i }));
   for (const r of regs) {
     const a = today.arrivals[Math.floor(rand(today) * today.arrivals.length)];
     if (a && !a.reg) { a.reg = r.id; a.look = r.look; }

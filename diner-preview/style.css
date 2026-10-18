@@ -51,22 +51,19 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 .menuboard{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;padding-right:30px}
 .menuboard span{background:#5a3a22;color:#fff3d6;border:2px solid var(--line);border-radius:6px;padding:1px 6px;font-size:10px;font-weight:800;white-space:nowrap;box-shadow:0 2px 0 var(--line)}
 .menuboard span.out{background:#999;text-decoration:line-through}
-.seat{position:relative;height:66px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
-.seat::after{content:"";width:34px;height:12px;border-radius:6px;background:var(--wood);border:2.5px solid var(--line);margin-top:-4px}
-.seat.empty::before{content:"";position:absolute;bottom:14px;width:26px;height:26px;border-radius:50%;border:2px dashed rgba(42,35,80,.25)}
+.seat{position:relative;height:72px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+.seat::after{content:"";width:40px;height:12px;border-radius:6px;background:var(--wood);border:2.5px solid var(--line);margin-top:-6px;position:relative;z-index:2}
+.seat.empty::before{content:"";position:absolute;bottom:16px;width:30px;height:30px;border-radius:50%;border:2px dashed rgba(42,35,80,.25)}
 
-/* お客さん（顔） */
-.guest{position:relative;width:40px;height:40px;border-radius:50%;border:2.5px solid var(--line);background:var(--c,#ffd7b5);flex-shrink:0;z-index:1}
-.guest::before,.guest::after{content:"";position:absolute;top:42%;width:5px;height:6px;border-radius:50%;background:var(--line)}
-.guest::before{left:30%}.guest::after{right:30%}
-.guest .mouth{position:absolute;left:50%;bottom:22%;width:10px;height:5px;margin-left:-5px;border-bottom:2.5px solid var(--line);border-radius:0 0 8px 8px}
-.guest .hair{position:absolute;inset:-3px -3px 55% -3px;border-radius:40px 40px 6px 6px;background:var(--h,#3b2a1f);border:2.5px solid var(--line);border-bottom:0}
-.guest.angry{animation:shake .35s infinite;--c:#ffb3a7}
-.guest.angry .mouth{border-bottom:0;border-top:2.5px solid var(--line);border-radius:8px 8px 0 0;bottom:16%}
-.guest.eating .mouth{width:8px;height:8px;margin-left:-4px;border:2.5px solid var(--line);border-radius:50%;animation:chew .4s infinite}
+/* お客さん（絵は people.js の SVG） */
+.guest{position:relative;width:46px;height:52px;flex-shrink:0;z-index:1}
+.guest .person{display:block;width:100%;height:100%;overflow:visible}
+.guest.angry{animation:shake .35s infinite}
+.guest .chew{animation:chew .4s infinite;transform-origin:24px 31px;transform-box:view-box}
 .guest.enter{animation:pop .35s cubic-bezier(.3,1.6,.5,1)}
-.ring{position:absolute;inset:-6px;border-radius:50%;background:conic-gradient(var(--rc) calc(var(--p)*1turn),transparent 0);-webkit-mask:radial-gradient(circle,transparent 25px,#000 26px);mask:radial-gradient(circle,transparent 25px,#000 26px);z-index:0}
-.bubble{position:absolute;top:-6px;right:-10px;background:var(--paper);border:2px solid var(--line);border-radius:12px;padding:0 4px;font-size:15px;line-height:22px;z-index:2;animation:pop .3s}
+.queue .guest{width:38px;height:43px}
+.bubble{position:absolute;top:-8px;right:-14px;width:28px;height:28px;border-radius:50%;padding:3px;background:conic-gradient(var(--rc,var(--mint)) calc(var(--p,1)*1turn),#e6e1f5 0);border:2px solid var(--line);z-index:2;animation:pop .3s}
+.bubble span{display:grid;place-items:center;width:100%;height:100%;border-radius:50%;background:#fff;font-size:13px;line-height:1}
 .tag{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:800;background:var(--yolk);border:2px solid var(--line);border-radius:6px;padding:0 4px;white-space:nowrap;z-index:3}
 
 /* ---- 札 ---- */

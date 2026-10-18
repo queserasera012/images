@@ -1,5 +1,6 @@
 // 時間を流す・画面に描く・タップを sim に渡す・保存。ルールはここに書かない。
 import * as S from './sim.js';
+import { personSVG, LOOK_COUNT } from './people.js';
 import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS } from './config.js';
 
 const SAVE_KEY = 'diner.proto.v1';
@@ -44,14 +45,20 @@ function toast(text) {
 // タップは押した瞬間に受ける（描き直しで要素が入れかわっても取りこぼさない）
 function onTap(el, fn) { el.addEventListener('pointerdown', (e) => { if (e.button > 0) return; fn(e); }); }
 
-const LOOKS = [
-  ['#ffd7b5', '#3b2a1f'], ['#f6c79c', '#ff8a3d'], ['#ffe0c7', '#6b4eff'],
-  ['#e9b48f', '#2a2350'], ['#ffd7b5', '#ff4f5e'], ['#f3c3a0', '#2fd39e'],
-];
-function guestEl() { return h('div', 'guest', '<i class="hair"></i><i class="mouth"></i>'); }
-function paintGuest(el, g) {
-  const [c, hair] = LOOKS[g.look % LOOKS.length];
-  el.style.setProperty('--c', c); el.style.setProperty('--h', hair);
+function guestEl() { return h('div', 'guest'); }
+// 表情が変わったときだけ描き直す
+function paintGuest(el, g, mood) {
+  const key = `${g.look}|${mood}`;
+  if (el._k === key) return;
+  el._k = key;
+  const keep = [...el.querySelectorAll('.bubble,.tag')];
+  el.innerHTML = personSVG(g.look % LOOK_COUNT, mood);
+  for (const k of keep) el.append(k);
+}
+function moodOf(today, g) {
+  if (g.state === 'eating') return today.t - g.servedAt < 1.2 ? 'happy' : 'eat';
+  const p = S.patienceLeft(today, g);
+  return p < 0.3 ? 'angry' : p < 0.6 ? 'wait' : 'idle';
 }
 const ringColor = (p) => (p > 0.5 ? 'var(--mint)' : p > 0.25 ? 'var(--yolk)' : 'var(--red)');
 
@@ -82,8 +89,9 @@ function renderService() {
     (g) => (g.more ? h('div', 'more') : (() => { const e = guestEl(); e.classList.add('enter'); return e; })()),
     (el, g) => {
       if (g.more) { el.textContent = `+${g.more}`; return; }
-      paintGuest(el, g);
-      el.classList.toggle('angry', S.patienceLeft(today, g) < 0.3);
+      const m = moodOf(today, g);
+      paintGuest(el, g, m);
+      el.classList.toggle('angry', m === 'angry');
     });
 
   // 席
@@ -98,24 +106,21 @@ function renderService() {
       el.classList.toggle('empty', !g);
       if (g) {
         const ge = guestEl(); ge.classList.add('enter');
-        ge.append(h('i', 'ring'));
         el.append(ge);
         if (g.reg) el.append(h('div', 'tag', REGULARS.find((r) => r.id === g.reg).name.replace('さん', '')));
       }
     }
     if (!g) return;
     const ge = el.querySelector('.guest');
-    paintGuest(ge, g);
+    const mood = moodOf(today, g);
+    paintGuest(ge, g, mood);
     const p = S.patienceLeft(today, g);
-    const ring = ge.querySelector('.ring');
-    ring.hidden = g.state !== 'seated';
-    ring.style.setProperty('--p', Math.max(0, p)); ring.style.setProperty('--rc', ringColor(p));
-    ge.classList.toggle('angry', g.state === 'seated' && p < 0.3);
-    ge.classList.toggle('eating', g.state === 'eating');
+    ge.classList.toggle('angry', mood === 'angry');
+    // 吹き出し：頼んだ料理と、あとどれだけ待てるか（まわりの輪）
     let b = el.querySelector('.bubble');
     if (g.state === 'seated' && g.dish) {
-      if (!b) { b = h('div', 'bubble'); ge.append(b); }
-      b.textContent = DISHES[g.dish].icon;
+      if (!b) { b = h('div', 'bubble', `<span>${DISHES[g.dish].icon}</span>`); ge.append(b); }
+      b.style.setProperty('--p', Math.max(0, p)); b.style.setProperty('--rc', ringColor(p));
     } else if (b) b.remove();
   });
 
