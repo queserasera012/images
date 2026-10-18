@@ -781,6 +781,20 @@ h3 .dot { width: 14px; height: 14px; }
 .janken-me button small { font-size: 12px; color: var(--ink); font-weight: 700; }
 .janken-me button.picked { background: #f2b84b; }
 .arcade-buttons { gap: 8px; }
+/* 施設のあそび（おぼえる）：「ここでやめる」と「つぎへ」を並べる（2026-10-18） */
+.play-buttons { gap: 8px; }
+.play-buttons button { white-space: nowrap; }
+.play-stop {
+  height: 42px;
+  padding: 0 18px;
+  border: 2px solid var(--ink);
+  border-radius: 21px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+}
+.play-stop[hidden] { display: none; }
 .arcade-menu-btn {
   height: 42px; padding: 0 18px; border: 0; border-radius: 21px; background: #e8eef2; color: var(--ink); font-size: 15px; font-weight: 700;
 }

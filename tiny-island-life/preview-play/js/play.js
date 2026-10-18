@@ -7,7 +7,7 @@
 //   プール（飛び込み）       … くるっと回って 頭が下になったら押す。5回のうち きれいに入った数（4回で）
 //   水族館（魚さがし）       … 上の「この魚」と同じ魚を押す。8回のうち みつけた数（6ひきで）
 //   小学校（たし算）         … こたえを3つから押す。10問のうち あった数（8問で）
-//   大学（おぼえる）         … 光った順に押す。おぼえられた長さ（5こで）
+//   大学（おぼえる）         … 光った順に押す。おぼえられた長さ（5こで）。1つ おぼえるたびに「つぎへ／ここでやめる」を選べる
 //   会社（書類の仕分け）     … 青い書類は左、赤い書類は右を押す。15まいのうち あった数（12まいで）
 // 判定は ここの関数（test から呼べる）、コインは sim.js が決める。紙の大きさは どのゲームも同じ（D306）
 
@@ -103,7 +103,7 @@ export function openPlay({ game, getState, onChange, close: onClose }) {
     <div class="game-head"><b>${TITLE[game]}</b><span class="game-left"></span><button class="game-x" type="button" aria-label="とじる">×</button></div>
     <canvas width="${SIZE}" height="${SIZE}"></canvas>
     <p class="game-msg"></p>
-    <div class="game-buttons"><button class="game-again" type="button" hidden>もう一度</button></div>
+    <div class="game-buttons play-buttons"><button class="play-stop" type="button" hidden>やめる</button><button class="game-again" type="button" hidden>もう一度</button></div>
   </div>`;
   document.body.appendChild(root);
   const canvas = root.querySelector('canvas');
@@ -123,7 +123,16 @@ export function openPlay({ game, getState, onChange, close: onClose }) {
     const left = sportLeft(state);
     root.querySelector('.game-left').textContent = left > 0 ? `${dayNow(state)} の${money()}（${gameCoin(state, CONFIG.sports.coin)}）あと ${left}回` : `${money()}は ${backAt(state)}`;
   };
-  const again = (show) => (root.querySelector('.game-again').hidden = !show);
+  const again = (show, label = 'もう一度') => {
+    const b = root.querySelector('.game-again');
+    b.hidden = !show;
+    b.textContent = label;
+  };
+  // おぼえる：おぼえられたら、つぎへ進むか ここでやめるかを えらぶ（2026-10-18 オーナー：やめどきが 間違えたときしか無かった）
+  const choose = (show) => {
+    again(show, `つぎへ（${Q.seq.length + 1}こ）`);
+    root.querySelector('.play-stop').hidden = !show;
+  };
   const loop = (fn) => {
     const tick = (now) => {
       if (!cur) return;
@@ -148,6 +157,7 @@ export function openPlay({ game, getState, onChange, close: onClose }) {
     const extra = res.coin ? `　+${res.coin} ${money()}` : !res.skilled ? `　（${need}で ${money()}）` : '';
     msg(`${text}${extra}`);
     showLeft();
+    root.querySelector('.play-stop').hidden = true;
     again(true);
     draw(performance.now());
     onChange?.(res);
@@ -246,7 +256,7 @@ export function openPlay({ game, getState, onChange, close: onClose }) {
 
   // ---------------------------------------------------------------- おぼえる（大学）
   const PAD_COLORS = [C.red, C.mustard, C.sky, C.green];
-  const Q = { seq: [], show: true, t0: 0, input: 0, flash: null, wrong: null };
+  const Q = { seq: [], show: true, t0: 0, input: 0, flash: null, wrong: null, clear: null }; // wrong = { at, p, want }・clear = { p }（おぼえた板）
   function showSeq(now) {
     Q.show = true;
     Q.t0 = now + 600;
@@ -260,7 +270,9 @@ export function openPlay({ game, getState, onChange, close: onClose }) {
       if (t >= 0 && i < Q.seq.length && t - i * (MEMO.on + MEMO.off) < MEMO.on) return Q.seq[i];
       return -1;
     }
-    if (Q.flash && now - Q.flash.at < 260) return Q.flash.p;
+    if (Q.clear) return Q.clear.p; // おぼえられた：さいごに押した板を 光らせたまま
+    if (Q.wrong) return Q.wrong.p;
+    if (Q.flash && now - Q.flash.at < 420) return Q.flash.p;
     return -1;
   };
 
@@ -276,6 +288,7 @@ export function openPlay({ game, getState, onChange, close: onClose }) {
     cur.score = 0;
     cur.phase = 'play';
     again(false);
+    root.querySelector('.play-stop').hidden = true;
     const now = performance.now();
     msg(HOW[game]);
     if (game === 'planetarium') Object.assign(P, { n: 0, star: null, next: now + 600, results: [] });
@@ -289,7 +302,7 @@ export function openPlay({ game, getState, onChange, close: onClose }) {
       Object.assign(M, { n: 0, results: [] });
       newQuestion(now);
     } else if (game === 'college') {
-      Object.assign(Q, { seq: Array.from({ length: MEMO.start }, r4), flash: null, wrong: null });
+      Object.assign(Q, { seq: Array.from({ length: MEMO.start }, r4), flash: null, wrong: null, clear: null });
       showSeq(now);
     } else Object.assign(W, { n: 0, paper: null, next: now + 500, results: [] });
     loop(frame);
@@ -350,7 +363,7 @@ export function openPlay({ game, getState, onChange, close: onClose }) {
         Q.show = false;
         msg('同じ順に 押す');
       }
-      if (Q.wrong && now - Q.wrong > 700) return finish(cur.score ? `${cur.score}こ まで おぼえた` : 'もう一度 やってみよう');
+      if (Q.wrong && now - Q.wrong.at > 900) return finish(cur.score ? `${cur.score}こ まで おぼえた` : 'もう一度 やってみよう');
     } else {
       const p = W.paper;
       if (!p && now >= W.next) {
@@ -410,28 +423,22 @@ export function openPlay({ game, getState, onChange, close: onClose }) {
       if (ok) cur.score += 1;
       msg(ok ? 'せいかい！' : `こたえは ${M.q.answer}`);
     } else if (game === 'college') {
-      if (Q.show || Q.wrong) return;
+      if (Q.show || Q.wrong || Q.clear) return;
       const p = padAt(x, y);
       if (p < 0) return;
       Q.flash = { p, at: now };
       if (p !== Q.seq[Q.input]) {
-        Q.wrong = now;
-        msg('ちがった');
+        Q.wrong = { at: now, p, want: Q.seq[Q.input] };
+        msg('ちがった（まるの板だった）');
         return;
       }
       Q.input += 1;
       if (Q.input === Q.seq.length) {
         cur.score = Q.seq.length;
-        if (Q.seq.length >= MEMO.max) {
-          Q.wrong = now; // おしまい（ここまで ぜんぶ おぼえた）
-          return;
-        }
-        msg(`${Q.seq.length}こ おぼえた！`);
-        Q.seq.push(r4());
-        Q.show = true;
-        Q.t0 = now + 900;
-        Q.input = 0;
-        cur.timers.push(setTimeout(() => cur && Q.show && msg('よく見て…'), 700));
+        Q.clear = { p };
+        if (Q.seq.length >= MEMO.max) return finish(`すごい！ ${cur.score}こ ぜんぶ おぼえた`);
+        msg(`すごい！ ${Q.seq.length}こ おぼえた`);
+        choose(true);
       }
     } else {
       const p = W.paper;
@@ -631,20 +638,36 @@ export function openPlay({ game, getState, onChange, close: onClose }) {
       dots(M.results, MATH.questions, 268);
     } else if (game === 'college') {
       bg('#f4f9fc', '#e8f3fa');
-      const lit = playing ? litPad(now) : -1;
+      const lit = cur.phase === 'ready' ? -1 : litPad(now);
+      const ring = (p, color, width = 4) => {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.beginPath();
+        ctx.roundRect(p.x, p.y, MEMO.w, MEMO.w, 18);
+        ctx.stroke();
+      };
       MEMO.pads.forEach((p, i) => {
         ctx.globalAlpha = lit === i ? 1 : 0.32;
         box(p.x, p.y, MEMO.w, MEMO.w, 18, PAD_COLORS[i]);
         ctx.globalAlpha = 1;
-        if (lit === i) {
-          ctx.strokeStyle = C.ink;
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.roundRect(p.x, p.y, MEMO.w, MEMO.w, 18);
-          ctx.stroke();
-        }
+        if (lit === i) ring(p, Q.wrong && Q.wrong.p === i ? '#c8553d' : C.ink);
       });
-      if (playing && !Q.show) text(`${Q.input} / ${Q.seq.length}`, 140, 268, 13, C.muted);
+      // 押した板（光が消えても分かるように 点を残す）・まちがえたら 正しい板に まる
+      if (!Q.show && Q.flash && cur.phase !== 'ready') {
+        const p = MEMO.pads[Q.flash.p];
+        dot(p.x + MEMO.w / 2, p.y + MEMO.w / 2, 9, Q.wrong ? '#c8553d' : C.ink);
+      }
+      if (Q.wrong) {
+        const w = MEMO.pads[Q.wrong.want];
+        dot(w.x + MEMO.w / 2, w.y + MEMO.w / 2, 18, 'rgba(255,255,255,0.9)');
+        ctx.strokeStyle = C.ink;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(w.x + MEMO.w / 2, w.y + MEMO.w / 2, 18, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      if (playing && Q.clear) text(`${Q.seq.length}こ おぼえた`, 140, 268, 13, C.ink);
+      else if (playing && !Q.show) text(`${Q.input} / ${Q.seq.length}`, 140, 268, 13, C.muted);
       else if (playing) text(`${Q.seq.length}こ`, 140, 268, 13, C.muted);
     } else {
       bg('#f4f9fc', '#e8f3fa');
@@ -698,7 +721,21 @@ export function openPlay({ game, getState, onChange, close: onClose }) {
     ev.preventDefault();
     tap(ev);
   });
-  root.querySelector('.game-again').addEventListener('click', () => start());
+  root.querySelector('.game-again').addEventListener('click', () => {
+    if (game === 'college' && cur.phase === 'play' && Q.clear) {
+      // つぎへ：1こ ふやして もう一度 見せる
+      Q.clear = null;
+      Q.flash = null;
+      Q.seq.push(r4());
+      choose(false);
+      showSeq(performance.now());
+      return;
+    }
+    start();
+  });
+  root.querySelector('.play-stop').addEventListener('click', () => {
+    if (cur.phase === 'play' && Q.clear) finish(`${cur.score}こ おぼえた`);
+  });
   const close = () => {
     stop();
     root.remove();
