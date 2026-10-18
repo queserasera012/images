@@ -13,11 +13,13 @@
 
 import { playSport, sportLeft, gameCoin, moneyOf, dayNow, backAt } from './sim.js';
 import { CONFIG } from './config.js';
+import { MORE } from './play-more.js';
 
 const SIZE = 280;
 const C = { ink: '#3d5a80', white: '#ffffff', red: '#e56b6f', mustard: '#f2b84b', sky: '#62b6cb', sea: '#3aa6b9', green: '#8cc084', sand: '#f2d8a7', skin: '#f3cfb0', muted: 'rgba(61,90,128,0.45)' };
 
-export const PLAY_GAMES = ['planetarium', 'pool', 'aquarium', 'school', 'college', 'company'];
+// その2（カフェ・お店・温泉など13か所）は play-more.js。紙・ボタン・コインは ここで いっしょに持つ
+export const PLAY_GAMES = ['planetarium', 'pool', 'aquarium', 'school', 'college', 'company', ...Object.keys(MORE)];
 
 // ---------------------------------------------------------------- 判定（test から呼ぶ）
 
@@ -90,6 +92,11 @@ const HOW = {
   college: '光った順に 押す',
   company: '青い書類は 左、赤い書類は 右を押す',
 };
+for (const [id, g] of Object.entries(MORE)) {
+  TITLE[id] = g.title;
+  PLAY_UNIT[id] = g.unit;
+  HOW[id] = g.how;
+}
 
 let cur = null;
 export const playOpen = () => !!cur;
@@ -283,6 +290,16 @@ export function openPlay({ game, getState, onChange, close: onClose }) {
     W.paper = { color: Math.random() < 0.5 ? 0 : 1, t0: now, dur: Math.max(1000, 2300 - W.n * 90), side: null, at: 0, fromY: 0 };
   }
 
+  // その2のゲーム（play-more.js）：絵の部品と点数を渡して、はじめる・すすめる・押す・はなす・描く を任せる
+  const extra = MORE[game]?.make({
+    ctx, bg, text, dot, box, dots, msg, finish,
+    add: (n = 1) => (cur.score += n),
+    setScore: (n) => (cur.score = n),
+    score: () => cur.score,
+    playing: () => cur.phase === 'play',
+    phase: () => cur.phase,
+  });
+
   function start() {
     stop();
     cur.score = 0;
@@ -291,7 +308,8 @@ export function openPlay({ game, getState, onChange, close: onClose }) {
     root.querySelector('.play-stop').hidden = true;
     const now = performance.now();
     msg(HOW[game]);
-    if (game === 'planetarium') Object.assign(P, { n: 0, star: null, next: now + 600, results: [] });
+    if (extra) extra.start(now);
+    else if (game === 'planetarium') Object.assign(P, { n: 0, star: null, next: now + 600, results: [] });
     else if (game === 'pool') {
       Object.assign(D, { n: 0, results: [] });
       nextDive(now);
@@ -309,6 +327,11 @@ export function openPlay({ game, getState, onChange, close: onClose }) {
   }
 
   function frame(now) {
+    if (extra) {
+      extra.frame(now);
+      if (cur?.phase === 'play') draw(now);
+      return;
+    }
     if (game === 'planetarium') {
       const s = P.star;
       if (!s && now >= P.next) {
@@ -390,6 +413,7 @@ export function openPlay({ game, getState, onChange, close: onClose }) {
     const rect = canvas.getBoundingClientRect();
     const x = ((ev.clientX - rect.left) / rect.width) * SIZE;
     const y = ((ev.clientY - rect.top) / rect.height) * SIZE;
+    if (extra) return extra.tap(x, y, now);
     if (game === 'planetarium') {
       const s = P.star;
       if (!s || s.hitAt) return;
@@ -484,7 +508,8 @@ export function openPlay({ game, getState, onChange, close: onClose }) {
 
   function draw(now) {
     const playing = cur.phase === 'play';
-    if (game === 'planetarium') {
+    if (extra) extra.draw(now);
+    else if (game === 'planetarium') {
       bg('#1f2f52', '#3d5a80');
       for (const s of SKY) dot(s.x, s.y, s.r, 'rgba(255,255,255,0.7)');
       // ドームのふち（客席）
@@ -721,6 +746,11 @@ export function openPlay({ game, getState, onChange, close: onClose }) {
     ev.preventDefault();
     tap(ev);
   });
+  // はなしたとき（カフェ：押しているあいだ そそぐ）
+  const release = () => cur?.phase === 'play' && extra?.release?.(performance.now());
+  canvas.addEventListener('pointerup', release);
+  canvas.addEventListener('pointercancel', release);
+  canvas.addEventListener('pointerleave', release);
   root.querySelector('.game-again').addEventListener('click', () => {
     if (game === 'college' && cur.phase === 'play' && Q.clear) {
       // つぎへ：1こ ふやして もう一度 見せる

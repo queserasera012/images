@@ -14,6 +14,7 @@ import {
   useAreas, useCover, plotLand, PLOT_NAMES, coastSide, landTilesOf, changedTilesOf, expandAreasOf, placements, HOUSE_FLOOR, areaAt, COLS, OLD_COLS_2, DECO, footprint, occupied, neighbors, ROWS,
 } from './grid.js';
 import { morningWishes, checkWishes, bigWish, petMoveWish } from './wishes.js';
+import { MORE } from './play-more.js';
 
 const DAY = 1440;
 
@@ -187,6 +188,8 @@ export const everyone = (state) => (state.visitors?.length ? state.residents.con
 export const personById = (state, id) => state.residents.find((r) => r.id === id) || state.visitors?.find((r) => r.id === id);
 
 // 席と列のある施設（カフェ・スーパー・プラネタリウム）。同じ仕組みで動く（D295）
+// あなたも遊べる施設の ゲームの名前（js/play.js・js/play-more.js）
+const PLAYABLE = { planetarium: '流れ星', pool: '飛び込み', aquarium: '魚さがし', school: 'たし算', college: 'おぼえる', company: '書類の仕分け', ...Object.fromEntries(Object.entries(MORE).map(([id, g]) => [id, g.title])) };
 export const VENUE_TYPES = ['cafe', 'super', 'planetarium', 'petshop', 'pond', 'stand', 'ski', 'aquarium', 'pool', 'track', 'arcade', 'hospital', 'beach', 'onsen', 'marche', 'beachfest', 'snowfest', 'volley', 'surf', 'curling', 'hockey'];
 // 海の向こうの島だけの施設（D371・D373）。運動は あなたも遊べる
 export const SPORTS = ['volley', 'surf', 'curling', 'hockey'];
@@ -2394,8 +2397,6 @@ export function actionsFor(state) {
     });
   }
   const NAME = { ...VENUE_NAME, kinder: '幼稚園', company: '会社', school: '小学校', college: '大学', hospital: '病院' };
-  // あなたも遊べる施設（js/play.js の題と同じ・2026-10-18）。釣り堀・ゲームセンターは 上の文に書いてある
-  const PLAYABLE = { planetarium: '流れ星', pool: '飛び込み', aquarium: '魚さがし', school: 'たし算', college: 'おぼえる', company: '書類の仕分け' };
   for (const type of ['pond', 'super', 'petshop', 'track', 'planetarium', 'arcade', 'kinder', 'school', 'college', 'hospital', 'pool', 'aquarium', 'company']) {
     const V = CONFIG[type];
     const u = CONFIG.unlocks.find((x) => x.id === type);
@@ -2431,7 +2432,7 @@ export function actionsFor(state) {
       icon: `${type}_new`,
       place: type,
       title: `${NAME[type]}をつくる`,
-      detail: full ? `${NAME[type]}は いまの島に ${maxOf(state, type)}軒まで${moreLandNote(state, type)}` : locked ? (u.pets ? `家族のペットが ${u.pets}匹 になると建てられます` : u.kids ? '島に子どもが生まれると建てられます' : u.stage ? { pupil: 'もうすぐ小学生になる子がいると建てられます', student: 'もうすぐ学生になる子がいると建てられます', elder: 'もうすぐ お年寄りになる人がいると建てられます' }[u.stage] : `住民が ${u.pop}人 になると建てられます`) : what + (PLAYABLE[type] ? `。あなたも遊べる（${PLAYABLE[type]}）` : ''),
+      detail: full ? `${NAME[type]}は いまの島に ${maxOf(state, type)}軒まで${moreLandNote(state, type)}` : locked ? (u.pets ? `家族のペットが ${u.pets}匹 になると建てられます` : u.kids ? '島に子どもが生まれると建てられます' : u.stage ? { pupil: 'もうすぐ小学生になる子がいると建てられます', student: 'もうすぐ学生になる子がいると建てられます', elder: 'もうすぐ お年寄りになる人がいると建てられます' }[u.stage] : `住民が ${u.pop}人 になると建てられます`) : what,
       cost: V.buildCost,
       locked,
     });
@@ -2732,6 +2733,11 @@ export function actionsFor(state) {
         payWith: 'main',
       });
     });
+  }
+  // あなたも遊べる施設（2026-10-18）：建てられるときだけ「あなたも遊べる（◯◯）」と書き足す。釣り堀・ゲームセンター・運動は 上の文に書いてある
+  for (const a of list) {
+    const name = PLAYABLE[a.place || a.id];
+    if (name && !a.locked && a.detail && !a.detail.includes('あなたも')) a.detail += `。あなたも遊べる（${name}）`;
   }
   if (!isAbroad(state)) return list;
   // 海の向こうの島：本島の はしごのもの（釣り堀・スーパーなど）は出さない。ここでは ひらかないので（D371）

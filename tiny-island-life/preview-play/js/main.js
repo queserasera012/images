@@ -379,6 +379,7 @@ let lastCardHtml = '';
 // 施設のあそび（js/play.js・2026-10-18）：本島の施設のカードの「あなたも遊ぶ」。コインは運動と同じ数え方
 function playRow(state, b) {
   if (b.type === 'pool' && !inSeason(state, 'pool')) return `<div class="card-note">あなたも遊べる（${PLAY_TITLE.pool}）：夏になると遊べます</div>`;
+  if (b.type === 'ski' && !isWinter(state)) return `<div class="card-note">あなたも遊べる（${PLAY_TITLE.ski}）：冬になると遊べます</div>`;
   const left = sportLeft(state);
   const best = state.sportBest?.[b.type];
   return `<div>あなたのあそび：${PLAY_TITLE[b.type]}${best ? `（いちばん ${best}${PLAY_UNIT[b.type]}）` : ''}</div>` +

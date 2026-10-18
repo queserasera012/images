@@ -282,6 +282,8 @@ export const CONFIG = {
     skill: {
       volley: 8, surf: 4, curling: 6, hockey: 4, // ラリー8回・波4本・3投で6点・5本中4点
       planetarium: 7, pool: 4, aquarium: 6, school: 8, college: 5, company: 12, // 流れ星10こ中7・飛び込み5回中4・魚8回中6・たし算10問中8・5こ おぼえる・書類15まい中12
+      // その2（play-more.js）：コーヒー5はい中4・カップ6こ・リスト6こ・値段10回中8・旗12本中9・スイカ5回中3・いい湯10秒・トマト10回中8・花火8発中6・ベル16こ中12・風船8回中6・ごはん10ぴき中8・シャボン玉15こ
+      cafe: 4, stand: 6, super: 6, shop: 8, ski: 9, beach: 3, onsen: 10, marche: 8, beachfest: 6, snowfest: 12, kinder: 6, petshop: 8, park: 15,
     },
   },
 
