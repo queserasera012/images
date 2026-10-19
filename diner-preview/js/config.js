@@ -73,7 +73,7 @@ export const GENRES = {
     ing: { rice: 1, egg: 1, noodle: 1, pork: 1, cabbage: 1, negi: 1, tofu: 2, chili: 2, shrimp: 2, su: 2 },
     look: { sign: 'まんぷく亭', noren: '中華', roof: '#c0392b', signFill: '#ffd23f', signText: '#c0392b', norenFill: '#c0392b' },
     // 出店：1号店が この段になったら。小さな中華料理店から始まる
-    need: { shop: 'washoku', stage: 2 }, price: 120000, startStage: 1, start: { seats: 4, stations: { board: 1, stove: 1 } },
+    need: { shop: 'washoku', stage: 2 }, price: 120000, startStage: 1, start: { seats: 4, stations: { board: 1, stove: 1 }, prep: 8 },
   },
 };
 export const BRANCH_ORDER = ['washoku', 'chuka'];
@@ -89,6 +89,10 @@ export const GUEST = {
   priceSense: 2.2,       // 値段に敏感な度合い（大きいほど高いと頼まない）
   maxPriceRatio: 1.7,    // ふつうの値段のこれ倍を超えると誰も頼まない
   minWeight: 0.18,       // 頼みたい物がこれ未満なら「高い」と帰る
+  // 値段は「来る人数」にも効く。店の平均の値段比が 1 を超えた分 × up だけ減り、1 を下回った分 × down だけ増える（上限 maxBoost）
+  demandUp: 0.75,        // 1.3倍で −22%・1.6倍で −45%
+  demandDown: 0.5,
+  maxBoost: 1.1,
 };
 
 // 1日に来るお客さんの数 = (base + 評判 × perRep) × 天気 × チラシ
@@ -98,6 +102,17 @@ export const WEATHER = [
   { id: 'cloud', name: 'くもり', icon: '☁️', mul: 0.9, p: 0.3 },
   { id: 'rain', name: '雨', icon: '☔', mul: 0.7, p: 0.2 },
 ];
+// ときどきの出来事。前の晩の貼り紙で分かり、仕込みで備えられる。3日目から 1日 chance の確率で どれか1つ
+// period：その時間帯に来る人が boost 倍（lunch 11〜14時・dinner 17時〜）/ nMul：1日の人数 / repMul：その日の評判の動き
+export const EVENTS = {
+  chance: 0.25,
+  list: [
+    { id: 'undokai', name: '近くで 運動会', icon: '🏃', text: '昼に お客さんが どっと来る', period: 'lunch', boost: 2.2, nMul: 1.3 },
+    { id: 'matsuri', name: '夕方から お祭り', icon: '🏮', text: '夜に お客さんが 増える', period: 'dinner', boost: 1.8, nMul: 1.25 },
+    { id: 'holiday', name: '祝日', icon: '🎌', text: '一日中 お客さんが 多い', nMul: 1.4 },
+    { id: 'reporter', name: 'グルメ記者が 来る', icon: '📝', text: '評判が 大きく動く日', repMul: 3 },
+  ],
+};
 // 時間帯ごとの混み具合（分, 重み）
 export const RUSH = [
   [11 * 60, 0.7], [12 * 60, 2.4], [13 * 60 + 30, 0.9], [15 * 60, 0.5],
@@ -105,14 +120,17 @@ export const RUSH = [
 ];
 
 // 評判（0〜100。★ は 20 ごと）
-export const REP = { start: 10, servedFast: 0.35, served: 0.2, left: -1.2, soldOut: -0.5, tooPricey: -0.2 };
+// decay：高い評判は 毎日 少し戻る（[これより上なら, 1日に下がる量]）。★5 を保つのに 手が要る
+export const REP = { start: 10, servedFast: 0.35, served: 0.2, left: -1.2, soldOut: -0.5, tooPricey: -0.2, decay: [[80, 2], [50, 1]] };
+// 早送り（仕込み係とホール係がいる日だけ）
+export const FAST = 3;
 
-// お店の段階
+// お店の段階。rent は 1日の家賃（閉店のときに払う。もうけが出ないと赤字になる）（maxStaff は「台の数 ＋ ホール1人」。雇えるのは 置いてある台の数 ＋1 まで）
 export const STAGES = [
-  { id: 'stall', name: '屋台', maxSeats: 4, maxStations: 2, maxStaff: 1, pass: 2 },
-  { id: 'diner', name: '小さな食堂', maxSeats: 10, maxStations: 5, maxStaff: 4, pass: 3,
+  { id: 'stall', name: '屋台', maxSeats: 4, maxStations: 2, maxStaff: 3, pass: 2, rent: 0 },
+  { id: 'diner', name: '小さな食堂', maxSeats: 10, maxStations: 5, maxStaff: 6, pass: 3, rent: 4000,
     unlock: { totalSales: 60000, rep: 30 }, price: 25000 },
-  { id: 'popular', name: '町の人気店', maxSeats: 16, maxStations: 7, maxStaff: 6, pass: 4,
+  { id: 'popular', name: '町の人気店', maxSeats: 16, maxStations: 7, maxStaff: 8, pass: 4, rent: 8000,
     unlock: { totalSales: 250000, rep: 60 }, price: 90000 },
 ];
 
@@ -131,6 +149,8 @@ export const STAFF = {
   fryer: { name: '揚げ場係', wage: 1500 },
   hall: { name: 'ホール係', wage: 1300 },
   delay: 0.6,            // スタッフが次へ動かすまでの秒
+  autoNext: 0.4,         // できあがった料理が 次の台へ ひとりでに移るまでの秒（空いていれば）
+  speed: 1.2,            // 人のいる台は 調理がこれだけ速い（慣れた人）
 };
 export const STAFF_NAMES = ['ハル', 'ミオ', 'ソウタ', 'リコ', 'ケン', 'ナナ', 'ユウ'];
 
@@ -146,9 +166,14 @@ export const REGULARS = [
   { id: 'ogawa', name: 'オガワさん', fav: 'ramen', look: 8, shop: 'chuka' },
   { id: 'kudo', name: 'クドウさん', fav: 'mapo', look: 10, shop: 'chuka' },
 ];
-export const REGULAR = { chance: 0.35, loveToUsual: 3, missDays: 3 };
+// upsetDays：嫌なこと（好物が無い・高い・売り切れ・待たされて帰った）があると、この日数は来る確率が upsetDrop ぶん下がる
+// pricey：好物が ふつうの値段の これ倍を超えると「高い」
+export const REGULAR = { chance: 0.35, loveToUsual: 3, missDays: 3, upsetDays: 4, upsetDrop: 0.3, pricey: 1.3 };
 
 // 広告（見たい人が見るものだけ。1日の上限）
 export const ADS = { perDay: 5, profitMul: 1.5, flyerMul: 1.25 };
 
-export const START = { money: 6000, seats: 3, stations: { board: 1, stove: 1, fryer: 0 } };
+// お金が足りないときは「ツケ」になる（仕入れ・アルバイト代・家賃）。手持ちは 0 より下がらず、ツケは 閉店のときに 手持ちから返す
+// 利子は無い。詰まないための仕組みで、ツケの残りは 画面の上に出る
+// prep：はじめの仕込み（1品あたり）。1日目は 余らせない量から始める
+export const START = { money: 6000, seats: 3, stations: { board: 1, stove: 1, fryer: 0 }, prep: 5 };
