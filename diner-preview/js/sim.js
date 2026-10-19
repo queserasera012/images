@@ -151,8 +151,10 @@ export function shopPrice(s, kind) {
 }
 export function canBuy(s, kind) {
   const st = stageOf(s);
-  if (kind === 'seat' && s.seats >= st.maxSeats) return { ok: false, why: `${st.name}では ここまで` };
-  if (kind !== 'seat' && s.stations.length >= st.maxStations) return { ok: false, why: `${st.name}では ここまで` };
+  const nx = stageOf(s, s.stage + 1);
+  const cap = `${st.name}では ここまで${nx ? `（${nx.name}に広げると増やせる）` : ''}`;
+  if (kind === 'seat' && s.seats >= st.maxSeats) return { ok: false, why: cap };
+  if (kind !== 'seat' && s.stations.length >= st.maxStations) return { ok: false, why: cap };
   if (kind === 'fryer' && s.stage === 0) return { ok: false, why: '小さな食堂から' };
   if (s.money < shopPrice(s, kind)) return { ok: false, why: 'お金が足りない' };
   return { ok: true };
