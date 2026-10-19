@@ -29,6 +29,11 @@ h2{font-size:1.05rem;margin:0}
 #kids .kid{border:2px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:4px 12px;font:inherit;font-weight:700;font-size:.9rem;cursor:pointer}
 #kids .kid.on{background:var(--leaf);border-color:var(--leaf);color:#fff}
 #kids .kid.add{color:var(--muted);border-style:dashed}
+.ptabs{display:flex;border-bottom:2px solid var(--line);margin:4px 0 2px}
+.ptabs button{flex:1;border:0;background:none;color:var(--muted);font:inherit;font-weight:700;font-size:.9rem;padding:8px 2px;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer}
+.ptabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--stamp)}
+.ppane{display:grid;gap:14px}.ppane[hidden]{display:none}
+#pkids{display:flex;gap:6px;overflow-x:auto}#pkids .kid{border:2px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:4px 12px;font:inherit;font-weight:700;font-size:.9rem;cursor:pointer;white-space:nowrap}#pkids .kid.on{background:var(--leaf);border-color:var(--leaf);color:#fff}
 .card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:16px;display:grid;gap:12px;min-width:0}
 .btn{border:2px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:8px 16px;font:inherit;font-weight:700;font-size:.95rem;cursor:pointer}
 .btn.on{background:var(--sky);border-color:var(--sky);color:#fff}
@@ -368,7 +373,7 @@ label.inline{display:flex;gap:8px;align-items:center}
   var TABS=[['letter','✉️','てがみ'],['play','🎈','あそぶ'],['map','🗺️','たび'],['parent','👪','おうち']];
   nav.innerHTML = TABS.map(function(t){return '<button data-t="'+t[0]+'"><span>'+t[1]+'</span>'+t[2]+'</button>'}).join('');
   nav.querySelectorAll('button').forEach(function(b){ b.onclick=function(){ tab=b.dataset.t; pinOK=false; render(); }; });
-  var pinOK=false, pinBuf='';
+  var pinOK=false, pinBuf='', ptab='look';
   function render(){
     nav.querySelectorAll('button').forEach(function(b){ b.setAttribute('aria-selected', b.dataset.t===tab?'true':'false'); });
     renderKidsBar();
@@ -709,7 +714,14 @@ label.inline{display:flex;gap:8px;align-items:center}
     }
     var doneKeys=Object.keys(S.done), read=Object.keys(S.opened).length, learned={}, used={};
     doneKeys.forEach(function(k){ (S.done[k].newWords||[]).forEach(function(w){learned[w.toLowerCase()]=1}); S.done[k].reply.forEach(function(w){ w.replace(/[^A-Za-z' ]/g,'').split(' ').forEach(function(x){ if(x) used[x.toLowerCase()]=1; }); }); });
+    // 3つの タブ（ようす／こども／せってい）。縦に のびて 見にくい と 言われた（2026-10-19 オーナー・まなびクエスト・からくり工房と同じ形）
+    // 子が2人からは 上に なまえを ならべ、ようす と こども は えらんだ子の ぶんを 出す
+    var PT=[['look','📊 ようす'],['kid','👧 こども'],['set','⚙️ せってい']];
+    function pane(k){ return '<div class="ppane" data-p="'+k+'"'+(ptab===k?'':' hidden')+'>'; }
     app.innerHTML = '<h1>👪 おうちの ひと</h1>'+
+      (kidIds().length>1?'<div id="pkids">'+kidIds().map(function(id){ return '<button class="kid'+(id===K.cur?' on':'')+'" data-pk="'+id+'">'+esc(kidName(id))+'</button>'; }).join('')+'</div>':'')+
+      '<div class="ptabs" role="tablist">'+PT.map(function(t){ return '<button role="tab" data-pt="'+t[0]+'" aria-selected="'+(ptab===t[0])+'">'+t[1]+'</button>'; }).join('')+'</div>'+
+      pane('look')+
       '<div class="card"><h2>こんしゅうの モコから</h2><div class="stat"><div><b>'+read+'</b><small>読んだ手紙</small></div><div><b>'+Object.keys(learned).length+'</b><small>読めた新しい語</small></div><div><b>'+Object.keys(used).length+'</b><small>自分で使った語</small></div></div>'+
       (doneKeys.length? '<p class="note">えの なかで みつけた ことば：'+Object.keys(S.found||{}).reduce(function(a,k){return a+S.found[k].length},0)+'こ ／ モコに きいた かず：'+Object.keys(S.asked||{}).reduce(function(a,k){return a+S.asked[k].length},0)+'回 ／ ことばクイズ：'+(S.quiz||0)+'回</p>'+
       '<p class="note">はじめて使った言いかた：「'+esc(S.done[doneKeys[doneKeys.length-1]].reply.join(' '))+'」。「にほんご」を見た回数：'+S.jaTaps+'</p>' : '<p class="note">まだ返事がありません。</p>')+'</div>'+
@@ -718,14 +730,16 @@ label.inline{display:flex;gap:8px;align-items:center}
         '<label class="inline"><input type="checkbox" id="lk"'+(S.lockLevel?' checked':'')+'> レベルを固定する（モコは聞かない）</label>'+
         (function(){ var ks=Object.keys(S.done).filter(function(k){return S.done[k].same!==null&&S.done[k].same!==undefined}); if(!ks.length) return ''; var ok=ks.filter(function(k){return S.done[k].same}).length; var oa=[]; Object.keys(S.done).forEach(function(k){ (S.done[k].order||[]).forEach(function(r){oa.push(r)}); }); var o1=oa.filter(function(r){return r.ok}).length; return '<p class="note">✏️ 書く力（レベル2〜3・AI の手紙）：そのまま通った文 '+ok+' / '+ks.length+'（直しが入った文は「モコなら こう かくよ」で見せています）'+(oa.length?'<br>🔀 ならべかえ（レベル3）：1回で ぴったり '+o1+' / '+oa.length+'文':'')+'</p>'; })()+
         ((S.levelLog||[]).length?'<p class="note">これまで：'+S.levelLog.map(function(e){return e.at+' → '+L.levels[e.to].label+'（'+(e.by==='moco'?'モコが聞いた':'おうちの人')+'）'}).join('、')+'</p>':'')+'</div>'; })()+
-      '<div class="card"><h2>👧 こどもたち</h2><p class="note">てがみの画面の 上の なまえで 切りかえます。きろく・レベル・すきなこと は 子ごと、サーバーの設定は 共通です。</p><ul class="log">'+kidIds().map(function(id){ var k=K.kids[id]; return '<li>'+(id===K.cur?'▶ ':'')+esc(kidName(id))+'（'+L.levels[k.level||0].label+'・てがみ '+Object.keys(k.done||{}).length+'通）'+(kidIds().length>1?' <button class="btn" data-del="'+id+'">けす</button>':'')+'</li>'; }).join('')+'</ul><div class="row"><button class="btn" id="kadd">＋ 子を ついか</button></div></div>'+
-      '<div class="card"><h2>せってい</h2><label>なまえ（えいごの てがみに 出る）<input id="nm" value="'+esc(S.name)+'" maxlength="12"></label>'+
+      '<div class="card"><h2>とどいた手紙</h2>'+(doneKeys.length?'<ol class="log">'+doneKeys.map(function(k){return '<li>Day '+L.trip[k].day+' '+esc(L.trip[k].en)+'：「'+esc(S.done[k].reply.join(' '))+'」→ '+esc(S.done[k].moco)+'</li>'}).join('')+'</ol>':'<p class="note">まだ ありません</p>')+'</div>'+
+      '</div>'+pane('kid')+
+      '<div class="card"><h2>この子の せってい</h2><label>なまえ（えいごの てがみに 出る）<input id="nm" value="'+esc(S.name)+'" maxlength="12"></label>'+
       '<label>にほんごの なまえ（にほんごの 文に 出る・空なら 上と同じ）<input id="nmja" value="'+esc(S.nameJa||'')+'" maxlength="12" placeholder="そうすけ"></label>'+
       '<div class="lab note" style="margin-top:8px">すきなこと（3つまで・手紙に出ます）</div>'+likesTiles(((S.likes||{}).picks||[]))+'<label>ほかに むちゅうな もの（おうちの人が書く・「、」で区切る）<input id="lkfree" value="'+esc((S.likes||{}).free||'')+'" maxlength="40" placeholder="ポケモン、ミニバス"></label>'+
       '<label>レベル<select id="lv">'+[0,1,2,3].map(function(k){return '<option value="'+k+'"'+(k===S.level?' selected':'')+'>'+L.levels[k].label+'：'+L.levels[k].who+'</option>'}).join('')+'</select></label>'+
       '<label class="inline"><input type="checkbox" id="aj"'+(S.autoJa?' checked':'')+'> にほんごを いつも 出す（レベル0〜1 は はじめから ON）</label>'+
       '<div class="row"><button class="btn on" id="sv">ほぞん</button></div><p class="note">レベルは ここで いつでも 変えられます（上げるのも 下げるのも）。まだ届いていない手紙から変わります。</p></div>'+
-      '<div class="card"><h2>とどいた手紙</h2>'+(doneKeys.length?'<ol class="log">'+doneKeys.map(function(k){return '<li>Day '+L.trip[k].day+' '+esc(L.trip[k].en)+'：「'+esc(S.done[k].reply.join(' '))+'」→ '+esc(S.done[k].moco)+'</li>'}).join('')+'</ol>':'<p class="note">まだ ありません</p>')+'</div>'+
+      '<div class="card"><h2>👧 こどもたち</h2><p class="note">上の なまえ（ここ か てがみの画面）で 切りかえます。きろく・レベル・すきなこと は 子ごと、サーバーの設定は 共通です。</p><ul class="log">'+kidIds().map(function(id){ var k=K.kids[id]; return '<li>'+(id===K.cur?'▶ ':'')+esc(kidName(id))+'（'+L.levels[k.level||0].label+'・てがみ '+Object.keys(k.done||{}).length+'通）'+(kidIds().length>1?' <button class="btn" data-del="'+id+'">けす</button>':'')+'</li>'; }).join('')+'</ul><div class="row"><button class="btn" id="kadd">＋ 子を ついか</button></div></div>'+
+      '</div>'+pane('set')+
       '<div class="card"><h2>🤖 AI の手紙（サーバー）</h2><p class="note">Cloudflare に置いたサーバーの住所と合言葉を入れると、手紙とモコの返事を Claude が書きます。空なら決まった文のままです。置きかたは docs/SERVER.md。</p>'+
       '<label>サーバーの住所<input id="sv_url" value="'+esc(S.server||'')+'" placeholder="https://moco-post-server.xxxx.workers.dev" inputmode="url" autocapitalize="off"></label>'+
       '<label>合言葉<input id="sv_tok" type="text" class="secret" value="'+esc(S.token||'')+'" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></label>'+
@@ -733,7 +747,10 @@ label.inline{display:flex;gap:8px;align-items:center}
       '<div class="row"><button class="btn on" id="sv_save">ほぞん</button><button class="btn" id="sv_test">つながるか ためす</button><button class="btn" id="sv_redo">きょうの手紙を 作りなおす</button></div><p class="note" id="sv_msg">'+
       (function(){ var mt=meterText(); if(mt) mt='<br>'+mt; var g=S.aiLog||[]; if(!g.length) return (S.aiErr?'さいごのエラー：'+esc(S.aiErr):'')+mt; var tin=0,tout=0; g.forEach(function(e){ if(e.usage){tin+=e.usage.input_tokens||0; tout+=e.usage.output_tokens||0;} }); return 'AI を呼んだ回数：'+g.length+'（手紙 '+g.filter(function(e){return e.what==='letter'}).length+'・返事 '+g.filter(function(e){return e.what==='reply'}).length+'）／ トークン 入 '+tin+'・出 '+tout+(function(){ var ms=g.filter(function(e){return e.ms}).map(function(e){return e.ms}); return ms.length?'／ 手紙1通の時間 さいきん '+Math.round(ms[ms.length-1]/1000)+'秒（さいだい '+Math.round(Math.max.apply(null,ms)/1000)+'秒）':''; })()+(function(){ var n=todayIndex(); if(S.done[n]) n++; return n<L.trip.length ? '<br>あしたの手紙：'+(aiAt(n)?'✅ さきよみ ずみ':'まだ（へんじを出したあと・開いたときに 作っておきます）') : ''; })()+(S.aiErr?'<br>さいごのエラー：'+esc(S.aiErr):'')+mt; })()+'</p></div>'+
       protoButtonsHtml()+
-      '<p class="note">本物では モコの返事は AI が書きます。この試作は決まった文です。レベル0〜1 の返事は「絵を選ぶ」（10/13 の直し）。手紙の文は レベルごとに 10日ぶん 用意してあります。</p></div>';
+      '<p class="note">本物では モコの返事は AI が書きます。この試作は決まった文です。レベル0〜1 の返事は「絵を選ぶ」（10/13 の直し）。手紙の文は レベルごとに 10日ぶん 用意してあります。</p>'+
+      '</div></div>';
+    app.querySelectorAll('[data-pt]').forEach(function(b){ b.onclick=function(){ ptab=b.dataset.pt; app.querySelectorAll('[data-pt]').forEach(function(x){ x.setAttribute('aria-selected', String(x===b)); }); app.querySelectorAll('.ppane').forEach(function(x){ x.hidden = x.dataset.p!==ptab; }); window.scrollTo(0,0); }; });
+    app.querySelectorAll('[data-pk]').forEach(function(b){ b.onclick=function(){ var id=b.dataset.pk; if(!K.kids[id]||id===K.cur) return; K.cur=id; S=K.kids[id]; save(); renderParent(); }; });
     var lkSel=((S.likes||{}).picks||[]).slice(); bindLikes(app, lkSel, null);
     document.getElementById('sv').onclick=function(){ S.name=document.getElementById('nm').value.trim(); S.nameJa=document.getElementById('nmja').value.trim(); var nf=document.getElementById('lkfree').value.trim(); var before=JSON.stringify(S.likes||{}); S.likes={picks:lkSel.slice(), free:nf}; if(JSON.stringify(S.likes)!==before) forgetToday(); var nl=parseInt(document.getElementById('lv').value,10); if(nl!==S.level){ S.levelLog=(S.levelLog||[]).concat([{at:today(),to:nl,by:'parent'}]); S.askAfter=0; var ti=todayIndex(); if(!S.done[ti]){ if(S.ai) delete S.ai[ti]; delete S.opened[ti]; S.shown=1; } } S.level=nl; S.autoJa=document.getElementById('aj').checked; S.lockLevel=document.getElementById('lk').checked; save(); this.textContent='ほぞんした'; };
     document.getElementById('sv_save').onclick=function(){ var sv=document.getElementById('sv_url').value.trim(), tk=document.getElementById('sv_tok').value.trim(), ua=document.getElementById('ai').checked; K.shared={server:sv,token:tk,useAi:ua}; kidIds().forEach(function(id){ var k=K.kids[id]; k.server=sv; k.token=tk; k.useAi=ua; }); S.server=sv; S.token=tk; S.useAi=ua; save(); this.textContent='ほぞんした'; };
