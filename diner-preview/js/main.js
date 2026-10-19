@@ -88,7 +88,7 @@ function renderService() {
   const today = s.today;
   $('shopName').textContent = S.stageOf(s).name;
   const mb = Object.entries(s.menu).filter(([id, m]) => m.on && S.canCook(s, id))
-    .map(([id, m]) => `<span class="${(today.stock[id] || 0) > 0 ? '' : 'out'}">${DISHES[id].name} ${yen(m.price)}</span>`).join('');
+    .map(([id, m]) => `<span class="${(today.stock[id] || 0) > 0 ? '' : 'out'}" title="${DISHES[id].name}"><i>${DISHES[id].icon}</i>${m.price}</span>`).join('');
   if ($('menuboard')._h !== mb) { $('menuboard').innerHTML = mb; $('menuboard')._h = mb; }
 
   // 入口の列
@@ -106,6 +106,11 @@ function renderService() {
   // 席
   const seats = [];
   for (let i = 0; i < s.seats; i++) seats.push(i);
+  // 席が増えたら 2段にして、人を小さくする（場面の高さは変えない）
+  const rows = s.seats > 5 ? 2 : 1;
+  const cols = Math.ceil(s.seats / rows);
+  $('seats').style.setProperty('--cols', Math.max(4, cols));
+  $('seats').dataset.size = cols > 6 ? 's' : rows > 1 ? 'm' : 'l';
   sync($('seats'), seats, (i) => i, () => h('div', 'seat'), (el, i) => {
     const g = S.seatOf(today, i);
     const key = g ? `${g.id}` : '';
@@ -154,15 +159,20 @@ function renderService() {
     });
 
   // 厨房
-  $('kitchen').style.setProperty('--cols', Math.min(3, s.stations.length));
-  sync($('kitchen'), s.stations, (st) => st.id, (st) => {
+  // 台は 流れの順（まな板 → コンロ → 揚げ場）に並べる。4つまでは1段、それより多いと2段
+  const order = Object.keys(STATIONS);
+  const stations = [...s.stations].sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type));
+  const n = stations.length;
+  $('kitchen').style.setProperty('--cols', n <= 4 ? n : Math.ceil(n / 2));
+  $('kitchen').dataset.rows = n <= 4 ? 1 : 2;
+  sync($('kitchen'), stations, (st) => st.id, (st) => {
     const e = h('button', `station ${st.type}`);
     onTap(e, () => act(S.tapStation(s, st.id), e));
     return e;
   }, (el, st) => {
     const jobId = today.slots[st.id];
     const job = jobId != null ? today.jobs.find((j) => j.id === jobId) : null;
-    const staff = s.staff.find((x) => x.role === st.type);
+    const staff = S.staffOf(s, st.id);
     const state = job ? job.state : 'idle';
     const sig = `${state}|${job ? job.id : ''}|${staff ? staff.name : ''}`;
     if (el.dataset.sig !== sig) {

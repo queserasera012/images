@@ -87,6 +87,8 @@ function note(s, kind, text) { s.log.push({ day: s.day, kind, text }); if (s.log
 export function canHire(s, role) {
   if (s.staff.length >= stageOf(s).maxStaff) return { ok: false, why: `${stageOf(s).name}では ここまで` };
   if (role !== 'hall' && !s.stations.some((st) => st.type === role)) return { ok: false, why: `${STATIONS[role].name}が無い` };
+  if (role !== 'hall' && s.staff.filter((x) => x.role === role).length >= s.stations.filter((st) => st.type === role).length) return { ok: false, why: `${STATIONS[role].name}の数だけ` };
+  if (role === 'hall' && s.staff.some((x) => x.role === 'hall')) return { ok: false, why: '1人で足りる' };
   return { ok: true };
 }
 export function hire(s, role) {
@@ -290,18 +292,20 @@ function avgPrice(s) {
 }
 const clampRep = (r) => Math.max(0, Math.min(100, r));
 
+// 空いている台。人のいる台を先に使う（そこから先は ひとりでに進む）
 function freeStation(s, today, type) {
-  const st = s.stations.find((x) => x.type === type && today.slots[x.id] == null);
+  const free = s.stations.filter((x) => x.type === type && today.slots[x.id] == null);
+  const st = free.find((x) => staffOf(s, x.id)) || free[0];
   return st ? st.id : null;
 }
 function stepOf(job) { return DISHES[job.dish].steps[job.step]; }
 
 // 札をタップ → 1つめの台で作り始める
-export function tapTicket(s, jobId) {
+export function tapTicket(s, jobId, at = null) {
   const today = s.today;
   const job = today && today.jobs.find((j) => j.id === jobId);
   if (!job || job.state !== 'ticket') return { ok: false };
-  const sid = freeStation(s, today, stepOf(job)[0]);
+  const sid = at || freeStation(s, today, stepOf(job)[0]);
   if (!sid) return { ok: false, why: `${STATIONS[stepOf(job)[0]].name}が ふさがっている` };
   job.state = 'cook'; job.station = sid; job.prog = 0; today.slots[sid] = job.id;
   return { ok: true };
@@ -343,6 +347,13 @@ export function tapPass(s, jobId) {
 }
 
 const hasStaff = (s, role) => s.staff.some((x) => x.role === role);
+// 1人が受け持つのは 台1つ。同じ種類の台が並んでいたら、雇った順に 左の台から受け持つ
+export function staffOf(s, stationId) {
+  const st = s.stations.find((x) => x.id === stationId);
+  if (!st) return null;
+  const k = s.stations.filter((x) => x.type === st.type).indexOf(st);
+  return s.staff.filter((x) => x.role === st.type)[k] || null;
+}
 
 export function tick(s, dt) {
   const today = s.today;
@@ -384,10 +395,12 @@ export function tick(s, dt) {
   }
   // スタッフが受け持つ
   for (const j of [...today.jobs]) {
-    if (j.state === 'ticket' && hasStaff(s, stepOf(j)[0]) && t - j.at >= STAFF.delay) tapTicket(s, j.id);
-    else if (j.state === 'ready' && t - j.readyAt >= STAFF.delay) {
-      const here = s.stations.find((x) => x.id === j.station);
-      if (here && hasStaff(s, here.type)) tapStation(s, here.id);
+    if (j.state === 'ticket' && t - j.at >= STAFF.delay) {
+      // 人のいる台が空いていれば、そこで作りはじめる
+      const st = s.stations.find((x) => x.type === stepOf(j)[0] && today.slots[x.id] == null && staffOf(s, x.id));
+      if (st) tapTicket(s, j.id, st.id);
+    } else if (j.state === 'ready' && t - j.readyAt >= STAFF.delay) {
+      if (staffOf(s, j.station)) tapStation(s, j.station);
     } else if (j.state === 'pass' && hasStaff(s, 'hall') && t - j.at >= STAFF.delay) tapPass(s, j.id);
   }
   // 食べ終わって払う
