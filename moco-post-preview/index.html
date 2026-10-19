@@ -229,10 +229,11 @@ label.inline{display:flex;gap:8px;align-items:center}
   function addKid(){ prevKid=K.cur; K.cur=newKidId(); S=null; tab='letter'; render(); }
   function cancelAdd(){ if(prevKid && K.kids[prevKid]){ K.cur=prevKid; S=K.kids[prevKid]; } else { K.cur=kidIds()[0]||null; S=K.cur?K.kids[K.cur]:null; } prevKid=null; render(); }
   function removeKid(id){ delete K.kids[id]; if(K.cur===id){ K.cur=kidIds()[0]||null; S=K.cur?K.kids[K.cur]:null; } save(); }
-  function renderKidsBar(){ var el=document.getElementById('kids'); var ids=kidIds(); var show = tab==='letter' && (ids.length>=2 || (ids.length===1 && S));
+  // 子を ついかしている あいだ（S が null・prevKid あり）も 出す：いまの子が 消えたように 見えた（2026-10-19 オーナー）。なまえを おすと ついかを やめて その子に もどる
+  function renderKidsBar(){ var el=document.getElementById('kids'); var ids=kidIds(); var adding=!S && !!prevKid; var show = adding || (tab==='letter' && (ids.length>=2 || (ids.length===1 && S)));
     if(!show){ el.hidden=true; el.innerHTML=''; return; }
     el.hidden=false; el.innerHTML = ids.map(function(id){ return '<button class="kid'+(id===K.cur?' on':'')+'" data-id="'+id+'">'+esc(kidName(id))+'</button>'; }).join('')+'<button class="kid add" data-add="1">＋ ついか</button>';
-    el.querySelectorAll('.kid').forEach(function(b){ b.onclick=function(){ if(b.dataset.add) addKid(); else if(b.dataset.id!==K.cur) switchKid(b.dataset.id); }; }); }
+    el.querySelectorAll('.kid').forEach(function(b){ b.onclick=function(){ if(b.dataset.add){ if(!adding) addKid(); } else if(adding){ prevKid=b.dataset.id; cancelAdd(); } else if(b.dataset.id!==K.cur) switchKid(b.dataset.id); }; }); }
   function today(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
   function daysSince(iso){ var a=new Date(iso+'T00:00:00'), b=new Date(today()+'T00:00:00'); return Math.round((b-a)/86400000); }
   function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]}); }
@@ -400,7 +401,7 @@ label.inline{display:flex;gap:8px;align-items:center}
   }
   function renderSetup(){
     var others=kidIds().length>0;
-    app.innerHTML = '<h1>🐾 モコの えいごポスト</h1><p class="sub">'+(others?'あたらしい 子を ついかします。':'おうちの人が さいしょに きめてください。')+'</p>'+
+    app.innerHTML = '<h1>🐾 モコの えいごポスト</h1><p class="sub">'+(others?'あたらしい 子を ついかします。'+(prevKid&&K.kids[prevKid]?esc(kidName(prevKid))+' の きろくは そのまま のこります（「やめる」で もどれます）。':''):'おうちの人が さいしょに きめてください。')+'</p>'+
       '<div class="card"><label>なまえ（英語で よぶ名前・なくてもOK）<input id="nm" maxlength="12" placeholder="Yuki"></label>'+
       '<label>レベル<select id="lv">'+[0,1,2,3].map(function(k){return '<option value="'+k+'"'+(k===1?' selected':'')+'>'+L.levels[k].label+'：'+L.levels[k].who+'</option>'}).join('')+'</select></label>'+
       '<p class="note">レベルは あとから「おうち」で変えられます。手紙は 1日1通、ひらいた日から はじまります。</p>'+
