@@ -4,7 +4,7 @@ import { personSVG, LOOK_COUNT } from './people.js';
 import { stationSVG } from './kitchen-art.js';
 import { exteriorSVG } from './exterior.js';
 import { foodSVG } from './food-art.js';
-import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_LATER, EVENTS, FAST } from './config.js';
+import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_LATER, EVENTS, FAST, GUEST } from './config.js';
 
 const SAVE_KEY = 'diner.proto.v1';
 const UI_KEY = 'diner.proto.ui.v1';
@@ -98,8 +98,8 @@ function renderService() {
 
   // 入口の列
   const q = S.queueOf(today);
-  const shown = q.slice(0, 3);
-  sync($('queue'), [...shown, ...(q.length > 3 ? [{ more: q.length - 3 }] : [])], (g) => (g.more ? 'more' : g.id),
+  const shown = q.slice(0, GUEST.lineShown);
+  sync($('queue'), [...shown, ...(q.length > shown.length ? [{ more: q.length - shown.length }] : [])], (g) => (g.more ? 'more' : g.id),
     (g) => (g.more ? h('div', 'more') : (() => { const e = guestEl(); e.classList.add('enter'); return e; })()),
     (el, g) => {
       if (g.more) { el.textContent = `+${g.more}`; return; }
@@ -207,6 +207,13 @@ function renderService() {
     onTap(e, () => act(S.tapPass(s, j.id), e));
     return e;
   }, () => {});
+  // 受け渡し台の ホール係
+  const hall = s.staff.find((x) => x.role === 'hall');
+  const hsig = hall ? hall.name : '';
+  if ($('passChef').dataset.sig !== hsig) {
+    $('passChef').dataset.sig = hsig;
+    $('passChef').innerHTML = hall ? `${personSVG(staffLook(hall), 'idle', { chef: true })}<b>${hall.name}<small>バイト</small></b>` : '';
+  }
 
   // 早送り：仕込み係と ホール係がいる日だけ
   const canFast = S.crewOk(s.staff);

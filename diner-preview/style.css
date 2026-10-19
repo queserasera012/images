@@ -111,6 +111,11 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 .pass-wrap{margin-top:12px;background:var(--wood);border:3px solid var(--line);border-radius:12px;box-shadow:0 4px 0 var(--line);padding:6px 8px;display:flex;align-items:center;gap:8px;min-height:64px}
 .pass-label{font-family:var(--pop);font-size:11px;line-height:1.2;color:#fff;width:3.2em;text-align:center;text-shadow:0 2px 0 var(--wood-d)}
 .pass{flex:1;display:flex;gap:8px}
+.pass-chef{width:30px;display:flex;flex-direction:column;align-items:center}
+.pass-chef:empty{display:none}
+.pass-chef .person{width:28px;height:32px;overflow:visible}
+.pass-chef b{font-size:8px;background:#fff;border:1.5px solid var(--line);border-radius:5px;padding:0 3px;margin-top:-4px;white-space:nowrap}
+.pass-chef b small{display:block;font-size:7px;color:var(--ink2);line-height:1}
 .plate{width:52px;height:52px;border-radius:50%;background:#fff;border:3px solid var(--line);display:grid;place-items:center;font-size:26px;box-shadow:0 3px 0 var(--line);animation:pop .3s cubic-bezier(.3,1.6,.5,1),glow 1s infinite}
 .pass .slot{width:52px;height:52px;border-radius:50%;border:2.5px dashed rgba(255,255,255,.7)}
 

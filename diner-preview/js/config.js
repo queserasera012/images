@@ -83,8 +83,9 @@ export const TRIAL_COST = 300;
 
 // お客さん
 export const GUEST = {
-  queuePatience: 28,     // 入口で待てる秒
-  orderPatience: 42,     // 座ってから料理が届くまで待てる秒
+  queuePatience: 34,     // 入口の列に入ってから待てる秒
+  orderPatience: 50,     // 座ってから料理が届くまで待てる秒
+  lineShown: 3,          // 入口の列に並べる人数。あふれた人は通りで様子を見ていて、列に入ってから待ち時間を数える
   eatSeconds: 9,
   priceSense: 2.2,       // 値段に敏感な度合い（大きいほど高いと頼まない）
   maxPriceRatio: 1.7,    // ふつうの値段のこれ倍を超えると誰も頼まない

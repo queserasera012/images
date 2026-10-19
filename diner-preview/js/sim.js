@@ -487,6 +487,12 @@ export function tick(s, dt) {
     if (no) leave(s, today, g, no);
     else emit(today, { type: 'order', seat, dish: g.dish, reg: g.reg, usual: !!g.usual });
   }
+  // 列に入れていない人（通りで様子見）は、列に入った時から待ち時間を数える
+  let inLine = 0;
+  for (const g of today.guests) {
+    if (g.state !== 'queue') continue;
+    if (inLine++ >= GUEST.lineShown) g.since = t;
+  }
   // 待ちきれずに帰る
   for (const g of today.guests) {
     if (g.state === 'queue' && t - g.since > GUEST.queuePatience) leave(s, today, g, 'queue');
