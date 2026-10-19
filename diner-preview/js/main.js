@@ -4,7 +4,7 @@ import { personSVG, LOOK_COUNT } from './people.js';
 import { stationSVG } from './kitchen-art.js';
 import { exteriorSVG } from './exterior.js';
 import { foodSVG } from './food-art.js';
-import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, INGREDIENT_STAGE, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS } from './config.js';
+import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_LATER } from './config.js';
 
 const SAVE_KEY = 'diner.proto.v1';
 const UI_KEY = 'diner.proto.ui.v1';
@@ -283,13 +283,25 @@ function reportPaper(r, { live = false } = {}) {
         <div class="row" style="animation-delay:${0.15 + rows.length * 0.08}s"><span>仕入れ</span><b class="minus">${yen(-r.prepCost)}</b></div>
         <div class="row" style="animation-delay:${0.23 + rows.length * 0.08}s"><span>アルバイト代${crew ? `<small class="crew">${crew}（この日だけ）</small>` : ''}</span><b class="minus">${yen(-r.wage)}</b></div>
       </div>
-      <div class="profit"><span>きょうのもうけ</span><b class="${r.profit >= 0 ? 'plus' : 'minus'}" ${live ? 'id="profitNum"' : ''}>${yen(live ? 0 : r.profit + (r.adBonus || 0))}</b></div>
+      ${branchLines(r)}
+      <div class="profit"><span>${r.branches && r.branches.length ? 'この店の もうけ' : 'きょうのもうけ'}</span><b class="${r.profit >= 0 ? 'plus' : 'minus'}" ${live ? 'id="profitNum"' : ''}>${yen(live ? 0 : r.profit + (r.adBonus || 0))}</b></div>
       ${r.adBonus ? `<div class="plus" style="font-weight:800;text-align:right">広告のごほうび ${yen(r.adBonus)}</div>` : ''}
       <div class="report-actions">
         ${canAd ? `<button class="chunky yel ad" id="adProfit">広告を見て もうけを ${ADS.profitMul}倍に（のこり${S.adLeft(s)}回）</button>` : ''}
         ${live ? '<button class="big go" id="toNight">夜の準備へ</button>' : '<button class="big go" data-close>とじる</button>'}
       </div>
     </div>`;
+}
+// 立たなかった店の その日（アルバイトだけで回した）
+function branchLines(r) {
+  if (!r.branches || !r.branches.length) return '';
+  const rows = r.branches.map((b) => {
+    const g = GENRES[b.shop];
+    const body = b.closed ? '<span>人がいなくて 休み</span><b></b>'
+      : `<span>${b.served}/${b.guests}人・売上 ${yen(b.sales)}${b.left ? `・帰った ${b.left}人` : ''}</span><b class="${b.profit >= 0 ? 'plus' : 'minus'}">${yen(b.profit)}</b>`;
+    return `<div class="brow"><em>${g.no}号店 ${g.name}</em><div class="row">${body}</div></div>`;
+  }).join('');
+  return `<div class="branches"><small>ほかの店（アルバイトで回した）</small>${rows}</div>`;
 }
 function renderReport() {
   const r = s.lastReport;
@@ -315,6 +327,15 @@ function renderNight() {
   const ns = S.nextStage(s);
   $('nightTitle').textContent = `${s.day}日目の準備`;
   $('nightSub').textContent = `${S.stageOf(s).name}・評判 ${Math.round(s.rep)}`;
+  const shops = S.shopsOf(s);
+  $('shops').hidden = shops.length < 2;
+  $('shops').innerHTML = shops.map((g) => {
+    const here = g === S.genreOf(s);
+    const plan = S.crewPlan(s, g);
+    const sub = here ? 'あした あなたが立つ' : plan.open ? `アルバイト${plan.staff.length}人で回す` : '人がいないので 休み';
+    return `<button class="shopbtn ${here ? 'on' : ''} ${!here && !plan.open ? 'shut' : ''}" data-shop="${g}"><em>${GENRES[g].no}号店</em><b>${GENRES[g].name}</b><small>${sub}</small></button>`;
+  }).join('');
+  for (const b of $('shops').children) onTap(b, () => { if (S.switchShop(s, b.dataset.shop).ok) { ui.pick = []; save(); renderNight(); toast(`あしたは ${GENRES[b.dataset.shop].name}に立つ`); } });
   $('tabs').innerHTML = TABS.map(([id, nm]) => `<button class="tab ${id === tab ? 'on' : ''}" data-tab="${id}">${nm}${id === 'shop' && ns && ns.ready ? '<i class="dot"></i>' : ''}</button>`).join('');
   for (const b of $('tabs').children) onTap(b, () => { tab = b.dataset.tab; renderNight(); });
   const p = $('panel');
@@ -326,6 +347,7 @@ function renderNight() {
   $('openBtn').textContent = `開店する！（仕入れ ${yen(cost)}）`;
 }
 
+const BRANCH_ORDER_LEN = Object.keys(GENRES).length;
 const PANELS = {
   look() {
     const st = S.stageOf(s), ns = S.nextStage(s);
@@ -340,18 +362,18 @@ const PANELS = {
         <small style="font-weight:800">評判 ${Math.round(s.rep)} / ${ns.unlock.rep}</small><div class="meter"><i style="width:${b * 100}%"></i></div>
         ${ns.ready ? '<small style="font-weight:800;color:var(--ink2)">「設備」のタブから 広げられる</small>' : ''}`;
     }
-    const days = s.reports.slice().reverse();
+    const days = s.reports.filter((r) => !r.closed && (r.shop || 'washoku') === S.genreOf(s)).reverse();
     const top = Math.max(1, ...days.map((r) => Math.abs(r.profit + (r.adBonus || 0))));
     const reports = days.map((r) => {
       const p = r.profit + (r.adBonus || 0);
       const w = WEATHER.find((x) => x.id === r.weather);
-      return `<button class="dayrow" data-do="report" data-arg="${r.day}">
+      return `<button class="dayrow" data-do="report" data-arg="${r.day}" data-shop="${r.shop || 'washoku'}">
         <span class="d"><em>${r.day}</em>日目 ${w ? w.icon : ''}</span>
         <span class="bar ${p >= 0 ? 'up' : 'down'}"><i style="width:${Math.max(4, (Math.abs(p) / top) * 100)}%"></i></span>
         <b class="${p >= 0 ? 'plus' : 'minus'}">${yen(p)}</b></button>`;
     }).join('');
     const log = s.log.slice().reverse().map((e) => `<li class="k-${e.kind}"><small><em>${e.day}</em>日目</small>${e.text}</li>`).join('');
-    return `<div class="exwrap">${exteriorSVG(s)}<div class="exname">${st.name}</div></div>
+    return `<div class="exwrap">${exteriorSVG(s)}<div class="exname">${S.shopsOf(s).length > 1 ? `${GENRES[S.genreOf(s)].no}号店 ` : ''}${st.name}</div></div>
       <div class="facts">${facts}</div>
       ${next}
       ${reports ? `<div class="sec">これまでの日報 <small>（タップで ひらく）</small></div><div class="days">${reports}</div>` : ''}
@@ -372,7 +394,7 @@ const PANELS = {
     return `<p style="margin:0;font-size:12px;font-weight:800;color:var(--ink2)">値段を上げると1人の売上は増えるが、頼む人は減る。</p>${rows}`;
   },
   prep() {
-    const last = s.lastReport;
+    const last = s.reports.filter((r) => !r.closed && (r.shop || 'washoku') === S.genreOf(s)).pop();
     const rows = Object.entries(s.menu).filter(([id, m]) => m.on && S.canCook(s, id)).map(([id]) => {
       const d = DISHES[id];
       const sold = last ? last.sold[id] || 0 : null;
@@ -408,8 +430,21 @@ const PANELS = {
           <small style="font-weight:800">評判 ${Math.round(s.rep)} / ${ns.unlock.rep}</small><div class="meter"><i style="width:${b * 100}%"></i></div>
           <button class="chunky ${ns.ready ? 'red' : ''}" style="margin-top:6px" data-do="expand" ${ns.ready && ns.affordable ? '' : 'disabled'}>${ns.ready ? `${yen(ns.price)}で 広げる` : 'まだ広げられない'}</button>
         </div>`;
-    } else stage = '<div class="sec">ここから先は つづく（試作はここまで）</div>';
-    return `${stage}<div class="sec">${S.stageOf(s).name}の設備</div>${items}`;
+    }
+    const nb = S.nextBranch(s);
+    let branch = '';
+    if (nb) {
+      branch = `<div class="sec">${nb.no}号店を出す</div>
+        <div class="card branchcard" style="flex-direction:column;align-items:stretch;background:${nb.ready ? '#ffe4e0' : '#fffdf6'}">
+          <div class="exmini">${exteriorSVG({ ...S.createShop(nb.genre), totalSales: 0 })}</div>
+          <b style="font-family:var(--pop);font-size:16px">${nb.name}</b>
+          <small style="font-weight:800;color:var(--ink2)">中華の店。料理も 食材も 常連さんも 別。${GENRES[nb.genre].stageNames[nb.startStage]}から始まる</small>
+          <small style="font-weight:800;color:var(--ink2)">あなたが立てるのは 1日に1店。もう1店は アルバイトだけで回す</small>
+          ${nb.ready ? '' : `<small style="font-weight:800">${nb.needName}</small>`}
+          <button class="chunky ${nb.ready ? 'red' : ''}" style="margin-top:6px" data-do="branch" ${nb.ready && nb.affordable ? '' : 'disabled'}>${nb.ready ? `${yen(nb.price)}で 出す` : 'まだ出せない'}</button>
+        </div>`;
+    } else branch = `<div class="sec">${BRANCH_ORDER_LEN + 1}号店から（準備中）</div><p class="later">${BRANCH_LATER.join('・')}… 試作はここまで</p>`;
+    return `${stage}${branch}<div class="sec">${S.stageOf(s).name}の設備</div>${items}`;
   },
   staff() {
     const st = S.stageOf(s);
@@ -430,15 +465,18 @@ const PANELS = {
   book() {
     ui.pick = ui.pick || [];
     // 段ごとに 見つけた数を出す。まだ届かない段は 鍵つき
-    const book = STAGES.map((st, i) => {
-      const list = Object.entries(DISHES).filter(([, d]) => d.combo && d.stage === i);
+    const genre = S.genreOf(s), ing = S.ingredientsOf(s);
+    const book = STAGES.map((_, i) => {
+      const st = S.stageOf(s, i);
+      const list = Object.entries(DISHES).filter(([, d]) => d.combo && (d.shop || 'washoku') === genre && d.stage === i);
+      if (!list.length) return '';
       const got = list.filter(([id]) => s.known.includes(id)).length;
       const open = s.stage >= i;
       const cells = list.map(([id, d]) => (s.known.includes(id) ? `<div><span>${foodSVG(id)}</span>${d.name}${d.steps.length > 2 ? '<em>3工程</em>' : ''}</div>`
         : `<div class="unk"><span>${open ? '？' : '🔒'}</span>${open ? '？？？' : ''}</div>`)).join('');
       return `<div class="book-st ${open ? '' : 'locked'}"><b>${st.name}の レシピ <small>${got}/${list.length}</small></b>${open ? '' : `<small>${st.name}に なると 試作できる</small>`}<div class="book">${cells}</div></div>`;
     }).join('');
-    const chips = Object.entries(INGREDIENTS).map(([k, nm]) => (INGREDIENT_STAGE[k] > s.stage
+    const chips = Object.entries(INGREDIENTS).filter(([k]) => k in ing).map(([k, nm]) => (ing[k] > s.stage
       ? `<button class="lock" disabled>🔒 ${nm}</button>`
       : `<button class="${ui.pick.includes(k) ? 'on' : ''}" data-do="pick" data-arg="${k}">${nm}</button>`)).join('');
     const tried = s.tried.length ? `<small style="font-weight:800;color:var(--ink2)">試した組み合わせ：${s.tried.map((k) => k.split('+').map((x) => INGREDIENTS[x]).join('＋')).join('、')}</small>` : '';
@@ -470,14 +508,20 @@ function doNight(what, arg) {
     case 'fire': S.fire(s, arg); break;
     case 'rehire': { const r = S.rehire(s); if (r.ok) toast(`${r.n}人 来てくれる`); break; }
     case 'report': {
-      const r = s.reports.find((x) => String(x.day) === arg);
+      const r = s.reports.find((x) => String(x.day) === arg && (x.shop || 'washoku') === S.genreOf(s));
       if (r) overlay(reportPaper(r), null, 'sheet bare');
       return;
     }
     case 'expand': {
       const r = S.expand(s);
-      const fresh = Object.entries(INGREDIENTS).filter(([k]) => INGREDIENT_STAGE[k] === s.stage).map(([, nm]) => nm).join('・');
+      const ing = S.ingredientsOf(s);
+      const fresh = Object.entries(INGREDIENTS).filter(([k]) => ing[k] === s.stage).map(([, nm]) => nm).join('・');
       if (r.ok) celebrate(`${r.name}に なった！\n<small class="cel-sub">新しい食材：${fresh}<br>レシピ帳に 新しい料理が増えた</small>`);
+      break;
+    }
+    case 'branch': {
+      const r = S.openBranch(s);
+      if (r.ok) { tab = 'look'; ui.pick = []; celebrate(`${r.name}を 出した！\n<small class="cel-sub">あしたは 2号店に立つ。<br>1号店は バイトを呼んでおけば 回る</small>`); }
       break;
     }
     case 'pick': {

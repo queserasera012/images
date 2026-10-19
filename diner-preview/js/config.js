@@ -35,6 +35,17 @@ export const DISHES = {
   katsudon:  { name: 'カツ丼',         icon: '🍱', steps: [['board', 1.5], ['fryer', 4.5], ['stove', 3.0]], base: 1200, cost: 340, appeal: 1.7, combo: ['pork', 'dashi'], stage: 2 },
   tendon:    { name: '天丼',           icon: '🍤', steps: [['board', 1.5], ['fryer', 4.5], ['stove', 2.5]], base: 1300, cost: 380, appeal: 1.7, combo: ['shrimp', 'dashi'], stage: 2 },
   katsucurry:{ name: 'カツカレー',     icon: '🍛', steps: [['board', 2.0], ['fryer', 4.5], ['stove', 3.5]], base: 1400, cost: 400, appeal: 1.8, combo: ['pork', 'curry'], stage: 2 },
+
+  // ---- 2号店（中華）。shop を付けた料理は その店でだけ出る ----
+  gyoza:     { shop: 'chuka', name: '餃子',       steps: [['board', 1.5], ['stove', 3.5]],                 base: 450,  cost: 110, appeal: 1.1, start: true },
+  chahan:    { shop: 'chuka', name: 'チャーハン', steps: [['board', 1.5], ['stove', 3.5]],                 base: 700,  cost: 180, appeal: 1.2, start: true },
+  ramen:     { shop: 'chuka', name: 'ラーメン',   steps: [['board', 1.5], ['stove', 4.5]],                 base: 800,  cost: 220, appeal: 1.5, combo: ['noodle', 'negi'], stage: 1 },
+  tenshin:   { shop: 'chuka', name: '天津飯',     steps: [['board', 1.5], ['stove', 4.0]],                 base: 850,  cost: 220, appeal: 1.3, combo: ['egg', 'rice'], stage: 1 },
+  harumaki:  { shop: 'chuka', name: '春巻き',     steps: [['board', 2.0], ['fryer', 4.5]],                 base: 600,  cost: 150, appeal: 1.2, combo: ['pork', 'cabbage'], stage: 1 },
+  mapo:      { shop: 'chuka', name: '麻婆豆腐',   steps: [['board', 1.5], ['stove', 4.5]],                 base: 950,  cost: 250, appeal: 1.5, combo: ['tofu', 'chili'], stage: 2 },
+  tantan:    { shop: 'chuka', name: '担々麺',     steps: [['board', 1.5], ['stove', 5.0]],                 base: 1000, cost: 280, appeal: 1.6, combo: ['noodle', 'chili'], stage: 2 },
+  ebichili:  { shop: 'chuka', name: 'エビチリ',   steps: [['board', 1.5], ['fryer', 4.0], ['stove', 3.0]], base: 1300, cost: 380, appeal: 1.7, combo: ['shrimp', 'chili'], stage: 2 },
+  subuta:    { shop: 'chuka', name: '酢豚',       steps: [['board', 2.0], ['fryer', 4.5], ['stove', 3.0]], base: 1200, cost: 330, appeal: 1.7, combo: ['pork', 'su'], stage: 2 },
 };
 
 // 試作に使う食材（レシピ帳）。お店を広げると 使える食材が増える
@@ -42,12 +53,32 @@ export const INGREDIENTS = {
   rice: 'ごはん', egg: '卵', noodle: '麺', pork: '豚肉', cabbage: 'キャベツ', tomato: 'トマト',
   chicken: '鶏肉', potato: 'じゃがいも', panko: 'パン粉',
   shrimp: 'エビ', curry: 'カレー粉', dashi: 'だし',
+  negi: 'ねぎ', tofu: '豆腐', chili: '唐辛子', su: 'お酢',
 };
+// 1号店の食材（どの段から使えるか）。店ごとの表は GENRES の ing
 export const INGREDIENT_STAGE = {
   rice: 0, egg: 0, noodle: 0, pork: 0, cabbage: 0, tomato: 0,
   chicken: 1, potato: 1, panko: 1,
   shrimp: 2, curry: 2, dashi: 2,
 };
+
+// お店のジャンル。1号店は和食、2号店から ジャンルを変えて出す（2026-10-19 オーナー決定）
+export const GENRES = {
+  washoku: {
+    name: 'まちかど食堂', no: 1, stageNames: ['屋台', '小さな食堂', '町の人気店'], ing: INGREDIENT_STAGE,
+    look: { sign: 'まちかど食堂', noren: '食堂', roof: '#4a4870', signFill: '#ff4f5e', signText: '#fff', norenFill: '#25406b' },
+  },
+  chuka: {
+    name: '中華 まんぷく亭', no: 2, stageNames: ['中華の屋台', '小さな中華料理店', '町の人気中華'],
+    ing: { rice: 1, egg: 1, noodle: 1, pork: 1, cabbage: 1, negi: 1, tofu: 2, chili: 2, shrimp: 2, su: 2 },
+    look: { sign: 'まんぷく亭', noren: '中華', roof: '#c0392b', signFill: '#ffd23f', signText: '#c0392b', norenFill: '#c0392b' },
+    // 出店：1号店が この段になったら。小さな中華料理店から始まる
+    need: { shop: 'washoku', stage: 2 }, price: 120000, startStage: 1, start: { seats: 4, stations: { board: 1, stove: 1 } },
+  },
+};
+export const BRANCH_ORDER = ['washoku', 'chuka'];
+// まだ作っていない 3号店から先（設備のタブに「準備中」として見せる）
+export const BRANCH_LATER = ['イタリアン', 'ハンバーガー', 'エスニック'];
 export const TRIAL_COST = 300;
 
 // お客さん
@@ -111,6 +142,9 @@ export const REGULARS = [
   { id: 'kimura', name: 'キムラさん', fav: 'karaage', look: 3 },
   { id: 'mori', name: 'モリさん', fav: 'onigiri', look: 4 },
   { id: 'abe', name: 'アベさん', fav: 'napolitan', look: 5 },
+  { id: 'wang', name: 'ワンさん', fav: 'gyoza', look: 6, shop: 'chuka' },
+  { id: 'ogawa', name: 'オガワさん', fav: 'ramen', look: 8, shop: 'chuka' },
+  { id: 'kudo', name: 'クドウさん', fav: 'mapo', look: 10, shop: 'chuka' },
 ];
 export const REGULAR = { chance: 0.35, loveToUsual: 3, missDays: 3 };
 

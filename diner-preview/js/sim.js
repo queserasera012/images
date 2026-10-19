@@ -2,7 +2,7 @@
 // 画面（main.js）は state を読み、ここの関数を呼ぶだけ。
 import {
   DAY, STATIONS, DISHES, GUEST, DEMAND, WEATHER, RUSH, REP, STAGES, SHOP,
-  STAFF, STAFF_NAMES, REGULARS, REGULAR, ADS, START, TRIAL_COST, INGREDIENT_STAGE,
+  STAFF, STAFF_NAMES, REGULARS, REGULAR, ADS, START, TRIAL_COST, GENRES, BRANCH_ORDER,
 } from './config.js';
 
 export const SAVE_VERSION = 1;
@@ -21,29 +21,88 @@ function rand(today) {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
-export const stageOf = (s) => STAGES[s.stage];
+export const genreOf = (s) => s.genre || 'washoku';
+const shopOfDish = (d) => d.shop || 'washoku';
+const shopOfReg = (r) => r.shop || 'washoku';
+export const regularsOf = (s) => REGULARS.filter((r) => shopOfReg(r) === genreOf(s));
+// 店の段。名前は ジャンルごと（中華なら「小さな中華料理店」）
+export const stageOf = (s, i = s.stage) => STAGES[i] && { ...STAGES[i], name: GENRES[genreOf(s)].stageNames[i] };
+// この店で使える食材と、使えるようになる段
+export const ingredientsOf = (s) => GENRES[genreOf(s)].ing;
 export const stars = (rep) => Math.max(1, Math.min(5, Math.floor(rep / 20) + 1));
 export const clockOf = (t) => DAY.openMin + (t / DAY.seconds) * (DAY.closeMin - DAY.openMin);
 export const fmtClock = (min) => `${Math.floor(min / 60)}:${String(Math.floor(min % 60)).padStart(2, '0')}`;
 export const canCook = (s, dishId) => DISHES[dishId].steps.every(([type]) => s.stations.some((st) => st.type === type));
 
 // ---- はじめの状態 ----
-export function createState(seed = (Date.now() >>> 0)) {
+// 店ごとに持つもの（お金・日付・日報・広告は 全部の店で共通）
+export const SHOP_KEYS = ['genre', 'stage', 'totalSales', 'rep', 'seats', 'stations', 'staff', 'menu', 'prep', 'known', 'tried', 'regulars', 'lastCrew'];
+export function createShop(genre = 'washoku') {
+  const g = GENRES[genre];
+  const start = g.start || START;
   const menu = {};
   const prep = {};
   for (const [id, d] of Object.entries(DISHES)) {
-    if (d.start) { menu[id] = { on: true, price: d.base }; prep[id] = 8; }
+    if (d.start && shopOfDish(d) === genre) { menu[id] = { on: true, price: d.base }; prep[id] = 8; }
   }
   const stations = [];
-  for (const [type, n] of Object.entries(START.stations)) for (let i = 0; i < n; i++) stations.push({ id: `${type}${i}`, type });
+  for (const [type, n] of Object.entries(start.stations)) for (let i = 0; i < n; i++) stations.push({ id: `${type}${i}`, type });
   const regulars = {};
-  for (const r of REGULARS) regulars[r.id] = { love: 0, lastDay: 0, visits: 0, noted: false };
+  for (const r of REGULARS) if (shopOfReg(r) === genre) regulars[r.id] = { love: 0, lastDay: 0, visits: 0, noted: false };
   return {
-    v: SAVE_VERSION, seed, day: 1, money: START.money, rep: REP.start, stage: 0, totalSales: 0,
-    seats: START.seats, stations, staff: [], menu, prep, known: Object.keys(menu), tried: [],
-    regulars, ads: 0, boosts: { market: false, flyer: false, freeTrial: false },
-    history: [], reports: [], lastCrew: [], log: [{ day: 1, kind: 'open', text: '屋台を開いた' }], lastReport: null, today: null, phase: 'night',
+    genre, stage: g.startStage || 0, totalSales: 0, rep: REP.start, seats: start.seats, stations, staff: [],
+    menu, prep, known: Object.keys(menu), tried: [], regulars, lastCrew: [],
   };
+}
+export function createState(seed = (Date.now() >>> 0)) {
+  return {
+    v: SAVE_VERSION, seed, day: 1, money: START.money, ...createShop('washoku'), branches: {},
+    ads: 0, boosts: { market: false, flyer: false, freeTrial: false },
+    history: [], reports: [], log: [{ day: 1, kind: 'open', text: '屋台を開いた' }], lastReport: null, today: null, phase: 'night',
+  };
+}
+
+// ---- 2号店から ----
+// 立っている店のものは s の上に、ほかの店のものは s.branches に しまっておく
+const pickShop = (s) => Object.fromEntries(SHOP_KEYS.map((k) => [k, s[k]]));
+function swapTo(s, genre) {
+  if (genreOf(s) === genre || !s.branches[genre]) return false;
+  const away = pickShop(s);
+  Object.assign(s, s.branches[genre]);
+  delete s.branches[genre];
+  s.branches[away.genre] = away;
+  return true;
+}
+// 開いている店（番号の順）
+export const shopsOf = (s) => BRANCH_ORDER.filter((g) => g === genreOf(s) || s.branches[g]);
+export const shopInfo = (s, genre) => (genre === genreOf(s) ? s : s.branches[genre]);
+// あした あなたが立つ店を変える（夜だけ）
+export function switchShop(s, genre) {
+  if (s.phase !== 'night') return { ok: false };
+  return { ok: swapTo(s, genre) };
+}
+export function nextBranch(s) {
+  const genre = BRANCH_ORDER.find((g) => !shopsOf(s).includes(g));
+  if (!genre) return null;
+  const g = GENRES[genre];
+  const base = shopInfo(s, g.need.shop);
+  const ready = !!base && base.stage >= g.need.stage;
+  return { genre, ...g, ready, affordable: s.money >= g.price, needName: `${GENRES[g.need.shop].name}が ${GENRES[g.need.shop].stageNames[g.need.stage]}に なったら` };
+}
+export function openBranch(s) {
+  const n = nextBranch(s);
+  if (!n || !n.ready || !n.affordable || s.phase !== 'night') return { ok: false };
+  s.money -= n.price;
+  s.branches[n.genre] = createShop(n.genre);
+  note(s, 'stage', `${n.no}号店「${n.name}」を出した`);
+  swapTo(s, n.genre);
+  return { ok: true, name: n.name };
+}
+// 立たない店は アルバイトだけで回る。店長が きのうと同じ人を呼ぶ
+export function crewPlan(s, genre) {
+  const sh = shopInfo(s, genre);
+  const staff = sh.staff.length ? sh.staff : sh.lastCrew;
+  return { staff, open: staff.length > 0 };
 }
 
 // ---- 夜の準備 ----
@@ -94,7 +153,7 @@ export function canHire(s, role) {
 export function hire(s, role) {
   const c = canHire(s, role);
   if (!c.ok) return c;
-  const used = new Set(s.staff.map((x) => x.name));
+  const used = new Set([...s.staff, ...Object.values(s.branches || {}).flatMap((b) => b.staff)].map((x) => x.name));
   const name = STAFF_NAMES.find((n) => !used.has(n)) || `スタッフ${s.staff.length + 1}`;
   s.staff.push({ id: `st${s.day}_${s.staff.length}`, name, role });
   if (!s.log.some((x) => x.kind === 'staff')) note(s, 'staff', `はじめてのアルバイト ${name}さん`);
@@ -117,7 +176,7 @@ export function rehire(s) {
 export const wages = (s) => s.staff.reduce((a, x) => a + STAFF[x.role].wage, 0);
 
 export function nextStage(s) {
-  const st = STAGES[s.stage + 1];
+  const st = stageOf(s, s.stage + 1);
   if (!st) return null;
   const ready = s.totalSales >= st.unlock.totalSales && s.rep >= st.unlock.rep;
   return { ...st, ready, affordable: s.money >= st.price };
@@ -134,14 +193,16 @@ export function expand(s) {
 // レシピ帳：食材2つで試作する
 export function tryRecipe(s, a, b) {
   if (a === b) return { ok: false, why: 'ちがう食材を2つ' };
-  if (INGREDIENT_STAGE[a] > s.stage || INGREDIENT_STAGE[b] > s.stage) return { ok: false, why: 'まだ仕入れられない食材' };
+  const ing = ingredientsOf(s);
+  if (!(a in ing) || !(b in ing)) return { ok: false, why: 'この店では使わない食材' };
+  if (ing[a] > s.stage || ing[b] > s.stage) return { ok: false, why: 'まだ仕入れられない食材' };
   const key = [a, b].sort().join('+');
   if (s.tried.includes(key)) return { ok: false, why: 'もう試した組み合わせ' };
   const free = s.boosts.freeTrial;
   if (!free && s.money < TRIAL_COST) return { ok: false, why: 'お金が足りない' };
   if (free) s.boosts.freeTrial = false; else s.money -= TRIAL_COST;
   s.tried.push(key);
-  const hit = Object.entries(DISHES).find(([, d]) => d.combo && d.stage <= s.stage && [...d.combo].sort().join('+') === key);
+  const hit = Object.entries(DISHES).find(([, d]) => d.combo && shopOfDish(d) === genreOf(s) && d.stage <= s.stage && [...d.combo].sort().join('+') === key);
   if (hit && !s.known.includes(hit[0])) {
     const [id, d] = hit;
     s.known.push(id);
@@ -162,8 +223,8 @@ export function watchAd(s, kind) {
     if (!r || r.adDone || r.profit <= 0) return { ok: false };
     const add = Math.round(r.profit * (ADS.profitMul - 1));
     s.money += add; r.adDone = true; r.adBonus = add;
-    const kept = s.reports[s.reports.length - 1];
-    if (kept && kept.day === r.day) { kept.adDone = true; kept.adBonus = add; }
+    const kept = s.reports.find((x) => x.day === r.day && (x.shop || 'washoku') === (r.shop || 'washoku'));
+    if (kept) { kept.adDone = true; kept.adBonus = add; }
   } else if (kind in s.boosts) {
     if (s.boosts[kind]) return { ok: false };
     s.boosts[kind] = true;
@@ -183,11 +244,14 @@ function rushWeight(min) {
   return RUSH[0][1];
 }
 
-export function startDay(s) {
+const SALT = { washoku: 0, chuka: 7919 };
+export function startDay(s, { branch = false, weather = null } = {}) {
   // 営業の途中で閉じたら、開店前の状態に戻すための写し
-  const snap = JSON.stringify({ ...s, today: null, phase: 'night' });
-  const today = { snap, rng: hash(s.seed, s.day), t: 0, idSeq: 1, guests: [], jobs: [], slots: {}, stock: {}, events: [], evSeq: 1 };
-  today.weather = pickWeather(rand(today)).id;
+  const snap = branch ? null : JSON.stringify({ ...s, today: null, phase: 'night' });
+  const today = { snap, branch, rng: hash(s.seed + (SALT[genreOf(s)] || 0), s.day), t: 0, idSeq: 1, guests: [], jobs: [], slots: {}, stock: {}, events: [], evSeq: 1 };
+  // 天気は 町に1つ（どの店も同じ）
+  today.weather = weather || pickWeather(rand({ rng: hash(s.seed, s.day) })).id;
+  if (!weather && genreOf(s) === 'washoku') rand(today);
   const w = WEATHER.find((x) => x.id === today.weather);
 
   // 仕入れ。お金が足りなければ、足りる分だけ（同じ割合で減らす）
@@ -211,7 +275,7 @@ export function startDay(s) {
   }
   arrivals.sort((a, b) => a - b);
   // 常連さん（来る日を決める）
-  const regs = REGULARS.filter((r) => s.day >= 2 && rand(today) < REGULAR.chance + s.regulars[r.id].love * 0.08);
+  const regs = regularsOf(s).filter((r) => s.day >= 2 && rand(today) < REGULAR.chance + s.regulars[r.id].love * 0.08);
   today.arrivals = arrivals.map((at, i) => ({ at, look: Math.floor(rand(today) * 12), reg: null, i }));
   for (const r of regs) {
     const a = today.arrivals[Math.floor(rand(today) * today.arrivals.length)];
@@ -223,8 +287,9 @@ export function startDay(s) {
     served: 0, sales: 0, left: { queue: 0, wait: 0, soldOut: 0, pricey: 0 }, lostSales: 0,
     leftBy: { lunch: 0, day: 0, dinner: 0 }, soldOutAt: {}, sold: {}, regulars: {}, usual: [], repStart: s.rep, closedOut: 0,
   };
-  s.boosts.market = false; s.boosts.flyer = false;
   s.today = today;
+  if (branch) return today;
+  s.boosts.market = false; s.boosts.flyer = false;
   s.phase = 'service';
   return today;
 }
@@ -358,7 +423,7 @@ export function staffOf(s, stationId) {
 
 export function tick(s, dt) {
   const today = s.today;
-  if (!today || s.phase !== 'service') return;
+  if (!today || (s.phase !== 'service' && !today.branch)) return;
   today.t += dt;
   const t = today.t;
 
@@ -453,7 +518,7 @@ function closeDay(s) {
 
   // 常連さんのようす
   const notes = [];
-  for (const r of REGULARS) {
+  for (const r of regularsOf(s)) {
     const rs = s.regulars[r.id];
     const what = st.regulars[r.id];
     const favOn = s.menu[r.fav] && s.menu[r.fav].on && canCook(s, r.fav);
@@ -465,7 +530,7 @@ function closeDay(s) {
     }
   }
   const report = {
-    day: s.day, weather: today.weather, guests: today.arrivals.length, served: st.served,
+    shop: genreOf(s), day: s.day, weather: today.weather, guests: today.arrivals.length, served: st.served,
     sales: st.sales, prepCost: today.prepCost, wage, wasteCost, waste,
     left: st.left, leftBy: st.leftBy, lostSales: st.lostSales,
     soldOutAt: st.soldOutAt, sold: st.sold, usual: st.usual, notes,
@@ -478,15 +543,41 @@ function closeDay(s) {
   s.staff = [];
   s.reports.push(report);
   if (s.reports.length > 60) s.reports.shift();
-  s.history.push({ day: s.day, sales: st.sales, profit: report.profit, served: st.served, guests: report.guests });
+  s.history.push({ shop: genreOf(s), day: s.day, sales: st.sales, profit: report.profit, served: st.served, guests: report.guests });
   if (s.history.length > 30) s.history.shift();
-  // 次の日の仕込みのめやす：きょう売れた数 ＋ 少し（はじめの値は残す）
-  s.lastReport = report;
   s.today = null;
+  if (today.branch) return report;
+  // ほかの店も 同じ日を閉める
+  report.branches = runBranches(s, today.weather);
+  s.lastReport = report;
   s.phase = 'report';
   s.day += 1;
   s.ads = 0;
   return report;
+}
+
+// 立っていない店の1日を まとめて回す（アルバイトが いれば ひとりでに回る）
+const BRANCH_DT = 0.1;
+function runBranches(s, weather) {
+  const out = [];
+  for (const genre of BRANCH_ORDER) {
+    if (!s.branches[genre]) continue;
+    const home = genreOf(s);
+    swapTo(s, genre);
+    if (!s.staff.length) rehire(s);
+    let r;
+    if (!s.staff.length) {
+      r = { shop: genre, day: s.day, closed: true };
+    } else {
+      startDay(s, { branch: true, weather });
+      while (s.today) tick(s, BRANCH_DT);
+      r = s.reports[s.reports.length - 1];
+    }
+    swapTo(s, home);
+    out.push({ shop: genre, closed: !!r.closed, served: r.served || 0, guests: r.guests || 0, sales: r.sales || 0, profit: r.profit || 0,
+      left: r.closed ? 0 : r.left.queue + r.left.wait + r.left.soldOut + r.left.pricey });
+  }
+  return out;
 }
 
 export function toNight(s) { if (s.phase === 'report') s.phase = 'night'; }
@@ -503,7 +594,7 @@ export function parseSave(text) {
     const o = JSON.parse(text);
     if (!o || o.v !== SAVE_VERSION || typeof o.money !== 'number' || !Array.isArray(o.stations)) return null;
     const base = createState(o.seed);
-    return { ...base, ...o, regulars: { ...base.regulars, ...o.regulars }, log: Array.isArray(o.log) ? o.log : base.log,
+    return { ...base, ...o, branches: o.branches && typeof o.branches === 'object' ? o.branches : {}, regulars: { ...(o.genre && o.genre !== 'washoku' ? {} : base.regulars), ...o.regulars }, log: Array.isArray(o.log) ? o.log : base.log,
       reports: Array.isArray(o.reports) ? o.reports : [], lastCrew: Array.isArray(o.lastCrew) ? o.lastCrew : [], boosts: { ...base.boosts, ...o.boosts }, today: null };
   } catch { return null; }
 }

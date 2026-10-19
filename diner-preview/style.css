@@ -319,3 +319,18 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 .menuboard.many i .fd{width:12px;height:12px;vertical-align:-2px}
 /* 厨房が2段のとき、台が受け渡し台に かぶらない */
 .kitchen[data-rows="2"]{min-height:128px}
+/* 2号店から：店の切り替え */
+.shops{display:flex;gap:6px;margin-bottom:8px}
+.shopbtn{flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:6px 10px;border:2.5px solid var(--line);border-radius:12px;background:rgba(255,255,255,.6);text-align:left;box-shadow:0 3px 0 var(--line)}
+.shopbtn em{font-style:normal;font-size:10px;font-weight:800;color:var(--ink2)}
+.shopbtn b{font-family:var(--pop);font-size:13px;line-height:1.2}
+.shopbtn small{font-size:10px;font-weight:800;color:var(--ink2)}
+.shopbtn.on{background:var(--yolk)}
+.shopbtn.on small{color:var(--ink)}
+.shopbtn.shut small{color:var(--red)}
+.branches{border-top:2px dashed #d9cfb8;margin-top:8px;padding-top:6px;display:flex;flex-direction:column;gap:4px}
+.branches > small{font-size:11px;font-weight:800;color:var(--ink2)}
+.brow em{font-style:normal;font-size:12px;font-weight:800}
+.brow .row{display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:var(--ink2)}
+.exmini .exterior{width:100%;height:auto;border-radius:10px;border:2.5px solid var(--line);display:block}
+p.later{margin:0;font-size:12px;font-weight:800;color:var(--ink2)}

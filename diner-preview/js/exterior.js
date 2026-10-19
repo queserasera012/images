@@ -1,6 +1,8 @@
 // お店の外観（SVG）。段階・席・スタッフ・評判・売上の合計で姿が変わる。
 // 読むだけ（state を書き換えない）。
 import { personSVG } from './people.js';
+import { GENRES } from './config.js';
+const lookOf = (s) => GENRES[s.genre || 'washoku'].look;
 
 const L = '#2a2350';
 const W = `stroke="${L}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"`;
@@ -87,20 +89,21 @@ function stall(s, lit) {
 }
 
 function diner(s, lit) {
+  const lk = lookOf(s);
   const win = Math.min(4, Math.ceil(s.seats / 3));
   let heads = '';
   for (let i = 0; i < win; i++) heads += person(108 + i * 15, 158, 18, i * 3 + 1);
   return `
     <rect x="96" y="112" width="168" height="106" fill="#fff6e0" ${W}/>
-    <path d="M84 116 L108 88 H252 L276 116Z" fill="#4a4870" ${W}/>
+    <path d="M84 116 L108 88 H252 L276 116Z" fill="${lk.roof}" ${W}/>
     <path d="M100 100 H260" stroke="#6b6890" stroke-width="2"/>
-    <rect x="128" y="70" width="104" height="26" rx="6" fill="#ff4f5e" ${W}/>
-    <text x="180" y="88" text-anchor="middle" font-size="14" font-weight="800" fill="#fff" font-family="M PLUS Rounded 1c, sans-serif">まちかど食堂</text>
+    <rect x="128" y="70" width="104" height="26" rx="6" fill="${lk.signFill}" ${W}/>
+    <text x="180" y="88" text-anchor="middle" font-size="14" font-weight="800" fill="${lk.signText}" font-family="M PLUS Rounded 1c, sans-serif">${lk.sign}</text>
     <rect x="104" y="146" width="66" height="44" rx="4" fill="#bfe9ff" ${W}/>
     ${heads}
     <path d="M104 176 H170" stroke="${L}" stroke-width="2.5"/>
     <rect x="186" y="140" width="56" height="78" fill="#e9a25f" ${W}/>
-    ${noren(184, 140, 60, 26, '#25406b', '食堂')}
+    ${noren(184, 140, 60, 26, lk.norenFill, lk.noren)}
     ${stripes(100, 120, 72, 14, '#ffd23f', '#ffffff')}
     <path d="M70 218 L80 186 H96 L106 218" fill="#3c3a5c" ${W}/>
     <text x="88" y="203" text-anchor="middle" font-size="8" font-weight="800" fill="#fff" font-family="M PLUS Rounded 1c, sans-serif">本日</text>
@@ -111,7 +114,7 @@ function popular(s, lit) {
   return `
     <rect x="80" y="64" width="200" height="56" fill="#fff6e0" ${W}/>
     <rect x="96" y="76" width="36" height="28" rx="3" fill="#bfe9ff" ${W}/><rect x="162" y="76" width="36" height="28" rx="3" fill="#bfe9ff" ${W}/><rect x="228" y="76" width="36" height="28" rx="3" fill="#bfe9ff" ${W}/>
-    <path d="M70 66 L94 40 H266 L290 66Z" fill="#4a4870" ${W}/>
+    <path d="M70 66 L94 40 H266 L290 66Z" fill="${lookOf(s).roof}" ${W}/>
     ${diner(s, lit).replace('M84 116 L108 88 H252 L276 116Z', 'M76 120 L84 112 H276 L284 120Z').replace('<rect x="128" y="70" width="104" height="26"', '<rect x="118" y="44" width="124" height="28"').replace('y="88" text-anchor="middle" font-size="14"', 'y="63" text-anchor="middle" font-size="16"')}
     ${lantern(112, 122, lit)}${lantern(140, 122, lit)}
     ${person(280, 178, 26, 7)}${person(302, 180, 26, 2)}${person(324, 178, 26, 9)}`;
