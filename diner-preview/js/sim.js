@@ -42,7 +42,7 @@ export function createState(seed = (Date.now() >>> 0)) {
     v: SAVE_VERSION, seed, day: 1, money: START.money, rep: REP.start, stage: 0, totalSales: 0,
     seats: START.seats, stations, staff: [], menu, prep, known: Object.keys(menu), tried: [],
     regulars, ads: 0, boosts: { market: false, flyer: false, freeTrial: false },
-    history: [], log: [{ day: 1, kind: 'open', text: '屋台を開いた' }], lastReport: null, today: null, phase: 'night',
+    history: [], reports: [], lastCrew: [], log: [{ day: 1, kind: 'open', text: '屋台を開いた' }], lastReport: null, today: null, phase: 'night',
   };
 }
 
@@ -95,10 +95,23 @@ export function hire(s, role) {
   const used = new Set(s.staff.map((x) => x.name));
   const name = STAFF_NAMES.find((n) => !used.has(n)) || `スタッフ${s.staff.length + 1}`;
   s.staff.push({ id: `st${s.day}_${s.staff.length}`, name, role });
-  if (!s.log.some((x) => x.kind === 'staff')) note(s, 'staff', `はじめてのスタッフ ${name}さん`);
+  if (!s.log.some((x) => x.kind === 'staff')) note(s, 'staff', `はじめてのアルバイト ${name}さん`);
   return { ok: true, name };
 }
 export function fire(s, staffId) { s.staff = s.staff.filter((x) => x.id !== staffId); }
+// アルバイトは その日1日だけ。閉店したら帰るので、毎晩 呼び直す。
+// 「きのうと同じ人」を まとめて呼べる（呼べない役は飛ばす）
+export function canRehire(s) { return s.staff.length === 0 && s.lastCrew.length > 0; }
+export function rehire(s) {
+  if (!canRehire(s)) return { ok: false };
+  let n = 0;
+  for (const x of s.lastCrew) {
+    if (!canHire(s, x.role).ok) continue;
+    s.staff.push({ id: `st${s.day}_${s.staff.length}`, name: x.name, role: x.role });
+    n += 1;
+  }
+  return { ok: n > 0, n };
+}
 export const wages = (s) => s.staff.reduce((a, x) => a + STAFF[x.role].wage, 0);
 
 export function nextStage(s) {
@@ -146,6 +159,8 @@ export function watchAd(s, kind) {
     if (!r || r.adDone || r.profit <= 0) return { ok: false };
     const add = Math.round(r.profit * (ADS.profitMul - 1));
     s.money += add; r.adDone = true; r.adBonus = add;
+    const kept = s.reports[s.reports.length - 1];
+    if (kept && kept.day === r.day) { kept.adDone = true; kept.adBonus = add; }
   } else if (kind in s.boosts) {
     if (s.boosts[kind]) return { ok: false };
     s.boosts[kind] = true;
@@ -442,7 +457,13 @@ function closeDay(s) {
     soldOutAt: st.soldOutAt, sold: st.sold, usual: st.usual, notes,
     rep: s.rep, repDelta: s.rep - st.repStart, closedOut: st.closedOut,
     profit: st.sales - today.prepCost - wage,
+    crew: s.staff.map((x) => ({ name: x.name, role: x.role })),
   };
+  // アルバイトは閉店で帰る
+  s.lastCrew = report.crew;
+  s.staff = [];
+  s.reports.push(report);
+  if (s.reports.length > 60) s.reports.shift();
   s.history.push({ day: s.day, sales: st.sales, profit: report.profit, served: st.served, guests: report.guests });
   if (s.history.length > 30) s.history.shift();
   // 次の日の仕込みのめやす：きょう売れた数 ＋ 少し（はじめの値は残す）
@@ -468,6 +489,7 @@ export function parseSave(text) {
     const o = JSON.parse(text);
     if (!o || o.v !== SAVE_VERSION || typeof o.money !== 'number' || !Array.isArray(o.stations)) return null;
     const base = createState(o.seed);
-    return { ...base, ...o, regulars: { ...base.regulars, ...o.regulars }, log: Array.isArray(o.log) ? o.log : base.log, boosts: { ...base.boosts, ...o.boosts }, today: null };
+    return { ...base, ...o, regulars: { ...base.regulars, ...o.regulars }, log: Array.isArray(o.log) ? o.log : base.log,
+      reports: Array.isArray(o.reports) ? o.reports : [], lastCrew: Array.isArray(o.lastCrew) ? o.lastCrew : [], boosts: { ...base.boosts, ...o.boosts }, today: null };
   } catch { return null; }
 }

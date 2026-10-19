@@ -136,7 +136,10 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 #report{overflow-y:auto;padding:6px 2px 20px}
 .paper{background:var(--paper);border:3px solid var(--line);border-radius:18px;box-shadow:0 6px 0 var(--line);padding:18px 16px;display:flex;flex-direction:column;gap:10px;animation:drop .45s cubic-bezier(.3,1.5,.5,1);position:relative}
 .paper h2{margin:0;font-family:var(--pop);font-size:22px;display:flex;align-items:center;gap:8px}
-.stamp{position:absolute;right:14px;top:12px;transform:rotate(12deg);border:3px solid var(--red);color:var(--red);font-family:var(--pop);font-size:13px;padding:2px 8px;border-radius:8px;animation:stamp .5s .6s both cubic-bezier(.3,1.8,.5,1)}
+.stamp{position:absolute;right:10px;top:6px;transform:rotate(12deg);border:5px double var(--red);color:var(--red);font-family:var(--pop);font-size:34px;line-height:1;letter-spacing:2px;padding:8px 12px 6px;border-radius:12px;background:rgba(255,255,255,.75);mix-blend-mode:multiply;z-index:2;animation:stamp .5s .6s both cubic-bezier(.3,1.8,.5,1)}
+.stamp.black{border-color:var(--ink);color:var(--ink)}
+.paper h2{padding-right:110px}
+.paper .headline{margin-top:6px}
 .headline{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 .headline div{background:#f6f3ff;border-radius:12px;padding:8px 4px;text-align:center}
 .headline b{display:block;font-family:var(--pop);font-size:19px;font-variant-numeric:tabular-nums}
@@ -233,3 +236,39 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 .ayumi li small{color:var(--ink2);margin-right:8px;font-size:11px}
 .ayumi li em{font-style:normal;font-family:var(--num);font-size:13px;margin-right:1px}
 .tab{font-size:11px}
+
+/* 見返す日報 */
+.sheet.bare{background:none;border:0;box-shadow:none;padding:0;max-height:100%;overflow-y:auto}
+.sheet.bare .paper{animation:none}
+.sheet.bare .paper .stamp,.sheet.bare .paper .row{animation:none}
+.lines .crew{display:block;font-size:11px;color:var(--ink2);font-weight:800}
+.days{display:flex;flex-direction:column;gap:6px}
+.dayrow{display:grid;grid-template-columns:78px 1fr 86px;align-items:center;gap:8px;background:#fff;border:2px solid var(--line);border-radius:10px;padding:6px 10px;box-shadow:0 2px 0 var(--line);font-weight:800;font-size:12px;text-align:left}
+.dayrow em{font-style:normal;font-family:var(--num);font-size:14px}
+.dayrow b{text-align:right;font-variant-numeric:tabular-nums}
+.dayrow .bar{height:10px;border-radius:6px;background:#f1eefb;overflow:hidden}
+.dayrow .bar i{display:block;height:100%;border-radius:6px}
+.dayrow .bar.up i{background:var(--mint)}.dayrow .bar.down i{background:var(--red)}
+.sec small{font-size:11px;color:var(--ink2)}
+/* アルバイト */
+.note-oneday{background:#fff4c2;border:2.5px solid var(--line);border-radius:12px;padding:8px 10px;font-size:12px;font-weight:800;line-height:1.6}
+.note-oneday b{display:block;font-family:var(--pop);font-size:15px}
+.oneday{display:inline-block;margin-left:6px;font-size:10px;background:var(--yolk);border:1.5px solid var(--line);border-radius:6px;padding:0 5px;vertical-align:2px}
+.ic.face .person{width:34px;height:38px}
+.chunky.wide{white-space:normal;text-align:center}
+.station .chef b small{display:block;font-size:7px;color:var(--ink2);line-height:1}
+
+/* チュートリアル */
+.coach{position:fixed;inset:0;z-index:30;pointer-events:none}
+.coach.tap,.coach.card{pointer-events:auto}
+.coach.card{background:rgba(42,35,80,.6)}
+.coach .ring{position:fixed;border-radius:14px;border:3px solid var(--yolk);box-shadow:0 0 0 200vmax rgba(42,35,80,.55);animation:ringPulse 1.2s infinite;transition:left .2s,top .2s,width .2s,height .2s}
+.coach .ring[hidden]{display:none}
+.coach .tip{position:fixed;left:16px;right:16px;max-width:400px;margin:0 auto;background:#fff;border:3px solid var(--line);border-radius:16px;box-shadow:0 5px 0 var(--line);padding:12px 14px 12px 64px;animation:pop .3s;min-height:64px}
+.coach .tip p{margin:0;font-size:14px;font-weight:800;line-height:1.6}
+.coach .tip p b{color:var(--red-d)}
+.coach .tip small{display:block;margin-top:4px;text-align:right;font-size:11px;font-weight:800;color:var(--ink2)}
+.coach .tip .guide{position:absolute;left:8px;top:10px;width:48px}
+.coach .tip .guide .person{width:48px;height:54px}
+.coach .tip .big{margin-top:10px;width:100%}
+@keyframes ringPulse{0%,100%{border-color:var(--yolk)}50%{border-color:#fff}}

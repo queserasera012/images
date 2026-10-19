@@ -11,8 +11,14 @@ const DEBUG = new URLSearchParams(location.search).has('debug');
 const $ = (id) => document.getElementById(id);
 const yen = (n) => `${n < 0 ? '−' : ''}¥${Math.abs(Math.round(n)).toLocaleString('ja-JP')}`;
 
+if (new URLSearchParams(location.search).has('new') && confirm('セーブを消して 1日目から はじめますか？')) {
+  try { localStorage.removeItem(SAVE_KEY); localStorage.removeItem(UI_KEY); } catch { /* */ }
+  history.replaceState(null, '', location.pathname);
+}
 let s = load() || S.createState();
 let ui = loadUi();
+// チュートリアル：はじめて遊ぶ人だけ（とちゅうの セーブには出さない）
+if (ui.tut == null) ui.tut = s.day === 1 && s.phase === 'night' ? 0 : 99;
 let paused = false;
 let lastEv = 0;
 let tab = 'look';
@@ -164,7 +170,7 @@ function renderService() {
       el.className = `station ${st.type} ${state === 'cook' ? 'cooking' : state}`;
       const lbl = `<span class="lbl">${STATIONS[st.type].name}</span>`;
       const art = stationSVG(st.type, state === 'cook' ? 'cook' : state === 'ready' ? 'ready' : 'idle');
-      const chef = staff ? `<span class="chef">${personSVG(staffLook(staff), 'idle', { chef: true })}<b>${staff.name}</b></span>` : '';
+      const chef = staff ? `<span class="chef">${personSVG(staffLook(staff), 'idle', { chef: true })}<b>${staff.name}<small>バイト</small></b></span>` : '';
       if (!job) el.innerHTML = `${art}${lbl}${chef}`;
       else if (state === 'cook') el.innerHTML = `${art}${lbl}${chef}<span class="food">${DISHES[job.dish].icon}</span><span class="prog"><i></i></span>`;
       else {
@@ -191,11 +197,10 @@ function renderService() {
   const tb = `<span>売上<b>${yen(st.sales)}</b></span><span>食べた<b>${st.served}</b>人</span><span>帰った<b>${st.left.queue + st.left.wait + st.left.soldOut + st.left.pricey}</b>人</span>`;
   if ($('todaybar')._h !== tb) { $('todaybar').innerHTML = tb; $('todaybar')._h = tb; }
   renderFx();
-  renderHint();
 }
 
 function act(res, el) {
-  if (res.ok) { if (ui.hint < 3) advanceHint(); return; }
+  if (res.ok) return;
   if (res.why) toast(res.why);
   if (el) { el.animate([{ transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'none' }], { duration: 200 }); }
 }
@@ -226,31 +231,10 @@ function renderFx() {
   }
 }
 
-// 1日目だけのヒント
-const HINTS = ['注文の札をタップして 作りはじめる', '「できた！」の台をタップして 次へ', '受け渡し台の料理をタップして 出す'];
-function advanceHint() {
-  const t = s.today;
-  if (ui.hint === 0 && t.jobs.some((j) => j.state !== 'ticket')) ui.hint = 1;
-  else if (ui.hint === 1 && t.jobs.some((j) => j.state === 'pass')) ui.hint = 2;
-  else if (ui.hint === 2 && t.guests.some((g) => g.state === 'eating')) ui.hint = 3;
-  saveUi();
-}
-function renderHint() {
-  const el = $('hint');
-  const t = s.today;
-  let show = null;
-  if (ui.hint === 0 && t.jobs.some((j) => j.state === 'ticket')) show = HINTS[0];
-  else if (ui.hint === 1 && t.jobs.some((j) => j.state === 'ready')) show = HINTS[1];
-  else if (ui.hint === 2 && t.jobs.some((j) => j.state === 'pass')) show = HINTS[2];
-  if (ui.hint < 3) advanceHint();
-  el.hidden = !show;
-  if (show && el.textContent !== show) el.textContent = show;
-}
-
 // ---- 日報 ----
 const PERIOD = { lunch: '昼', day: '昼すぎ', dinner: '夜' };
-function renderReport() {
-  const r = s.lastReport;
+// 日報の紙（その日の閉店のあと と、外観のタブから見返すとき で同じ形）
+function reportPaper(r, { live = false } = {}) {
   const w = WEATHER.find((x) => x.id === r.weather);
   const rows = [];
   const left = r.left.queue + r.left.wait;
@@ -269,10 +253,11 @@ function renderReport() {
   if (!rows.length) rows.push(['大きな出来事は なかった', null, true]);
 
   const delta = Math.round(r.repDelta * 10) / 10;
-  const canAd = !r.adDone && r.profit > 0 && S.adLeft(s) > 0;
-  $('report').innerHTML = `
-    <div class="paper">
-      <div class="stamp">${r.profit > 0 ? '黒字' : '赤字'}</div>
+  const canAd = live && !r.adDone && r.profit > 0 && S.adLeft(s) > 0;
+  const crew = (r.crew || []).map((x) => `${x.name}さん`).join('・');
+  return `
+    <div class="paper${live ? ' live' : ''}">
+      <div class="stamp ${r.profit > 0 ? 'black' : 'red'}">${r.profit > 0 ? '黒字' : '赤字'}</div>
       <h2>${r.day}日目の日報 <span style="font-size:18px">${w.icon}</span></h2>
       <div class="headline">
         <div><b>${r.served}<small>/${r.guests}人</small></b><small>食べていった人</small></div>
@@ -282,15 +267,19 @@ function renderReport() {
       <div class="lines">
         ${rows.map(([t, v, good], i) => `<div class="row" style="animation-delay:${0.15 + i * 0.08}s"><span>${t}</span><b class="${v != null ? 'minus' : good ? 'plus' : ''}">${v != null ? yen(v) : good ? '♪' : ''}</b></div>`).join('')}
         <div class="row" style="animation-delay:${0.15 + rows.length * 0.08}s"><span>仕入れ</span><b class="minus">${yen(-r.prepCost)}</b></div>
-        <div class="row" style="animation-delay:${0.23 + rows.length * 0.08}s"><span>お給料</span><b class="minus">${yen(-r.wage)}</b></div>
+        <div class="row" style="animation-delay:${0.23 + rows.length * 0.08}s"><span>アルバイト代${crew ? `<small class="crew">${crew}（この日だけ）</small>` : ''}</span><b class="minus">${yen(-r.wage)}</b></div>
       </div>
-      <div class="profit"><span>きょうのもうけ</span><b class="${r.profit >= 0 ? 'plus' : 'minus'}" id="profitNum">${yen(0)}</b></div>
+      <div class="profit"><span>きょうのもうけ</span><b class="${r.profit >= 0 ? 'plus' : 'minus'}" ${live ? 'id="profitNum"' : ''}>${yen(live ? 0 : r.profit + (r.adBonus || 0))}</b></div>
       ${r.adBonus ? `<div class="plus" style="font-weight:800;text-align:right">広告のごほうび ${yen(r.adBonus)}</div>` : ''}
       <div class="report-actions">
         ${canAd ? `<button class="chunky yel ad" id="adProfit">広告を見て もうけを ${ADS.profitMul}倍に（のこり${S.adLeft(s)}回）</button>` : ''}
-        <button class="big go" id="toNight">夜の準備へ</button>
+        ${live ? '<button class="big go" id="toNight">夜の準備へ</button>' : '<button class="big go" data-close>とじる</button>'}
       </div>
     </div>`;
+}
+function renderReport() {
+  const r = s.lastReport;
+  $('report').innerHTML = reportPaper(r, { live: true });
   countUp($('profitNum'), r.profit + (r.adBonus || 0));
   const ad = $('adProfit');
   if (ad) onTap(ad, () => showAd(() => { S.watchAd(s, 'profit'); save(); renderReport(); }));
@@ -307,7 +296,7 @@ function countUp(el, to) {
 }
 
 // ---- 夜の準備 ----
-const TABS = [['look', '外観'], ['menu', 'メニュー'], ['prep', '仕込み'], ['shop', '設備'], ['staff', '人'], ['book', 'レシピ']];
+const TABS = [['look', '外観'], ['menu', 'メニュー'], ['prep', '仕込み'], ['shop', '設備'], ['staff', 'バイト'], ['book', 'レシピ']];
 function renderNight() {
   const ns = S.nextStage(s);
   $('nightTitle').textContent = `${s.day}日目の準備`;
@@ -337,10 +326,21 @@ const PANELS = {
         <small style="font-weight:800">評判 ${Math.round(s.rep)} / ${ns.unlock.rep}</small><div class="meter"><i style="width:${b * 100}%"></i></div>
         ${ns.ready ? '<small style="font-weight:800;color:var(--ink2)">「設備」のタブから 広げられる</small>' : ''}`;
     }
+    const days = s.reports.slice().reverse();
+    const top = Math.max(1, ...days.map((r) => Math.abs(r.profit + (r.adBonus || 0))));
+    const reports = days.map((r) => {
+      const p = r.profit + (r.adBonus || 0);
+      const w = WEATHER.find((x) => x.id === r.weather);
+      return `<button class="dayrow" data-do="report" data-arg="${r.day}">
+        <span class="d"><em>${r.day}</em>日目 ${w ? w.icon : ''}</span>
+        <span class="bar ${p >= 0 ? 'up' : 'down'}"><i style="width:${Math.max(4, (Math.abs(p) / top) * 100)}%"></i></span>
+        <b class="${p >= 0 ? 'plus' : 'minus'}">${yen(p)}</b></button>`;
+    }).join('');
     const log = s.log.slice().reverse().map((e) => `<li class="k-${e.kind}"><small><em>${e.day}</em>日目</small>${e.text}</li>`).join('');
     return `<div class="exwrap">${exteriorSVG(s)}<div class="exname">${st.name}</div></div>
       <div class="facts">${facts}</div>
       ${next}
+      ${reports ? `<div class="sec">これまでの日報 <small>（タップで ひらく）</small></div><div class="days">${reports}</div>` : ''}
       <div class="sec">あゆみ</div><ol class="ayumi">${log}</ol>`;
   },
   menu() {
@@ -399,16 +399,19 @@ const PANELS = {
   },
   staff() {
     const st = S.stageOf(s);
-    const now = s.staff.map((x) => `<div class="card"><div class="ic">🧑‍🍳</div><div class="txt"><b>${x.name}</b><small>${x.role === 'hall' ? 'ホール係・料理を運ぶ' : `${STATIONS[x.role].name}を受け持つ`}・1日 ${yen(STAFF[x.role].wage)}</small></div>
-      <button class="chunky" data-do="fire" data-arg="${x.id}">やめてもらう</button></div>`).join('');
+    const now = s.staff.map((x) => `<div class="card"><div class="ic face">${personSVG(staffLook(x), 'happy', { chef: true })}</div><div class="txt"><b>${x.name}さん<span class="oneday">あした1日だけ</span></b><small>${x.role === 'hall' ? 'ホール係・料理を運ぶ' : `${STATIONS[x.role].name}を受け持つ`}・${yen(STAFF[x.role].wage)}</small></div>
+      <button class="chunky" data-do="fire" data-arg="${x.id}">呼ばない</button></div>`).join('');
+    const again = S.canRehire(s) ? `<button class="chunky yel wide" data-do="rehire">きのうと同じ人を呼ぶ（${s.lastCrew.map((x) => `${x.name}さん`).join('・')}）</button>` : '';
     const roles = ['board', 'stove', 'fryer', 'hall'].map((r) => {
       const c = S.canHire(s, r);
       const desc = r === 'hall' ? '受け渡し台の料理を運ぶ' : `${STATIONS[r].name}の料理を進める`;
       return `<div class="card"><div class="ic">${{ board: '🔪', stove: '🔥', fryer: '🫕', hall: '🛎️' }[r]}</div><div class="txt"><b>${STAFF[r].name}</b><small>${desc}・1日 ${yen(STAFF[r].wage)}${c.ok ? '' : `・${c.why}`}</small></div>
-        <button class="chunky mint" data-do="hire" data-arg="${r}" ${c.ok ? '' : 'disabled'}>雇う</button></div>`;
+        <button class="chunky mint" data-do="hire" data-arg="${r}" ${c.ok ? '' : 'disabled'}>あした呼ぶ</button></div>`;
     }).join('');
-    return `<p style="margin:0;font-size:12px;font-weight:800;color:var(--ink2)">任せた持ち場は ひとりでに進む。お給料は毎日かかる。（${st.name}は ${st.maxStaff}人まで）</p>
-      ${now ? `<div class="sec">いま働いている人</div>${now}` : ''}<div class="sec">募集する</div>${roles}`;
+    return `<div class="note-oneday"><b>アルバイトは 1日だけ</b>あした1日 来てくれて、閉店したら帰る。続けて来てほしいときは 毎晩 呼び直す。アルバイト代は 閉店のときに払う。</div>
+      <p style="margin:0;font-size:12px;font-weight:800;color:var(--ink2)">任せた持ち場は ひとりでに進む。（${st.name}は ${st.maxStaff}人まで）</p>
+      ${again}
+      ${now ? `<div class="sec">あした来る人</div>${now}` : ''}<div class="sec">あしたの アルバイトを呼ぶ</div>${roles}`;
   },
   book() {
     ui.pick = ui.pick || [];
@@ -440,8 +443,14 @@ function doNight(what, arg) {
     case 'prep-': S.setPrep(s, arg, (s.prep[arg] || 0) - 1); break;
     case 'prep+': S.setPrep(s, arg, (s.prep[arg] || 0) + 1); break;
     case 'buy': { const r = S.buy(s, arg); if (r.ok) toast('置いた！'); break; }
-    case 'hire': { const r = S.hire(s, arg); if (r.ok) toast(`${r.name}さんが 来てくれる`); break; }
+    case 'hire': { const r = S.hire(s, arg); if (r.ok) toast(`${r.name}さんが あした1日 来てくれる`); break; }
     case 'fire': S.fire(s, arg); break;
+    case 'rehire': { const r = S.rehire(s); if (r.ok) toast(`${r.n}人 来てくれる`); break; }
+    case 'report': {
+      const r = s.reports.find((x) => String(x.day) === arg);
+      if (r) overlay(reportPaper(r), null, 'sheet bare');
+      return;
+    }
     case 'expand': { const r = S.expand(s); if (r.ok) celebrate(`${r.name}に なった！`); break; }
     case 'pick': {
       ui.pick = ui.pick.includes(arg) ? ui.pick.filter((x) => x !== arg) : [...ui.pick, arg].slice(-2);
@@ -461,9 +470,9 @@ function doNight(what, arg) {
 }
 
 // ---- 重ねる画面 ----
-function overlay(html, onBack) {
+function overlay(html, onBack, cls = 'sheet') {
   const o = $('overlay');
-  o.innerHTML = `<div class="sheet">${html}</div>`;
+  o.innerHTML = `<div class="${cls}">${html}</div>`;
   o.hidden = false;
   const close = () => { o.hidden = true; o.innerHTML = ''; if (onBack) onBack(); };
   for (const b of o.querySelectorAll('[data-close]')) onTap(b, close);
@@ -518,6 +527,76 @@ onTap($('openBtn'), () => {
   show();
 });
 
+// ---- チュートリアル ----
+// card：まん中の札（つぎへ）／ tap：光らせた所の説明（どこを押しても つぎへ）／ act：光らせた所を 押すと進む
+// hold：出ているあいだ 営業の時間を止める
+const jobsIn = (st) => (s.today ? s.today.jobs.filter((j) => j.state === st) : []);
+const nightTab = (id) => () => { if (tab !== id) { tab = id; renderNight(); } };
+const TUT = [
+  { phase: 'night', mode: 'card', text: 'ようこそ！ きょうから 屋台の店主です。<br>1日は <b>営業 → 日報 → 夜の準備</b> の くりかえし。何日でも 好きなだけ 遊べます。' },
+  { phase: 'night', mode: 'act', target: () => $('openBtn'), text: 'メニューと仕込みは 用意してあります。まずは 開店してみよう！', done: () => s.phase === 'service' },
+  { phase: 'service', mode: 'act', hold: true, ready: () => jobsIn('ticket').length > 0, target: () => document.querySelector('#tickets .ticket'),
+    text: 'お客さんの注文が来た！<br><b>注文の札</b>をタップすると まな板で 作りはじめる', done: () => s.today.jobs.some((j) => j.state !== 'ticket') },
+  { phase: 'service', mode: 'act', hold: true, ready: () => jobsIn('ready').length > 0, target: () => document.querySelector('#kitchen .station.ready'),
+    text: () => {
+      const j = jobsIn('ready')[0];
+      const steps = DISHES[j.dish].steps;
+      return j.step + 1 < steps.length ? `<b>できた！</b>をタップ。次は ${STATIONS[steps[j.step + 1][0]].name}で 仕上げる` : '<b>できた！</b>をタップして 受け渡し台に 出す';
+    }, done: () => jobsIn('pass').length > 0 },
+  { phase: 'service', mode: 'act', hold: true, ready: () => jobsIn('pass').length > 0, target: () => document.querySelector('#pass .plate'),
+    text: '受け渡し台の <b>料理をタップ</b>すると お客さんに出せる', done: () => s.today.guests.some((g) => g.state === 'eating') },
+  { phase: 'service', mode: 'tap', hold: true, target: () => document.querySelector('#seats .bubble') || $('seats'),
+    text: '吹き出しの <b>まわりの輪</b>は 待てる時間。なくなる前に出さないと 帰ってしまう。<br>あとは 閉店まで くりかえし！' },
+  { phase: 'report', mode: 'tap', target: () => document.querySelector('#report .lines'),
+    text: '閉店すると <b>日報</b>が出る。書いてあるのは 起きたことと 損だけ。<br>どう直すかは 自分で考えよう' },
+  { phase: 'report', mode: 'act', target: () => $('toNight'), text: 'つぎは 夜の準備', done: () => s.phase === 'night' },
+  { phase: 'night', mode: 'tap', place: 'bottom', enter: nightTab('menu'), target: () => document.querySelector('.tab[data-tab="menu"]'), text: '<b>メニュー</b>：出す料理と 値段。高くすると 1人の売上は増えるけど、頼む人は減る' },
+  { phase: 'night', mode: 'tap', place: 'bottom', enter: nightTab('prep'), target: () => document.querySelector('.tab[data-tab="prep"]'), text: '<b>仕込み</b>：あした何食ぶん 用意するか。足りないと売り切れ、余ると捨てる' },
+  { phase: 'night', mode: 'tap', place: 'bottom', enter: nightTab('shop'), target: () => document.querySelector('.tab[data-tab="shop"]'), text: '<b>設備</b>：席や 台を増やす。売上と評判が たまると 店を広げられる' },
+  { phase: 'night', mode: 'tap', place: 'bottom', enter: nightTab('staff'), target: () => document.querySelector('.tab[data-tab="staff"]'), text: '<b>バイト</b>：あした<b>1日だけ</b>来てくれる人。持ち場を 任せられる' },
+  { phase: 'night', mode: 'tap', place: 'bottom', enter: nightTab('look'), target: () => document.querySelector('.tab[data-tab="look"]'), text: '<b>外観</b>：お店の姿と これまでの日報。店が育つと 姿も変わる' },
+  { phase: 'night', mode: 'act', target: () => $('openBtn'), text: '決めたら 開店！ あとは 自由に やってみよう', done: () => s.phase === 'service' },
+];
+let coachStep = -1;
+function nextTut() { ui.tut += 1; saveUi(); coachStep = -1; }
+function updateCoach() {
+  const c = $('coach');
+  const st = TUT[ui.tut];
+  const visible = st && st.phase === s.phase && $('overlay').hidden && (!st.ready || st.ready());
+  // 画面が切りかわって終わる手（開店・夜の準備へ）は、切りかわった先でも 終わったと分かる
+  const finished = st && st.done && (st.phase === s.phase ? st.done() : !st.ready && st.done());
+  if (finished) { nextTut(); return false; }
+  if (!visible) { c.hidden = true; return false; }
+  if (coachStep !== ui.tut) {
+    coachStep = ui.tut;
+    if (st.enter) st.enter();
+    c.className = `coach ${st.mode}`;
+    c.innerHTML = `<div class="ring"></div><div class="tip"><span class="guide">${personSVG(4, 'happy', { chef: true })}</span><p></p>${st.mode === 'card' ? '<button class="big go">つぎへ</button>' : st.mode === 'tap' ? '<small>タップで つぎへ</small>' : ''}</div>`;
+    c._text = '';
+  }
+  c.hidden = false;
+  const text = typeof st.text === 'function' ? st.text() : st.text;
+  if (c._text !== text) { c.querySelector('p').innerHTML = text; c._text = text; }
+  const ring = c.querySelector('.ring'), tip = c.querySelector('.tip');
+  const el = st.target ? st.target() : null;
+  if (el) {
+    const r = el.getBoundingClientRect(), pad = 6;
+    ring.hidden = false;
+    Object.assign(ring.style, { left: `${r.left - pad}px`, top: `${r.top - pad}px`, width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px` });
+    const below = r.top + r.height / 2 < innerHeight / 2;
+    tip.style.top = st.place === 'bottom' ? `${innerHeight - tip.offsetHeight - 110}px` : below ? `${Math.min(innerHeight - tip.offsetHeight - 12, r.bottom + 16)}px` : `${Math.max(12, r.top - tip.offsetHeight - 16)}px`;
+  } else {
+    ring.hidden = true;
+    tip.style.top = `${(innerHeight - tip.offsetHeight) / 2}px`;
+  }
+  return !!st.hold;
+}
+onTap($('coach'), (e) => {
+  const st = TUT[ui.tut];
+  if (!st || $('coach').hidden) return;
+  if (st.mode === 'tap' || (st.mode === 'card' && e.target.closest('button'))) { e.preventDefault(); nextTut(); }
+});
+
 // ---- 画面の切りかえと時間 ----
 function show() {
   $('service').hidden = s.phase !== 'service';
@@ -534,12 +613,13 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
-  if (s.phase === 'service' && !paused) {
+  const hold = updateCoach();
+  if (s.phase === 'service' && !paused && !hold) {
     S.tick(s, dt);
     if (s.phase !== 'service') { save(); show(); }
     else renderService();
     renderTop();
-  }
+  } else if (s.phase === 'service' && hold) renderService();
   requestAnimationFrame(frame);
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
