@@ -864,3 +864,11 @@ h3 .dot { width: 14px; height: 14px; }
 /* マルシェの定期便（D387） */
 .order-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
 .order-row span { flex: 1 1 100%; }
+
+/* アップデートのお知らせ（施設で遊べるように） */
+.news h2 { margin: 0 0 6px; }
+.news-list { list-style: none; margin: 8px 0 12px; padding: 0; display: grid; gap: 6px; }
+.news-list li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: rgba(242, 216, 167, 0.35); }
+.news-list li svg { width: 28px; height: 28px; flex: none; }
+.news-list li b { flex: 1; }
+.news-list li span { color: var(--muted); font-size: 14px; }

@@ -9,7 +9,7 @@ import {
   everyone, personById, openPort, nextBoat, boatNow, clockOf, adoptPet, describePet, shopLabel,
   labelOf, nextGoal, unlockNow, nameBaby, namePet, parentsOf, portsOf, portById, closeOf, fastForwardNow, festNow, movePlaces, canMoveTo, moveBuilding, isWinter, inSeason, isRaceDay, nextRaceDay, arcadeLeft, decoType, isChild,
   capacityOf, houseUpgradeCost, houseLift, houses, fishingLeft, wantsRoomHouses,
-  dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft, nameResident, placeLabel, seasonOf, countedPop,
+  VENUE_NAME, dailyBonus, claimDailyBonus, canCallBoat, callExtraBoat, adsLeft, nameResident, placeLabel, seasonOf, countedPop,
 } from './sim.js';
 import { createRenderer, lookOf, setTheme, setHouseSkin, HOUSE_SKINS } from './render.js';
 import { owns, buy, chosenHouseSkin, chooseHouseSkin, canBuy } from './purchases.js';
@@ -27,8 +27,6 @@ import { initStore, noAdsLink, noAdsEntry, restoreLink, openNoAdsSheet, restoreN
 
 // 🚨 ほかの版（3日テスト中・ストア版 1.0）と同じサイトに置くので、保存の名前を分ける（D289・D361）
 // シェルの島の版は til.shell.*。はじめの1回だけ 1.0 のセーブ（til.grid.save.v1）を読んで写す。1.0 のほうには書き込まない
-// ⚠️ preview-play/ の書き出しだけ（feature/facility-games から写したあと書き換え）：保存の名前は til.pplay.*。
-// はじめの1回だけ til.shell → til.grid の順に読んで写す（どちらにも書き込まない）
 const SAVE_KEY = 'til.pplay.save.v1';
 const SHELL_SAVE_KEY = 'til.shell.save.v1';
 // 島ごとの お金の絵（本島コイン・シェルの島 Shell・オーロラの島 オーロラ。D354・D366）
@@ -889,6 +887,10 @@ $('sheet').addEventListener('click', (ev) => {
     $('sheet').hidden = true;
     if (reviewOnClose) askReviewOnce();
     reviewOnClose = false;
+    if (newsPending) {
+      newsPending = false;
+      showNews(); // 朝の日記を閉じたあとに お知らせ
+    }
     return;
   }
   const use = ev.target.closest('[data-skin-use]');
@@ -1470,6 +1472,25 @@ $('quest').addEventListener('click', (ev) => {
 
 // ---------------------------------------------------------------- お知らせ
 
+// アップデートで増えたものを、前から遊んでいる人に 1回だけ見せる（world.news に見た印を残す）
+const NEWS_ID = 'play1';
+const PLAY_PLACE = { ...VENUE_NAME, school: '小学校', college: '大学', company: '会社', kinder: '幼稚園', park: '公園' };
+let newsPending = false;
+function playNews() {
+  if ((world.news || []).includes(NEWS_ID)) return null;
+  const types = new Set(Object.values(world.islands).flatMap((isle) => isle.buildings.map((b) => b.type)));
+  return PLAY_GAMES.filter((g) => types.has(g));
+}
+function showNews() {
+  const games = playNews();
+  if (!games) return;
+  world.news = [...(world.news || []), NEWS_ID];
+  save();
+  if (!games.length) return;
+  const rows = games.map((g) => `<li>${ICONS[`${g}_new`] || ICONS[`${g}_roof`] || ''}<b>${PLAY_PLACE[g] || g}</b><span>${PLAY_TITLE[g]}</span></li>`).join('');
+  openSheet(`<div class="news"><h2>施設で 遊べるように なりました</h2><p class="lead">施設を押すと「あなたも遊ぶ」が出ます。いま 島にある施設では、これが遊べます。</p><ul class="news-list">${rows}</ul><p class="lead">コインがもらえるのは、スポーツや釣りと あわせて 1日3回までです。ほかの施設も、つくると遊べます。</p></div>`);
+}
+
 let toastTimer = null;
 function toast(text) {
   const el = $('toast');
@@ -1682,6 +1703,7 @@ if (DEBUG) {
     }
     if (k === 'reset' && confirm('島を最初からやり直しますか？')) {
       world = createWorld();
+      world.news = [NEWS_ID];
       state = islandNow(world);
       syncBoat();
       firstRun = true;
@@ -1801,7 +1823,12 @@ renderer.resize();
   if (c) renderer.focus((c.c + 1.5) * T, (c.r + 0.5) * T);
 }
 recordOpen();
+if (firstRun) world.news = [NEWS_ID]; // はじめての人には 出さない
 if (world.savedAt) returnAfter((Date.now() - world.savedAt) / 1000);
+if (!firstRun && playNews()) {
+  if ($('sheet').hidden) showNews();
+  else newsPending = true;
+}
 if (firstRun && !currentStep(state)) {
   const hint = $('hint');
   hint.hidden = false;
