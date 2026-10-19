@@ -2,7 +2,7 @@
 // 画面（main.js）は state を読み、ここの関数を呼ぶだけ。
 import {
   DAY, STATIONS, DISHES, GUEST, DEMAND, WEATHER, RUSH, REP, STAGES, SHOP,
-  STAFF, STAFF_NAMES, REGULARS, REGULAR, ADS, START, TRIAL_COST,
+  STAFF, STAFF_NAMES, REGULARS, REGULAR, ADS, START, TRIAL_COST, INGREDIENT_STAGE,
 } from './config.js';
 
 export const SAVE_VERSION = 1;
@@ -134,13 +134,14 @@ export function expand(s) {
 // レシピ帳：食材2つで試作する
 export function tryRecipe(s, a, b) {
   if (a === b) return { ok: false, why: 'ちがう食材を2つ' };
+  if (INGREDIENT_STAGE[a] > s.stage || INGREDIENT_STAGE[b] > s.stage) return { ok: false, why: 'まだ仕入れられない食材' };
   const key = [a, b].sort().join('+');
   if (s.tried.includes(key)) return { ok: false, why: 'もう試した組み合わせ' };
   const free = s.boosts.freeTrial;
   if (!free && s.money < TRIAL_COST) return { ok: false, why: 'お金が足りない' };
   if (free) s.boosts.freeTrial = false; else s.money -= TRIAL_COST;
   s.tried.push(key);
-  const hit = Object.entries(DISHES).find(([, d]) => d.combo && [...d.combo].sort().join('+') === key);
+  const hit = Object.entries(DISHES).find(([, d]) => d.combo && d.stage <= s.stage && [...d.combo].sort().join('+') === key);
   if (hit && !s.known.includes(hit[0])) {
     const [id, d] = hit;
     s.known.push(id);

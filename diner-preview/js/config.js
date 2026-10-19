@@ -15,21 +15,38 @@ export const STATIONS = {
 };
 
 // 料理。steps は [台の種類, 秒]。base は「ふつうの値段」
+// stage：レシピ帳で見つけられるようになる お店の段階（0 屋台・1 小さな食堂・2 町の人気店）
 export const DISHES = {
-  onigiri:  { name: 'おにぎり',       icon: '🍙', steps: [['board', 2.0]],                    base: 250, cost: 70,  appeal: 0.8, start: true },
-  yakisoba: { name: '焼きそば',       icon: '🍝', steps: [['board', 1.5], ['stove', 3.5]],    base: 600, cost: 170, appeal: 1.0, start: true },
-  tonjiru:  { name: '豚汁',           icon: '🍲', steps: [['board', 1.5], ['stove', 4.0]],    base: 400, cost: 110, appeal: 0.9, start: true },
-  omurice:  { name: 'オムライス',     icon: '🍳', steps: [['board', 1.5], ['stove', 4.5]],    base: 800, cost: 210, appeal: 1.3, combo: ['egg', 'rice'] },
-  napolitan:{ name: 'ナポリタン',     icon: '🍅', steps: [['board', 1.5], ['stove', 4.0]],    base: 750, cost: 200, appeal: 1.2, combo: ['noodle', 'tomato'] },
-  shogayaki:{ name: '生姜焼き定食',   icon: '🥩', steps: [['board', 2.0], ['stove', 4.0]],    base: 900, cost: 260, appeal: 1.3, combo: ['pork', 'cabbage'] },
-  karaage:  { name: 'からあげ定食',   icon: '🍗', steps: [['board', 1.5], ['fryer', 5.0]],    base: 950, cost: 270, appeal: 1.5, combo: ['chicken', 'rice'] },
-  tonkatsu: { name: 'とんかつ定食',   icon: '🐷', steps: [['board', 2.0], ['fryer', 5.5]],    base: 1100, cost: 330, appeal: 1.5, combo: ['pork', 'rice'] },
+  onigiri:   { name: 'おにぎり',       icon: '🍙', steps: [['board', 2.0]],                                 base: 250,  cost: 70,  appeal: 0.8, start: true },
+  yakisoba:  { name: '焼きそば',       icon: '🍝', steps: [['board', 1.5], ['stove', 3.5]],                 base: 600,  cost: 170, appeal: 1.0, start: true },
+  tonjiru:   { name: '豚汁',           icon: '🍲', steps: [['board', 1.5], ['stove', 4.0]],                 base: 400,  cost: 110, appeal: 0.9, start: true },
+  // 屋台で見つかる
+  omurice:   { name: 'オムライス',     icon: '🍳', steps: [['board', 1.5], ['stove', 4.5]],                 base: 800,  cost: 210, appeal: 1.3, combo: ['egg', 'rice'], stage: 0 },
+  napolitan: { name: 'ナポリタン',     icon: '🍅', steps: [['board', 1.5], ['stove', 4.0]],                 base: 750,  cost: 200, appeal: 1.2, combo: ['noodle', 'tomato'], stage: 0 },
+  shogayaki: { name: '生姜焼き定食',   icon: '🥩', steps: [['board', 2.0], ['stove', 4.0]],                 base: 900,  cost: 260, appeal: 1.3, combo: ['pork', 'cabbage'], stage: 0 },
+  // 小さな食堂で見つかる（揚げ場・3工程が入る）
+  karaage:   { name: 'からあげ定食',   icon: '🍗', steps: [['board', 1.5], ['fryer', 5.0]],                 base: 950,  cost: 270, appeal: 1.5, combo: ['chicken', 'rice'], stage: 1 },
+  tonkatsu:  { name: 'とんかつ定食',   icon: '🐷', steps: [['board', 2.0], ['fryer', 5.5]],                 base: 1100, cost: 330, appeal: 1.5, combo: ['pork', 'panko'], stage: 1 },
+  oyakodon:  { name: '親子丼',         icon: '🥚', steps: [['board', 1.5], ['stove', 4.5]],                 base: 850,  cost: 230, appeal: 1.3, combo: ['chicken', 'egg'], stage: 1 },
+  croquette: { name: 'コロッケ定食',   icon: '🥔', steps: [['board', 1.5], ['stove', 2.5], ['fryer', 4.0]], base: 1000, cost: 240, appeal: 1.5, combo: ['potato', 'panko'], stage: 1 },
+  // 町の人気店で見つかる（3工程の大物）
+  curry:     { name: 'カレーライス',   icon: '🍛', steps: [['board', 2.0], ['stove', 5.0]],                 base: 900,  cost: 240, appeal: 1.4, combo: ['curry', 'rice'], stage: 2 },
+  ebifry:    { name: 'エビフライ定食', icon: '🍤', steps: [['board', 2.0], ['fryer', 5.0]],                 base: 1300, cost: 400, appeal: 1.6, combo: ['shrimp', 'panko'], stage: 2 },
+  katsudon:  { name: 'カツ丼',         icon: '🍱', steps: [['board', 1.5], ['fryer', 4.5], ['stove', 3.0]], base: 1200, cost: 340, appeal: 1.7, combo: ['pork', 'dashi'], stage: 2 },
+  tendon:    { name: '天丼',           icon: '🍤', steps: [['board', 1.5], ['fryer', 4.5], ['stove', 2.5]], base: 1300, cost: 380, appeal: 1.7, combo: ['shrimp', 'dashi'], stage: 2 },
+  katsucurry:{ name: 'カツカレー',     icon: '🍛', steps: [['board', 2.0], ['fryer', 4.5], ['stove', 3.5]], base: 1400, cost: 400, appeal: 1.8, combo: ['pork', 'curry'], stage: 2 },
 };
 
-// 試作に使う食材（レシピ帳）
+// 試作に使う食材（レシピ帳）。お店を広げると 使える食材が増える
 export const INGREDIENTS = {
-  rice: 'ごはん', egg: '卵', noodle: '麺', pork: '豚肉',
-  chicken: '鶏肉', cabbage: 'キャベツ', tomato: 'トマト',
+  rice: 'ごはん', egg: '卵', noodle: '麺', pork: '豚肉', cabbage: 'キャベツ', tomato: 'トマト',
+  chicken: '鶏肉', potato: 'じゃがいも', panko: 'パン粉',
+  shrimp: 'エビ', curry: 'カレー粉', dashi: 'だし',
+};
+export const INGREDIENT_STAGE = {
+  rice: 0, egg: 0, noodle: 0, pork: 0, cabbage: 0, tomato: 0,
+  chicken: 1, potato: 1, panko: 1,
+  shrimp: 2, curry: 2, dashi: 2,
 };
 export const TRIAL_COST = 300;
 

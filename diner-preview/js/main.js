@@ -3,7 +3,8 @@ import * as S from './sim.js';
 import { personSVG, LOOK_COUNT } from './people.js';
 import { stationSVG } from './kitchen-art.js';
 import { exteriorSVG } from './exterior.js';
-import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS } from './config.js';
+import { foodSVG } from './food-art.js';
+import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, INGREDIENT_STAGE, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS } from './config.js';
 
 const SAVE_KEY = 'diner.proto.v1';
 const UI_KEY = 'diner.proto.ui.v1';
@@ -88,8 +89,11 @@ function renderService() {
   const today = s.today;
   $('shopName').textContent = S.stageOf(s).name;
   const mb = Object.entries(s.menu).filter(([id, m]) => m.on && S.canCook(s, id))
-    .map(([id, m]) => `<span class="${(today.stock[id] || 0) > 0 ? '' : 'out'}" title="${DISHES[id].name}"><i>${DISHES[id].icon}</i>${m.price}</span>`).join('');
-  if ($('menuboard')._h !== mb) { $('menuboard').innerHTML = mb; $('menuboard')._h = mb; }
+    .map(([id, m]) => `<span class="${(today.stock[id] || 0) > 0 ? '' : 'out'}" title="${DISHES[id].name}"><i>${foodSVG(id)}</i>${m.price}</span>`).join('');
+  if ($('menuboard')._h !== mb) {
+    $('menuboard').innerHTML = mb; $('menuboard')._h = mb;
+    $('menuboard').classList.toggle('many', (mb.match(/<span/g) || []).length > 8);
+  }
 
   // 入口の列
   const q = S.queueOf(today);
@@ -133,7 +137,7 @@ function renderService() {
     // 吹き出し：頼んだ料理と、あとどれだけ待てるか（まわりの輪）
     let b = el.querySelector('.bubble');
     if (g.state === 'seated' && g.dish) {
-      if (!b) { b = h('div', 'bubble', `<span>${DISHES[g.dish].icon}</span>`); ge.append(b); }
+      if (!b) { b = h('div', 'bubble', `<span>${foodSVG(g.dish)}</span>`); ge.append(b); }
       b.style.setProperty('--p', Math.max(0, p)); b.style.setProperty('--rc', ringColor(p));
     } else if (b) b.remove();
   });
@@ -144,7 +148,7 @@ function renderService() {
   sync(box, tickets.length ? tickets.slice(0, 8) : [{ none: 1 }], (j) => (j.none ? 'none' : j.id),
     (j) => {
       if (j.none) return h('div', 'empty-note', today.guests.length ? 'いまの札は ぜんぶ作っている' : 'お客さんを待っている…');
-      const e = h('button', 'ticket', `<span class="ic">${DISHES[j.dish].icon}</span><span class="nm">${DISHES[j.dish].name}</span><span class="bar"><i></i></span>`);
+      const e = h('button', 'ticket', `<span class="ic">${foodSVG(j.dish)}</span><span class="nm">${DISHES[j.dish].name}</span><span class="bar"><i></i></span>`);
       e.dataset.job = j.id;
       onTap(e, () => act(S.tapTicket(s, j.id), e));
       return e;
@@ -182,11 +186,11 @@ function renderService() {
       const art = stationSVG(st.type, state === 'cook' ? 'cook' : state === 'ready' ? 'ready' : 'idle');
       const chef = staff ? `<span class="chef">${personSVG(staffLook(staff), 'idle', { chef: true })}<b>${staff.name}<small>バイト</small></b></span>` : '';
       if (!job) el.innerHTML = `${art}${lbl}${chef}`;
-      else if (state === 'cook') el.innerHTML = `${art}${lbl}${chef}<span class="food">${DISHES[job.dish].icon}</span><span class="prog"><i></i></span>`;
+      else if (state === 'cook') el.innerHTML = `${art}${lbl}${chef}<span class="food">${foodSVG(job.dish)}</span><span class="prog"><i></i></span>`;
       else {
         const steps = DISHES[job.dish].steps;
         const next = job.step + 1 < steps.length ? `${STATIONS[steps[job.step + 1][0]].name}へ` : '台へ出す';
-        el.innerHTML = `${art}${lbl}${chef}<span class="food">${DISHES[job.dish].icon}</span><span class="done">できた！${staff ? '' : `→${next}`}</span>`;
+        el.innerHTML = `${art}${lbl}${chef}<span class="food">${foodSVG(job.dish)}</span><span class="done">できた！${staff ? '' : `→${next}`}</span>`;
       }
     }
     if (job && state === 'cook') el.querySelector('.prog i').style.width = `${Math.min(100, (job.prog / DISHES[job.dish].steps[job.step][1]) * 100)}%`;
@@ -198,7 +202,7 @@ function renderService() {
   while (slots.length < S.stageOf(s).pass) slots.push({ slot: slots.length });
   sync($('pass'), slots, (j) => (j.slot != null ? `s${j.slot}` : j.id), (j) => {
     if (j.slot != null) return h('div', 'slot');
-    const e = h('button', 'plate', DISHES[j.dish].icon);
+    const e = h('button', 'plate', foodSVG(j.dish));
     onTap(e, () => act(S.tapPass(s, j.id), e));
     return e;
   }, () => {});
@@ -358,7 +362,7 @@ const PANELS = {
       const d = DISHES[id], m = s.menu[id];
       const cook = S.canCook(s, id);
       return `<div class="card ${m.on ? '' : 'off'}">
-        <div class="ic">${d.icon}</div>
+        <div class="ic">${foodSVG(id)}</div>
         <div class="txt"><b>${d.name}</b><small>${cook ? `ふつうの値段 ${yen(d.base)}・食材 ${yen(d.cost)}` : `${d.steps.filter(([t]) => !s.stations.some((x) => x.type === t)).map(([t]) => STATIONS[t].name).join('・')}が無いので作れない`}</small></div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
           <button class="switch ${m.on ? 'on' : ''}" data-do="toggle" data-arg="${id}" aria-label="メニューに出す"></button>
@@ -372,7 +376,7 @@ const PANELS = {
     const rows = Object.entries(s.menu).filter(([id, m]) => m.on && S.canCook(s, id)).map(([id]) => {
       const d = DISHES[id];
       const sold = last ? last.sold[id] || 0 : null;
-      return `<div class="card"><div class="ic">${d.icon}</div>
+      return `<div class="card"><div class="ic">${foodSVG(id)}</div>
         <div class="txt"><b>${d.name}</b><small>${sold != null ? `きのう ${sold}食 売れた` : 'はじめての営業'}・1食 ${yen(d.cost)}</small></div>
         <div class="stepper"><button data-do="prep-" data-arg="${id}">−</button><span>${s.prep[id] || 0}食</span><button data-do="prep+" data-arg="${id}">＋</button></div></div>`;
     }).join('');
@@ -425,12 +429,21 @@ const PANELS = {
   },
   book() {
     ui.pick = ui.pick || [];
-    const found = Object.entries(DISHES).filter(([, d]) => d.combo);
-    const book = found.map(([id, d]) => (s.known.includes(id) ? `<div><span>${d.icon}</span>${d.name}</div>` : '<div class="unk"><span>？</span>？？？</div>')).join('');
-    const chips = Object.entries(INGREDIENTS).map(([k, nm]) => `<button class="${ui.pick.includes(k) ? 'on' : ''}" data-do="pick" data-arg="${k}">${nm}</button>`).join('');
+    // 段ごとに 見つけた数を出す。まだ届かない段は 鍵つき
+    const book = STAGES.map((st, i) => {
+      const list = Object.entries(DISHES).filter(([, d]) => d.combo && d.stage === i);
+      const got = list.filter(([id]) => s.known.includes(id)).length;
+      const open = s.stage >= i;
+      const cells = list.map(([id, d]) => (s.known.includes(id) ? `<div><span>${foodSVG(id)}</span>${d.name}${d.steps.length > 2 ? '<em>3工程</em>' : ''}</div>`
+        : `<div class="unk"><span>${open ? '？' : '🔒'}</span>${open ? '？？？' : ''}</div>`)).join('');
+      return `<div class="book-st ${open ? '' : 'locked'}"><b>${st.name}の レシピ <small>${got}/${list.length}</small></b>${open ? '' : `<small>${st.name}に なると 試作できる</small>`}<div class="book">${cells}</div></div>`;
+    }).join('');
+    const chips = Object.entries(INGREDIENTS).map(([k, nm]) => (INGREDIENT_STAGE[k] > s.stage
+      ? `<button class="lock" disabled>🔒 ${nm}</button>`
+      : `<button class="${ui.pick.includes(k) ? 'on' : ''}" data-do="pick" data-arg="${k}">${nm}</button>`)).join('');
     const tried = s.tried.length ? `<small style="font-weight:800;color:var(--ink2)">試した組み合わせ：${s.tried.map((k) => k.split('+').map((x) => INGREDIENTS[x]).join('＋')).join('、')}</small>` : '';
     return `<p style="margin:0;font-size:12px;font-weight:800;color:var(--ink2)">食材を2つ えらんで 試作すると、新しい料理が見つかることがある。</p>
-      <div class="book">${book}</div>
+      ${book}
       <div class="sec">試作する</div><div class="chips">${chips}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="chunky red" data-do="trial" ${ui.pick.length === 2 ? '' : 'disabled'}>${s.boosts.freeTrial ? '無料で 試作する' : `${yen(TRIAL_COST)}で 試作する`}</button>
@@ -461,7 +474,12 @@ function doNight(what, arg) {
       if (r) overlay(reportPaper(r), null, 'sheet bare');
       return;
     }
-    case 'expand': { const r = S.expand(s); if (r.ok) celebrate(`${r.name}に なった！`); break; }
+    case 'expand': {
+      const r = S.expand(s);
+      const fresh = Object.entries(INGREDIENTS).filter(([k]) => INGREDIENT_STAGE[k] === s.stage).map(([, nm]) => nm).join('・');
+      if (r.ok) celebrate(`${r.name}に なった！\n<small class="cel-sub">新しい食材：${fresh}<br>レシピ帳に 新しい料理が増えた</small>`);
+      break;
+    }
     case 'pick': {
       ui.pick = ui.pick.includes(arg) ? ui.pick.filter((x) => x !== arg) : [...ui.pick, arg].slice(-2);
       break;
@@ -470,7 +488,7 @@ function doNight(what, arg) {
       const r = S.tryRecipe(s, ui.pick[0], ui.pick[1]);
       ui.pick = [];
       if (!r.ok) toast(r.why);
-      else if (r.found) celebrate(`新しい料理！\n${DISHES[r.found].icon} ${DISHES[r.found].name}`);
+      else if (r.found) celebrate(`新しい料理！\n<span class="big-food">${foodSVG(r.found)}</span>${DISHES[r.found].name}`);
       else toast('うーん、いまいち…');
       break;
     }
