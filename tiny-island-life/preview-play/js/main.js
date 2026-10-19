@@ -383,7 +383,7 @@ function playRow(state, b) {
   const left = sportLeft(state);
   const best = state.sportBest?.[b.type];
   return `<div>あなたのあそび：${PLAY_TITLE[b.type]}${best ? `（いちばん ${best}${PLAY_UNIT[b.type]}）` : ''}</div>` +
-    `<button id="btn-play" class="card-act go" type="button" data-game="${b.type}">${ICONS[`${b.type}_new`]}あなたも遊ぶ<span class="cost">${left > 0 ? `${dayNow(state)} の${MONEY_NAME[state.isle || 'main']} あと ${left}回` : `${MONEY_NAME[state.isle || 'main']}は ${backAt(state)}`}</span></button>`;
+    `<button id="btn-play" class="card-act go" type="button" data-game="${b.type}">${ICONS[`${b.type}_new`] || ICONS[`${b.type}_roof`] || ''}あなたも遊ぶ<span class="cost">${left > 0 ? `${dayNow(state)} の${MONEY_NAME[state.isle || 'main']} あと ${left}回` : `${MONEY_NAME[state.isle || 'main']}は ${backAt(state)}`}</span></button>`;
 }
 
 function boatAdRow(id) {

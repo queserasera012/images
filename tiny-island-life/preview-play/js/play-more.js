@@ -33,6 +33,16 @@ export const pourOk = (level) => Math.abs(level - POUR.line) <= POUR.ok;
 
 export const STACK = { cups: 8, w: 60, h: 22, base: 246 };
 export const stackOk = (dx) => Math.abs(dx) <= STACK.w / 2;
+// 重心で 崩れるか。上に のっている カップぜんぶの まんなかが、支えの カップの はばから 出たら 崩れる。
+// 崩れる段（そこから上が 落ちる）を返す。崩れなければ -1
+export function toppleAt(stack) {
+  for (let i = 1; i < stack.length; i++) {
+    const above = stack.slice(i);
+    const mid = above.reduce((a, x) => a + x, 0) / above.length;
+    if (Math.abs(mid - stack[i - 1]) > STACK.w / 2) return i;
+  }
+  return -1;
+}
 
 export const ITEMS = ['apple', 'banana', 'milk', 'bread', 'carrot', 'fish'];
 export const LIST = { items: 14, listed: 7, want: 3 };
@@ -187,7 +197,7 @@ export const MORE = {
   },
 
   stand: {
-    title: 'カップつみ', unit: 'こ', how: 'ゆれるカップを 押して 落とす',
+    title: 'カップつみ', unit: 'こ', how: 'まっすぐ つまないと くずれる',
     make(api) {
       const S = { stack: [], t0: 0, drop: null, fall: null, speed: 1 };
       const swingX = (now) => 140 + Math.sin(((now - S.t0) / 1000) * 2.4 * S.speed) * 90;
@@ -202,6 +212,17 @@ export const MORE = {
             const under = S.stack.at(-1);
             if (stackOk(S.drop.x - under)) {
               S.stack.push(S.drop.x);
+              const at = toppleAt(S.stack);
+              if (at > 0) {
+                // 崩れた段から上が、かたむいた側へ 倒れる
+                const fallen = S.stack.splice(at);
+                const mid = fallen.reduce((a, x) => a + x, 0) / fallen.length;
+                S.fall = { cups: fallen, from: at, dir: mid > S.stack.at(-1) ? 1 : -1, t0: now };
+                S.drop = null;
+                api.setScore(S.stack.length - 1);
+                api.msg('くずれた');
+                return;
+              }
               api.setScore(S.stack.length - 1);
               S.drop = null;
               S.speed = 1 + api.score() * 0.12;
@@ -209,7 +230,7 @@ export const MORE = {
               if (api.score() >= STACK.cups) return api.finish(`${STACK.cups}こ ぜんぶ つめた`);
               api.msg(`${api.score()}こ`);
             } else {
-              S.fall = { x: S.drop.x, t0: now };
+              S.fall = { cups: [S.drop.x], from: S.stack.length, dir: S.drop.x > under ? 1 : -1, t0: now };
               S.drop = null;
               api.msg('おちた');
             }
@@ -250,10 +271,14 @@ export const MORE = {
           }
           if (S.fall) {
             const k = (now - S.fall.t0) / 700;
+            // 倒れる カップは、いちばん下の 角を 軸に まとめて 回ってから 落ちる
+            const { cups, from, dir } = S.fall;
+            const px = S.stack.at(-1) + dir * STACK.w / 2;
+            const py = STACK.base - from * STACK.h + STACK.h / 2;
             ctx.save();
-            ctx.translate(S.fall.x + (S.fall.x > S.stack.at(-1) ? 1 : -1) * k * 40, topY() + k * k * 200);
-            ctx.rotate((S.fall.x > S.stack.at(-1) ? 1 : -1) * k * 2);
-            cup(0, 0, 1 - k * 0.5);
+            ctx.translate(px + dir * k * 30, py + k * k * 180);
+            ctx.rotate(dir * Math.min(1.4, k * 2.2));
+            cups.forEach((x, j) => cup(x - px, STACK.base - (from + j) * STACK.h - py, 1 - k * 0.5));
             ctx.restore();
           }
           if (!playing && api.phase() === 'ready') cup(140, 48);
