@@ -33,7 +33,7 @@ h2{font-size:1.05rem;margin:0}
 .ptabs button{flex:1;border:0;background:none;color:var(--muted);font:inherit;font-weight:700;font-size:.9rem;padding:8px 2px;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer}
 .ptabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--stamp)}
 .ppane{display:grid;gap:14px}.ppane[hidden]{display:none}
-#pkids{display:flex;gap:6px;overflow-x:auto}#pkids .kid{border:2px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:4px 12px;font:inherit;font-weight:700;font-size:.9rem;cursor:pointer;white-space:nowrap}#pkids .kid.on{background:var(--leaf);border-color:var(--leaf);color:#fff}
+.pkids{display:flex;gap:6px;overflow-x:auto;align-items:center}.pkids .note{white-space:nowrap}.pkids .kid{border:2px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:4px 12px;font:inherit;font-weight:700;font-size:.9rem;cursor:pointer;white-space:nowrap}.pkids .kid.on{background:var(--leaf);border-color:var(--leaf);color:#fff}
 .card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:16px;display:grid;gap:12px;min-width:0}
 .btn{border:2px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:8px 16px;font:inherit;font-weight:700;font-size:.95rem;cursor:pointer}
 .btn.on{background:var(--sky);border-color:var(--sky);color:#fff}
@@ -719,28 +719,30 @@ label.inline{display:flex;gap:8px;align-items:center}
     // 子が2人からは 上に なまえを ならべ、ようす と こども は えらんだ子の ぶんを 出す
     var PT=[['look','📊 ようす'],['kid','👧 こども'],['set','⚙️ せってい']];
     function pane(k){ return '<div class="ppane" data-p="'+k+'"'+(ptab===k?'':' hidden')+'>'; }
+    // 名前の列は 子ごとの タブ（ようす・こども）の 中だけに 出す。せってい は 子ども みんなで 共通（2026-10-19 オーナー「全体に効くのか 各子に効くのか 分かりづらい」）
+    var kidsRow = kidIds().length>1 ? '<div class="pkids"><span class="note">だれの？</span>'+kidIds().map(function(id){ return '<button class="kid'+(id===K.cur?' on':'')+'" data-pk="'+id+'">'+esc(kidName(id))+'</button>'; }).join('')+'</div>' : '';
+    var who = esc(kidName(K.cur));
     app.innerHTML = '<h1>👪 おうちの ひと</h1>'+
-      (kidIds().length>1?'<div id="pkids">'+kidIds().map(function(id){ return '<button class="kid'+(id===K.cur?' on':'')+'" data-pk="'+id+'">'+esc(kidName(id))+'</button>'; }).join('')+'</div>':'')+
       '<div class="ptabs" role="tablist">'+PT.map(function(t){ return '<button role="tab" data-pt="'+t[0]+'" aria-selected="'+(ptab===t[0])+'">'+t[1]+'</button>'; }).join('')+'</div>'+
-      pane('look')+
-      '<div class="card"><h2>こんしゅうの モコから</h2><div class="stat"><div><b>'+read+'</b><small>読んだ手紙</small></div><div><b>'+Object.keys(learned).length+'</b><small>読めた新しい語</small></div><div><b>'+Object.keys(used).length+'</b><small>自分で使った語</small></div></div>'+
+      pane('look')+kidsRow+
+      '<div class="card"><h2>'+who+' の こんしゅう</h2><div class="stat"><div><b>'+read+'</b><small>読んだ手紙</small></div><div><b>'+Object.keys(learned).length+'</b><small>読めた新しい語</small></div><div><b>'+Object.keys(used).length+'</b><small>自分で使った語</small></div></div>'+
       (doneKeys.length? '<p class="note">えの なかで みつけた ことば：'+Object.keys(S.found||{}).reduce(function(a,k){return a+S.found[k].length},0)+'こ ／ モコに きいた かず：'+Object.keys(S.asked||{}).reduce(function(a,k){return a+S.asked[k].length},0)+'回 ／ ことばクイズ：'+(S.quiz||0)+'回</p>'+
       '<p class="note">はじめて使った言いかた：「'+esc(S.done[doneKeys[doneKeys.length-1]].reply.join(' '))+'」。「にほんご」を見た回数：'+S.jaTaps+'</p>' : '<p class="note">まだ返事がありません。</p>')+'</div>'+
-      (function(){ var st=levelStats(); var ck=function(b){return b?'✅':'⬜'}; return '<div class="card"><h2>レベル</h2><p class="note">いま：<b>'+L.levels[S.level].label+'</b>（'+L.levels[S.level].who+'）。モコが「すこし ながい てがみ、かいてもいい？」と聞いて、子が「いいよ」と言うと上がります。下がりません。</p>'+
+      (function(){ var st=levelStats(); var ck=function(b){return b?'✅':'⬜'}; return '<div class="card"><h2>'+who+' の レベル</h2><p class="note">いま：<b>'+L.levels[S.level].label+'</b>（'+L.levels[S.level].who+'）。モコが「すこし ながい てがみ、かいてもいい？」と聞いて、子が「いいよ」と言うと上がります。下がりません。</p>'+
         '<p class="note">つぎに上がる めやす（直近7通）：<br>'+ck(st.okOpen)+' 開いた手紙 '+st.opened+' / 7（5以上）<br>'+ck(st.okTaps)+' 1通あたり '+(S.level>=2?'「にほんご」':'「きく」')+'を押した回数 '+st.tapsAvg.toFixed(1)+'（1以下）<br>'+ck(st.okQuiz)+' ことばクイズ 直近3回の正答率 '+(st.quiz===null?'—':Math.round(st.quiz*100)+'%')+'（80%以上・'+st.quizN+'/3回）</p>'+
         '<label class="inline"><input type="checkbox" id="lk"'+(S.lockLevel?' checked':'')+'> レベルを固定する（モコは聞かない）</label>'+
         (function(){ var ks=Object.keys(S.done).filter(function(k){return S.done[k].same!==null&&S.done[k].same!==undefined}); if(!ks.length) return ''; var ok=ks.filter(function(k){return S.done[k].same}).length; var oa=[]; Object.keys(S.done).forEach(function(k){ (S.done[k].order||[]).forEach(function(r){oa.push(r)}); }); var o1=oa.filter(function(r){return r.ok}).length; return '<p class="note">✏️ 書く力（レベル2〜3・AI の手紙）：そのまま通った文 '+ok+' / '+ks.length+'（直しが入った文は「モコなら こう かくよ」で見せています）'+(oa.length?'<br>🔀 ならべかえ（レベル3）：1回で ぴったり '+o1+' / '+oa.length+'文':'')+'</p>'; })()+
         ((S.levelLog||[]).length?'<p class="note">これまで：'+S.levelLog.map(function(e){return e.at+' → '+L.levels[e.to].label+'（'+(e.by==='moco'?'モコが聞いた':'おうちの人')+'）'}).join('、')+'</p>':'')+'</div>'; })()+
-      '<div class="card"><h2>とどいた手紙</h2>'+(doneKeys.length?'<ol class="log">'+doneKeys.map(function(k){return '<li>Day '+L.trip[k].day+' '+esc(L.trip[k].en)+'：「'+esc(S.done[k].reply.join(' '))+'」→ '+esc(S.done[k].moco)+'</li>'}).join('')+'</ol>':'<p class="note">まだ ありません</p>')+'</div>'+
-      '</div>'+pane('kid')+
-      '<div class="card"><h2>この子の せってい</h2><label>なまえ（えいごの てがみに 出る）<input id="nm" value="'+esc(S.name)+'" maxlength="12"></label>'+
+      '<div class="card"><h2>'+who+' に とどいた手紙</h2>'+(doneKeys.length?'<ol class="log">'+doneKeys.map(function(k){return '<li>Day '+L.trip[k].day+' '+esc(L.trip[k].en)+'：「'+esc(S.done[k].reply.join(' '))+'」→ '+esc(S.done[k].moco)+'</li>'}).join('')+'</ol>':'<p class="note">まだ ありません</p>')+'</div>'+
+      '</div>'+pane('kid')+kidsRow+
+      '<div class="card"><h2>'+who+' の せってい</h2><label>なまえ（えいごの てがみに 出る）<input id="nm" value="'+esc(S.name)+'" maxlength="12"></label>'+
       '<label>にほんごの なまえ（にほんごの 文に 出る・空なら 上と同じ）<input id="nmja" value="'+esc(S.nameJa||'')+'" maxlength="12" placeholder="そうすけ"></label>'+
       '<div class="lab note" style="margin-top:8px">すきなこと（3つまで・手紙に出ます）</div>'+likesTiles(((S.likes||{}).picks||[]))+'<label>ほかに むちゅうな もの（おうちの人が書く・「、」で区切る）<input id="lkfree" value="'+esc((S.likes||{}).free||'')+'" maxlength="40" placeholder="ポケモン、ミニバス"></label>'+
       '<label>レベル<select id="lv">'+[0,1,2,3].map(function(k){return '<option value="'+k+'"'+(k===S.level?' selected':'')+'>'+L.levels[k].label+'：'+L.levels[k].who+'</option>'}).join('')+'</select></label>'+
       '<label class="inline"><input type="checkbox" id="aj"'+(S.autoJa?' checked':'')+'> にほんごを いつも 出す（レベル0〜1 は はじめから ON）</label>'+
       '<div class="row"><button class="btn on" id="sv">ほぞん</button></div><p class="note">レベルは ここで いつでも 変えられます（上げるのも 下げるのも）。まだ届いていない手紙から変わります。</p></div>'+
       '<div class="card"><h2>👧 こどもたち</h2><p class="note">上の なまえ（ここ か てがみの画面）で 切りかえます。きろく・レベル・すきなこと は 子ごと、サーバーの設定は 共通です。</p><ul class="log">'+kidIds().map(function(id){ var k=K.kids[id]; return '<li>'+(id===K.cur?'▶ ':'')+esc(kidName(id))+'（'+L.levels[k.level||0].label+'・てがみ '+Object.keys(k.done||{}).length+'通）'+(kidIds().length>1?' <button class="btn" data-del="'+id+'">けす</button>':'')+'</li>'; }).join('')+'</ul><div class="row"><button class="btn" id="kadd">＋ 子を ついか</button></div></div>'+
-      '</div>'+pane('set')+
+      '</div>'+pane('set')+'<p class="note">ここは 子ども みんなで 共通です。</p>'+
       '<div class="card"><h2>🤖 AI の手紙（サーバー）</h2><p class="note">Cloudflare に置いたサーバーの住所と合言葉を入れると、手紙とモコの返事を Claude が書きます。空なら決まった文のままです。置きかたは docs/SERVER.md。</p>'+
       '<label>サーバーの住所<input id="sv_url" value="'+esc(S.server||'')+'" placeholder="https://moco-post-server.xxxx.workers.dev" inputmode="url" autocapitalize="off"></label>'+
       '<label>合言葉<input id="sv_tok" type="text" class="secret" value="'+esc(S.token||'')+'" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></label>'+
