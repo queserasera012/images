@@ -23,7 +23,7 @@ if (ui.tut == null) ui.tut = s.day === 1 && s.phase === 'night' ? 0 : 99;
 let paused = false;
 let fast = false;
 let lastEv = 0;
-let tab = 'look';
+let tab = 'cook';
 
 function load() { try { const t = localStorage.getItem(SAVE_KEY); return t ? S.parseSave(t) : null; } catch { return null; } }
 function save() { try { localStorage.setItem(SAVE_KEY, S.serialize(s)); } catch { /* 保存できなくても遊べる */ } }
@@ -346,7 +346,8 @@ function countUp(el, to) {
 }
 
 // ---- 夜の準備 ----
-const TABS = [['look', '外観'], ['menu', 'メニュー'], ['prep', '仕込み'], ['shop', '設備'], ['staff', 'バイト'], ['book', 'レシピ']];
+// 夜の準備は 4つ（2026-10-20 オーナー：タブが増えて分かりにくい → 料理・お店・人・レシピ）
+const TABS = [['cook', '料理'], ['shop', 'お店'], ['staff', '人'], ['book', 'レシピ']];
 function renderNight() {
   const ns = S.nextStage(s);
   $('nightTitle').textContent = `${s.day}日目の準備`;
@@ -357,14 +358,14 @@ function renderNight() {
   $('notice').classList.toggle('has-ev', !!fe);
   const shops = S.shopsOf(s);
   $('shops').hidden = shops.length < 2;
-  $('shops').innerHTML = shops.map((g) => {
-    const here = g === S.genreOf(s);
+  // 店の札は 細い1段：上で あした立つ店を選び、下の1行で ほかの店のようすと バイト
+  const seg = shops.map((g) => `<button class="seg ${g === S.genreOf(s) ? 'on' : ''}" data-go="${g}"><em>${GENRES[g].no}号店</em>${GENRES[g].name.replace('中華 ', '')}</button>`).join('');
+  const lines = shops.filter((g) => g !== S.genreOf(s)).map((g) => {
     const plan = S.crewPlan(s, g);
-    const sub = here ? 'あした あなたが立つ' : plan.open ? `アルバイト${plan.staff.length}人で回す` : `${plan.why}ので 休み`;
-    return `<div class="shopbtn ${here ? 'on' : ''} ${!here && !plan.open ? 'shut' : ''}" data-shop="${g}"><em>${GENRES[g].no}号店</em><b>${GENRES[g].name}</b><small>${sub}</small>
-      ${here ? '' : `<span class="shopacts"><button class="mini" data-crew="${g}">バイトを呼ぶ</button><button class="mini" data-go="${g}">ここに立つ</button></span>`}</div>`;
+    return `<div class="shopline ${plan.open ? '' : 'shut'}"><span><b>${GENRES[g].no}号店</b>は ${plan.open ? `アルバイト${plan.staff.length}人で回す` : `${plan.why}ので 休み`}</span><button class="mini" data-crew="${g}">バイトを呼ぶ</button></div>`;
   }).join('');
-  for (const b of $('shops').querySelectorAll('[data-go]')) onTap(b, (e) => { e.stopPropagation(); if (S.switchShop(s, b.dataset.go).ok) { ui.pick = []; save(); renderNight(); toast(`あしたは ${GENRES[b.dataset.go].name}に立つ`); } });
+  $('shops').innerHTML = `<div class="segs"><small>あした立つ店</small>${seg}</div>${lines}`;
+  for (const b of $('shops').querySelectorAll('[data-go]')) onTap(b, (e) => { e.stopPropagation(); if (b.classList.contains('on')) return; if (S.switchShop(s, b.dataset.go).ok) { ui.pick = []; save(); renderNight(); toast(`あしたは ${GENRES[b.dataset.go].name}に立つ`); } });
   for (const b of $('shops').querySelectorAll('[data-crew]')) onTap(b, (e) => { e.stopPropagation(); crewSheet(b.dataset.crew); });
   $('tabs').innerHTML = TABS.map(([id, nm]) => `<button class="tab ${id === tab ? 'on' : ''}" data-tab="${id}">${nm}${id === 'shop' && ns && ns.ready ? '<i class="dot"></i>' : ''}</button>`).join('');
   for (const b of $('tabs').children) onTap(b, () => { tab = b.dataset.tab; renderNight(); });
@@ -408,19 +409,10 @@ function crewSheet(genre) {
 
 const BRANCH_ORDER_LEN = Object.keys(GENRES).length;
 const PANELS = {
-  look() {
-    const st = S.stageOf(s), ns = S.nextStage(s);
+  lookParts() {
+    const st = S.stageOf(s);
     const facts = [['席', `${s.seats}`], ['台', `${s.stations.length}`], ['スタッフ', `${s.staff.length}人`], ['評判', `${Math.round(s.rep)}`]]
       .map(([k, v]) => `<div><small>${k}</small><b>${v}</b></div>`).join('');
-    let next = '';
-    if (ns) {
-      const a = Math.min(1, s.totalSales / ns.unlock.totalSales), b = Math.min(1, s.rep / ns.unlock.rep);
-      next = `<div class="sec">つぎの姿：${ns.name}</div>
-        <div class="ghost">${exteriorSVG(s, s.stage + 1)}${ns.ready ? '<span class="ok">広げられる！</span>' : '<span>？</span>'}</div>
-        <small style="font-weight:800">売上の合計 ${yen(s.totalSales)} / ${yen(ns.unlock.totalSales)}</small><div class="meter"><i style="width:${a * 100}%"></i></div>
-        <small style="font-weight:800">評判 ${Math.round(s.rep)} / ${ns.unlock.rep}</small><div class="meter"><i style="width:${b * 100}%"></i></div>
-        ${ns.ready ? '<small style="font-weight:800;color:var(--ink2)">「設備」のタブから 広げられる</small>' : ''}`;
-    }
     const days = s.reports.filter((r) => !r.closed && (r.shop || 'washoku') === S.genreOf(s)).reverse();
     const top = Math.max(1, ...days.map((r) => Math.abs(r.profit + (r.adBonus || 0))));
     const reports = days.map((r) => {
@@ -432,39 +424,35 @@ const PANELS = {
         <b class="${p >= 0 ? 'plus' : 'minus'}">${yen(p)}</b></button>`;
     }).join('');
     const log = s.log.slice().reverse().map((e) => `<li class="k-${e.kind}"><small><em>${e.day}</em>日目</small>${e.text}</li>`).join('');
-    return `<div class="exwrap">${exteriorSVG(s)}<div class="exname">${S.shopsOf(s).length > 1 ? `${GENRES[S.genreOf(s)].no}号店 ` : ''}${st.name}</div></div>
-      <div class="facts">${facts}</div>
-      ${next}
-      ${reports ? `<div class="sec">これまでの日報 <small>（タップで ひらく）</small></div><div class="days">${reports}</div>` : ''}
+    return {
+      top: `<div class="exwrap">${exteriorSVG(s)}<div class="exname">${S.shopsOf(s).length > 1 ? `${GENRES[S.genreOf(s)].no}号店 ` : ''}${st.name}</div></div>
+      <div class="facts">${facts}</div>`,
+      bottom: `${reports ? `<div class="sec">これまでの日報 <small>（タップで ひらく）</small></div><div class="days">${reports}</div>` : ''}
       <div class="sec">あゆみ</div><ol class="ayumi">${log}</ol>
-      <div class="sec">やり直す</div><button class="chunky wide" data-do="reset">はじめから やり直す</button>`;
+      <div class="sec">やり直す</div><button class="chunky wide" data-do="reset">はじめから やり直す</button>`,
+    };
   },
-  menu() {
+  // 料理：メニューと仕込みを 1枚に（料理ごとに 出す・値段・仕込み）
+  cook() {
+    const last = s.reports.filter((r) => !r.closed && (r.shop || 'washoku') === S.genreOf(s)).pop();
     const rows = s.known.map((id) => {
       const d = DISHES[id], m = s.menu[id];
       const cook = S.canCook(s, id);
-      return `<div class="card ${m.on ? '' : 'off'}">
+      const sold = last ? last.sold[id] || 0 : null;
+      const out = last && last.soldOutAt && last.soldOutAt[id] != null;
+      const info = !cook ? `${d.steps.filter(([t]) => !s.stations.some((x) => x.type === t)).map(([t]) => STATIONS[t].name).join('・')}が無いので作れない`
+        : `ふつう ${yen(d.base)}・食材 ${yen(d.cost)}${sold != null && m.on ? `・<span class="${out ? 'minus' : ''}">きのう ${sold}食${out ? '（売り切れ）' : ''}</span>` : ''}`;
+      return `<div class="card dish ${m.on ? '' : 'off'}">
         <div class="ic">${foodSVG(id)}</div>
-        <div class="txt"><b>${d.name}</b><small>${cook ? `ふつうの値段 ${yen(d.base)}・食材 ${yen(d.cost)}` : `${d.steps.filter(([t]) => !s.stations.some((x) => x.type === t)).map(([t]) => STATIONS[t].name).join('・')}が無いので作れない`}</small></div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-          <button class="switch ${m.on ? 'on' : ''}" data-do="toggle" data-arg="${id}" aria-label="メニューに出す"></button>
-          <div class="stepper"><button data-do="price-" data-arg="${id}">−</button><span>${yen(m.price)}</span><button data-do="price+" data-arg="${id}">＋</button></div>
-        </div></div>`;
+        <div class="txt"><b>${d.name}</b><small>${info}</small></div>
+        <button class="switch ${m.on ? 'on' : ''}" data-do="toggle" data-arg="${id}" aria-label="メニューに出す"></button>
+        ${m.on && cook ? `<div class="ctl"><label>値段</label><div class="stepper"><button data-do="price-" data-arg="${id}">−</button><span>${yen(m.price)}</span><button data-do="price+" data-arg="${id}">＋</button></div>
+          <label>仕込み</label><div class="stepper"><button data-do="prep-" data-arg="${id}">−</button><span>${s.prep[id] || 0}食</span><button data-do="prep+" data-arg="${id}">＋</button></div></div>` : ''}
+      </div>`;
     }).join('');
     const pd = S.priceDemand(s);
     const level = pd < 0.95 ? '高め（来る人が減る）' : pd > 1.02 ? '安め（来る人が少し増える）' : 'ふつう';
-    return `<p style="margin:0;font-size:12px;font-weight:800;color:var(--ink2)">値段を上げると1人の売上は増えるが、来る人も頼む人も減る。<br>いまの店の値段は <b>${level}</b></p>${rows}`;
-  },
-  prep() {
-    const last = s.reports.filter((r) => !r.closed && (r.shop || 'washoku') === S.genreOf(s)).pop();
-    const rows = Object.entries(s.menu).filter(([id, m]) => m.on && S.canCook(s, id)).map(([id]) => {
-      const d = DISHES[id];
-      const sold = last ? last.sold[id] || 0 : null;
-      return `<div class="card"><div class="ic">${foodSVG(id)}</div>
-        <div class="txt"><b>${d.name}</b><small>${sold != null ? `きのう ${sold}食 売れた` : 'はじめての営業'}・1食 ${yen(d.cost)}</small></div>
-        <div class="stepper"><button data-do="prep-" data-arg="${id}">−</button><span>${s.prep[id] || 0}食</span><button data-do="prep+" data-arg="${id}">＋</button></div></div>`;
-    }).join('');
-    return `<p style="margin:0;font-size:12px;font-weight:800;color:var(--ink2)">足りないと売り切れる。余った食材は閉店後に捨てる。</p>${rows}
+    return `<p style="margin:0;font-size:12px;font-weight:800;color:var(--ink2)">値段を上げると1人の売上は増えるが、来る人も頼む人も減る。仕込みが足りないと売り切れ、余った食材は捨てる。<br>いまの店の値段は <b>${level}</b></p>${rows}
       <div class="sec">あしたの作戦</div>
       <div class="boosts">
         ${boostBtn('market', `仕入れを半額に`)}
@@ -506,7 +494,8 @@ const PANELS = {
           <button class="chunky ${nb.ready ? 'red' : ''}" style="margin-top:6px" data-do="branch" ${nb.ready && nb.affordable ? '' : 'disabled'}>${nb.ready ? `${yen(nb.price)}で 出す` : 'まだ出せない'}</button>
         </div>`;
     } else branch = `<div class="sec">${BRANCH_ORDER_LEN + 1}号店から（準備中）</div><p class="later">${BRANCH_LATER.join('・')}… 試作はここまで</p>`;
-    return `${stage}${branch}<div class="sec">${S.stageOf(s).name}の設備</div>${items}`;
+    const lp = PANELS.lookParts();
+    return `${lp.top}${stage}${branch}<div class="sec">${S.stageOf(s).name}の設備</div>${items}${lp.bottom}`;
   },
   staff() {
     const st = S.stageOf(s);
@@ -584,7 +573,7 @@ function doNight(what, arg) {
     case 'branch': {
       const r = S.openBranch(s);
       if (r.ok) {
-        tab = 'look'; ui.pick = [];
+        tab = 'shop'; ui.pick = [];
         const h = r.home;
         const line = h.open ? `${GENRES[h.genre].no}号店は ${h.crew.length > 3 ? `${h.crew.slice(0, 2).map((n) => `${n}さん`).join('・')}ほか ${h.crew.length}人` : h.crew.map((n) => `${n}さん`).join('・')}で 回る` : `${GENRES[h.genre].no}号店は 仕込み係と ホール係を 呼ばないと 休みになる（店の札の「バイトを呼ぶ」から）`;
         celebrate(`${r.name}を 出した！\n<small class="cel-sub">あしたは 2号店に立つ。<br>${line}</small>`);
@@ -696,11 +685,9 @@ const TUT = [
   { phase: 'report', mode: 'tap', target: () => document.querySelector('#report .lines'),
     text: '閉店すると <b>日報</b>が出る。書いてあるのは 起きたことと 損だけ。<br>はじめての日は たいてい赤字。あしたは 仕込みを「きのう売れた数」に合わせてみよう。そこから先は 自分で考える' },
   { phase: 'report', mode: 'act', target: () => $('toNight'), text: 'つぎは 夜の準備', done: () => s.phase === 'night' },
-  { phase: 'night', mode: 'tap', place: 'bottom', enter: nightTab('menu'), target: () => document.querySelector('.tab[data-tab="menu"]'), text: '<b>メニュー</b>：出す料理と 値段。高くすると 1人の売上は増えるけど、頼む人は減る' },
-  { phase: 'night', mode: 'tap', place: 'bottom', enter: nightTab('prep'), target: () => document.querySelector('.tab[data-tab="prep"]'), text: '<b>仕込み</b>：あした何食ぶん 用意するか。足りないと売り切れ、余ると捨てる' },
-  { phase: 'night', mode: 'tap', place: 'bottom', enter: nightTab('shop'), target: () => document.querySelector('.tab[data-tab="shop"]'), text: '<b>設備</b>：席や 台を増やす。売上と評判が たまると 店を広げられる' },
-  { phase: 'night', mode: 'tap', place: 'bottom', enter: nightTab('staff'), target: () => document.querySelector('.tab[data-tab="staff"]'), text: '<b>バイト</b>：あした<b>1日だけ</b>来てくれる人。持ち場を 任せられる' },
-  { phase: 'night', mode: 'tap', place: 'bottom', enter: nightTab('look'), target: () => document.querySelector('.tab[data-tab="look"]'), text: '<b>外観</b>：お店の姿と これまでの日報。店が育つと 姿も変わる' },
+  { phase: 'night', mode: 'tap', place: 'bottom', enter: nightTab('cook'), target: () => document.querySelector('.tab[data-tab="cook"]'), text: '<b>料理</b>：出す料理・値段・あした何食 仕込むか。高くすると 来る人は減る。仕込みが足りないと売り切れ、余ると捨てる' },
+  { phase: 'night', mode: 'tap', place: 'bottom', enter: nightTab('shop'), target: () => document.querySelector('.tab[data-tab="shop"]'), text: '<b>お店</b>：店の姿・席や台を増やす・これまでの日報。売上と評判が たまると 店を広げられる' },
+  { phase: 'night', mode: 'tap', place: 'bottom', enter: nightTab('staff'), target: () => document.querySelector('.tab[data-tab="staff"]'), text: '<b>人</b>：あした<b>1日だけ</b>来てくれるアルバイト。持ち場を 任せられる' },
   { phase: 'night', mode: 'act', target: () => $('openBtn'), text: '決めたら 開店！ あとは 自由に やってみよう', done: () => s.phase === 'service' },
 ];
 let coachStep = -1;
