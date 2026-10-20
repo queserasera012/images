@@ -197,6 +197,8 @@ export function rehire(s) {
   let n = 0;
   for (const x of s.lastCrew) {
     if (!canHire(s, x.role).ok) continue;
+    // 前の版の「スタッフ8」は 新しい名前で呼び直す
+    if (/^スタッフ\d+$/.test(x.name)) { hire(s, x.role); n += 1; continue; }
     s.staff.push({ id: `st${s.day}_${s.staff.length}`, name: x.name, role: x.role });
     n += 1;
   }
