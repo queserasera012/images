@@ -252,7 +252,22 @@ export function inviteNeighbor(s, id) {
   s.town = { ...(s.town || {}), picked: [...(s.town ? s.town.picked : []), id] };
   const n = TOWN.list.find((x) => x.id === id);
   note(s, 'town', `となりに ${n.name}が 開いた`);
+  checkFace(s);
   return { ok: true, name: n.name };
+}
+// ---- 商店街の顔：5店とも 町の人気店で、となりの店が ぜんぶ開いた。1度だけ（そのあとも 続く） ----
+export const isFace = (s) => shopsOf(s).length >= BRANCH_ORDER.length && popularCount(s) >= BRANCH_ORDER.length && neighbors(s).length >= TOWN.lots;
+function checkFace(s) {
+  if (s.faceDay || !isFace(s)) return;
+  s.faceDay = s.day;
+  note(s, 'face', '商店街の顔に なった');
+}
+export function faceSeen(s) { s.faceSeen = true; }
+// 商店街の顔の場面に出す数字（全部の店の）
+export function townTotals(s) {
+  const shops = shopsOf(s).map((g) => shopInfo(s, g));
+  const regs = shops.flatMap((sh) => Object.values(sh.regulars));
+  return { days: s.day, sales: shops.reduce((a, sh) => a + sh.totalSales, 0), asks: s.asks.done, regulars: regs.filter((r) => r.visits > 0).length, visits: regs.reduce((a, r) => a + r.visits, 0) };
 }
 // となりの店の 効き目（かけ算は ぜんぶ かける）
 const townMul = (s, key) => neighbors(s).reduce((a, n) => a * (n[key] || 1), 1);
@@ -347,6 +362,7 @@ export function expand(s) {
   s.money -= n.price;
   s.stage += 1;
   note(s, 'stage', `${n.name}になった`);
+  checkFace(s);
   return { ok: true, name: n.name };
 }
 

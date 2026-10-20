@@ -8,8 +8,8 @@ const L = '#2a2350';
 const W = `stroke="${L}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"`;
 
 // people.js の人を、好きな場所・大きさで置く
-function person(x, y, w, look, opts) {
-  return personSVG(look, 'idle', opts).replace('<svg viewBox="0 0 48 54" class="person"', `<svg x="${x}" y="${y}" width="${w}" height="${w * 54 / 48}" viewBox="0 0 48 54"`);
+function person(x, y, w, look, opts, mood = 'idle') {
+  return personSVG(look, mood, opts).replace('<svg viewBox="0 0 48 54" class="person"', `<svg x="${x}" y="${y}" width="${w}" height="${w * 54 / 48}" viewBox="0 0 48 54"`);
 }
 
 function lantern(x, y, lit) {
@@ -147,5 +147,43 @@ export function exteriorSVG(s, stage = s.stage) {
     <path d="M0 232 H360" stroke="#d1bf9f" stroke-width="2"/>
     ${SHOPS[stage](s, lit)}
     ${pots}${staff}
+  </svg>`;
+}
+
+// 商店街の顔：お祭りの夜。上に となりの店、前に 自分の店5つ、通りに 常連さん
+export function festivalSVG(s, people) {
+  const id = `fest${uid++}`;
+  const shops = ['washoku', 'chuka', 'burger', 'cafe', 'italian'];
+  const nbs = (s.town ? s.town.picked : []).slice(0, 5);
+  const back = nbs.map((nid, i) => {
+    const x = 6 + i * 70, lk = NB_LOOK[nid] || NB_LOOK.yaoya, n = TOWN.list.find((v) => v.id === nid) || {};
+    return `<rect x="${x}" y="64" width="66" height="60" fill="${lk.wall}" ${W}/>${stripes(x - 2, 68, 70, 9, lk.a, lk.b)}
+      <rect x="${x + 9}" y="86" width="48" height="15" rx="4" fill="#fff" ${W}/>
+      <text x="${x + 33}" y="97.5" text-anchor="middle" font-size="9" font-weight="800" fill="${L}" font-family="M PLUS Rounded 1c, sans-serif">${n.short || n.name || ''}</text>`;
+  }).join('');
+  const front = shops.map((g, i) => {
+    const x = 4 + i * 71, lk = GENRES[g].look;
+    return `<rect x="${x + 3}" y="124" width="64" height="70" fill="#fff6e0" ${W}/>
+      <path d="M${x - 1} 128 L${x + 9} 114 H${x + 61} L${x + 71} 128Z" fill="${lk.roof}" ${W}/>
+      <rect x="${x + 9}" y="134" width="52" height="15" rx="4" fill="${lk.signFill}" ${W}/>
+      <text x="${x + 35}" y="145.5" text-anchor="middle" font-size="${Math.min(10, 48 / [...lk.sign].length * 1.15).toFixed(1)}" font-weight="800" fill="${lk.signText}" font-family="M PLUS Rounded 1c, sans-serif">${lk.sign}</text>
+      <rect x="${x + 10}" y="156" width="22" height="20" rx="2" fill="#ffe9a8" ${W}/>
+      <rect x="${x + 38}" y="156" width="22" height="38" fill="#e9a25f" ${W}/>
+      ${lantern(x + 35, 118, true)}`;
+  }).join('');
+  const crowd = people.slice(0, 20).map((look, i) => {
+    const row = i % 2, col = Math.floor(i / 2);
+    return person(8 + col * 34 + row * 17, 186 + row * 22, 30, look, {}, 'happy');
+  }).join('');
+  const stars = Array.from({ length: 14 }, (_, i) => `<circle cx="${(i * 97) % 360}" cy="${8 + ((i * 53) % 40)}" r="1.4" fill="#fff" opacity=".8"/>`).join('');
+  return `<svg viewBox="0 0 360 260" class="exterior festival" role="img" aria-label="商店街の お祭りの夜">
+    <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2d2a6e"/><stop offset=".55" stop-color="#7a4fa3"/><stop offset="1" stop-color="#ff9a6b"/></linearGradient></defs>
+    <rect width="360" height="260" fill="url(#${id})"/>${stars}
+    <circle cx="318" cy="18" r="11" fill="#fff3b0"/>
+    ${back}
+    <g transform="translate(0,-4)">${flags()}</g>
+    ${front}
+    <rect x="0" y="194" width="360" height="66" fill="#e8d9c0" ${W}/>
+    ${crowd}
   </svg>`;
 }

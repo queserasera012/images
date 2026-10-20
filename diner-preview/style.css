@@ -444,3 +444,14 @@ p.later{margin:0;font-size:12px;font-weight:800;color:var(--ink2)}
 .story{margin:4px 0 0;padding:0 0 0 14px;font-size:11.5px;font-weight:800;line-height:1.5;color:var(--ink)}
 .story li.more{list-style:none;margin-left:-14px;color:var(--ink2)}
 .asktag{width:fit-content}
+/* 商店街の顔 */
+.face{background:#fffdf6;border:3px solid var(--ink);border-radius:20px;box-shadow:0 5px 0 var(--ink);padding:12px;text-align:center;animation:pop .5s ease-out}
+.face > svg{width:100%;height:auto;border-radius:12px;border:2.5px solid var(--ink);display:block}
+.face h2{font:900 30px/1.2 var(--pop);margin:12px 0 4px;color:var(--red);letter-spacing:.08em}
+.face p{margin:4px 0 10px;font-size:13px;font-weight:800;line-height:1.6;color:var(--ink)}
+.face p.sub{color:var(--ink2);font-size:12px}
+.facestats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.facestats div{background:#f3efff;border-radius:12px;padding:6px 4px;display:flex;flex-direction:column}
+.facestats b{font:800 18px/1.2 var(--pop)}
+.facestats b small{font-size:11px}
+.facestats small{font-size:10.5px;font-weight:800;color:var(--ink2)}

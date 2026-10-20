@@ -2,7 +2,7 @@
 import * as S from './sim.js';
 import { personSVG, LOOK_COUNT } from './people.js';
 import { stationSVG } from './kitchen-art.js';
-import { exteriorSVG } from './exterior.js';
+import { exteriorSVG, festivalSVG } from './exterior.js';
 import { foodSVG } from './food-art.js';
 import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_LATER, EVENTS, FAST, GUEST, TOWN, MANAGER, ASK, STORIES, STORY_AT } from './config.js';
 
@@ -468,7 +468,7 @@ function townMap(sel = S.genreOf(s)) {
   for (const b of o.querySelectorAll('[data-sel]')) onTap(b, () => townMap(b.dataset.sel));
   for (const b of o.querySelectorAll('[data-go]')) onTap(b, () => { if (S.switchShop(s, b.dataset.go).ok) { ui.pick = []; close(); save(); renderNight(); toast(`あしたは ${GENRES[b.dataset.go].name}に立つ`); } });
   for (const b of o.querySelectorAll('[data-crew]')) onTap(b, () => crewSheet(b.dataset.crew, () => townMap(b.dataset.crew)));
-  for (const b of o.querySelectorAll('[data-invite]')) onTap(b, () => { const r = S.inviteNeighbor(s, b.dataset.invite); if (r.ok) { save(); renderNight(); townMap(sel); toast(`となりに ${r.name}が 開いた`); } });
+  for (const b of o.querySelectorAll('[data-invite]')) onTap(b, () => { const r = S.inviteNeighbor(s, b.dataset.invite); if (r.ok) { save(); renderNight(); toast(`となりに ${r.name}が 開いた`); if (s.faceDay && !s.faceSeen) faceScene(); else townMap(sel); } });
 }
 
 // ほかの店の アルバイトを、店を切り替えずに 呼ぶ
@@ -730,6 +730,19 @@ function showAd(done) {
     if (n <= 0) { clearInterval(t); close(); paused = wasPaused; done(); toast('ごほうびを受け取った'); }
   }, 1000);
 }
+// 商店街の顔：1度だけの場面。そのあとも 同じ店で 続く
+function faceScene() {
+  const t = S.townTotals(s);
+  const people = S.shopsOf(s).flatMap((g) => S.regularsOf({ genre: g }).filter((r) => S.shopInfo(s, g).regulars[r.id].visits > 0).map((r) => r.look));
+  for (let i = 0; people.length < 14; i++) people.push((i * 5 + 3) % 12);
+  overlay(`<div class="face">${festivalSVG(s, people)}
+    <h2>商店街の顔</h2>
+    <p>まちかど食堂から はじまった 通りに、5つの店と 5つの となりの店が 並んだ。お祭りの夜、常連さんも 町の人も 通りに 出てきた。</p>
+    <div class="facestats"><div><b>${t.days}</b><small>日目</small></div><div><b>${yen(t.sales)}</b><small>5店の 売上の合計</small></div>
+      <div><b>${t.asks}</b><small>届けた お願い</small></div><div><b>${t.regulars}<small>人</small></b><small>来てくれた 常連さん</small></div></div>
+    <p class="sub">店は このまま 続く。あしたも 町の人が 来る。</p>
+    <button class="big go" data-close>あしたの 準備へ</button></div>`, () => { S.faceSeen(s); save(); renderNight(); }, 'sheet bare');
+}
 function celebrate(text) {
   overlay(`<div class="celebrate">${text.replace('\n', '<br>')}</div><button class="big go" data-close>やったね</button>`);
   const colors = ['#ff4f5e', '#ffd23f', '#2fd39e', '#5ccdf2', '#6b4eff'];
@@ -856,7 +869,7 @@ function show() {
   $('night').hidden = s.phase !== 'night';
   for (const id of ['queue', 'seats', 'tickets', 'kitchen', 'pass']) { const b = $(id); b.innerHTML = ''; b._map = null; }
   if (s.phase === 'report') renderReport();
-  if (s.phase === 'night') renderNight();
+  if (s.phase === 'night') { renderNight(); if (s.faceDay && !s.faceSeen) faceScene(); }
   if (s.phase === 'service') renderService();
   renderTop();
 }
