@@ -4,7 +4,7 @@ import { personSVG, LOOK_COUNT } from './people.js';
 import { stationSVG } from './kitchen-art.js';
 import { exteriorSVG } from './exterior.js';
 import { foodSVG } from './food-art.js';
-import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_LATER, EVENTS, FAST, GUEST, TOWN, MANAGER } from './config.js';
+import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_LATER, EVENTS, FAST, GUEST, TOWN, MANAGER, ASK, STORIES, STORY_AT } from './config.js';
 
 const SAVE_KEY = 'diner.proto.v1';
 const UI_KEY = 'diner.proto.ui.v1';
@@ -279,6 +279,12 @@ function reportPaper(r, { live = false } = {}) {
   if (r.debt) rows.push([`ツケの残り ${yen(r.debt)}`, null]);
   for (const id of r.usual) rows.push([`${REGULARS.find((x) => x.id === id).name}が「いつもの」を頼んだ`, null, true]);
   for (const n of r.notes) rows.push([n.text, null, n.good]);
+  for (const t of r.stories || []) rows.push([t, null, true]);
+  for (const a of r.townAsks || r.asks || []) {
+    const at = a.shop && a.shop !== (r.shop || 'washoku') ? `${GENRES[a.shop].short || GENRES[a.shop].name}から ` : '';
+    rows.push(a.ok ? [`お願い：${a.who}の ${a.what}に ${at}${DISHES[a.dish].name} ${a.n}食を 届けた`, a.pay]
+      : [`お願い：${a.who}の ${a.what}に ${at}届けられなかった（${a.why}）`, null]);
+  }
   if (r.closedOut) rows.push([`閉店で入れなかった ${r.closedOut}人`, null]);
   if (!rows.length) rows.push(['大きな出来事は なかった', null, true]);
 
@@ -295,7 +301,7 @@ function reportPaper(r, { live = false } = {}) {
         <div><b class="${delta >= 0 ? 'plus' : 'minus'}">${delta >= 0 ? '+' : ''}${delta}</b><small>評判</small></div>
       </div>
       <div class="lines">
-        ${rows.map(([t, v, good], i) => `<div class="row" style="animation-delay:${0.15 + i * 0.08}s"><span>${t}</span><b class="${v != null ? 'minus' : good ? 'plus' : ''}">${v != null ? yen(v) : good ? '♪' : ''}</b></div>`).join('')}
+        ${rows.map(([t, v, good], i) => `<div class="row" style="animation-delay:${0.15 + i * 0.08}s"><span>${t}</span><b class="${v != null ? (v < 0 ? 'minus' : 'plus') : good ? 'plus' : ''}">${v != null ? yen(v) : good ? '♪' : ''}</b></div>`).join('')}
         <div class="row" style="animation-delay:${0.15 + rows.length * 0.08}s"><span>仕入れ</span><b class="minus">${yen(-r.prepCost)}</b></div>
         <div class="row" style="animation-delay:${0.23 + rows.length * 0.08}s"><span>${r.manager ? '店長と ' : ''}アルバイト代${crew ? `<small class="crew">${crew}（この日だけ）</small>` : ''}</span><b class="minus">${yen(-r.wage)}</b></div>
         ${r.rent ? `<div class="row" style="animation-delay:${0.31 + rows.length * 0.08}s"><span>家賃</span><b class="minus">${yen(-r.rent)}</b></div>` : ''}
@@ -366,6 +372,12 @@ function renderNight() {
   const fw = S.weatherOf(s), fe = S.eventOf(s);
   $('notice').innerHTML = `<b>あしたは ${fw.icon} ${fw.name}</b>${fe ? `<span class="ev">${fe.icon} ${fe.name}<small>${fe.text}</small></span>` : ''}`;
   $('notice').classList.toggle('has-ev', !!fe);
+  // 町の人のお願い：貼り紙の右に。届いたら 光る。受けたものは 件数を見せる
+  const ak = s.asks;
+  if (ak.offer || ak.list.length) {
+    $('notice').insertAdjacentHTML('beforeend', `<button class="askchip ${ak.offer ? 'new' : ''}" id="askChip"><span>📮</span>${ak.offer ? 'お願いが届いた' : `お願い ${ak.list.length}件`}</button>`);
+    onTap($('askChip'), () => askSheet());
+  }
   const shops = S.shopsOf(s);
   const offer = S.townOffer(s);
   $('shops').hidden = shops.length < 2 && !offer && !S.neighbors(s).length;
@@ -387,6 +399,32 @@ function renderNight() {
   for (const el of $('boostsTop').querySelectorAll('[data-do]')) onTap(el, () => doNight(el.dataset.do, el.dataset.arg, el));
   const cost = S.prepCost(s);
   $('openBtn').textContent = `開店する！（仕入れ ${yen(cost)}）`;
+}
+
+const dueText = (d) => (d === s.day ? 'あした' : d === s.day + 1 ? 'あさって' : `${d}日目`);
+const shopShort = (g) => (S.shopsOf(s).length > 1 ? `${GENRES[g].short || GENRES[g].name}・` : '');
+// お願いの紙：届いたお願い（受ける・ことわる）と、受けたお願い
+function askSheet() {
+  const render = () => {
+    const a = s.asks, o = a.offer;
+    const card = (x) => `<div class="card ask"><div class="ic face">${personSVG(x.look || 0, 'happy')}</div><div class="txt"><b>${x.who}<small>${x.reg ? '常連さん' : ''}</small></b>
+      <small>${x.what}に、<b>${shopShort(x.shop)}${DISHES[x.dish].name}を ${x.n}食</b>。${x.due - s.day < 2 ? `${dueText(x.due)}（${x.due}日目）` : dueText(x.due)}の 朝に 取りに来る</small>
+      <small>届けると ${yen(S.askPay(x))}</small></div></div>`;
+    const offer = o ? `<div class="sec">届いた お願い</div>${card(o)}
+      <p class="asknote">受けると、その日の 朝に ${GENRES[o.shop].name}の 仕込みから ${o.n}食を 渡す。仕込みが 足りないと 届けられない。返事をしないと あしたの夜に 消える</p>
+      <div class="askbtns"><button class="chunky" data-ans="0">ことわる</button><button class="chunky red" data-ans="1" ${a.list.length >= ASK.max ? 'disabled' : ''}>${a.list.length >= ASK.max ? `受けられるのは ${ASK.max}件まで` : '受ける'}</button></div>` : '';
+    const list = a.list.slice().sort((x, y) => x.due - y.due).map(card).join('');
+    return `<h3>町の人の お願い</h3>${offer}${list ? `<div class="sec">受けた お願い</div>${list}` : ''}
+      <p class="asknote">これまでに 届けた お願い ${a.done}件</p><button class="big go" data-close>とじる</button>`;
+  };
+  const close = overlay(render(), () => { save(); renderNight(); });
+  const wire = () => {
+    const o = $('overlay');
+    for (const b of o.querySelectorAll('[data-ans]')) onTap(b, () => { S.answerAsk(s, b.dataset.ans === '1'); save(); if (!s.asks.offer && !s.asks.list.length) { close(); return; } redraw(); });
+    for (const b of o.querySelectorAll('[data-close]')) onTap(b, close);
+  };
+  const redraw = () => { $('overlay').firstElementChild.innerHTML = render(); wire(); };
+  wire();
 }
 
 // 商店街の地図：上が 自分の店（ここに立つ・バイトを呼ぶ）、下が となりの店（人気店が 増えるたびに 1つ呼べる）
@@ -500,9 +538,11 @@ const PANELS = {
       const out = last && last.soldOutAt && last.soldOutAt[id] != null;
       const info = !cook ? `${d.steps.filter(([t]) => !s.stations.some((x) => x.type === t)).map(([t]) => STATIONS[t].name).join('・')}が無いので作れない`
         : `ふつう ${yen(d.base)}・食材 ${yen(d.cost)}${sold != null && m.on ? `・<span class="${out ? 'minus' : ''}">きのう ${sold}食${out ? '（売り切れ）' : ''}</span>` : ''}`;
+      const asks = s.asks.list.filter((a) => a.shop === S.genreOf(s) && a.dish === id).sort((a, b) => a.due - b.due)
+        .map((a) => `<span class="asktag">📮 ${dueText(a.due)} お願い ${a.n}食</span>`).join('');
       return `<div class="card dish ${m.on ? '' : 'off'}">
         <div class="ic">${foodSVG(id)}</div>
-        <div class="txt"><b>${d.name}</b><small>${info}</small></div>
+        <div class="txt"><b>${d.name}</b><small>${info}</small>${asks}</div>
         <button class="switch ${m.on ? 'on' : ''}" data-do="toggle" data-arg="${id}" aria-label="メニューに出す"></button>
         ${m.on && cook ? `<div class="ctl"><label>値段</label><div class="stepper"><button data-do="price-" data-arg="${id}">−</button><span>${yen(m.price)}</span><button data-do="price+" data-arg="${id}">＋</button></div>
           <label>仕込み</label><div class="stepper"><button data-do="prep-" data-arg="${id}">−</button><span>${s.prep[id] || 0}食</span><button data-do="prep+" data-arg="${id}">＋</button></div></div>` : ''}
@@ -565,7 +605,7 @@ const PANELS = {
     return `<div class="note-oneday"><b>アルバイトは 1日だけ</b>あした1日 来てくれて、閉店したら帰る。続けて来てほしいときは 毎晩 呼び直す。アルバイト代は 閉店のときに払う。</div>
       <p style="margin:0;font-size:12px;font-weight:800;color:var(--ink2)">任せた持ち場は ひとりでに進み、料理も少し速い。雇えるのは 台の数 ＋ ホール1人 まで（いま ${s.stations.length + 1}人）。</p>
       ${again}
-      ${now ? `<div class="sec">あした来る人</div>${now}` : ''}<div class="sec">あしたの アルバイトを呼ぶ</div>${roles}`;
+      ${now ? `<div class="sec">あした来る人</div>${now}` : ''}<div class="sec">あしたの アルバイトを呼ぶ</div>${roles}${regularCards()}`;
   },
   book() {
     ui.pick = ui.pick || [];
@@ -594,6 +634,20 @@ const PANELS = {
       </div>${tried}`;
   },
 };
+// 常連さん：来た回数と、ここまでの話（まだの話は 伏せる）
+function regularCards() {
+  const regs = S.regularsOf(s);
+  if (!regs.length) return '';
+  const cards = regs.map((r) => {
+    const rs = s.regulars[r.id];
+    const seen = rs.visits > 0;
+    const told = (STORIES[r.id] || []).slice(0, rs.story || 0).map((c) => `<li>${typeof c === 'string' ? c : c.text}</li>`).join('');
+    const next = (STORIES[r.id] || [])[rs.story || 0] ? '<li class="more">…</li>' : '';
+    return `<div class="card reg ${seen ? '' : 'unseen'}"><div class="ic face">${seen ? personSVG(r.look, 'happy') : '？'}</div><div class="txt"><b>${seen ? r.name : '？？？'}</b>
+      <small>${seen ? `好物 ${DISHES[r.fav].name}・来た回数 ${rs.visits}` : 'まだ 来たことがない'}</small>${seen ? `<ul class="story">${told}${next}</ul>` : ''}</div></div>`;
+  }).join('');
+  return `<div class="sec">常連さん</div>${cards}`;
+}
 function boostBtn(kind, label) {
   const on = s.boosts[kind];
   if (on) return `<span class="chunky mint">${label} ✓ あした効く</span>`;

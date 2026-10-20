@@ -428,3 +428,19 @@ p.later{margin:0;font-size:12px;font-weight:800;color:var(--ink2)}
 .card.mgr{background:#eef6ff}
 .card.mgr.on{background:#e3f6ee}
 .branches .row.total{border-top:2px dashed var(--line);margin-top:4px;padding-top:6px;font-weight:800}
+/* 町の人のお願い */
+.askchip{margin-left:auto;display:flex;align-items:center;gap:4px;background:#fff;border:2.5px solid var(--ink);border-radius:99px;padding:4px 10px;font:800 12px/1.2 var(--pop);color:var(--ink);box-shadow:0 2px 0 var(--ink)}
+.askchip.new{background:var(--red);color:#fff;animation:askpulse 1.4s ease-in-out infinite}
+@keyframes askpulse{50%{transform:scale(1.06)}}
+.card.ask{align-items:flex-start}
+.card.ask .txt b small{font-size:10px;color:var(--ink2);margin-left:6px}
+.card.ask .txt small b{color:var(--ink)}
+.asknote{margin:4px 0 8px;font-size:11.5px;font-weight:800;color:var(--ink2);line-height:1.5}
+.askbtns{display:flex;gap:8px;justify-content:flex-end;margin-bottom:6px}
+.asktag{display:inline-block;margin-top:3px;font:800 11px/1.2 var(--body);background:#ffe4e0;color:var(--red);border-radius:99px;padding:2px 8px}
+.card.reg{align-items:flex-start}
+.card.reg.unseen{opacity:.6}
+.card.reg .ic.face{font:800 20px var(--pop);display:flex;align-items:center;justify-content:center}
+.story{margin:4px 0 0;padding:0 0 0 14px;font-size:11.5px;font-weight:800;line-height:1.5;color:var(--ink)}
+.story li.more{list-style:none;margin-left:-14px;color:var(--ink2)}
+.asktag{width:fit-content}
