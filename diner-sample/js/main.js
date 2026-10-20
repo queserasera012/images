@@ -4,7 +4,7 @@ import { personSVG, LOOK_COUNT } from './people.js';
 import { stationSVG } from './kitchen-art.js';
 import { exteriorSVG } from './exterior.js';
 import { foodSVG } from './food-art.js';
-import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_LATER, EVENTS, FAST, GUEST } from './config.js';
+import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_LATER, EVENTS, FAST, GUEST, TOWN } from './config.js';
 
 const SAVE_KEY = 'diner.proto.v1';
 const UI_KEY = 'diner.proto.ui.v1';
@@ -366,12 +366,14 @@ function renderNight() {
   $('notice').innerHTML = `<b>あしたは ${fw.icon} ${fw.name}</b>${fe ? `<span class="ev">${fe.icon} ${fe.name}<small>${fe.text}</small></span>` : ''}`;
   $('notice').classList.toggle('has-ev', !!fe);
   const shops = S.shopsOf(s);
-  $('shops').hidden = shops.length < 2;
-  // 店の札は 1つのボタンだけ。押すと 店えらびの画面（店が増えても 夜の画面は 伸びない・2026-10-20 オーナー）
+  const offer = S.townOffer(s);
+  $('shops').hidden = shops.length < 2 && !offer && !S.neighbors(s).length;
+  // 店の札は 1つのボタンだけ。押すと 商店街の地図（店が増えても 夜の画面は 伸びない・2026-10-20 オーナー）
   const others = shops.filter((g) => g !== S.genreOf(s));
   const shut = others.filter((g) => !S.crewPlan(s, g).open).length;
-  $('shops').innerHTML = `<button class="shopchip" id="shopChip"><small>あした立つ店</small><b>${GENRES[S.genreOf(s)].no}号店 ${GENRES[S.genreOf(s)].name}</b>${shut ? `<span class="warn">休みの店 ${shut}</span>` : `<span>ほか${others.length}店は バイトで</span>`}<i>▾</i></button>`;
-  if (shops.length > 1) onTap($('shopChip'), shopPicker);
+  const badge = offer ? '<span class="warn">となりに 店が来る</span>' : shut ? `<span class="warn">休みの店 ${shut}</span>` : others.length ? `<span>ほか${others.length}店は バイトで</span>` : '<span>商店街</span>';
+  $('shops').innerHTML = `<button class="shopchip" id="shopChip"><small>あした立つ店</small><b>${GENRES[S.genreOf(s)].no}号店 ${GENRES[S.genreOf(s)].name}</b>${badge}<i>▾</i></button>`;
+  onTap($('shopChip'), () => townMap());
   $('tabs').innerHTML = TABS.map(([id, nm]) => `<button class="tab ${id === tab ? 'on' : ''}" data-tab="${id}">${TAB_ICON[id]}<span>${nm}</span>${id === 'shop' && ns && ns.ready ? '<i class="dot"></i>' : ''}</button>`).join('');
   for (const b of $('tabs').children) onTap(b, () => { tab = b.dataset.tab; renderNight(); });
   const p = $('panel');
@@ -386,19 +388,48 @@ function renderNight() {
   $('openBtn').textContent = `開店する！（仕入れ ${yen(cost)}）`;
 }
 
-// 店えらび：あした立つ店を選ぶ・ほかの店の バイトを呼ぶ
-function shopPicker() {
-  const cards = S.shopsOf(s).map((g) => {
-    const here = g === S.genreOf(s);
-    const plan = here ? null : S.crewPlan(s, g);
-    const st = here ? 'あなたが 立つ' : plan.open ? `アルバイト${plan.staff.length}人で 回す` : `${plan.why}ので 休み`;
-    return `<div class="card pick ${here ? 'here' : ''} ${plan && !plan.open ? 'shut' : ''}"><div class="txt"><b>${GENRES[g].no}号店 ${GENRES[g].name}</b><small>${GENRES[g].stageNames[S.shopInfo(s, g).stage]}・評判 ${Math.round(S.shopInfo(s, g).rep)}・${st}</small></div>
-      ${here ? '<span class="here-tag">あした</span>' : `<div class="btns"><button class="chunky" data-crew="${g}">バイトを呼ぶ</button><button class="chunky yel" data-go="${g}">ここに立つ</button></div>`}</div>`;
+// 商店街の地図：上が 自分の店（ここに立つ・バイトを呼ぶ）、下が となりの店（人気店が 増えるたびに 1つ呼べる）
+const SHOP_SLOTS = 5;
+function townMap(sel = S.genreOf(s)) {
+  const shops = S.shopsOf(s);
+  const nb = S.nextBranch(s);
+  const slots = Array.from({ length: SHOP_SLOTS }, (_, i) => {
+    const g = shops.at(i);
+    if (g) {
+      const plan = g === S.genreOf(s) ? null : S.crewPlan(s, g);
+      const sub = plan ? (plan.open ? `バイト${plan.staff.length}人` : '休み') : 'あした立つ';
+      return `<button class="lot shop ${g === sel ? 'sel' : ''} ${g === S.genreOf(s) ? 'here' : ''} ${plan && !plan.open ? 'shut' : ''}" data-sel="${g}"><em>${i + 1}号店</em><b>${GENRES[g].short}</b><small>${sub}</small></button>`;
+    }
+    const next = nb && i === shops.length;
+    return `<div class="lot empty"><em>${i + 1}号店</em><b>空き家</b><small>${next && nb.ready ? '出せる' : ''}</small></div>`;
   }).join('');
-  const close = overlay(`<h3>どの店に 立つ？</h3><p style="font-size:12px;color:var(--ink2)">立たない店は アルバイトだけで 回す</p>${cards}<button class="big go" data-close>とじる</button>`, null);
+  const nbs = S.neighbors(s);
+  const lots = Array.from({ length: TOWN.lots }, (_, i) => {
+    const n = nbs.at(i);
+    return n ? `<div class="lot nb"><b>${n.short || n.name}</b></div>` : '<div class="lot empty"><b>空き地</b></div>';
+  }).join('');
+  const effects = nbs.length ? `<p class="nbfx">${nbs.map((n) => `<b>${n.name}</b>：${n.text}`).join('<br>')}</p>` : '';
+  // えらんだ店の札
+  let detail = '';
+  if (shops.includes(sel)) {
+    const here = sel === S.genreOf(s);
+    const plan = here ? null : S.crewPlan(s, sel);
+    const sh = S.shopInfo(s, sel);
+    const st = here ? 'あした あなたが 立つ' : plan.open ? `アルバイト${plan.staff.length}人で 回す` : `${plan.why}ので 休み`;
+    detail = `<div class="card pick ${here ? 'here' : ''} ${plan && !plan.open ? 'shut' : ''}"><div class="txt"><b>${GENRES[sel].no}号店 ${GENRES[sel].name}</b><small>${GENRES[sel].stageNames[sh.stage]}・評判 ${Math.round(sh.rep)}・${st}</small></div>
+      ${here ? '' : `<div class="btns"><button class="chunky" data-crew="${sel}">バイトを呼ぶ</button><button class="chunky yel" data-go="${sel}">ここに立つ</button></div>`}</div>`;
+  }
+  const offer = S.townOffer(s);
+  const ask = offer ? `<div class="sec">となりに 呼ぶ店を 1つ えらぶ</div>${offer.map((n) => `<div class="card pick offer"><div class="txt"><b>${n.name}</b><small>${n.text}</small></div><div class="btns"><button class="chunky yel" data-invite="${n.id}">呼ぶ</button></div></div>`).join('')}` : '';
+  const close = overlay(`<h3>まちかど商店街</h3>
+    <div class="street"><div class="row shops">${slots}</div><div class="road">まちかど商店街</div><div class="row lots">${lots}</div></div>
+    ${effects}${detail}${ask}<p style="font-size:11.5px;color:var(--ink2)">あなたが立つのは 1日に1店。立たない店は アルバイトだけで回す。店が 町の人気店に なるたびに、となりに 店を1つ 呼べる</p>
+    <button class="big go" data-close>とじる</button>`, null);
   const o = $('overlay');
+  for (const b of o.querySelectorAll('[data-sel]')) onTap(b, () => townMap(b.dataset.sel));
   for (const b of o.querySelectorAll('[data-go]')) onTap(b, () => { if (S.switchShop(s, b.dataset.go).ok) { ui.pick = []; close(); save(); renderNight(); toast(`あしたは ${GENRES[b.dataset.go].name}に立つ`); } });
-  for (const b of o.querySelectorAll('[data-crew]')) onTap(b, () => crewSheet(b.dataset.crew, shopPicker));
+  for (const b of o.querySelectorAll('[data-crew]')) onTap(b, () => crewSheet(b.dataset.crew, () => townMap(b.dataset.crew)));
+  for (const b of o.querySelectorAll('[data-invite]')) onTap(b, () => { const r = S.inviteNeighbor(s, b.dataset.invite); if (r.ok) { save(); renderNight(); townMap(sel); toast(`となりに ${r.name}が 開いた`); } });
 }
 
 // ほかの店の アルバイトを、店を切り替えずに 呼ぶ

@@ -2,7 +2,7 @@
 // 画面（main.js）は state を読み、ここの関数を呼ぶだけ。
 import {
   DAY, STATIONS, DISHES, GUEST, DEMAND, WEATHER, RUSH, REP, STAGES, SHOP,
-  STAFF, STAFF_NAMES, REGULARS, REGULAR, ADS, START, TRIAL_COST, GENRES, BRANCH_ORDER, EVENTS,
+  STAFF, STAFF_NAMES, REGULARS, REGULAR, ADS, START, TRIAL_COST, GENRES, BRANCH_ORDER, EVENTS, TOWN,
 } from './config.js';
 
 export const SAVE_VERSION = 1;
@@ -65,7 +65,7 @@ export function createShop(genre = 'washoku') {
 export function createState(seed = (Date.now() >>> 0)) {
   return {
     v: SAVE_VERSION, seed, day: 1, money: START.money, debt: 0, ...createShop('washoku'), branches: {},
-    ads: 0, boosts: { market: false, flyer: false, freeTrial: false },
+    town: { picked: [] }, ads: 0, boosts: { market: false, flyer: false, freeTrial: false },
     history: [], reports: [], log: [{ day: 1, kind: 'open', text: '屋台を開いた' }], lastReport: null, today: null, phase: 'night',
   };
 }
@@ -131,6 +131,35 @@ export const fireAt = (s, genre, id) => atShop(s, genre, () => { fire(s, id); re
 export const canRehireAt = (s, genre) => atShop(s, genre, () => canRehire(s));
 export const rehireAt = (s, genre) => atShop(s, genre, () => rehire(s));
 
+// ---- 商店街（となりの店） ----
+const TOP = STAGES.length - 1;
+// 町の人気店に なった店の数。この数だけ となりの店を 呼べる
+export const popularCount = (s) => shopsOf(s).filter((g) => shopInfo(s, g).stage >= TOP).length;
+export const neighbors = (s) => (s.town ? s.town.picked : []).map((id) => TOWN.list.find((n) => n.id === id)).filter(Boolean);
+// いま呼べる 候補2つ（種と 呼んだ数で 決まる。閉じても 変わらない）
+export function townOffer(s) {
+  const picked = s.town ? s.town.picked : [];
+  if (picked.length >= Math.min(popularCount(s), TOWN.lots)) return null;
+  const rest = TOWN.list.filter((n) => !picked.includes(n.id));
+  if (!rest.length) return null;
+  const r = { rng: hash(s.seed + 31337, picked.length) };
+  const a = rest.splice(Math.floor(rand(r) * rest.length), 1)[0];
+  const b = rest.length ? rest[Math.floor(rand(r) * rest.length)] : null;
+  return b ? [a, b] : [a];
+}
+export function inviteNeighbor(s, id) {
+  const offer = townOffer(s);
+  if (s.phase !== 'night' || !offer || !offer.some((n) => n.id === id)) return { ok: false };
+  s.town = { ...(s.town || {}), picked: [...(s.town ? s.town.picked : []), id] };
+  const n = TOWN.list.find((x) => x.id === id);
+  note(s, 'town', `となりに ${n.name}が 開いた`);
+  return { ok: true, name: n.name };
+}
+// となりの店の 効き目（かけ算は ぜんぶ かける）
+const townMul = (s, key) => neighbors(s).reduce((a, n) => a * (n[key] || 1), 1);
+const townBoost = (s, period) => neighbors(s).reduce((a, n) => a * (n.period === period ? n.boost : 1), 1);
+const townHeal = (s) => neighbors(s).reduce((a, n) => Math.max(a, n.upsetHeal || 1), 1);
+
 // ---- 夜の準備 ----
 export function setPrice(s, dishId, price) {
   const d = DISHES[dishId];
@@ -142,6 +171,7 @@ export function setPrep(s, dishId, n) { s.prep[dishId] = Math.max(0, Math.min(60
 export function prepCost(s) {
   let c = 0;
   for (const [id, m] of Object.entries(s.menu)) if (m.on && canCook(s, id)) c += (s.prep[id] || 0) * DISHES[id].cost;
+  c = Math.round(c * townMul(s, 'prepMul'));
   return s.boosts.market ? Math.round(c / 2) : c;
 }
 
@@ -281,7 +311,7 @@ export function weatherOf(s, day = s.day) { return pickWeather(rand({ rng: hash(
 export function eventOf(s, day = s.day) {
   if (day < 3) return null;
   const r = { rng: hash(s.seed + 104729, day) };
-  if (rand(r) >= EVENTS.chance) return null;
+  if (rand(r) >= EVENTS.chance * townMul(s, 'eventMul')) return null;
   return EVENTS.list[Math.floor(rand(r) * EVENTS.list.length)];
 }
 export function startDay(s, { branch = false, weather = null } = {}) {
@@ -308,12 +338,12 @@ export function startDay(s, { branch = false, weather = null } = {}) {
   s.money = Math.max(0, s.money - cost);
 
   // お客さんの来る時刻を先に決める
-  const n = Math.round((DEMAND.base + s.rep * DEMAND.perRep) * w.mul * (s.boosts.flyer ? ADS.flyerMul : 1) * priceDemand(s) * (ev && ev.nMul ? ev.nMul : 1));
+  const n = Math.round((DEMAND.base + s.rep * DEMAND.perRep) * w.mul * (s.boosts.flyer ? ADS.flyerMul : 1) * priceDemand(s) * (ev && ev.nMul ? ev.nMul : 1) * townMul(s, 'nMul'));
   const arrivals = [];
   const span = DAY.seconds * DAY.lastEntryRatio;
   while (arrivals.length < n) {
     const t = rand(today) * span;
-    const boost = ev && ev.period && periodOf(clockOf(t)) === ev.period ? ev.boost : 1;
+    const boost = (ev && ev.period && periodOf(clockOf(t)) === ev.period ? ev.boost : 1) * townBoost(s, periodOf(clockOf(t)));
     if (rand(today) * 2.4 < rushWeight(clockOf(t)) * boost) arrivals.push(t);
   }
   arrivals.sort((a, b) => a - b);
@@ -586,7 +616,7 @@ function closeDay(s) {
   s.debt -= repaid; s.money -= repaid;
   // 高い評判は 毎日 少し戻る
   const dec = REP.decay.find(([over]) => s.rep > over);
-  if (dec) s.rep = clampRep(s.rep - dec[1]);
+  if (dec) s.rep = clampRep(s.rep - dec[1] * townMul(s, 'decayMul'));
   const before = s.totalSales;
   s.totalSales += st.sales;
   for (const m of [10000, 50000, 100000, 300000, 1000000]) if (before < m && s.totalSales >= m) note(s, 'sales', `売上の合計が ${m.toLocaleString('ja-JP')}円に`);
@@ -603,7 +633,7 @@ function closeDay(s) {
     else if (what && what !== 'left' && !favOn) notes.push({ reg: r.id, text: `${r.name}がメニューを長いこと見ていた`, good: false });
     // 嫌なこと：好物が無い・高い・売り切れ・待たされて帰った。あると しばらく来にくくなる
     const bad = !favOn || favPricey || what === 'left' || (what === 'other' && favOut);
-    rs.upset = bad ? REGULAR.upsetDays : Math.max(0, (rs.upset || 0) - 1);
+    rs.upset = bad ? REGULAR.upsetDays : Math.max(0, (rs.upset || 0) - townHeal(s));
     // 「見ない」は 来にくくなる理由が あるときだけ書く（乱数で来なかっただけの日は書かない）
     if (!what && rs.visits > 0 && rs.upset > 0 && s.day - rs.lastDay >= REGULAR.missDays && !rs.noted) {
       notes.push({ reg: r.id, text: `最近${r.name}を見ない`, good: false });
@@ -692,6 +722,6 @@ export function parseSave(text) {
     if (!o || o.v !== SAVE_VERSION || typeof o.money !== 'number' || !Array.isArray(o.stations)) return null;
     const base = createState(o.seed);
     return renameOldStaff({ ...base, ...o, debt: typeof o.debt === 'number' ? o.debt : 0, branches: o.branches && typeof o.branches === 'object' ? o.branches : {}, regulars: { ...(o.genre && o.genre !== 'washoku' ? {} : base.regulars), ...o.regulars }, log: Array.isArray(o.log) ? o.log : base.log,
-      reports: Array.isArray(o.reports) ? o.reports : [], lastCrew: Array.isArray(o.lastCrew) ? o.lastCrew : [], boosts: { ...base.boosts, ...o.boosts }, today: null });
+      reports: Array.isArray(o.reports) ? o.reports : [], lastCrew: Array.isArray(o.lastCrew) ? o.lastCrew : [], boosts: { ...base.boosts, ...o.boosts }, town: { picked: o.town && Array.isArray(o.town.picked) ? o.town.picked : [] }, today: null });
   } catch { return null; }
 }

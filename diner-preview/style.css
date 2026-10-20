@@ -407,3 +407,21 @@ p.later{margin:0;font-size:12px;font-weight:800;color:var(--ink2)}
 .card.pick .btns{display:flex;gap:8px;margin-left:auto}
 .card.pick .here-tag{font:800 11px var(--pop);background:#fff;border:2px solid var(--line);border-radius:99px;padding:3px 9px;position:absolute;right:12px;top:12px}
 .card.pick.here{position:relative}
+/* 商店街の地図 */
+.street{display:flex;flex-direction:column;gap:6px}
+.street .row{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.street .road{background:#d9d2c3;border:2.5px solid var(--line);border-radius:10px;text-align:center;font:800 12px/1 var(--pop);padding:9px 0;color:var(--ink2);letter-spacing:.2em}
+.lot{min-width:0;border:2.5px solid var(--line);border-radius:10px;background:#fffdf6;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;font:inherit;color:var(--ink)}
+.lot em{font:800 9px/1 var(--body);font-style:normal;color:var(--ink2)}
+.lot b{font:800 13px/1.1 var(--pop);white-space:nowrap}
+.lot small{font:800 9px/1.2 var(--body);color:var(--ink2);min-height:1.2em}
+.lot.empty{border-style:dashed;background:transparent;color:var(--ink2)}
+.lot.empty b{color:var(--ink2);font-size:11px}
+.lot.here{background:var(--yolk)}
+.lot.sel{box-shadow:0 0 0 3px var(--red)}
+.lot.shut small{color:var(--red)}
+.lot.nb{background:#e3f6ee}
+.lot.nb b{font-size:11px}
+.card.pick.offer{flex-wrap:nowrap}
+.card.pick.offer .txt{flex:1 1 auto}
+.nbfx{margin:0;font-size:11px!important;line-height:1.6!important;color:var(--ink2);background:#e3f6ee;border-radius:10px;padding:6px 10px}

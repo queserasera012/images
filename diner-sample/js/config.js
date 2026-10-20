@@ -65,11 +65,11 @@ export const INGREDIENT_STAGE = {
 // お店のジャンル。1号店は和食、2号店から ジャンルを変えて出す（2026-10-19 オーナー決定）
 export const GENRES = {
   washoku: {
-    name: 'まちかど食堂', no: 1, stageNames: ['屋台', '小さな食堂', '町の人気店'], ing: INGREDIENT_STAGE,
+    name: 'まちかど食堂', short: '食堂', no: 1, stageNames: ['屋台', '小さな食堂', '町の人気店'], ing: INGREDIENT_STAGE,
     look: { sign: 'まちかど食堂', noren: '食堂', roof: '#4a4870', signFill: '#ff4f5e', signText: '#fff', norenFill: '#25406b' },
   },
   chuka: {
-    name: '中華 まんぷく亭', no: 2, stageNames: ['中華の屋台', '小さな中華料理店', '町の人気中華'],
+    name: '中華 まんぷく亭', short: '中華', no: 2, stageNames: ['中華の屋台', '小さな中華料理店', '町の人気中華'],
     ing: { rice: 1, egg: 1, noodle: 1, pork: 1, cabbage: 1, negi: 1, tofu: 2, chili: 2, shrimp: 2, su: 2 },
     look: { sign: 'まんぷく亭', noren: '中華', roof: '#c0392b', signFill: '#ffd23f', signText: '#c0392b', norenFill: '#c0392b' },
     // 出店：1号店が この段になったら。小さな中華料理店から始まる
@@ -171,6 +171,19 @@ export const REGULARS = [
 ];
 // upsetDays：嫌なこと（好物が無い・高い・売り切れ・待たされて帰った）があると、この日数は来る確率が upsetDrop ぶん下がる
 // pricey：好物が ふつうの値段の これ倍を超えると「高い」
+// となりの店（町に呼ぶ店）。自分の店が 人気店に なるたびに、候補2つから1つを呼べる。効き目は 自分の店 ぜんぶに
+// text は 起きることだけを書く（「おすすめ」は書かない）
+export const TOWN = {
+  lots: 5,
+  list: [
+    { id: 'yaoya', name: '八百屋', text: '仕入れが 1割 安くなる', prepMul: 0.9 },
+    { id: 'honya', name: '本屋', text: '昼に 学生が 来るようになる', period: 'lunch', boost: 1.4, nMul: 1.06 },
+    { id: 'sento', name: '銭湯', text: '夜に お客さんが 増える', period: 'dinner', boost: 1.4, nMul: 1.06 },
+    { id: 'jimusho', name: '商店街の事務所', short: '事務所', text: 'お祭りや 行事の日が 増える', eventMul: 1.6 },
+    { id: 'coffee', name: 'コーヒー屋', text: '常連さんの 機嫌が 早く直る', upsetHeal: 2 },
+    { id: 'hanaya', name: '花屋', text: '高い評判が 下がりにくい', decayMul: 0.5 },
+  ],
+};
 export const REGULAR = { chance: 0.35, loveToUsual: 3, missDays: 3, upsetDays: 4, upsetDrop: 0.3, pricey: 1.3 };
 
 // 広告（見たい人が見るものだけ。1日の上限）
