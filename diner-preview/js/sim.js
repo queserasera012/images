@@ -673,12 +673,25 @@ export function serialize(s) {
   const { today, ...rest } = s;
   return JSON.stringify(rest);
 }
+// 前の版で付いた「スタッフ8」などを、空いている名前に付け直す（呼んである人・きのうの人・ほかの店も）
+function renameOldStaff(s) {
+  const lists = [s.staff, s.lastCrew, ...Object.values(s.branches).flatMap((b) => [b.staff || [], b.lastCrew || []])];
+  const used = new Set(lists.flat().map((x) => x.name));
+  const free = [...STAFF_NAMES, ...STAFF_NAMES.map((n) => `${n}2`)].filter((n) => !used.has(n));
+  const map = {};
+  for (const x of lists.flat()) {
+    if (!/^スタッフ\d+$/.test(x.name)) continue;
+    map[x.name] = map[x.name] || free.shift() || STAFF_NAMES[0];
+    x.name = map[x.name];
+  }
+  return s;
+}
 export function parseSave(text) {
   try {
     const o = JSON.parse(text);
     if (!o || o.v !== SAVE_VERSION || typeof o.money !== 'number' || !Array.isArray(o.stations)) return null;
     const base = createState(o.seed);
-    return { ...base, ...o, debt: typeof o.debt === 'number' ? o.debt : 0, branches: o.branches && typeof o.branches === 'object' ? o.branches : {}, regulars: { ...(o.genre && o.genre !== 'washoku' ? {} : base.regulars), ...o.regulars }, log: Array.isArray(o.log) ? o.log : base.log,
-      reports: Array.isArray(o.reports) ? o.reports : [], lastCrew: Array.isArray(o.lastCrew) ? o.lastCrew : [], boosts: { ...base.boosts, ...o.boosts }, today: null };
+    return renameOldStaff({ ...base, ...o, debt: typeof o.debt === 'number' ? o.debt : 0, branches: o.branches && typeof o.branches === 'object' ? o.branches : {}, regulars: { ...(o.genre && o.genre !== 'washoku' ? {} : base.regulars), ...o.regulars }, log: Array.isArray(o.log) ? o.log : base.log,
+      reports: Array.isArray(o.reports) ? o.reports : [], lastCrew: Array.isArray(o.lastCrew) ? o.lastCrew : [], boosts: { ...base.boosts, ...o.boosts }, today: null });
   } catch { return null; }
 }
