@@ -347,6 +347,15 @@ function countUp(el, to) {
 
 // ---- 夜の準備 ----
 // 夜の準備は 4つ（2026-10-20 オーナー：タブが増えて分かりにくい → 料理・お店・人・レシピ）
+// 下のタブの絵（線の太さと色は 人や台の絵と同じ）
+const TI = 'viewBox="0 0 32 32" class="ti" aria-hidden="true"';
+const TL = 'stroke="#2a2350" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"';
+const TAB_ICON = {
+  cook: `<svg ${TI}><ellipse cx="16" cy="22" rx="13" ry="5" fill="#fff" ${TL}/><path d="M6 20 C6 10 26 10 26 20Z" fill="#ffd23f" ${TL}/><path d="M11 15 l3 -2 l3 2 l3 -2" fill="none" stroke="#e8302e" stroke-width="2" stroke-linecap="round"/></svg>`,
+  shop: `<svg ${TI}><rect x="6" y="14" width="20" height="14" fill="#fff6e0" ${TL}/><path d="M3 15 L9 6 H23 L29 15Z" fill="#ff4f5e" ${TL}/><rect x="13" y="19" width="6" height="9" fill="#e9a25f" ${TL}/></svg>`,
+  staff: `<svg ${TI}><path d="M6 29 C6 21 26 21 26 29Z" fill="#2fd39e" ${TL}/><circle cx="16" cy="14" r="7" fill="#ffd9bf" ${TL}/><path d="M9 9 C9 3 23 3 23 9 Z" fill="#fff" ${TL}/><circle cx="13.5" cy="15" r="1" fill="#2a2350"/><circle cx="18.5" cy="15" r="1" fill="#2a2350"/></svg>`,
+  book: `<svg ${TI}><path d="M4 7 C9 5 13 6 16 8 C19 6 23 5 28 7 V26 C23 24 19 25 16 27 C13 25 9 24 4 26Z" fill="#fff" ${TL}/><path d="M16 8 V27" ${TL}/><path d="M7 11 h6 M7 15 h6 M19 11 h6 M19 15 h6" stroke="#ff9f43" stroke-width="2" stroke-linecap="round"/></svg>`,
+};
 const TABS = [['cook', '料理'], ['shop', 'お店'], ['staff', '人'], ['book', 'レシピ']];
 function renderNight() {
   const ns = S.nextStage(s);
@@ -367,13 +376,16 @@ function renderNight() {
   $('shops').innerHTML = `<div class="segs"><small>あした立つ店</small>${seg}</div>${lines}`;
   for (const b of $('shops').querySelectorAll('[data-go]')) onTap(b, (e) => { e.stopPropagation(); if (b.classList.contains('on')) return; if (S.switchShop(s, b.dataset.go).ok) { ui.pick = []; save(); renderNight(); toast(`あしたは ${GENRES[b.dataset.go].name}に立つ`); } });
   for (const b of $('shops').querySelectorAll('[data-crew]')) onTap(b, (e) => { e.stopPropagation(); crewSheet(b.dataset.crew); });
-  $('tabs').innerHTML = TABS.map(([id, nm]) => `<button class="tab ${id === tab ? 'on' : ''}" data-tab="${id}">${nm}${id === 'shop' && ns && ns.ready ? '<i class="dot"></i>' : ''}</button>`).join('');
+  $('tabs').innerHTML = TABS.map(([id, nm]) => `<button class="tab ${id === tab ? 'on' : ''}" data-tab="${id}">${TAB_ICON[id]}<span>${nm}</span>${id === 'shop' && ns && ns.ready ? '<i class="dot"></i>' : ''}</button>`).join('');
   for (const b of $('tabs').children) onTap(b, () => { tab = b.dataset.tab; renderNight(); });
   const p = $('panel');
   const keep = p.scrollTop;
   p.innerHTML = PANELS[tab]();
   p.scrollTop = keep;
   for (const el of p.querySelectorAll('[data-do]')) onTap(el, () => doNight(el.dataset.do, el.dataset.arg, el));
+  // あしたの作戦（広告）は 開店ボタンのすぐ下に出す（2026-10-20 オーナー：押してほしいので タブの外へ）
+  $('boostsTop').innerHTML = `${boostBtn('market', '仕入れ 半額')}${boostBtn('flyer', `チラシ 客＋${Math.round((ADS.flyerMul - 1) * 100)}%`)}`;
+  for (const el of $('boostsTop').querySelectorAll('[data-do]')) onTap(el, () => doNight(el.dataset.do, el.dataset.arg, el));
   const cost = S.prepCost(s);
   $('openBtn').textContent = `開店する！（仕入れ ${yen(cost)}）`;
 }
@@ -452,12 +464,8 @@ const PANELS = {
     }).join('');
     const pd = S.priceDemand(s);
     const level = pd < 0.95 ? '高め（来る人が減る）' : pd > 1.02 ? '安め（来る人が少し増える）' : 'ふつう';
-    return `<p style="margin:0;font-size:12px;font-weight:800;color:var(--ink2)">値段を上げると1人の売上は増えるが、来る人も頼む人も減る。仕込みが足りないと売り切れ、余った食材は捨てる。<br>いまの店の値段は <b>${level}</b></p>${rows}
-      <div class="sec">あしたの作戦</div>
-      <div class="boosts">
-        ${boostBtn('market', `仕入れを半額に`)}
-        ${boostBtn('flyer', `チラシで お客さん＋${Math.round((ADS.flyerMul - 1) * 100)}%`)}
-      </div>`;
+    return `<p style="margin:0;font-size:12px;font-weight:800;color:var(--ink2)">いまの店の値段は <b>${level}</b>。高いほど 来る人が減る</p>${rows}
+`;
   },
   shop() {
     const ns = S.nextStage(s);
@@ -542,7 +550,7 @@ const PANELS = {
 };
 function boostBtn(kind, label) {
   const on = s.boosts[kind];
-  if (on) return `<span class="chunky mint">${label}：あした効く ✓</span>`;
+  if (on) return `<span class="chunky mint">${label} ✓ あした効く</span>`;
   return `<button class="chunky yel ad" data-do="ad" data-arg="${kind}" ${S.adLeft(s) ? '' : 'disabled'}>${label}</button>`;
 }
 
@@ -685,9 +693,9 @@ const TUT = [
   { phase: 'report', mode: 'tap', target: () => document.querySelector('#report .lines'),
     text: '閉店すると <b>日報</b>が出る。書いてあるのは 起きたことと 損だけ。<br>はじめての日は たいてい赤字。あしたは 仕込みを「きのう売れた数」に合わせてみよう。そこから先は 自分で考える' },
   { phase: 'report', mode: 'act', target: () => $('toNight'), text: 'つぎは 夜の準備', done: () => s.phase === 'night' },
-  { phase: 'night', mode: 'tap', place: 'bottom', enter: nightTab('cook'), target: () => document.querySelector('.tab[data-tab="cook"]'), text: '<b>料理</b>：出す料理・値段・あした何食 仕込むか。高くすると 来る人は減る。仕込みが足りないと売り切れ、余ると捨てる' },
-  { phase: 'night', mode: 'tap', place: 'bottom', enter: nightTab('shop'), target: () => document.querySelector('.tab[data-tab="shop"]'), text: '<b>お店</b>：店の姿・席や台を増やす・これまでの日報。売上と評判が たまると 店を広げられる' },
-  { phase: 'night', mode: 'tap', place: 'bottom', enter: nightTab('staff'), target: () => document.querySelector('.tab[data-tab="staff"]'), text: '<b>人</b>：あした<b>1日だけ</b>来てくれるアルバイト。持ち場を 任せられる' },
+  { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('cook'), target: () => document.querySelector('.tab[data-tab="cook"]'), text: '<b>料理</b>：出す料理・値段・あした何食 仕込むか。高くすると 来る人は減る。仕込みが足りないと売り切れ、余ると捨てる' },
+  { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('shop'), target: () => document.querySelector('.tab[data-tab="shop"]'), text: '<b>お店</b>：店の姿・席や台を増やす・これまでの日報。売上と評判が たまると 店を広げられる' },
+  { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('staff'), target: () => document.querySelector('.tab[data-tab="staff"]'), text: '<b>人</b>：あした<b>1日だけ</b>来てくれるアルバイト。持ち場を 任せられる' },
   { phase: 'night', mode: 'act', target: () => $('openBtn'), text: '決めたら 開店！ あとは 自由に やってみよう', done: () => s.phase === 'service' },
 ];
 let coachStep = -1;

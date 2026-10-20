@@ -390,3 +390,13 @@ p.later{margin:0;font-size:12px;font-weight:800;color:var(--ink2)}
 .tabs.bottom .tab.on .ti{opacity:1;filter:none}
 .tabs.bottom .tab .dot{top:3px;right:calc(50% - 20px)}
 .tabs.bottom{border-top:2px dashed #e6dcc4}
+/* 開店ボタンの下の 広告2つ（横1列・小さめ） */
+.boosts.top{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:-2px 0 8px}
+.boosts.top .chunky{justify-content:center;font-size:12px;padding:7px 4px;white-space:nowrap;min-width:0}
+/* 背の低い画面では 上を詰めて、料理の札を広く見せる */
+@media (max-height:700px){
+  .night-head{padding:0 2px 4px}.night-head h1{font-size:19px}
+  .notice{padding-top:6px;padding-bottom:6px;margin-bottom:6px}
+  .open-bar.top .big{padding:9px 0;font-size:18px}
+  .boosts.top .chunky{padding:5px 4px}
+}

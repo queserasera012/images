@@ -383,6 +383,9 @@ function renderNight() {
   p.innerHTML = PANELS[tab]();
   p.scrollTop = keep;
   for (const el of p.querySelectorAll('[data-do]')) onTap(el, () => doNight(el.dataset.do, el.dataset.arg, el));
+  // あしたの作戦（広告）は 開店ボタンのすぐ下に出す（2026-10-20 オーナー：押してほしいので タブの外へ）
+  $('boostsTop').innerHTML = `${boostBtn('market', '仕入れ 半額')}${boostBtn('flyer', `チラシ 客＋${Math.round((ADS.flyerMul - 1) * 100)}%`)}`;
+  for (const el of $('boostsTop').querySelectorAll('[data-do]')) onTap(el, () => doNight(el.dataset.do, el.dataset.arg, el));
   const cost = S.prepCost(s);
   $('openBtn').textContent = `開店する！（仕入れ ${yen(cost)}）`;
 }
@@ -461,12 +464,8 @@ const PANELS = {
     }).join('');
     const pd = S.priceDemand(s);
     const level = pd < 0.95 ? '高め（来る人が減る）' : pd > 1.02 ? '安め（来る人が少し増える）' : 'ふつう';
-    return `<p style="margin:0;font-size:12px;font-weight:800;color:var(--ink2)">値段を上げると1人の売上は増えるが、来る人も頼む人も減る。仕込みが足りないと売り切れ、余った食材は捨てる。<br>いまの店の値段は <b>${level}</b></p>${rows}
-      <div class="sec">あしたの作戦</div>
-      <div class="boosts">
-        ${boostBtn('market', `仕入れを半額に`)}
-        ${boostBtn('flyer', `チラシで お客さん＋${Math.round((ADS.flyerMul - 1) * 100)}%`)}
-      </div>`;
+    return `<p style="margin:0;font-size:12px;font-weight:800;color:var(--ink2)">いまの店の値段は <b>${level}</b>。高いほど 来る人が減る</p>${rows}
+`;
   },
   shop() {
     const ns = S.nextStage(s);
@@ -551,7 +550,7 @@ const PANELS = {
 };
 function boostBtn(kind, label) {
   const on = s.boosts[kind];
-  if (on) return `<span class="chunky mint">${label}：あした効く ✓</span>`;
+  if (on) return `<span class="chunky mint">${label} ✓ あした効く</span>`;
   return `<button class="chunky yel ad" data-do="ad" data-arg="${kind}" ${S.adLeft(s) ? '' : 'disabled'}>${label}</button>`;
 }
 

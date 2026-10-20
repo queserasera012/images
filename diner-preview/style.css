@@ -379,3 +379,24 @@ p.later{margin:0;font-size:12px;font-weight:800;color:var(--ink2)}
 .card.dish .ctl label{white-space:nowrap}
 .card.dish .ctl{grid-template-columns:auto auto auto auto;justify-content:space-between}
 .card.dish .ctl .stepper span{min-width:44px}
+/* 試作：開店を上・タブを下に（2026-10-20 オーナー案のサンプル） */
+.open-bar.top{padding:2px 0 8px}
+.open-bar.top .big{padding:12px 0;font-size:20px}
+.panel{border-radius:16px 16px 0 0}
+.tabs.bottom{gap:0;background:var(--paper);border:2.5px solid var(--line);border-top:0;border-radius:0 0 16px 16px;padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px));box-shadow:0 4px 0 var(--line)}
+.tabs.bottom .tab{display:flex;flex-direction:column;align-items:center;gap:1px;border:0;border-radius:12px;background:transparent;padding:4px 0 3px;transform:none;font-size:11px;color:var(--ink2)}
+.tabs.bottom .tab .ti{width:26px;height:26px;opacity:.55;filter:grayscale(.6)}
+.tabs.bottom .tab.on{background:var(--yolk);color:var(--ink)}
+.tabs.bottom .tab.on .ti{opacity:1;filter:none}
+.tabs.bottom .tab .dot{top:3px;right:calc(50% - 20px)}
+.tabs.bottom{border-top:2px dashed #e6dcc4}
+/* 開店ボタンの下の 広告2つ（横1列・小さめ） */
+.boosts.top{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:-2px 0 8px}
+.boosts.top .chunky{justify-content:center;font-size:12px;padding:7px 4px;white-space:nowrap;min-width:0}
+/* 背の低い画面では 上を詰めて、料理の札を広く見せる */
+@media (max-height:700px){
+  .night-head{padding:0 2px 4px}.night-head h1{font-size:19px}
+  .notice{padding-top:6px;padding-bottom:6px;margin-bottom:6px}
+  .open-bar.top .big{padding:9px 0;font-size:18px}
+  .boosts.top .chunky{padding:5px 4px}
+}
