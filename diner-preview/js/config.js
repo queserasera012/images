@@ -314,3 +314,29 @@ export const STORIES = {
   kato: ['カトウさんは 記念日に だけ 来るらしい', 'カトウさんが「ここで プロポーズした」と 教えてくれた', { ask: '結婚10年の お祝い', text: 'カトウさん夫婦が もうすぐ 結婚10年らしい' }, 'カトウさん一家が 窓ぎわの 席で 笑っていた'],
   fujii: ['フジイさんは 病院の 看護師らしい', 'フジイさんが「夜勤明けの スープが いちばん」と 言った', { ask: '病棟の みんなへの 差し入れ', text: 'フジイさんの 病棟が 忙しいらしい' }, 'フジイさんの 病院の 人たちも 来るようになった'],
 };
+
+// ---- お金の使い道（2026-10-20 オーナー：3つとも） ----
+// 町に建てるもの：2号店を出したら 建てられる。効き目は 自分の店 ぜんぶに（となりの店と同じ書き方）
+export const BUILD = {
+  from: 2, // 店の数
+  list: [
+    { id: 'hiroba', name: '駅前広場', short: '広場', price: 300000, text: 'お客さんが 1割 増える', nMul: 1.1 },
+    { id: 'koen', name: '公園', short: '公園', price: 400000, text: '昼すぎの 客が 増える', period: 'day', boost: 1.5 },
+    { id: 'chusha', name: '駐車場', short: '駐車場', price: 500000, text: '夜の 客が 増える', period: 'dinner', boost: 1.3 },
+    { id: 'arcade', name: 'アーケード', short: '屋根', price: 700000, text: '雨の日も 客が 減らない', dry: true },
+    { id: 'busstop', name: 'バス停', short: 'バス停', price: 900000, text: 'お客さんが さらに 1割 増える', nMul: 1.1 },
+    { id: 'annai', name: '観光案内所', short: '案内所', price: 1200000, text: '行事の日が 増え、評判が 下がりにくい', eventMul: 1.4, decayMul: 0.7 },
+  ],
+};
+// 商店街まつり：あしたを まつりにする。全部の店に 人が多く来る。間を空ければ 何度でも
+export const FESTIVAL = { from: 2, price: 150000, nMul: 1.7, rep: 3, gap: 7 };
+// 店を飾る：内装（3段）と 名物料理（1品）。店ごと
+export const DECO = {
+  levels: [
+    { name: 'のぼりと 看板', price: 80000 },
+    { name: '内装を 新しく', price: 250000 },
+    { name: '照明と 飾り', price: 600000 },
+  ],
+  priceUp: 0.06, // 1段ごとに、ふつうの値段より 6% 高くても ふつうに見える
+  signaturePrice: 100000, signatureAppeal: 1.6,
+};

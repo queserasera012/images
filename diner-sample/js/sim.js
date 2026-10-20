@@ -2,7 +2,7 @@
 // 画面（main.js）は state を読み、ここの関数を呼ぶだけ。
 import {
   DAY, STATIONS, DISHES, GUEST, DEMAND, WEATHER, RUSH, REP, STAGES, SHOP,
-  STAFF, STAFF_NAMES, REGULARS, REGULAR, ADS, START, TRIAL_COST, GENRES, BRANCH_ORDER, EVENTS, TOWN, MANAGER, ASK, ASK_FROM, STORIES, STORY_AT,
+  STAFF, STAFF_NAMES, REGULARS, REGULAR, ADS, START, TRIAL_COST, GENRES, BRANCH_ORDER, EVENTS, TOWN, MANAGER, ASK, ASK_FROM, STORIES, STORY_AT, BUILD, FESTIVAL, DECO,
 } from './config.js';
 
 export const SAVE_VERSION = 1;
@@ -37,14 +37,17 @@ export const canCook = (s, dishId) => DISHES[dishId].steps.every(([type]) => s.s
 export function priceDemand(s) {
   const on = Object.entries(s.menu).filter(([id, m]) => m.on && canCook(s, id) && s.known.includes(id));
   if (!on.length) return 1;
-  const r = on.reduce((a, [id, m]) => a + m.price / DISHES[id].base, 0) / on.length;
+  const r = on.reduce((a, [id, m]) => a + m.price / fairPrice(s, id), 0) / on.length;
   if (r >= 1) return Math.max(0.1, 1 - GUEST.demandUp * (r - 1));
   return Math.min(GUEST.maxBoost, 1 + GUEST.demandDown * (1 - r));
 }
 
+// 内装が良いほど 高めの値段でも ふつうに見える
+export const fairPrice = (s, id) => DISHES[id].base * (1 + (s.deco || 0) * DECO.priceUp);
+
 // ---- はじめの状態 ----
 // 店ごとに持つもの（お金・日付・日報・広告は 全部の店で共通）
-export const SHOP_KEYS = ['genre', 'stage', 'totalSales', 'rep', 'seats', 'stations', 'staff', 'menu', 'prep', 'known', 'tried', 'regulars', 'lastCrew', 'manager'];
+export const SHOP_KEYS = ['genre', 'stage', 'totalSales', 'rep', 'seats', 'stations', 'staff', 'menu', 'prep', 'known', 'tried', 'regulars', 'lastCrew', 'manager', 'deco', 'signature'];
 export function createShop(genre = 'washoku') {
   const g = GENRES[genre];
   const start = g.start || START;
@@ -59,13 +62,13 @@ export function createShop(genre = 'washoku') {
   for (const r of REGULARS) if (shopOfReg(r) === genre) regulars[r.id] = { love: 0, lastDay: 0, visits: 0, noted: false, upset: 0, story: 0 };
   return {
     genre, stage: g.startStage || 0, totalSales: 0, rep: genre === 'washoku' ? REP.start : REP.branchStart, seats: start.seats, stations, staff: [],
-    menu, prep, known: Object.keys(menu), tried: [], regulars, lastCrew: [], manager: false,
+    menu, prep, known: Object.keys(menu), tried: [], regulars, lastCrew: [], manager: false, deco: 0, signature: null,
   };
 }
 export function createState(seed = (Date.now() >>> 0)) {
   return {
     v: SAVE_VERSION, seed, day: 1, money: START.money, debt: 0, ...createShop('washoku'), branches: {},
-    town: { picked: [] }, asks: newAsks(), ads: 0, boosts: { market: false, flyer: false, freeTrial: false },
+    town: { picked: [], built: [] }, festival: { day: 0, last: -99 }, asks: newAsks(), ads: 0, boosts: { market: false, flyer: false, freeTrial: false },
     history: [], reports: [], log: [{ day: 1, kind: 'open', text: '屋台を開いた' }], lastReport: null, today: null, phase: 'night',
   };
 }
@@ -270,9 +273,66 @@ export function townTotals(s) {
   return { days: s.day, sales: shops.reduce((a, sh) => a + sh.totalSales, 0), asks: s.asks.done, regulars: regs.filter((r) => r.visits > 0).length, visits: regs.reduce((a, r) => a + r.visits, 0) };
 }
 // となりの店の 効き目（かけ算は ぜんぶ かける）
-const townMul = (s, key) => neighbors(s).reduce((a, n) => a * (n[key] || 1), 1);
-const townBoost = (s, period) => neighbors(s).reduce((a, n) => a * (n.period === period ? n.boost : 1), 1);
-const townHeal = (s) => neighbors(s).reduce((a, n) => Math.max(a, n.upsetHeal || 1), 1);
+// となりの店と 建てたもの（効き目の書き方は 同じ）
+export const builtOf = (s) => ((s.town && s.town.built) || []).map((id) => BUILD.list.find((b) => b.id === id)).filter(Boolean);
+const townThings = (s) => [...neighbors(s), ...builtOf(s)];
+const townMul = (s, key) => townThings(s).reduce((a, n) => a * (n[key] || 1), 1);
+const townBoost = (s, period) => townThings(s).reduce((a, n) => a * (n.period === period ? n.boost : 1), 1);
+const townHeal = (s) => townThings(s).reduce((a, n) => Math.max(a, n.upsetHeal || 1), 1);
+
+// ---- お金の使い道：町に建てる・商店街まつり・店を飾る ----
+export function canBuild(s, id) {
+  const b = BUILD.list.find((x) => x.id === id);
+  if (!b || builtOf(s).includes(b)) return { ok: false, why: 'もう建てた' };
+  if (shopsOf(s).length < BUILD.from) return { ok: false, why: `${BUILD.from}号店を出したら` };
+  if (s.money < b.price) return { ok: false, why: 'お金が足りない' };
+  return { ok: true };
+}
+export function build(s, id) {
+  if (s.phase !== 'night' || !canBuild(s, id).ok) return { ok: false };
+  const b = BUILD.list.find((x) => x.id === id);
+  s.money -= b.price;
+  s.town = { ...s.town, built: [...((s.town && s.town.built) || []), id] };
+  note(s, 'town', `町に ${b.name}が できた`);
+  return { ok: true, name: b.name };
+}
+export const festivalTomorrow = (s) => !!s.festival && s.festival.day === s.day;
+export function canFestival(s) {
+  if (shopsOf(s).length < FESTIVAL.from) return { ok: false, why: `${FESTIVAL.from}号店を出したら` };
+  if (festivalTomorrow(s)) return { ok: false, why: 'あしたは まつり' };
+  const wait = FESTIVAL.gap - (s.day - s.festival.last);
+  if (wait > 0) return { ok: false, why: `あと ${wait}日で 開ける` };
+  if (s.money < FESTIVAL.price) return { ok: false, why: 'お金が足りない' };
+  return { ok: true };
+}
+export function holdFestival(s) {
+  if (s.phase !== 'night' || !canFestival(s).ok) return { ok: false };
+  s.money -= FESTIVAL.price;
+  s.festival = { day: s.day, last: s.day };
+  note(s, 'event', '商店街まつりを開いた');
+  return { ok: true };
+}
+export function canDecorate(s) {
+  const lv = DECO.levels[s.deco || 0];
+  if (!lv) return { ok: false, why: 'これ以上は 飾れない' };
+  if (s.money < lv.price) return { ok: false, why: 'お金が足りない' };
+  return { ok: true, ...lv };
+}
+export function decorate(s) {
+  if (s.phase !== 'night' || !canDecorate(s).ok) return { ok: false };
+  const lv = DECO.levels[s.deco || 0];
+  s.money -= lv.price;
+  s.deco = (s.deco || 0) + 1;
+  note(s, 'stage', `${GENRES[genreOf(s)].short}：${lv.name}`);
+  return { ok: true, name: lv.name };
+}
+export function setSignature(s, id) {
+  if (s.phase !== 'night' || !s.known.includes(id) || s.signature === id || s.money < DECO.signaturePrice) return { ok: false };
+  s.money -= DECO.signaturePrice;
+  s.signature = id;
+  note(s, 'recipe', `${DISHES[id].name}を 名物にした`);
+  return { ok: true };
+}
 
 // ---- 夜の準備 ----
 export function setPrice(s, dishId, price) {
@@ -440,7 +500,10 @@ export function startDay(s, { branch = false, weather = null } = {}) {
   today.event = ev ? ev.id : null;
   today.repMul = ev && ev.repMul ? ev.repMul : 1;
   if (!weather && genreOf(s) === 'washoku') rand(today);
-  const w = WEATHER.find((x) => x.id === today.weather);
+  const w0 = WEATHER.find((x) => x.id === today.weather);
+  const w = townThings(s).some((n) => n.dry) ? { ...w0, mul: Math.max(1, w0.mul) } : w0;
+  today.festival = festivalTomorrow(s);
+  if (today.festival) s.rep = clampRep(s.rep + FESTIVAL.rep);
 
   // 仕入れ。お金が足りない分は ツケ（閉店のときに 売上から返す）
   const cost = prepCost(s);
@@ -454,7 +517,7 @@ export function startDay(s, { branch = false, weather = null } = {}) {
   s.money = Math.max(0, s.money - cost);
 
   // お客さんの来る時刻を先に決める
-  const n = Math.round((DEMAND.base + s.rep * DEMAND.perRep) * (DEMAND.stageMul[s.stage] || 1) * w.mul * (s.boosts.flyer ? ADS.flyerMul : 1) * priceDemand(s) * (ev && ev.nMul ? ev.nMul : 1) * townMul(s, 'nMul'));
+  const n = Math.round((DEMAND.base + s.rep * DEMAND.perRep) * (DEMAND.stageMul[s.stage] || 1) * w.mul * (s.boosts.flyer ? ADS.flyerMul : 1) * priceDemand(s) * (ev && ev.nMul ? ev.nMul : 1) * townMul(s, 'nMul') * (today.festival ? FESTIVAL.nMul : 1));
   const arrivals = [];
   const span = DAY.seconds * DAY.lastEntryRatio;
   while (arrivals.length < n) {
@@ -502,8 +565,9 @@ function order(s, today, g) {
   for (const [id, m] of Object.entries(s.menu)) {
     if (!m.on || !canCook(s, id) || !s.known.includes(id)) continue;
     const d = DISHES[id];
-    const ratio = m.price / d.base;
+    const ratio = m.price / fairPrice(s, id);
     let w = ratio > GUEST.maxPriceRatio ? 0 : d.appeal * Math.exp(-sense * (ratio - 1));
+    if (s.signature === id) w *= DECO.signatureAppeal;
     if (g.reg && REGULARS.find((r) => r.id === g.reg).fav === id) w *= 3;
     if ((today.stock[id] || 0) <= 0) { if (w >= GUEST.minWeight) wantedButOut = true; continue; }
     cands.push([id, w]);
@@ -760,7 +824,7 @@ function closeDay(s) {
     }
   }
   const report = {
-    shop: genreOf(s), day: s.day, weather: today.weather, event: today.event, guests: today.arrivals.length, served: st.served,
+    shop: genreOf(s), day: s.day, weather: today.weather, event: today.event, festival: !!today.festival, guests: today.arrivals.length, served: st.served,
     sales: st.sales, prepCost: today.prepCost, asks: today.asks || [], askPay: (today.asks || []).reduce((a, x) => a + (x.pay || 0), 0), wage, rent, credit, repaid, debt: s.debt, wasteCost, waste,
     left: st.left, leftBy: st.leftBy, lostSales: st.lostSales,
     soldOutAt: st.soldOutAt, sold: st.sold, usual: st.usual, notes,
@@ -848,6 +912,6 @@ export function parseSave(text) {
     if (!o || o.v !== SAVE_VERSION || typeof o.money !== 'number' || !Array.isArray(o.stations)) return null;
     const base = createState(o.seed);
     return renameOldStaff({ ...base, ...o, debt: typeof o.debt === 'number' ? o.debt : 0, branches: o.branches && typeof o.branches === 'object' ? o.branches : {}, regulars: { ...(o.genre && o.genre !== 'washoku' ? {} : base.regulars), ...o.regulars }, log: Array.isArray(o.log) ? o.log : base.log,
-      reports: Array.isArray(o.reports) ? o.reports : [], lastCrew: Array.isArray(o.lastCrew) ? o.lastCrew : [], boosts: { ...base.boosts, ...o.boosts }, town: { picked: o.town && Array.isArray(o.town.picked) ? o.town.picked : [] }, asks: o.asks && Array.isArray(o.asks.list) ? { ...newAsks(), ...o.asks } : newAsks(), today: null });
+      reports: Array.isArray(o.reports) ? o.reports : [], lastCrew: Array.isArray(o.lastCrew) ? o.lastCrew : [], boosts: { ...base.boosts, ...o.boosts }, town: { picked: o.town && Array.isArray(o.town.picked) ? o.town.picked : [], built: o.town && Array.isArray(o.town.built) ? o.town.built : [] }, festival: o.festival && typeof o.festival.last === 'number' ? o.festival : base.festival, asks: o.asks && Array.isArray(o.asks.list) ? { ...newAsks(), ...o.asks } : newAsks(), today: null });
   } catch { return null; }
 }

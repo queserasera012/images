@@ -126,6 +126,23 @@ function popular(s, lit) {
 
 const SHOPS = [stall, diner, popular];
 
+// 店を飾る（1：のぼり 2：入口の鉢と マット 3：電球の飾り）
+function decoration(s, stage) {
+  const d = s.deco || 0;
+  if (!d) return '';
+  const lk = lookOf(s);
+  let out = `<g><path d="M44 218 V140" stroke="${L}" stroke-width="3"/><rect x="44" y="142" width="18" height="52" fill="${lk.signFill}" ${W}/>
+    <text x="53" y="152" font-size="9" font-weight="800" fill="${lk.signText}" font-family="M PLUS Rounded 1c, sans-serif" writing-mode="tb">${lk.noren}</text></g>`;
+  if (d >= 2) out += `<rect x="172" y="212" width="40" height="6" rx="3" fill="#ff4f5e" ${W}/>${plant(166, 200)}${plant(218, 200)}`;
+  if (d >= 3) {
+    const y = stage === 2 ? 66 : 112;
+    const c = ['#ffd23f', '#ff4f5e', '#2fd39e', '#4cc9f0'];
+    out += `<path d="M84 ${y} Q180 ${y + 18} 276 ${y}" fill="none" stroke="${L}" stroke-width="1.5"/>`;
+    for (let i = 0; i < 9; i++) { const x = 92 + i * 22, yy = y + 18 * (1 - Math.pow((x - 180) / 96, 2)) * 0.9 + 3; out += `<circle cx="${x}" cy="${yy}" r="4" fill="${c[i % 4]}" ${W}/>`; }
+  }
+  return out;
+}
+
 let uid = 0;
 export function exteriorSVG(s, stage = s.stage) {
   const id = `dusk${uid++}`;
@@ -146,6 +163,7 @@ export function exteriorSVG(s, stage = s.stage) {
     <rect x="0" y="218" width="360" height="32" fill="#e8d9c0" ${W}/>
     <path d="M0 232 H360" stroke="#d1bf9f" stroke-width="2"/>
     ${SHOPS[stage](s, lit)}
+    ${decoration(s, stage)}
     ${pots}${staff}
   </svg>`;
 }

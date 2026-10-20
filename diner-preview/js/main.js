@@ -4,7 +4,7 @@ import { personSVG, LOOK_COUNT } from './people.js';
 import { stationSVG } from './kitchen-art.js';
 import { exteriorSVG, festivalSVG } from './exterior.js';
 import { foodSVG } from './food-art.js';
-import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_LATER, EVENTS, FAST, GUEST, TOWN, MANAGER, ASK, STORIES, STORY_AT } from './config.js';
+import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_LATER, EVENTS, FAST, GUEST, TOWN, MANAGER, ASK, STORIES, STORY_AT, BUILD, FESTIVAL, DECO } from './config.js';
 
 const SAVE_KEY = 'diner.proto.v1';
 const UI_KEY = 'diner.proto.ui.v1';
@@ -294,7 +294,7 @@ function reportPaper(r, { live = false } = {}) {
   return `
     <div class="paper${live ? ' live' : ''}">
       <div class="stamp ${r.profit > 0 ? 'black' : 'red'}">${r.profit > 0 ? '黒字' : '赤字'}</div>
-      <h2>${r.day}日目の日報 <span style="font-size:18px">${w.icon}</span>${r.event ? `<span class="evtag">${EVENTS.list.find((e) => e.id === r.event).name}</span>` : ''}</h2>
+      <h2>${r.day}日目の日報 <span style="font-size:18px">${w.icon}</span>${r.festival ? '<span class="evtag">商店街まつり</span>' : ''}${r.event ? `<span class="evtag">${EVENTS.list.find((e) => e.id === r.event).name}</span>` : ''}</h2>
       <div class="headline">
         <div><b>${r.served}<small>/${r.guests}人</small></b><small>食べていった人</small></div>
         <div><b>${yen(r.sales)}</b><small>売上</small></div>
@@ -370,8 +370,9 @@ function renderNight() {
   $('nightSub').textContent = `${S.stageOf(s).name}・評判 ${Math.round(s.rep)}`;
   // あしたの貼り紙：天気と 出来事
   const fw = S.weatherOf(s), fe = S.eventOf(s);
-  $('notice').innerHTML = `<b>あしたは ${fw.icon} ${fw.name}</b>${fe ? `<span class="ev">${fe.icon} ${fe.name}<small>${fe.text}</small></span>` : ''}`;
-  $('notice').classList.toggle('has-ev', !!fe);
+  const fest = S.festivalTomorrow(s);
+  $('notice').innerHTML = `<b>あしたは ${fw.icon} ${fw.name}</b>${fest ? '<span class="ev">🏮 商店街まつり<small>全部の店に 人が多く来る</small></span>' : ''}${fe ? `<span class="ev">${fe.icon} ${fe.name}<small>${fe.text}</small></span>` : ''}`;
+  $('notice').classList.toggle('has-ev', !!fe || fest);
   // 町の人のお願い：貼り紙の右に。届いたら 光る。受けたものは 件数を見せる
   const ak = s.asks;
   if (ak.offer || ak.list.length) {
@@ -447,7 +448,10 @@ function townMap(sel = S.genreOf(s)) {
     const n = nbs.at(i);
     return n ? `<div class="lot nb"><b>${n.short || n.name}</b></div>` : '<div class="lot empty"><b>空き地</b></div>';
   }).join('');
-  const effects = nbs.length ? `<p class="nbfx">${nbs.map((n) => `<b>${n.name}</b>：${n.text}`).join('<br>')}</p>` : '';
+  const built = S.builtOf(s);
+  const things = [...nbs, ...built];
+  const effects = things.length ? `<p class="nbfx">${things.map((n) => `<b>${n.name}</b>：${n.text}`).join('<br>')}</p>` : '';
+  const builtRow = built.length ? `<div class="builtrow">${built.map((b) => `<span>${b.short}</span>`).join('')}</div>` : '';
   // えらんだ店の札
   let detail = '';
   if (shops.includes(sel)) {
@@ -458,16 +462,30 @@ function townMap(sel = S.genreOf(s)) {
     detail = `<div class="card pick ${here ? 'here' : ''} ${plan && !plan.open ? 'shut' : ''}"><div class="txt"><b>${GENRES[sel].no}号店 ${GENRES[sel].name}</b><small>${GENRES[sel].stageNames[sh.stage]}・評判 ${Math.round(sh.rep)}・${st}</small></div>
       ${here ? '' : `<div class="btns"><button class="chunky" data-crew="${sel}">バイトを呼ぶ</button><button class="chunky yel" data-go="${sel}">ここに立つ</button></div>`}</div>`;
   }
+  // 商店街まつりと 町に建てるもの（2号店から）
+  let spend = '';
+  if (shops.length >= BUILD.from) {
+    const f = S.canFestival(s);
+    const fest = `<div class="card pick fest ${S.festivalTomorrow(s) ? 'here' : ''}"><div class="txt"><b>🏮 商店街まつり</b><small>${S.festivalTomorrow(s) ? 'あしたは まつり。全部の店に 人が多く来る' : `あしたを まつりにする。全部の店に 人が多く来る（${FESTIVAL.gap}日に1回まで）${f.ok ? '' : `・${f.why}`}`}</small></div>
+      ${S.festivalTomorrow(s) ? '' : `<div class="btns"><button class="chunky red" data-fest="1" ${f.ok ? '' : 'disabled'}>${yen(FESTIVAL.price)}で 開く</button></div>`}</div>`;
+    const builds = BUILD.list.filter((b) => !built.includes(b)).map((b) => {
+      const c = S.canBuild(s, b.id);
+      return `<div class="card pick build"><div class="txt"><b>${b.name}</b><small>${b.text}</small></div><div class="btns"><button class="chunky yel" data-build="${b.id}" ${c.ok ? '' : 'disabled'}>${yen(b.price)}</button></div></div>`;
+    }).join('');
+    spend = `<div class="sec">商店街まつり</div>${fest}${builds ? `<div class="sec">町に 建てる</div>${builds}` : ''}`;
+  }
   const offer = S.townOffer(s);
   const ask = offer ? `<div class="sec">となりに 呼ぶ店を 1つ えらぶ</div>${offer.map((n) => `<div class="card pick offer"><div class="txt"><b>${n.name}</b><small>${n.text}</small></div><div class="btns"><button class="chunky yel" data-invite="${n.id}">呼ぶ</button></div></div>`).join('')}` : '';
   const close = overlay(`<h3>まちかど商店街</h3>
-    <div class="street"><div class="row shops">${slots}</div><div class="road">まちかど商店街</div><div class="row lots">${lots}</div></div>
-    ${effects}${detail}${ask}<p style="font-size:11.5px;color:var(--ink2)">あなたが立つのは 1日に1店。立たない店は アルバイトだけで回す。店が 町の人気店に なるたびに、となりに 店を1つ 呼べる</p>
+    <div class="street"><div class="row shops">${slots}</div><div class="road">まちかど商店街</div><div class="row lots">${lots}</div>${builtRow}</div>
+    ${effects}${detail}${ask}${spend}<p style="font-size:11.5px;color:var(--ink2)">あなたが立つのは 1日に1店。立たない店は アルバイトだけで回す。店が 町の人気店に なるたびに、となりに 店を1つ 呼べる</p>
     <button class="big go" data-close>とじる</button>`, null);
   const o = $('overlay');
   for (const b of o.querySelectorAll('[data-sel]')) onTap(b, () => townMap(b.dataset.sel));
   for (const b of o.querySelectorAll('[data-go]')) onTap(b, () => { if (S.switchShop(s, b.dataset.go).ok) { ui.pick = []; close(); save(); renderNight(); toast(`あしたは ${GENRES[b.dataset.go].name}に立つ`); } });
   for (const b of o.querySelectorAll('[data-crew]')) onTap(b, () => crewSheet(b.dataset.crew, () => townMap(b.dataset.crew)));
+  for (const b of o.querySelectorAll('[data-build]')) onTap(b, () => { const r = S.build(s, b.dataset.build); if (r.ok) { save(); renderNight(); renderTop(); toast(`町に ${r.name}が できた`); townMap(sel); } });
+  for (const b of o.querySelectorAll('[data-fest]')) onTap(b, () => { if (S.holdFestival(s).ok) { save(); renderNight(); renderTop(); toast('あしたは 商店街まつり'); townMap(sel); } });
   for (const b of o.querySelectorAll('[data-invite]')) onTap(b, () => { const r = S.inviteNeighbor(s, b.dataset.invite); if (r.ok) { save(); renderNight(); toast(`となりに ${r.name}が 開いた`); if (s.faceDay && !s.faceSeen) faceScene(); else townMap(sel); } });
 }
 
@@ -537,12 +555,12 @@ const PANELS = {
       const sold = last ? last.sold[id] || 0 : null;
       const out = last && last.soldOutAt && last.soldOutAt[id] != null;
       const info = !cook ? `${d.steps.filter(([t]) => !s.stations.some((x) => x.type === t)).map(([t]) => STATIONS[t].name).join('・')}が無いので作れない`
-        : `ふつう ${yen(d.base)}・食材 ${yen(d.cost)}${sold != null && m.on ? `・<span class="${out ? 'minus' : ''}">きのう ${sold}食${out ? '（売り切れ）' : ''}</span>` : ''}`;
+        : `ふつう ${yen(Math.round(S.fairPrice(s, id) / 10) * 10)}・食材 ${yen(d.cost)}${sold != null && m.on ? `・<span class="${out ? 'minus' : ''}">きのう ${sold}食${out ? '（売り切れ）' : ''}</span>` : ''}`;
       const asks = s.asks.list.filter((a) => a.shop === S.genreOf(s) && a.dish === id).sort((a, b) => a.due - b.due)
         .map((a) => `<span class="asktag">📮 ${dueText(a.due)} お願い ${a.n}食</span>`).join('');
       return `<div class="card dish ${m.on ? '' : 'off'}">
         <div class="ic">${foodSVG(id)}</div>
-        <div class="txt"><b>${d.name}</b><small>${info}</small>${asks}</div>
+        <div class="txt"><b>${d.name}${s.signature === id ? '<span class="meibutsu">名物</span>' : ''}</b><small>${info}</small>${asks}</div>
         <button class="switch ${m.on ? 'on' : ''}" data-do="toggle" data-arg="${id}" aria-label="メニューに出す"></button>
         ${m.on && cook ? `<div class="ctl"><label>値段</label><div class="stepper"><button data-do="price-" data-arg="${id}">−</button><span>${yen(m.price)}</span><button data-do="price+" data-arg="${id}">＋</button></div>
           <label>仕込み</label><div class="stepper"><button data-do="prep-" data-arg="${id}">−</button><span>${s.prep[id] || 0}食</span><button data-do="prep+" data-arg="${id}">＋</button></div></div>` : ''}
@@ -589,7 +607,14 @@ const PANELS = {
         </div>`;
     } else if (BRANCH_LATER.length) branch = `<div class="sec">${BRANCH_ORDER_LEN + 1}号店から（準備中）</div><p class="later">${BRANCH_LATER.join("・")}… 試作はここまで</p>`;
     const lp = PANELS.lookParts();
-    return `${lp.top}${stage}${branch}<div class="sec">${S.stageOf(s).name}の設備</div>${items}${lp.bottom}`;
+    const dc = S.canDecorate(s);
+    const lv = DECO.levels[s.deco || 0];
+    const deco = `<div class="sec">店を飾る</div>
+      <div class="card"><div class="ic">🎏</div><div class="txt"><b>${lv ? lv.name : '飾りは ぜんぶ そろった'}<small class="lvl">${s.deco || 0}/${DECO.levels.length}</small></b><small>飾るほど、ふつうより 高めの値段でも 客が離れにくい（1段で ${Math.round(DECO.priceUp * 100)}%）${lv && !dc.ok ? `・${dc.why}` : ''}</small></div>
+        ${lv ? `<button class="chunky yel" data-do="deco" ${dc.ok ? '' : 'disabled'}>${yen(lv.price)}</button>` : ''}</div>
+      <div class="card" style="flex-direction:column;align-items:stretch"><div class="txt"><b>名物料理${s.signature ? `：${DISHES[s.signature].name}` : ''}</b><small>名物にした料理は よく頼まれる。1品だけ。変えるときも ${yen(DECO.signaturePrice)}</small></div>
+        <div class="chips">${s.known.filter((id) => S.canCook(s, id)).map((id) => `<button class="${s.signature === id ? 'on' : ''}" data-do="sig" data-arg="${id}" ${s.signature === id || s.money < DECO.signaturePrice ? 'disabled' : ''}>${DISHES[id].name}</button>`).join('')}</div></div>`;
+    return `${lp.top}${stage}${branch}<div class="sec">${S.stageOf(s).name}の設備</div>${items}${deco}${lp.bottom}`;
   },
   staff() {
     const st = S.stageOf(s);
@@ -663,6 +688,8 @@ function doNight(what, arg) {
     case 'prep-': S.setPrep(s, arg, (s.prep[arg] || 0) - 1); break;
     case 'prep+': S.setPrep(s, arg, (s.prep[arg] || 0) + 1); break;
     case 'buy': { const r = S.buy(s, arg); if (r.ok) toast('置いた！'); break; }
+    case 'deco': { const r = S.decorate(s); if (r.ok) toast(`${r.name}！`); break; }
+    case 'sig': { const r = S.setSignature(s, arg); if (r.ok) toast(`${DISHES[arg].name}を 名物にした`); break; }
     case 'hire': { const r = S.hire(s, arg); if (r.ok) toast(`${r.name}さんが あした1日 来てくれる`); break; }
     case 'fire': S.fire(s, arg); break;
     case 'rehire': { const r = S.rehire(s); if (r.ok) toast(`${r.n}人 来てくれる`); break; }

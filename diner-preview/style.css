@@ -455,3 +455,9 @@ p.later{margin:0;font-size:12px;font-weight:800;color:var(--ink2)}
 .facestats b{font:800 18px/1.2 var(--pop)}
 .facestats b small{font-size:11px}
 .facestats small{font-size:10.5px;font-weight:800;color:var(--ink2)}
+/* お金の使い道 */
+.builtrow{display:flex;flex-wrap:wrap;gap:4px;justify-content:center}
+.builtrow span{font:800 10.5px/1 var(--pop);background:#e6f7ff;border:2px solid var(--line);border-radius:8px;padding:4px 7px}
+.card.pick.fest.here{background:#ffe4e0}
+.meibutsu{font:800 10px/1 var(--pop);background:var(--red);color:#fff;border-radius:6px;padding:3px 5px;margin-left:6px;vertical-align:2px}
+small.lvl{font-size:10.5px;color:var(--ink2);margin-left:6px}
