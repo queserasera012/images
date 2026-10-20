@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#5ccdf2">
+<title>まちかど食堂（試作）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=M+PLUS+Rounded+1c:wght@500;800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="chip" id="dayChip">1日目</div>
+    <div class="clock"><div class="clock-bar"><i id="clockFill"></i></div><span id="clockText">11:00</span></div>
+    <div class="pill money" id="money">¥0</div>
+    <div class="pill rep" id="rep">★1</div>
+    <button class="wallet" id="walletBtn" aria-label="お店のお財布"><span>お財布</span></button>
+  </header>
+
+  <!-- 営業 -->
+  <section id="service" class="view" hidden>
+    <div class="scene">
+      <div class="sign"><span id="shopName">屋台</span></div>
+      <div class="door">
+        <div class="door-label">入口</div>
+        <div class="queue" id="queue"></div>
+      </div>
+      <div class="menuboard" id="menuboard"></div>
+      <div class="seats" id="seats"></div>
+    </div>
+    <div class="rail-title">注文の札 <small>タップで作りはじめる</small></div>
+    <div class="rail" id="tickets"></div>
+    <div class="kitchen" id="kitchen"></div>
+    <div class="pass-wrap">
+      <div class="pass-label">受け<br>渡し台</div>
+      <div class="pass" id="pass"></div>
+      <div class="chef pass-chef" id="passChef"></div>
+    </div>
+    <div class="todaybar" id="todaybar"></div>
+    <button class="pause" id="pauseBtn" aria-label="一時停止">Ⅱ</button>
+    <button class="pause fast" id="fastBtn" aria-label="早送り" hidden>▶▶</button>
+    <div class="fx" id="fx"></div>
+  </section>
+
+  <!-- 日報 -->
+  <section id="report" class="view" hidden></section>
+
+  <!-- 夜の準備 -->
+  <section id="night" class="view" hidden>
+    <div class="night-head">
+      <h1 id="nightTitle">夜の準備</h1>
+      <p id="nightSub"></p>
+    </div>
+    <div class="notice" id="notice"></div>
+    <div class="shops" id="shops" hidden></div>
+    <div class="open-bar top">
+      <button class="big go" id="openBtn">開店する！</button>
+    </div>
+    <div class="panel" id="panel"></div>
+    <nav class="tabs bottom" id="tabs"></nav>
+  </section>
+</div>
+
+<div class="overlay" id="overlay" hidden></div>
+<div class="toast" id="toast" hidden></div>
+<div class="coach" id="coach" hidden></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
