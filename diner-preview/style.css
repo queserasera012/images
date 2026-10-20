@@ -199,7 +199,8 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 
 /* ---- 重ねる画面 ---- */
 .overlay{position:fixed;inset:0;background:rgba(42,35,80,.55);display:grid;place-items:center;z-index:20;padding:20px}
-.sheet{width:100%;max-width:400px;background:var(--paper);border:3px solid var(--line);border-radius:20px;box-shadow:0 6px 0 var(--line);padding:18px;display:flex;flex-direction:column;gap:10px;animation:drop .35s cubic-bezier(.3,1.5,.5,1)}
+.sheet{width:100%;max-width:400px;background:var(--paper);border:3px solid var(--line);border-radius:20px;box-shadow:0 6px 0 var(--line);padding:18px;display:flex;flex-direction:column;gap:10px;animation:drop .35s cubic-bezier(.3,1.5,.5,1);max-height:100%;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.sheet>*{flex-shrink:0}
 .sheet h3{margin:0;font-family:var(--pop);font-size:18px}
 .sheet p{margin:0;font-size:13px;line-height:1.7}
 .product{display:flex;align-items:center;gap:10px;border:2.5px solid var(--line);border-radius:14px;padding:10px}
@@ -445,11 +446,11 @@ p.later{margin:0;font-size:12px;font-weight:800;color:var(--ink2)}
 .story li.more{list-style:none;margin-left:-14px;color:var(--ink2)}
 .asktag{width:fit-content}
 /* 商店街の顔 */
-.face{background:#fffdf6;border:3px solid var(--ink);border-radius:20px;box-shadow:0 5px 0 var(--ink);padding:12px;text-align:center;animation:pop .5s ease-out}
-.face > svg{width:100%;height:auto;border-radius:12px;border:2.5px solid var(--ink);display:block}
-.face h2{font:900 30px/1.2 var(--pop);margin:12px 0 4px;color:var(--red);letter-spacing:.08em}
-.face p{margin:4px 0 10px;font-size:13px;font-weight:800;line-height:1.6;color:var(--ink)}
-.face p.sub{color:var(--ink2);font-size:12px}
+.facescene{background:#fffdf6;border:3px solid var(--ink);border-radius:20px;box-shadow:0 5px 0 var(--ink);padding:12px;text-align:center;animation:pop .5s ease-out}
+.facescene > svg{width:100%;height:auto;border-radius:12px;border:2.5px solid var(--ink);display:block}
+.facescene h2{font:900 30px/1.2 var(--pop);margin:12px 0 4px;color:var(--red);letter-spacing:.08em}
+.facescene p{margin:4px 0 10px;font-size:13px;font-weight:800;line-height:1.6;color:var(--ink)}
+.facescene p.sub{color:var(--ink2);font-size:12px}
 .facestats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .facestats div{background:#f3efff;border-radius:12px;padding:6px 4px;display:flex;flex-direction:column}
 .facestats b{font:800 18px/1.2 var(--pop)}

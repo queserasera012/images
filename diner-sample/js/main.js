@@ -762,7 +762,7 @@ function faceScene() {
   const t = S.townTotals(s);
   const people = S.shopsOf(s).flatMap((g) => S.regularsOf({ genre: g }).filter((r) => S.shopInfo(s, g).regulars[r.id].visits > 0).map((r) => r.look));
   for (let i = 0; people.length < 14; i++) people.push((i * 5 + 3) % 12);
-  overlay(`<div class="face">${festivalSVG(s, people)}
+  overlay(`<div class="facescene">${festivalSVG(s, people)}
     <h2>商店街の顔</h2>
     <p>まちかど食堂から はじまった 通りに、5つの店と 5つの となりの店が 並んだ。お祭りの夜、常連さんも 町の人も 通りに 出てきた。</p>
     <div class="facestats"><div><b>${t.days}</b><small>日目</small></div><div><b>${yen(t.sales)}</b><small>5店の 売上の合計</small></div>
