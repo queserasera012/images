@@ -367,15 +367,11 @@ function renderNight() {
   $('notice').classList.toggle('has-ev', !!fe);
   const shops = S.shopsOf(s);
   $('shops').hidden = shops.length < 2;
-  // 店の札は 細い1段：上で あした立つ店を選び、下の1行で ほかの店のようすと バイト
-  const seg = shops.map((g) => `<button class="seg ${g === S.genreOf(s) ? 'on' : ''}" data-go="${g}"><em>${GENRES[g].no}号店</em>${GENRES[g].name.replace('中華 ', '')}</button>`).join('');
-  const lines = shops.filter((g) => g !== S.genreOf(s)).map((g) => {
-    const plan = S.crewPlan(s, g);
-    return `<div class="shopline ${plan.open ? '' : 'shut'}"><span><b>${GENRES[g].no}号店</b>は ${plan.open ? `アルバイト${plan.staff.length}人で回す` : `${plan.why}ので 休み`}</span><button class="mini" data-crew="${g}">バイトを呼ぶ</button></div>`;
-  }).join('');
-  $('shops').innerHTML = `<div class="segs"><small>あした立つ店</small>${seg}</div>${lines}`;
-  for (const b of $('shops').querySelectorAll('[data-go]')) onTap(b, (e) => { e.stopPropagation(); if (b.classList.contains('on')) return; if (S.switchShop(s, b.dataset.go).ok) { ui.pick = []; save(); renderNight(); toast(`あしたは ${GENRES[b.dataset.go].name}に立つ`); } });
-  for (const b of $('shops').querySelectorAll('[data-crew]')) onTap(b, (e) => { e.stopPropagation(); crewSheet(b.dataset.crew); });
+  // 店の札は 1つのボタンだけ。押すと 店えらびの画面（店が増えても 夜の画面は 伸びない・2026-10-20 オーナー）
+  const others = shops.filter((g) => g !== S.genreOf(s));
+  const shut = others.filter((g) => !S.crewPlan(s, g).open).length;
+  $('shops').innerHTML = `<button class="shopchip" id="shopChip"><small>あした立つ店</small><b>${GENRES[S.genreOf(s)].no}号店 ${GENRES[S.genreOf(s)].name}</b>${shut ? `<span class="warn">休みの店 ${shut}</span>` : `<span>ほか${others.length}店は バイトで</span>`}<i>▾</i></button>`;
+  if (shops.length > 1) onTap($('shopChip'), shopPicker);
   $('tabs').innerHTML = TABS.map(([id, nm]) => `<button class="tab ${id === tab ? 'on' : ''}" data-tab="${id}">${TAB_ICON[id]}<span>${nm}</span>${id === 'shop' && ns && ns.ready ? '<i class="dot"></i>' : ''}</button>`).join('');
   for (const b of $('tabs').children) onTap(b, () => { tab = b.dataset.tab; renderNight(); });
   const p = $('panel');
@@ -390,8 +386,23 @@ function renderNight() {
   $('openBtn').textContent = `開店する！（仕入れ ${yen(cost)}）`;
 }
 
+// 店えらび：あした立つ店を選ぶ・ほかの店の バイトを呼ぶ
+function shopPicker() {
+  const cards = S.shopsOf(s).map((g) => {
+    const here = g === S.genreOf(s);
+    const plan = here ? null : S.crewPlan(s, g);
+    const st = here ? 'あなたが 立つ' : plan.open ? `アルバイト${plan.staff.length}人で 回す` : `${plan.why}ので 休み`;
+    return `<div class="card pick ${here ? 'here' : ''} ${plan && !plan.open ? 'shut' : ''}"><div class="txt"><b>${GENRES[g].no}号店 ${GENRES[g].name}</b><small>${GENRES[g].stageNames[S.shopInfo(s, g).stage]}・評判 ${Math.round(S.shopInfo(s, g).rep)}・${st}</small></div>
+      ${here ? '<span class="here-tag">あした</span>' : `<div class="btns"><button class="chunky" data-crew="${g}">バイトを呼ぶ</button><button class="chunky yel" data-go="${g}">ここに立つ</button></div>`}</div>`;
+  }).join('');
+  const close = overlay(`<h3>どの店に 立つ？</h3><p style="font-size:12px;color:var(--ink2)">立たない店は アルバイトだけで 回す</p>${cards}<button class="big go" data-close>とじる</button>`, null);
+  const o = $('overlay');
+  for (const b of o.querySelectorAll('[data-go]')) onTap(b, () => { if (S.switchShop(s, b.dataset.go).ok) { ui.pick = []; close(); save(); renderNight(); toast(`あしたは ${GENRES[b.dataset.go].name}に立つ`); } });
+  for (const b of o.querySelectorAll('[data-crew]')) onTap(b, () => crewSheet(b.dataset.crew, shopPicker));
+}
+
 // ほかの店の アルバイトを、店を切り替えずに 呼ぶ
-function crewSheet(genre) {
+function crewSheet(genre, back) {
   const sh = S.shopInfo(s, genre);
   const render = () => {
     const now = sh.staff.map((x) => `<div class="card"><div class="ic face">${personSVG(staffLook(x), 'happy', { chef: true })}</div><div class="txt"><b>${x.name}さん</b><small>${x.role === 'hall' ? 'ホール係' : `${STATIONS[x.role].name}`}・${yen(STAFF[x.role].wage)}</small></div><button class="chunky" data-fire="${x.id}">呼ばない</button></div>`).join('');
@@ -407,7 +418,7 @@ function crewSheet(genre) {
       ${again}${now ? `<div class="sec">あした来る人</div>${now}` : ''}<div class="sec">呼ぶ</div>${roles}
       <button class="big go" data-close>とじる</button>`;
   };
-  const close = overlay(render(), () => { save(); renderNight(); });
+  const close = overlay(render(), () => { save(); renderNight(); if (back) back(); });
   const wire = () => {
     const o = $('overlay');
     for (const b of o.querySelectorAll('[data-hire]')) onTap(b, () => { S.hireAt(s, genre, b.dataset.hire); redraw(); });
@@ -698,18 +709,29 @@ const TUT = [
   { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('staff'), target: () => document.querySelector('.tab[data-tab="staff"]'), text: '<b>人</b>：あした<b>1日だけ</b>来てくれるアルバイト。持ち場を 任せられる' },
   { phase: 'night', mode: 'act', target: () => $('openBtn'), text: '決めたら 開店！ あとは 自由に やってみよう', done: () => s.phase === 'service' },
 ];
+// あとから1回だけ出す案内（チュートリアルが 終わってから。見たら ui.hints に残す）
+const HINTS = [
+  { id: 'fast', phase: 'service', mode: 'tap', hold: true, ready: () => !$('fastBtn').hidden, target: () => $('fastBtn'),
+    text: `仕込み係と ホール係が そろったので <b>▶▶ 早送り</b>が 使える。<br>押すと 営業が ${FAST}倍の速さで進む。もう1回 押すと ふつうに戻る` },
+];
 let coachStep = -1;
-function nextTut() { ui.tut += 1; saveUi(); coachStep = -1; }
+const curHint = () => (ui.tut >= TUT.length ? HINTS.find((h) => !(ui.hints || {})[h.id] && h.phase === s.phase && h.ready()) : null);
+function nextTut() {
+  const h = ui.tut >= TUT.length && curHint();
+  if (h) ui.hints = { ...(ui.hints || {}), [h.id]: 1 }; else ui.tut += 1;
+  saveUi(); coachStep = -1;
+}
 function updateCoach() {
   const c = $('coach');
-  const st = TUT[ui.tut];
+  const st = TUT[ui.tut] || curHint();
   const visible = st && st.phase === s.phase && $('overlay').hidden && (!st.ready || st.ready());
   // 画面が切りかわって終わる手（開店・夜の準備へ）は、切りかわった先でも 終わったと分かる
   const finished = st && st.done && (st.phase === s.phase ? st.done() : !st.ready && st.done());
   if (finished) { nextTut(); return false; }
   if (!visible) { c.hidden = true; return false; }
-  if (coachStep !== ui.tut) {
-    coachStep = ui.tut;
+  const key = st.id ? `h:${st.id}` : ui.tut;
+  if (coachStep !== key) {
+    coachStep = key;
     if (st.enter) st.enter();
     c.className = `coach ${st.mode}`;
     c.innerHTML = `<div class="ring"></div><div class="tip"><span class="guide">${personSVG(4, 'happy', { chef: true })}</span><p></p>${st.mode === 'card' ? '<button class="big go">つぎへ</button>' : st.mode === 'tap' ? '<small>タップで つぎへ</small>' : ''}</div>`;
@@ -733,7 +755,7 @@ function updateCoach() {
   return !!st.hold;
 }
 onTap($('coach'), (e) => {
-  const st = TUT[ui.tut];
+  const st = TUT[ui.tut] || curHint();
   if (!st || $('coach').hidden) return;
   if (st.mode === 'tap' || (st.mode === 'card' && e.target.closest('button'))) { e.preventDefault(); nextTut(); }
 });

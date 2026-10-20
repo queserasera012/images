@@ -367,15 +367,6 @@ p.later{margin:0;font-size:12px;font-weight:800;color:var(--ink2)}
 .shopbtn small{font-size:9.5px}
 .tab{font-size:13px}
 .shops{display:flex;flex-direction:column;gap:4px}
-.segs{display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.55);border:2.5px solid var(--line);border-radius:12px;padding:3px}
-.segs > small{font-size:9.5px;font-weight:800;color:var(--ink2);width:3.2em;line-height:1.15;text-align:center;flex-shrink:0}
-.seg{flex:1;min-width:0;border:0;border-radius:9px;padding:5px 4px;font:800 12px/1.15 var(--pop);background:transparent;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.seg em{display:block;font:800 9px/1.1 var(--body);font-style:normal;color:var(--ink2)}
-.seg.on{background:var(--yolk);box-shadow:inset 0 0 0 2px var(--line)}
-.shopline{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:var(--ink2);padding:0 4px}
-.shopline span{flex:1}
-.shopline.shut span{color:var(--red)}
-.shopline .mini{flex:none;padding:4px 8px}
 .card.dish .ctl label{white-space:nowrap}
 .card.dish .ctl{grid-template-columns:auto auto auto auto;justify-content:space-between}
 .card.dish .ctl .stepper span{min-width:44px}
@@ -400,3 +391,19 @@ p.later{margin:0;font-size:12px;font-weight:800;color:var(--ink2)}
   .open-bar.top .big{padding:9px 0;font-size:18px}
   .boosts.top .chunky{padding:5px 4px}
 }
+/* 店の札：1つのボタン → 店えらび */
+.shopchip{width:100%;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.6);border:2.5px solid var(--line);border-radius:12px;padding:5px 10px;font:800 13px/1.2 var(--pop);color:var(--ink);text-align:left}
+.shopchip small{font:800 9.5px/1.15 var(--body);color:var(--ink2);width:3.2em;flex:none}
+.shopchip b{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shopchip span{font:800 10.5px/1.2 var(--body);color:var(--ink2);flex:none}
+.shopchip span.warn{color:#fff;background:var(--red);border-radius:99px;padding:2px 7px}
+.shopchip i{font-style:normal;font-size:12px;flex:none}
+.card.pick .txt small{line-height:1.5}
+.card.pick.here{background:var(--yolk)}
+.card.pick.shut .txt small{color:var(--red)}
+.card.pick .chunky{padding:7px 9px;font-size:12px}
+.card.pick{flex-wrap:wrap}
+.card.pick .txt{flex:1 1 100%}
+.card.pick .btns{display:flex;gap:8px;margin-left:auto}
+.card.pick .here-tag{font:800 11px var(--pop);background:#fff;border:2px solid var(--line);border-radius:99px;padding:3px 9px;position:absolute;right:12px;top:12px}
+.card.pick.here{position:relative}
