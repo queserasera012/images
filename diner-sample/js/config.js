@@ -109,7 +109,7 @@ export const GENRES = {
     ing: { rice: 1, egg: 1, noodle: 1, pork: 1, cabbage: 1, negi: 1, tofu: 2, chili: 2, shrimp: 2, su: 2 },
     look: { sign: 'まんぷく亭', noren: '中華', roof: '#c0392b', signFill: '#ffd23f', signText: '#c0392b', norenFill: '#c0392b' },
     // 出店：1号店が この段になったら。小さな中華料理店から始まる
-    need: { shop: 'washoku', stage: 2 }, price: 120000, startStage: 1, start: { seats: 4, stations: { board: 1, stove: 1 }, prep: 8 },
+    need: { shop: 'washoku', stage: 2 }, price: 60000, startStage: 1, start: { seats: 4, stations: { board: 1, stove: 1 }, prep: 8 },
     blurb: 'コンロが主役の店。少ない台で 速く回す',
   },
   // 3号店から。eat：食べている時間の倍率 / period：時間帯ごとの 来る人の倍率（lunch 11〜14時・day 14〜17時・dinner 17時〜）
@@ -117,7 +117,7 @@ export const GENRES = {
     name: 'バーガー スマイル', short: 'バーガー', no: 3, stageNames: ['バーガーの屋台', '小さなバーガー店', '町の人気バーガー'],
     ing: { beef: 1, cheese: 1, chicken: 1, panko: 1, sausage: 1, bun: 1, potato: 1, shrimp: 2, teri: 2, egg: 2, bacon: 2 },
     look: { sign: 'SMILE', noren: 'バーガー', roof: '#e8742a', signFill: '#fff3c4', signText: '#d9481e', norenFill: '#d9481e' },
-    need: { shop: 'chuka', stage: 2 }, price: 180000, startStage: 1, start: { seats: 4, stations: { board: 1, stove: 1, fryer: 1 }, prep: 10 },
+    need: { shop: 'chuka', stage: 2 }, price: 90000, startStage: 1, start: { seats: 4, stations: { board: 1, stove: 1, fryer: 1 }, prep: 10 },
     blurb: '安くて 早い店。お客さんは さっと食べて すぐ帰る。昼に 行列',
     eat: 0.45, period: { lunch: 1.5, day: 0.9, dinner: 0.8 },
   },
@@ -125,7 +125,7 @@ export const GENRES = {
     name: 'カフェ こもれび', short: 'カフェ', no: 4, stageNames: ['コーヒーの屋台', '小さなカフェ', '町の人気カフェ'],
     ing: { bread: 1, ham: 1, egg: 1, milk: 1, flour: 1, rice: 2, cream: 2, fruit: 2, pork: 2 },
     look: { sign: 'こもれび', noren: 'カフェ', roof: '#5b8a5a', signFill: '#fffaf0', signText: '#5b4636', norenFill: '#5b8a5a' },
-    need: { shop: 'burger', stage: 2 }, price: 240000, startStage: 1, start: { seats: 6, stations: { board: 1, stove: 1 }, prep: 10 },
+    need: { shop: 'burger', stage: 2 }, price: 120000, startStage: 1, start: { seats: 6, stations: { board: 1, stove: 1 }, prep: 10 },
     blurb: 'お客さんが 一日じゅう 少しずつ来て、長く座る店。席の数が ものを言う',
     eat: 2.2, period: { lunch: 0.8, day: 1.8, dinner: 0.7 },
   },
@@ -133,7 +133,7 @@ export const GENRES = {
     name: 'トラットリア ソーレ', short: 'イタリアン', no: 5, stageNames: ['パスタの屋台', '小さなイタリアン', '町の人気イタリアン'],
     ing: { pasta: 1, tomato: 1, egg: 1, mozza: 1, potato: 1, panko: 1, seafood: 2, meat: 2 },
     look: { sign: 'SOLE', noren: 'イタリアン', roof: '#2f6e4a', signFill: '#fff', signText: '#c0392b', norenFill: '#2f6e4a' },
-    need: { shop: 'cafe', stage: 2 }, price: 320000, startStage: 1, start: { seats: 6, stations: { board: 1, stove: 2 }, prep: 10 },
+    need: { shop: 'cafe', stage: 2 }, price: 150000, startStage: 1, start: { seats: 6, stations: { board: 1, stove: 2 }, prep: 10 },
     blurb: '夜に お客さんが多い、値段の高い店。商店街で いちばん大きな店になる',
     eat: 1.4, period: { lunch: 0.8, day: 0.7, dinner: 1.6 },
   },
@@ -159,7 +159,7 @@ export const GUEST = {
 };
 
 // 1日に来るお客さんの数 = (base + 評判 × perRep) × 天気 × チラシ
-export const DEMAND = { base: 16, perRep: 0.55 };
+export const DEMAND = { base: 16, perRep: 0.55, stageMul: [1, 1.15, 1.35] }; // 店が大きいほど 人が来る
 export const WEATHER = [
   { id: 'sun', name: '晴れ', icon: '☀️', mul: 1.0, p: 0.5 },
   { id: 'cloud', name: 'くもり', icon: '☁️', mul: 0.9, p: 0.3 },
@@ -184,7 +184,8 @@ export const RUSH = [
 
 // 評判（0〜100。★ は 20 ごと）
 // decay：高い評判は 毎日 少し戻る（[これより上なら, 1日に下がる量]）。★5 を保つのに 手が要る
-export const REP = { start: 10, servedFast: 0.35, served: 0.2, left: -1.2, soldOut: -0.5, tooPricey: -0.2, decay: [[80, 2], [50, 1]] };
+export const REP = { start: 10, branchStart: 35, // 2号店からは 町に 名前が知られている
+  servedFast: 0.35, served: 0.2, left: -1.2, soldOut: -0.5, tooPricey: -0.2, decay: [[80, 2], [50, 1]] };
 // 早送り（仕込み係とホール係がいる日だけ）
 export const FAST = 3;
 
@@ -194,7 +195,7 @@ export const STAGES = [
   { id: 'diner', name: '小さな食堂', maxSeats: 10, maxStations: 5, maxStaff: 6, pass: 3, rent: 4000,
     unlock: { totalSales: 60000, rep: 30 }, price: 25000 },
   { id: 'popular', name: '町の人気店', maxSeats: 16, maxStations: 7, maxStaff: 8, pass: 4, rent: 8000,
-    unlock: { totalSales: 250000, rep: 60 }, price: 90000 },
+    unlock: { totalSales: 200000, rep: 60 }, price: 90000 },
 ];
 
 // 買えるもの（夜の準備）
@@ -258,7 +259,7 @@ export const TOWN = {
 export const REGULAR = { chance: 0.35, loveToUsual: 3, missDays: 3, upsetDays: 4, upsetDrop: 0.3, pricey: 1.3 };
 
 // 店長（2号店から。立たない店に置ける）。仕込みを きのう売れた数＋extra に合わせ、仕込み係と ホール係が いなければ呼ぶ。給料は 毎日
-export const MANAGER = { wage: 2500, extra: 2, minPrep: 3 };
+export const MANAGER = { wage: 2500, extra: 2, minPrep: 3, outMul: 1.4 }; // 売り切れた料理は きのうの 1.4倍＋2
 
 // 広告（見たい人が見るものだけ。1日の上限）
 export const ADS = { perDay: 5, profitMul: 1.5, flyerMul: 1.25 };

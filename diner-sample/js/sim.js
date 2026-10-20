@@ -58,7 +58,7 @@ export function createShop(genre = 'washoku') {
   const regulars = {};
   for (const r of REGULARS) if (shopOfReg(r) === genre) regulars[r.id] = { love: 0, lastDay: 0, visits: 0, noted: false, upset: 0, story: 0 };
   return {
-    genre, stage: g.startStage || 0, totalSales: 0, rep: REP.start, seats: start.seats, stations, staff: [],
+    genre, stage: g.startStage || 0, totalSales: 0, rep: genre === 'washoku' ? REP.start : REP.branchStart, seats: start.seats, stations, staff: [],
     menu, prep, known: Object.keys(menu), tried: [], regulars, lastCrew: [], manager: false,
   };
 }
@@ -148,7 +148,7 @@ function managerPlan(s) {
     if (!m.on) continue;
     const sold = last.sold[id] || 0;
     const out = last.soldOutAt[id] != null;
-    s.prep[id] = Math.max(MANAGER.minPrep, sold + MANAGER.extra + (out ? MANAGER.extra : 0));
+    s.prep[id] = Math.max(MANAGER.minPrep, Math.ceil(sold * (out ? MANAGER.outMul : 1)) + MANAGER.extra);
   }
   // その日の お願いの分も 仕込む
   for (const a of asksDue(s, genreOf(s))) {
@@ -454,7 +454,7 @@ export function startDay(s, { branch = false, weather = null } = {}) {
   s.money = Math.max(0, s.money - cost);
 
   // お客さんの来る時刻を先に決める
-  const n = Math.round((DEMAND.base + s.rep * DEMAND.perRep) * w.mul * (s.boosts.flyer ? ADS.flyerMul : 1) * priceDemand(s) * (ev && ev.nMul ? ev.nMul : 1) * townMul(s, 'nMul'));
+  const n = Math.round((DEMAND.base + s.rep * DEMAND.perRep) * (DEMAND.stageMul[s.stage] || 1) * w.mul * (s.boosts.flyer ? ADS.flyerMul : 1) * priceDemand(s) * (ev && ev.nMul ? ev.nMul : 1) * townMul(s, 'nMul'));
   const arrivals = [];
   const span = DAY.seconds * DAY.lastEntryRatio;
   while (arrivals.length < n) {
