@@ -538,12 +538,12 @@ const PANELS = {
         <div class="card branchcard" style="flex-direction:column;align-items:stretch;background:${nb.ready ? '#ffe4e0' : '#fffdf6'}">
           <div class="exmini">${exteriorSVG({ ...S.createShop(nb.genre), totalSales: 0 })}</div>
           <b style="font-family:var(--pop);font-size:16px">${nb.name}</b>
-          <small style="font-weight:800;color:var(--ink2)">中華の店。料理も 食材も 常連さんも 別。${GENRES[nb.genre].stageNames[nb.startStage]}から始まる</small>
+          <small style="font-weight:800;color:var(--ink2)">${GENRES[nb.genre].blurb}。料理も 食材も 常連さんも 別。${GENRES[nb.genre].stageNames[nb.startStage]}から始まる</small>
           <small style="font-weight:800;color:var(--ink2)">あなたが立てるのは 1日に1店。もう1店は アルバイトだけで回す</small>
           ${nb.ready ? '' : `<small style="font-weight:800">${nb.needName}</small>`}
           <button class="chunky ${nb.ready ? 'red' : ''}" style="margin-top:6px" data-do="branch" ${nb.ready && nb.affordable ? '' : 'disabled'}>${nb.ready ? `${yen(nb.price)}で 出す` : 'まだ出せない'}</button>
         </div>`;
-    } else branch = `<div class="sec">${BRANCH_ORDER_LEN + 1}号店から（準備中）</div><p class="later">${BRANCH_LATER.join('・')}… 試作はここまで</p>`;
+    } else if (BRANCH_LATER.length) branch = `<div class="sec">${BRANCH_ORDER_LEN + 1}号店から（準備中）</div><p class="later">${BRANCH_LATER.join("・")}… 試作はここまで</p>`;
     const lp = PANELS.lookParts();
     return `${lp.top}${stage}${branch}<div class="sec">${S.stageOf(s).name}の設備</div>${items}${lp.bottom}`;
   },

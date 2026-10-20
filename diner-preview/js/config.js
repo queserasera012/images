@@ -46,6 +46,39 @@ export const DISHES = {
   tantan:    { shop: 'chuka', name: '担々麺',     steps: [['board', 1.5], ['stove', 5.0]],                 base: 1000, cost: 280, appeal: 1.6, combo: ['noodle', 'chili'], stage: 2 },
   ebichili:  { shop: 'chuka', name: 'エビチリ',   steps: [['board', 1.5], ['fryer', 4.0], ['stove', 3.0]], base: 1300, cost: 380, appeal: 1.7, combo: ['shrimp', 'chili'], stage: 2 },
   subuta:    { shop: 'chuka', name: '酢豚',       steps: [['board', 2.0], ['fryer', 4.5], ['stove', 3.0]], base: 1200, cost: 330, appeal: 1.7, combo: ['pork', 'su'], stage: 2 },
+
+  // ---- 3号店（ハンバーガー）。安くて 早い。さっと食べて すぐ帰る ----
+  burger:    { shop: 'burger', name: 'ハンバーガー',       steps: [['board', 1.5], ['stove', 3.0]],                 base: 500, cost: 130, appeal: 1.2, start: true },
+  fries:     { shop: 'burger', name: 'フライドポテト',     steps: [['board', 1.0], ['fryer', 3.0]],                 base: 300, cost: 70,  appeal: 1.0, start: true },
+  cheese:    { shop: 'burger', name: 'チーズバーガー',     steps: [['board', 1.5], ['stove', 3.5]],                 base: 600, cost: 160, appeal: 1.4, combo: ['beef', 'cheese'], stage: 1 },
+  chickenb:  { shop: 'burger', name: 'チキンバーガー',     steps: [['board', 1.5], ['fryer', 4.0]],                 base: 650, cost: 170, appeal: 1.4, combo: ['chicken', 'panko'], stage: 1 },
+  hotdog:    { shop: 'burger', name: 'ホットドッグ',       steps: [['board', 1.5], ['stove', 2.5]],                 base: 450, cost: 110, appeal: 1.1, combo: ['sausage', 'bun'], stage: 1 },
+  teriyaki:  { shop: 'burger', name: '照り焼きバーガー',   steps: [['board', 1.5], ['stove', 4.0]],                 base: 700, cost: 190, appeal: 1.5, combo: ['chicken', 'teri'], stage: 2 },
+  ebiburger: { shop: 'burger', name: 'エビバーガー',       steps: [['board', 1.5], ['fryer', 4.0]],                 base: 750, cost: 210, appeal: 1.6, combo: ['shrimp', 'panko'], stage: 2 },
+  tsukimi:   { shop: 'burger', name: '月見バーガー',       steps: [['board', 1.5], ['stove', 4.0]],                 base: 750, cost: 200, appeal: 1.6, combo: ['beef', 'egg'], stage: 2 },
+  bigset:    { shop: 'burger', name: 'ベーコンバーガーセット', steps: [['board', 1.5], ['stove', 3.5], ['fryer', 3.0]], base: 950, cost: 260, appeal: 1.8, combo: ['bacon', 'potato'], stage: 2 },
+
+  // ---- 4号店（カフェ）。お客さんが 一日じゅう来て、長く座る ----
+  coffee:    { shop: 'cafe', name: 'ブレンドコーヒー',   steps: [['board', 1.5]],                                 base: 400, cost: 60,  appeal: 1.0, start: true },
+  toast:     { shop: 'cafe', name: 'バタートースト',     steps: [['board', 1.0], ['stove', 2.5]],                 base: 450, cost: 90,  appeal: 1.0, start: true },
+  sandwich:  { shop: 'cafe', name: 'ハムサンド',         steps: [['board', 2.0]],                                 base: 600, cost: 150, appeal: 1.3, combo: ['bread', 'ham'], stage: 1 },
+  pancake:   { shop: 'cafe', name: 'パンケーキ',         steps: [['board', 1.5], ['stove', 3.5]],                 base: 650, cost: 150, appeal: 1.4, combo: ['flour', 'egg'], stage: 1 },
+  pudding:   { shop: 'cafe', name: 'プリン',             steps: [['board', 1.5], ['stove', 3.5]],                 base: 450, cost: 100, appeal: 1.2, combo: ['egg', 'milk'], stage: 1 },
+  parfait:   { shop: 'cafe', name: 'フルーツパフェ',     steps: [['board', 2.5]],                                 base: 800, cost: 220, appeal: 1.6, combo: ['fruit', 'cream'], stage: 2 },
+  doria:     { shop: 'cafe', name: 'ドリア',             steps: [['board', 1.5], ['stove', 4.5]],                 base: 900, cost: 240, appeal: 1.6, combo: ['cream', 'rice'], stage: 2 },
+  tart:      { shop: 'cafe', name: 'フルーツタルト',     steps: [['board', 2.0], ['stove', 4.0]],                 base: 750, cost: 200, appeal: 1.6, combo: ['fruit', 'flour'], stage: 2 },
+  katsusand: { shop: 'cafe', name: 'カツサンド',         steps: [['board', 1.5], ['fryer', 4.0], ['stove', 2.0]], base: 950, cost: 270, appeal: 1.7, combo: ['pork', 'bread'], stage: 2 },
+
+  // ---- 5号店（イタリアン）。夜に お客さんが多く、値段が高い。いちばん大きな店 ----
+  margherita:{ shop: 'italian', name: 'マルゲリータ',     steps: [['board', 1.5], ['stove', 4.0]],                 base: 1000, cost: 250, appeal: 1.3, start: true },
+  minestrone:{ shop: 'italian', name: 'ミネストローネ',   steps: [['board', 1.5], ['stove', 3.5]],                 base: 600,  cost: 140, appeal: 1.0, start: true },
+  pomodoro:  { shop: 'italian', name: 'ポモドーロ',       steps: [['board', 1.5], ['stove', 4.0]],                 base: 1000, cost: 250, appeal: 1.4, combo: ['pasta', 'tomato'], stage: 1 },
+  carbonara: { shop: 'italian', name: 'カルボナーラ',     steps: [['board', 1.5], ['stove', 4.0]],                 base: 1100, cost: 280, appeal: 1.5, combo: ['pasta', 'egg'], stage: 1 },
+  caprese:   { shop: 'italian', name: 'カプレーゼ',       steps: [['board', 2.0]],                                 base: 800,  cost: 200, appeal: 1.2, combo: ['tomato', 'mozza'], stage: 1 },
+  pescatore: { shop: 'italian', name: 'ペスカトーレ',     steps: [['board', 1.5], ['stove', 4.5]],                 base: 1400, cost: 400, appeal: 1.7, combo: ['pasta', 'seafood'], stage: 2 },
+  lasagna:   { shop: 'italian', name: 'ラザニア',         steps: [['board', 2.0], ['stove', 5.0]],                 base: 1400, cost: 380, appeal: 1.7, combo: ['meat', 'mozza'], stage: 2 },
+  fritto:    { shop: 'italian', name: 'フリット・ミスト', steps: [['board', 1.5], ['fryer', 4.0]],                 base: 1200, cost: 330, appeal: 1.6, combo: ['seafood', 'potato'], stage: 2 },
+  cotoletta: { shop: 'italian', name: 'ミラノ風カツレツ', steps: [['board', 1.5], ['fryer', 4.0], ['stove', 2.5]], base: 1600, cost: 450, appeal: 1.8, combo: ['meat', 'panko'], stage: 2 },
 };
 
 // 試作に使う食材（レシピ帳）。お店を広げると 使える食材が増える
@@ -54,6 +87,9 @@ export const INGREDIENTS = {
   chicken: '鶏肉', potato: 'じゃがいも', panko: 'パン粉',
   shrimp: 'エビ', curry: 'カレー粉', dashi: 'だし',
   negi: 'ねぎ', tofu: '豆腐', chili: '唐辛子', su: 'お酢',
+  beef: '牛肉', cheese: 'チーズ', sausage: 'ソーセージ', bun: 'パン', teri: '照り焼きのたれ', bacon: 'ベーコン',
+  bread: '食パン', ham: 'ハム', milk: '牛乳', flour: '小麦粉', cream: '生クリーム', fruit: 'フルーツ',
+  pasta: 'パスタ', mozza: 'モッツァレラ', seafood: '魚介', meat: 'ひき肉',
 };
 // 1号店の食材（どの段から使えるか）。店ごとの表は GENRES の ing
 export const INGREDIENT_STAGE = {
@@ -74,11 +110,37 @@ export const GENRES = {
     look: { sign: 'まんぷく亭', noren: '中華', roof: '#c0392b', signFill: '#ffd23f', signText: '#c0392b', norenFill: '#c0392b' },
     // 出店：1号店が この段になったら。小さな中華料理店から始まる
     need: { shop: 'washoku', stage: 2 }, price: 120000, startStage: 1, start: { seats: 4, stations: { board: 1, stove: 1 }, prep: 8 },
+    blurb: 'コンロが主役の店。少ない台で 速く回す',
+  },
+  // 3号店から。eat：食べている時間の倍率 / period：時間帯ごとの 来る人の倍率（lunch 11〜14時・day 14〜17時・dinner 17時〜）
+  burger: {
+    name: 'バーガー スマイル', short: 'バーガー', no: 3, stageNames: ['バーガーの屋台', '小さなバーガー店', '町の人気バーガー'],
+    ing: { beef: 1, cheese: 1, chicken: 1, panko: 1, sausage: 1, bun: 1, potato: 1, shrimp: 2, teri: 2, egg: 2, bacon: 2 },
+    look: { sign: 'SMILE', noren: 'バーガー', roof: '#e8742a', signFill: '#fff3c4', signText: '#d9481e', norenFill: '#d9481e' },
+    need: { shop: 'chuka', stage: 2 }, price: 180000, startStage: 1, start: { seats: 4, stations: { board: 1, stove: 1, fryer: 1 }, prep: 10 },
+    blurb: '安くて 早い店。お客さんは さっと食べて すぐ帰る。昼に 行列',
+    eat: 0.45, period: { lunch: 1.5, day: 0.9, dinner: 0.8 },
+  },
+  cafe: {
+    name: 'カフェ こもれび', short: 'カフェ', no: 4, stageNames: ['コーヒーの屋台', '小さなカフェ', '町の人気カフェ'],
+    ing: { bread: 1, ham: 1, egg: 1, milk: 1, flour: 1, rice: 2, cream: 2, fruit: 2, pork: 2 },
+    look: { sign: 'こもれび', noren: 'カフェ', roof: '#5b8a5a', signFill: '#fffaf0', signText: '#5b4636', norenFill: '#5b8a5a' },
+    need: { shop: 'burger', stage: 2 }, price: 240000, startStage: 1, start: { seats: 6, stations: { board: 1, stove: 1 }, prep: 10 },
+    blurb: 'お客さんが 一日じゅう 少しずつ来て、長く座る店。席の数が ものを言う',
+    eat: 2.2, period: { lunch: 0.8, day: 1.8, dinner: 0.7 },
+  },
+  italian: {
+    name: 'トラットリア ソーレ', short: 'イタリアン', no: 5, stageNames: ['パスタの屋台', '小さなイタリアン', '町の人気イタリアン'],
+    ing: { pasta: 1, tomato: 1, egg: 1, mozza: 1, potato: 1, panko: 1, seafood: 2, meat: 2 },
+    look: { sign: 'SOLE', noren: 'イタリアン', roof: '#2f6e4a', signFill: '#fff', signText: '#c0392b', norenFill: '#2f6e4a' },
+    need: { shop: 'cafe', stage: 2 }, price: 320000, startStage: 1, start: { seats: 6, stations: { board: 1, stove: 2 }, prep: 10 },
+    blurb: '夜に お客さんが多い、値段の高い店。商店街で いちばん大きな店になる',
+    eat: 1.4, period: { lunch: 0.8, day: 0.7, dinner: 1.6 },
   },
 };
-export const BRANCH_ORDER = ['washoku', 'chuka'];
-// まだ作っていない 3号店から先（設備のタブに「準備中」として見せる）
-export const BRANCH_LATER = ['イタリアン', 'ハンバーガー', 'エスニック'];
+export const BRANCH_ORDER = ['washoku', 'chuka', 'burger', 'cafe', 'italian'];
+// まだ作っていない店（設備のタブに「準備中」として見せる）。5店そろったので 空
+export const BRANCH_LATER = [];
 export const TRIAL_COST = 300;
 
 // お客さん
@@ -168,9 +230,16 @@ export const REGULARS = [
   { id: 'wang', name: 'ワンさん', fav: 'gyoza', look: 6, shop: 'chuka' },
   { id: 'ogawa', name: 'オガワさん', fav: 'ramen', look: 8, shop: 'chuka' },
   { id: 'kudo', name: 'クドウさん', fav: 'mapo', look: 10, shop: 'chuka' },
+  { id: 'hayashi', name: 'ハヤシさん', fav: 'burger', look: 7, shop: 'burger' },
+  { id: 'nishi', name: 'ニシくん', fav: 'fries', look: 9, shop: 'burger' },
+  { id: 'okada', name: 'オカダさん', fav: 'cheese', look: 11, shop: 'burger' },
+  { id: 'suzuki', name: 'スズキさん', fav: 'coffee', look: 1, shop: 'cafe' },
+  { id: 'yamada', name: 'ヤマダさん', fav: 'pancake', look: 4, shop: 'cafe' },
+  { id: 'ueno', name: 'ウエノさん', fav: 'toast', look: 2, shop: 'cafe' },
+  { id: 'rossi', name: 'ロッシさん', fav: 'margherita', look: 6, shop: 'italian' },
+  { id: 'kato', name: 'カトウさん', fav: 'carbonara', look: 3, shop: 'italian' },
+  { id: 'fujii', name: 'フジイさん', fav: 'minestrone', look: 5, shop: 'italian' },
 ];
-// upsetDays：嫌なこと（好物が無い・高い・売り切れ・待たされて帰った）があると、この日数は来る確率が upsetDrop ぶん下がる
-// pricey：好物が ふつうの値段の これ倍を超えると「高い」
 // となりの店（町に呼ぶ店）。自分の店が 人気店に なるたびに、候補2つから1つを呼べる。効き目は 自分の店 ぜんぶに
 // text は 起きることだけを書く（「おすすめ」は書かない）
 export const TOWN = {
@@ -184,6 +253,8 @@ export const TOWN = {
     { id: 'hanaya', name: '花屋', text: '高い評判が 下がりにくい', decayMul: 0.5 },
   ],
 };
+// upsetDays：嫌なこと（好物が無い・高い・売り切れ・待たされて帰った）があると、この日数は来る確率が upsetDrop ぶん下がる
+// pricey：好物が ふつうの値段の これ倍を超えると「高い」
 export const REGULAR = { chance: 0.35, loveToUsual: 3, missDays: 3, upsetDays: 4, upsetDrop: 0.3, pricey: 1.3 };
 
 // 広告（見たい人が見るものだけ。1日の上限）

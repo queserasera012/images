@@ -305,7 +305,8 @@ function rushWeight(min) {
   return RUSH[0][1];
 }
 
-const SALT = { washoku: 0, chuka: 7919 };
+// 店ごとに 乱数の列を ずらす（1号店 0・2号店 7919 … 前の版と 同じ値）
+const saltOf = (g) => (GENRES[g].no - 1) * 7919;
 // あしたの天気と出来事は 種と日付から決まっている（夜の貼り紙に出す）
 export function weatherOf(s, day = s.day) { return pickWeather(rand({ rng: hash(s.seed, day) })); }
 export function eventOf(s, day = s.day) {
@@ -317,7 +318,7 @@ export function eventOf(s, day = s.day) {
 export function startDay(s, { branch = false, weather = null } = {}) {
   // 営業の途中で閉じたら、開店前の状態に戻すための写し
   const snap = branch ? null : JSON.stringify({ ...s, today: null, phase: 'night' });
-  const today = { snap, branch, rng: hash(s.seed + (SALT[genreOf(s)] || 0), s.day), t: 0, idSeq: 1, guests: [], jobs: [], slots: {}, stock: {}, events: [], evSeq: 1 };
+  const today = { snap, branch, rng: hash(s.seed + saltOf(genreOf(s)), s.day), t: 0, idSeq: 1, guests: [], jobs: [], slots: {}, stock: {}, events: [], evSeq: 1 };
   // 天気は 町に1つ（どの店も同じ）
   today.weather = weather || weatherOf(s).id;
   const ev = eventOf(s);
@@ -343,7 +344,7 @@ export function startDay(s, { branch = false, weather = null } = {}) {
   const span = DAY.seconds * DAY.lastEntryRatio;
   while (arrivals.length < n) {
     const t = rand(today) * span;
-    const boost = (ev && ev.period && periodOf(clockOf(t)) === ev.period ? ev.boost : 1) * townBoost(s, periodOf(clockOf(t)));
+    const boost = (ev && ev.period && periodOf(clockOf(t)) === ev.period ? ev.boost : 1) * townBoost(s, periodOf(clockOf(t))) * ((GENRES[genreOf(s)].period || {})[periodOf(clockOf(t))] || 1);
     if (rand(today) * 2.4 < rushWeight(clockOf(t)) * boost) arrivals.push(t);
   }
   arrivals.sort((a, b) => a - b);
@@ -565,7 +566,7 @@ export function tick(s, dt) {
   }
   // 食べ終わって払う
   for (const g of today.guests) {
-    if (g.state === 'eating' && t - g.servedAt >= GUEST.eatSeconds) {
+    if (g.state === 'eating' && t - g.servedAt >= GUEST.eatSeconds * (GENRES[genreOf(s)].eat || 1)) {
       s.money += g.price;
       today.stats.sales += g.price;
       today.stats.served += 1;

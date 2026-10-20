@@ -1,7 +1,7 @@
 // お店の外観（SVG）。段階・席・スタッフ・評判・売上の合計で姿が変わる。
 // 読むだけ（state を書き換えない）。
 import { personSVG } from './people.js';
-import { GENRES } from './config.js';
+import { GENRES, TOWN } from './config.js';
 const lookOf = (s) => GENRES[s.genre || 'washoku'].look;
 
 const L = '#2a2350';
@@ -43,14 +43,18 @@ function noren(x, y, w, h, color, text) {
   const n = 3, sw = w / n;
   let out = '';
   for (let i = 0; i < n; i++) out += `<rect x="${x + i * sw + 1}" y="${y}" width="${sw - 2}" height="${h}" rx="2" fill="${color}" ${W}/>`;
-  return `${out}<text x="${x + w / 2}" y="${y + h / 2 + 5}" text-anchor="middle" font-size="13" font-weight="800" fill="#fff" font-family="M PLUS Rounded 1c, sans-serif">${text}</text>`;
+  return `${out}<text x="${x + w / 2}" y="${y + h / 2 + 5}" text-anchor="middle" font-size="${Math.min(13, (w - 6) / [...text].length).toFixed(1)}" font-weight="800" fill="#fff" font-family="M PLUS Rounded 1c, sans-serif">${text}</text>`;
 }
 
-// となりの店（売上の合計で増える＝町が育つ）
-const NEIGHBORS = [
-  { at: 20000, x: 6, name: '八百屋', wall: '#d8f5e6', a: '#2fd39e', b: '#fff' },
-  { at: 60000, x: 290, name: '本屋', wall: '#e6e1ff', a: '#9b7bff', b: '#fff' },
-];
+// となりの店（商店街の地図で 呼んだ店。左右に 2つまで 見せる）
+const NB_LOOK = {
+  yaoya: { wall: '#d8f5e6', a: '#2fd39e', b: '#fff' },
+  honya: { wall: '#e6e1ff', a: '#9b7bff', b: '#fff' },
+  sento: { wall: '#dff2ff', a: '#4cc9f0', b: '#fff' },
+  jimusho: { wall: '#fff2d6', a: '#ffb020', b: '#fff' },
+  coffee: { wall: '#f1e4d6', a: '#8a5a3c', b: '#fff' },
+  hanaya: { wall: '#ffe4ee', a: '#ff6b9a', b: '#fff' },
+};
 // 売上の合計 150000 で、通りに 商店街の旗が かかる
 function flags() {
   const c = ['#ff4f5e', '#ffd23f', '#2fd39e', '#4cc9f0', '#9b7bff'];
@@ -131,7 +135,7 @@ export function exteriorSVG(s, stage = s.stage) {
   const pos = stage === 0 ? [92, 268, 284] : [84, 276, 292];
   for (let i = 0; i < flowers; i++) pots += plant(pos[i], 206);
   const staff = s.staff.slice(0, 3).map((x, i) => person(stage === 0 ? 262 + i * 18 : 246 + i * 16, 186, 22, (i * 5 + 2) % 12, { chef: true })).join('');
-  const nbs = NEIGHBORS.filter((n) => s.totalSales >= n.at).map(neighbor).join('');
+  const nbs = (s.town ? s.town.picked : []).slice(0, 2).map((id, i) => neighbor({ x: i ? 290 : 6, name: (TOWN.list.find((n) => n.id === id) || {}).short || (TOWN.list.find((n) => n.id === id) || {}).name || '', ...(NB_LOOK[id] || NB_LOOK.yaoya) })).join('');
   return `<svg viewBox="0 0 360 250" class="exterior" role="img" aria-label="お店の外観">
     <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5ccdf2"/><stop offset=".7" stop-color="#ffd6a8"/><stop offset="1" stop-color="#ffb38a"/></linearGradient></defs>
     <rect width="360" height="250" fill="url(#${id})"/>
