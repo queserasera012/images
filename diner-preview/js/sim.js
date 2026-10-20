@@ -2,7 +2,7 @@
 // 画面（main.js）は state を読み、ここの関数を呼ぶだけ。
 import {
   DAY, STATIONS, DISHES, GUEST, DEMAND, WEATHER, RUSH, REP, STAGES, SHOP,
-  STAFF, STAFF_NAMES, REGULARS, REGULAR, ADS, START, TRIAL_COST, GENRES, BRANCH_ORDER, EVENTS, TOWN,
+  STAFF, STAFF_NAMES, REGULARS, REGULAR, ADS, START, TRIAL_COST, GENRES, BRANCH_ORDER, EVENTS, TOWN, MANAGER,
 } from './config.js';
 
 export const SAVE_VERSION = 1;
@@ -44,7 +44,7 @@ export function priceDemand(s) {
 
 // ---- はじめの状態 ----
 // 店ごとに持つもの（お金・日付・日報・広告は 全部の店で共通）
-export const SHOP_KEYS = ['genre', 'stage', 'totalSales', 'rep', 'seats', 'stations', 'staff', 'menu', 'prep', 'known', 'tried', 'regulars', 'lastCrew'];
+export const SHOP_KEYS = ['genre', 'stage', 'totalSales', 'rep', 'seats', 'stations', 'staff', 'menu', 'prep', 'known', 'tried', 'regulars', 'lastCrew', 'manager'];
 export function createShop(genre = 'washoku') {
   const g = GENRES[genre];
   const start = g.start || START;
@@ -59,7 +59,7 @@ export function createShop(genre = 'washoku') {
   for (const r of REGULARS) if (shopOfReg(r) === genre) regulars[r.id] = { love: 0, lastDay: 0, visits: 0, noted: false, upset: 0 };
   return {
     genre, stage: g.startStage || 0, totalSales: 0, rep: REP.start, seats: start.seats, stations, staff: [],
-    menu, prep, known: Object.keys(menu), tried: [], regulars, lastCrew: [],
+    menu, prep, known: Object.keys(menu), tried: [], regulars, lastCrew: [], manager: false,
   };
 }
 export function createState(seed = (Date.now() >>> 0)) {
@@ -115,6 +115,8 @@ export const crewOk = (staff) => staff.some((x) => x.role === 'board') && staff.
 export function crewPlan(s, genre) {
   const sh = shopInfo(s, genre);
   const staff = sh.staff.length ? sh.staff : sh.lastCrew;
+  // 店長がいれば 足りない人を 呼んで 開ける
+  if (sh.manager) return { staff, open: true, manager: true, why: '' };
   return { staff, open: crewOk(staff), why: staff.length ? '仕込み係と ホール係が 要る' : '人がいない' };
 }
 // ほかの店の アルバイトを、店を切り替えずに 呼ぶ・帰す（夜だけ）
@@ -130,6 +132,25 @@ export const hireAt = (s, genre, role) => atShop(s, genre, () => hire(s, role));
 export const fireAt = (s, genre, id) => atShop(s, genre, () => { fire(s, id); return { ok: true }; });
 export const canRehireAt = (s, genre) => atShop(s, genre, () => canRehire(s));
 export const rehireAt = (s, genre) => atShop(s, genre, () => rehire(s));
+// 店長を置く・帰す（立たない店だけ。夜だけ）
+export function setManager(s, genre, on) {
+  if (s.phase !== 'night' || genre === genreOf(s) || !s.branches[genre]) return { ok: false };
+  s.branches[genre].manager = !!on;
+  return { ok: true };
+}
+// 店長の段取り：人が足りなければ呼び、仕込みを きのう売れた数に合わせる
+function managerPlan(s) {
+  if (!s.staff.length) rehire(s);
+  for (const role of ['board', 'hall']) if (!s.staff.some((x) => x.role === role) && canHire(s, role).ok) hire(s, role);
+  const last = s.reports.filter((r) => !r.closed && (r.shop || 'washoku') === genreOf(s)).pop();
+  if (!last) return;
+  for (const [id, m] of Object.entries(s.menu)) {
+    if (!m.on) continue;
+    const sold = last.sold[id] || 0;
+    const out = last.soldOutAt[id] != null;
+    s.prep[id] = Math.max(MANAGER.minPrep, sold + MANAGER.extra + (out ? MANAGER.extra : 0));
+  }
+}
 
 // ---- 商店街（となりの店） ----
 const TOP = STAGES.length - 1;
@@ -606,7 +627,7 @@ function closeDay(s) {
     if (n > 0) { waste.push([id, n]); wasteCost += n * DISHES[id].cost; }
   }
   // アルバイト代と家賃。足りない分は ツケ
-  const wage = wages(s);
+  const wage = wages(s) + (today.branch && s.manager ? MANAGER.wage : 0);
   const rent = stageOf(s).rent || 0;
   let credit = today.credit || 0;
   const short = Math.max(0, wage + rent - s.money);
@@ -648,13 +669,13 @@ function closeDay(s) {
     soldOutAt: st.soldOutAt, sold: st.sold, usual: st.usual, notes,
     rep: s.rep, repDelta: s.rep - st.repStart, closedOut: st.closedOut,
     profit: st.sales - today.prepCost - wage - rent,
-    crew: s.staff.map((x) => ({ name: x.name, role: x.role })),
+    crew: s.staff.map((x) => ({ name: x.name, role: x.role })), manager: !!(today.branch && s.manager),
   };
   // アルバイトは閉店で帰る
   s.lastCrew = report.crew;
   s.staff = [];
   s.reports.push(report);
-  if (s.reports.length > 60) s.reports.shift();
+  if (s.reports.length > 200) s.reports.shift();
   s.history.push({ shop: genreOf(s), day: s.day, sales: st.sales, profit: report.profit, served: st.served, guests: report.guests });
   if (s.history.length > 30) s.history.shift();
   s.today = null;
@@ -676,7 +697,8 @@ function runBranches(s, weather) {
     if (!s.branches[genre]) continue;
     const home = genreOf(s);
     swapTo(s, genre);
-    if (!s.staff.length) rehire(s);
+    if (s.manager) managerPlan(s);
+    else if (!s.staff.length) rehire(s);
     let r;
     if (!crewOk(s.staff)) {
       // 人がそろわない日は 休み（給料も 評判の変化も 無い）。顔ぶれは 残しておく

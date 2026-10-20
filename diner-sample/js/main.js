@@ -4,7 +4,7 @@ import { personSVG, LOOK_COUNT } from './people.js';
 import { stationSVG } from './kitchen-art.js';
 import { exteriorSVG } from './exterior.js';
 import { foodSVG } from './food-art.js';
-import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_LATER, EVENTS, FAST, GUEST, TOWN } from './config.js';
+import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_LATER, EVENTS, FAST, GUEST, TOWN, MANAGER } from './config.js';
 
 const SAVE_KEY = 'diner.proto.v1';
 const UI_KEY = 'diner.proto.ui.v1';
@@ -297,7 +297,7 @@ function reportPaper(r, { live = false } = {}) {
       <div class="lines">
         ${rows.map(([t, v, good], i) => `<div class="row" style="animation-delay:${0.15 + i * 0.08}s"><span>${t}</span><b class="${v != null ? 'minus' : good ? 'plus' : ''}">${v != null ? yen(v) : good ? '♪' : ''}</b></div>`).join('')}
         <div class="row" style="animation-delay:${0.15 + rows.length * 0.08}s"><span>仕入れ</span><b class="minus">${yen(-r.prepCost)}</b></div>
-        <div class="row" style="animation-delay:${0.23 + rows.length * 0.08}s"><span>アルバイト代${crew ? `<small class="crew">${crew}（この日だけ）</small>` : ''}</span><b class="minus">${yen(-r.wage)}</b></div>
+        <div class="row" style="animation-delay:${0.23 + rows.length * 0.08}s"><span>${r.manager ? '店長と ' : ''}アルバイト代${crew ? `<small class="crew">${crew}（この日だけ）</small>` : ''}</span><b class="minus">${yen(-r.wage)}</b></div>
         ${r.rent ? `<div class="row" style="animation-delay:${0.31 + rows.length * 0.08}s"><span>家賃</span><b class="minus">${yen(-r.rent)}</b></div>` : ''}
       </div>
       ${branchLines(r)}
@@ -318,7 +318,8 @@ function branchLines(r) {
       : `<span>${b.served}/${b.guests}人・売上 ${yen(b.sales)}${b.left ? `・帰った ${b.left}人` : ''}</span><b class="${b.profit >= 0 ? 'plus' : 'minus'}">${yen(b.profit)}</b>`;
     return `<button class="brow" data-bshop="${b.shop}" data-bday="${r.day}" ${b.closed ? 'disabled' : ''}><em>${g.no}号店 ${g.name}${b.closed ? '' : '<small>（タップで日報）</small>'}</em><div class="row">${body}</div></button>`;
   }).join('');
-  return `<div class="branches"><small>ほかの店（アルバイトで回した）</small>${rows}</div>`;
+  const total = r.profit + r.branches.reduce((a, b) => a + (b.profit || 0), 0);
+  return `<div class="branches"><small>ほかの店（アルバイトで回した）</small>${rows}<div class="row total"><span>全部の店の もうけ</span><b class="${total >= 0 ? 'plus' : 'minus'}">${yen(total)}</b></div></div>`;
 }
 function wireBranchRows(root) {
   for (const b of root.querySelectorAll('[data-bshop]')) onTap(b, () => {
@@ -397,7 +398,7 @@ function townMap(sel = S.genreOf(s)) {
     const g = shops.at(i);
     if (g) {
       const plan = g === S.genreOf(s) ? null : S.crewPlan(s, g);
-      const sub = plan ? (plan.open ? `バイト${plan.staff.length}人` : '休み') : 'あした立つ';
+      const sub = plan ? (S.shopInfo(s, g).manager ? '店長' : plan.open ? `バイト${plan.staff.length}人` : '休み') : 'あした立つ';
       return `<button class="lot shop ${g === sel ? 'sel' : ''} ${g === S.genreOf(s) ? 'here' : ''} ${plan && !plan.open ? 'shut' : ''}" data-sel="${g}"><em>${i + 1}号店</em><b>${GENRES[g].short}</b><small>${sub}</small></button>`;
     }
     const next = nb && i === shops.length;
@@ -415,7 +416,7 @@ function townMap(sel = S.genreOf(s)) {
     const here = sel === S.genreOf(s);
     const plan = here ? null : S.crewPlan(s, sel);
     const sh = S.shopInfo(s, sel);
-    const st = here ? 'あした あなたが 立つ' : plan.open ? `アルバイト${plan.staff.length}人で 回す` : `${plan.why}ので 休み`;
+    const st = here ? 'あした あなたが 立つ' : sh.manager ? '店長が 回す' : plan.open ? `アルバイト${plan.staff.length}人で 回す` : `${plan.why}ので 休み`;
     detail = `<div class="card pick ${here ? 'here' : ''} ${plan && !plan.open ? 'shut' : ''}"><div class="txt"><b>${GENRES[sel].no}号店 ${GENRES[sel].name}</b><small>${GENRES[sel].stageNames[sh.stage]}・評判 ${Math.round(sh.rep)}・${st}</small></div>
       ${here ? '' : `<div class="btns"><button class="chunky" data-crew="${sel}">バイトを呼ぶ</button><button class="chunky yel" data-go="${sel}">ここに立つ</button></div>`}</div>`;
   }
@@ -434,8 +435,9 @@ function townMap(sel = S.genreOf(s)) {
 
 // ほかの店の アルバイトを、店を切り替えずに 呼ぶ
 function crewSheet(genre, back) {
-  const sh = S.shopInfo(s, genre);
   const render = () => {
+    // atShop が しまってある店を 入れ替えるので、描くたびに 読み直す
+    const sh = S.shopInfo(s, genre);
     const now = sh.staff.map((x) => `<div class="card"><div class="ic face">${personSVG(staffLook(x), 'happy', { chef: true })}</div><div class="txt"><b>${x.name}さん</b><small>${x.role === 'hall' ? 'ホール係' : `${STATIONS[x.role].name}`}・${yen(STAFF[x.role].wage)}</small></div><button class="chunky" data-fire="${x.id}">呼ばない</button></div>`).join('');
     const again = S.canRehireAt(s, genre) ? `<button class="chunky yel wide" data-rehire="1">きのうと同じ人を呼ぶ（${sh.lastCrew.map((x) => `${x.name}さん`).join('・')}）</button>` : '';
     const roles = ['board', 'stove', 'fryer', 'hall'].map((r) => {
@@ -444,8 +446,9 @@ function crewSheet(genre, back) {
         <button class="chunky mint" data-hire="${r}" ${c.ok ? '' : 'disabled'}>あした呼ぶ</button></div>`;
     }).join('');
     const plan = S.crewPlan(s, genre);
-    return `<h3>${GENRES[genre].no}号店 ${GENRES[genre].name}の アルバイト</h3>
-      <p style="margin:0 0 8px;font-size:12px;font-weight:800;color:${plan.open ? 'var(--ink2)' : 'var(--red)'}">${plan.open ? `あしたは ${plan.staff.length}人で回る。仕込み係と ホール係が いれば 回る` : `${plan.why}ので 休みになる。仕込み係と ホール係が 要る`}</p>
+    const mgr = `<div class="card mgr ${sh.manager ? 'on' : ''}"><div class="txt"><b>店長 ${sh.manager ? 'がいる' : 'は いない'}</b><small>1日 ${yen(MANAGER.wage)}。仕込みを きのう売れた数に合わせ、仕込み係と ホール係が いなければ 呼ぶ</small></div><button class="chunky ${sh.manager ? '' : 'mint'}" data-mgr="${sh.manager ? 0 : 1}">${sh.manager ? '帰す' : '置く'}</button></div>`;
+    return `<h3>${GENRES[genre].no}号店 ${GENRES[genre].name}の アルバイト</h3>${mgr}
+      <p style="margin:0 0 8px;font-size:12px;font-weight:800;color:${plan.open ? 'var(--ink2)' : 'var(--red)'}">${plan.open ? (sh.manager ? `あしたは 店長が 回す。足りない係は 店長が 呼ぶ` : `あしたは ${plan.staff.length}人で回る。仕込み係と ホール係が いれば 回る`) : `${plan.why}ので 休みになる。仕込み係と ホール係が 要る`}</p>
       ${again}${now ? `<div class="sec">あした来る人</div>${now}` : ''}<div class="sec">呼ぶ</div>${roles}
       <button class="big go" data-close>とじる</button>`;
   };
@@ -455,6 +458,7 @@ function crewSheet(genre, back) {
     for (const b of o.querySelectorAll('[data-hire]')) onTap(b, () => { S.hireAt(s, genre, b.dataset.hire); redraw(); });
     for (const b of o.querySelectorAll('[data-fire]')) onTap(b, () => { S.fireAt(s, genre, b.dataset.fire); redraw(); });
     for (const b of o.querySelectorAll('[data-rehire]')) onTap(b, () => { S.rehireAt(s, genre); redraw(); });
+    for (const b of o.querySelectorAll('[data-mgr]')) onTap(b, () => { S.setManager(s, genre, b.dataset.mgr === '1'); redraw(); });
     for (const b of o.querySelectorAll('[data-close]')) onTap(b, close);
   };
   const redraw = () => { $('overlay').firstElementChild.innerHTML = render(); wire(); };

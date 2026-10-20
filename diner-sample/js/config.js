@@ -257,6 +257,9 @@ export const TOWN = {
 // pricey：好物が ふつうの値段の これ倍を超えると「高い」
 export const REGULAR = { chance: 0.35, loveToUsual: 3, missDays: 3, upsetDays: 4, upsetDrop: 0.3, pricey: 1.3 };
 
+// 店長（2号店から。立たない店に置ける）。仕込みを きのう売れた数＋extra に合わせ、仕込み係と ホール係が いなければ呼ぶ。給料は 毎日
+export const MANAGER = { wage: 2500, extra: 2, minPrep: 3 };
+
 // 広告（見たい人が見るものだけ。1日の上限）
 export const ADS = { perDay: 5, profitMul: 1.5, flyerMul: 1.25 };
 
