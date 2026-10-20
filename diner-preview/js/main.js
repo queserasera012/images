@@ -53,7 +53,18 @@ function toast(text) {
   clearTimeout(toast._t); toast._t = setTimeout(() => { t.hidden = true; }, 1400);
 }
 // タップは押した瞬間に受ける（描き直しで要素が入れかわっても取りこぼさない）
-function onTap(el, fn) { el.addEventListener('pointerdown', (e) => { if (e.button > 0) return; fn(e); }); }
+// 押したらすぐ反応する。ただし スクロールする紙と夜の欄の中では、指を離したときに 動いていなければ 反応する
+// （押した所から スクロールを始めると ボタンが押されてしまうので）
+function onTap(el, fn) {
+  if (!el.closest('#overlay, #panel')) { el.addEventListener('pointerdown', (e) => { if (e.button > 0) return; fn(e); }); return; }
+  let start = null;
+  el.addEventListener('pointerdown', (e) => { start = e.button > 0 ? null : { x: e.clientX, y: e.clientY }; });
+  el.addEventListener('pointercancel', () => { start = null; });
+  el.addEventListener('pointerup', (e) => {
+    if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) < 10) fn(e);
+    start = null;
+  });
+}
 
 function guestEl() { return h('div', 'guest'); }
 // 表情が変わったときだけ描き直す
