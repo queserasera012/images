@@ -183,7 +183,7 @@ export function hire(s, role) {
   const c = canHire(s, role);
   if (!c.ok) return c;
   const used = new Set([...s.staff, ...Object.values(s.branches || {}).flatMap((b) => b.staff)].map((x) => x.name));
-  const name = STAFF_NAMES.find((n) => !used.has(n)) || `スタッフ${s.staff.length + 1}`;
+  const name = STAFF_NAMES.find((n) => !used.has(n)) || STAFF_NAMES.map((n) => `${n}2`).find((n) => !used.has(n)) || `${STAFF_NAMES[0]}${used.size}`;
   s.staff.push({ id: `st${s.day}_${s.staff.length}`, name, role });
   if (!s.log.some((x) => x.kind === 'staff')) note(s, 'staff', `はじめてのアルバイト ${name}さん`);
   return { ok: true, name };

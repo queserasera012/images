@@ -586,7 +586,7 @@ function doNight(what, arg) {
       if (r.ok) {
         tab = 'look'; ui.pick = [];
         const h = r.home;
-        const line = h.open ? `${GENRES[h.genre].no}号店は ${h.crew.map((n) => `${n}さん`).join('・')}で 回る` : `${GENRES[h.genre].no}号店は 仕込み係と ホール係を 呼ばないと 休みになる（店の札の「バイトを呼ぶ」から）`;
+        const line = h.open ? `${GENRES[h.genre].no}号店は ${h.crew.length > 3 ? `${h.crew.slice(0, 2).map((n) => `${n}さん`).join('・')}ほか ${h.crew.length}人` : h.crew.map((n) => `${n}さん`).join('・')}で 回る` : `${GENRES[h.genre].no}号店は 仕込み係と ホール係を 呼ばないと 休みになる（店の札の「バイトを呼ぶ」から）`;
         celebrate(`${r.name}を 出した！\n<small class="cel-sub">あしたは 2号店に立つ。<br>${line}</small>`);
       }
       break;
