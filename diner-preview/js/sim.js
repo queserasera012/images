@@ -852,7 +852,7 @@ function closeDay(s) {
   s.debt -= repaid; s.money -= repaid;
   // 高い評判は 毎日 少し戻る
   const dec = REP.decay.find(([over]) => s.rep > over);
-  if (dec) s.rep = clampRep(s.rep - (dec[1] + (dec[2] || 0) * (s.rep - dec[0])) * townMul(s, 'decayMul'));
+  if (dec) s.rep = clampRep(s.rep - (dec[1] + (dec[2] || 0) * (s.rep - dec[0])) * townMul(s, 'decayMul') * (today.stance && today.stance.decayMul ? today.stance.decayMul : 1));
   const before = s.totalSales;
   s.totalSales += st.sales + (today.asks || []).reduce((a, x) => a + (x.pay || 0), 0);
   for (const m of [10000, 50000, 100000, 300000, 1000000]) if (before < m && s.totalSales >= m) note(s, 'sales', `売上の合計が ${m.toLocaleString('ja-JP')}円に`);

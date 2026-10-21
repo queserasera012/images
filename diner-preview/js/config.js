@@ -291,10 +291,10 @@ export const REGULAR = { chance: 0.35, loveToUsual: 3, missDays: 3, upsetDays: 4
 export const MANAGER = { wage: 2000, rate: 0.05, extra: 2, minPrep: 3, outMul: 1.4, stance: 'sales' };
 // 店長の方針（店ごと）。どれかを取ると どれかを失う（2026-10-21 オーナー「トレードオフな仕組み」）
 //   prepMul：仕込みの倍率 / extra：仕込みの上乗せ（無ければ MANAGER.extra）/ priceMul：値段 / hallRep：ホール係が運んだ料理の評判の伸び（無ければ STAFF.repMul）
-//   hallDelay：ホール係が運ぶまでの秒の倍率 / lean：仕込み係とホール係だけで回す
+//   hallDelay：ホール係が運ぶまでの秒の倍率 / decayMul：高い評判の 毎日の戻りの倍率 / lean：仕込み係とホール係だけで回す
 export const STANCES = {
   sales: { name: '売上重視', text: '仕込み 1.15倍・値段を ふつうの +5%。売り切れは 減るが 食材が 余る', prepMul: 1.15, priceMul: 1.05 },
-  rep: { name: '評判重視', text: '仕込み 1.2倍・ホール係が ひとりひとり 丁寧に 運ぶ。評判は 落ちにくいが 出せる数が 減り、食材が 余る', prepMul: 1.2, hallRep: 1.3, hallDelay: 2.5 },
+  rep: { name: '評判重視', text: '仕込み 1.2倍・ホール係が ひとりひとり 丁寧に 運ぶ。評判は 落ちにくいが 出せる数が 減り、食材が 余る', prepMul: 1.2, hallRep: 1.3, hallDelay: 2.5, decayMul: 0.7 },
   lean: { name: 'むだなし', text: '仕込みは きのう売れた数 ちょうど・バイトは 仕込み係と ホール係だけ。食材は 余らないが 売り切れが 出る', prepMul: 1.0, extra: 0, lean: true },
 }; // 給料は 1日 wage ＋ その店の 売上の rate（前は 一律 ¥2,500・第2回レビュー 7）。売り切れた料理は きのうの 1.4倍＋2
 
