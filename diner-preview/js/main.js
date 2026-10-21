@@ -227,7 +227,7 @@ function renderService() {
   $('fastBtn').classList.toggle('on', fast);
 
   const st = today.stats;
-  const tb = `<span>売上<b>${yen(st.sales)}</b></span><span>食べた<b>${st.served}</b>人</span><span>帰った<b>${st.left.queue + st.left.wait + st.left.soldOut + st.left.pricey}</b>人</span>`;
+  const tb = `<span>売上<b>${yen(st.sales)}</b></span><span>食べた<b>${st.served}</b>人</span><span>帰った<b>${st.left.queue + st.left.wait + st.left.soldOut + st.left.pricey + (st.left.full || 0)}</b>人</span>`;
   if ($('todaybar')._h !== tb) { $('todaybar').innerHTML = tb; $('todaybar')._h = tb; }
   renderFx();
 }
@@ -261,6 +261,7 @@ function renderFx() {
     else if (ev.type === 'leave') float(LEAVE_SAY[ev.reason], ev.reason === 'queue' ? null : ev.seat, 'say');
     else if (ev.type === 'order' && ev.usual) float('いつもの！', ev.seat, 'say');
     else if (ev.type === 'serve' && ev.fast) float('はやい！', ev.seat, 'say');
+    else if (ev.type === 'full') float('いっぱいだ…', null, 'say');
   }
 }
 
@@ -276,9 +277,10 @@ function reportPaper(r, { live = false } = {}) {
   if (r.left.queue || r.left.wait) rows.push([`（帰ったのは ${when}）`, null]);
   if (r.left.soldOut) rows.push([`食べたい物が売り切れで帰った ${r.left.soldOut}人`, null]);
   if (r.left.pricey) rows.push([`メニューを見て帰った ${r.left.pricey}人`, null]);
+  if (r.left.full) rows.push([`店の前が いっぱいで 引き返した ${r.left.full}人`, null]);
   if (r.lostSales) rows.push(['売り逃した（帰った人のぶん）', -r.lostSales]);
   for (const [id, min] of Object.entries(r.soldOutAt)) rows.push([`${DISHES[id].name}が売り切れ ${S.fmtClock(min)}`, null]);
-  for (const [id, n] of r.waste) rows.push([`${DISHES[id].name}の食材を捨てた ${n}食分`, -n * DISHES[id].cost]);
+  for (const [id, n] of r.waste) rows.push([`${DISHES[id].name}の食材を捨てた ${n}食分`, -n * S.dishCost(s, id, r.day)]);
   if (r.credit) rows.push([`お金が足りず、${yen(r.credit)}を ツケにした`, null]);
   if (r.repaid) rows.push([`ツケを ${yen(r.repaid)} 返した`, null, true]);
   if (r.debt) rows.push([`ツケの残り ${yen(r.debt)}`, null]);
@@ -371,12 +373,14 @@ const TAB_ICON = {
 };
 // 夜のタブは 3つ（2026-10-21 案1）：支度（料理・人・レシピ）／ お店（姿・広げる・設備・飾る・記録）／ 町（商店街）
 const TABS = [['prep', '支度'], ['shop', 'お店'], ['town', '町']];
+const SEASON_TAG = { cheap: '<span class="plus">（いま 安い）</span>', dear: '<span class="minus">（いま 高い）</span>' };
 function renderNight() {
   const ns = S.nextStage(s);
   // あしたの貼り紙：天気と 出来事
   const fw = S.weatherOf(s), fe = S.eventOf(s);
   const fest = S.festivalTomorrow(s);
-  $('notice').innerHTML = `<b>あしたは ${fw.icon} ${fw.name}</b>${fest ? '<span class="ev">🏮 商店街まつり<small>全部の店に 人が多く来る</small></span>' : ''}${fe ? `<span class="ev">${fe.icon} ${fe.name}<small>${fe.text}</small></span>` : ''}`;
+  const se = S.seasonOf(s), seNew = S.seasonStarts(s.day);
+  $('notice').innerHTML = `<b>あしたは ${fw.icon} ${fw.name}</b>${seNew ? `<span class="ev">${se.icon} ${se.name}に なった<small>${se.text}</small></span>` : `<span class="season">${se.icon} ${se.name}</span>`}${fest ? '<span class="ev">🏮 商店街まつり<small>全部の店に 人が多く来る</small></span>' : ''}${fe ? `<span class="ev">${fe.icon} ${fe.name}<small>${fe.text}</small></span>` : ''}`;
   $('notice').classList.toggle('has-ev', !!fe || fest);
   // 2行目：あした立つ店（店が2つ以上なら 押すと 町タブへ）
   const shopsAll = S.shopsOf(s);
@@ -434,7 +438,7 @@ function askSheet() {
       <small>届けると ${yen(S.askPay(x))}</small></div></div>`;
     const offer = o ? `<div class="sec">届いた お願い</div>${card(o)}
       <p class="asknote">受けると、その日の 朝に ${GENRES[o.shop].name}の 仕込みから ${o.n}食を 渡す。仕込みが 足りないと 届けられない。返事をしないと あしたの夜に 消える</p>
-      <div class="askbtns"><button class="chunky" data-ans="0">ことわる</button><button class="chunky red" data-ans="1" ${a.list.length >= ASK.max ? 'disabled' : ''}>${a.list.length >= ASK.max ? `受けられるのは ${ASK.max}件まで` : '受ける'}</button></div>` : '';
+      <div class="askbtns"><button class="chunky" data-ans="0">ことわる</button><button class="chunky red" data-ans="1" ${a.list.length >= S.askMax(s) ? 'disabled' : ''}>${a.list.length >= S.askMax(s) ? `受けられるのは ${S.askMax(s)}件まで` : '受ける'}</button></div>` : '';
     const list = a.list.slice().sort((x, y) => x.due - y.due).map(card).join('');
     return `<h3>町の人の お願い</h3>${offer}${list ? `<div class="sec">受けた お願い</div>${list}` : ''}
       <p class="asknote">これまでに 届けた お願い ${a.done}件</p><button class="big go" data-close>とじる</button>`;
@@ -524,7 +528,7 @@ function crewSheet(genre, back) {
         <button class="chunky mint" data-hire="${r}" ${c.ok ? '' : 'disabled'}>あした呼ぶ</button></div>`;
     }).join('');
     const plan = S.crewPlan(s, genre);
-    const mgr = `<div class="card mgr ${sh.manager ? 'on' : ''}"><div class="txt"><b>店長 ${sh.manager ? 'がいる' : 'は いない'}</b><small>1日 ${yen(MANAGER.wage)}。仕込みを きのう売れた数に合わせ、仕込み係と ホール係が いなければ 呼ぶ</small></div><button class="chunky ${sh.manager ? '' : 'mint'}" data-mgr="${sh.manager ? 0 : 1}">${sh.manager ? '帰す' : '置く'}</button></div>`;
+    const mgr = `<div class="card mgr ${sh.manager ? 'on' : ''}"><div class="txt"><b>店長 ${sh.manager ? 'がいる' : 'は いない'}</b><small>1日 ${yen(MANAGER.wage)} ＋ その店の 売上の ${Math.round(MANAGER.rate * 100)}%。貼り紙を読んで 仕込みを 決め、仕込み係と ホール係が いなければ 呼ぶ</small></div><button class="chunky ${sh.manager ? '' : 'mint'}" data-mgr="${sh.manager ? 0 : 1}">${sh.manager ? '帰す' : '置く'}</button></div>`;
     return `<h3>${GENRES[genre].no}号店 ${GENRES[genre].name}の アルバイト</h3>${mgr}
       <p style="margin:0 0 8px;font-size:12px;font-weight:800;color:${plan.open ? 'var(--ink2)' : 'var(--red)'}">${plan.open ? (sh.manager ? `あしたは 店長が 回す。足りない係は 店長が 呼ぶ` : `あしたは ${plan.staff.length}人で回る。仕込み係と ホール係が いれば 回る`) : `${plan.why}ので 休みになる。仕込み係と ホール係が 要る`}</p>
       ${again}${now ? `<div class="sec">あした来る人</div>${now}` : ''}<div class="sec">呼ぶ</div>${roles}
@@ -581,12 +585,12 @@ const PANELS = {
       const sold = last ? last.sold[id] || 0 : null;
       const out = last && last.soldOutAt && last.soldOutAt[id] != null;
       const info = !cook ? `${d.steps.filter(([t]) => !s.stations.some((x) => x.type === t)).map(([t]) => STATIONS[t].name).join('・')}が無いので作れない`
-        : `ふつう ${yen(Math.round(S.fairPrice(s, id) / 10) * 10)}・食材 ${yen(d.cost)}${sold != null && m.on ? `・<span class="${out ? 'minus' : ''}">きのう ${sold}食${out ? '（売り切れ）' : ''}</span>` : ''}`;
+        : `ふつう ${yen(Math.round(S.fairPrice(s, id) / 10) * 10)}・食材 ${yen(S.dishCost(s, id))}${SEASON_TAG[S.seasonTag(s, id)] || ''}${sold != null && m.on ? `・<span class="${out ? 'minus' : ''}">きのう ${sold}食${out ? '（売り切れ）' : ''}</span>` : ''}`;
       const asks = s.asks.list.filter((a) => a.shop === S.genreOf(s) && a.dish === id).sort((a, b) => a.due - b.due)
         .map((a) => `<span class="asktag">📮 ${dueText(a.due)} お願い ${a.n}食</span>`).join('');
       return `<div class="card dish ${m.on ? '' : 'off'}">
         <div class="ic">${foodSVG(id)}</div>
-        <div class="txt"><b>${d.name}${s.signature === id ? '<span class="meibutsu">名物</span>' : ''}</b><small>${info}</small>${asks}</div>
+        <div class="txt"><b>${d.name}${s.signature === id ? '<span class="meibutsu">名物</span>' : ''}${S.seasonTag(s, id) === 'hot' ? '<span class="meibutsu shun">旬</span>' : ''}</b><small>${info}</small>${asks}</div>
         <button class="switch ${m.on ? 'on' : ''}" data-do="toggle" data-arg="${id}" aria-label="メニューに出す"></button>
         ${m.on && cook ? `<div class="ctl"><label>値段</label><div class="stepper"><button data-do="price-" data-arg="${id}">−</button><span>${yen(m.price)}</span><button data-do="price+" data-arg="${id}">＋</button></div>
           <label>仕込み</label><div class="stepper"><button data-do="prep-" data-arg="${id}">−</button><span>${s.prep[id] || 0}食</span><button data-do="prep+" data-arg="${id}">＋</button></div></div>` : ''}
@@ -607,6 +611,7 @@ const PANELS = {
       return `<div class="card"><div class="ic">${ic}</div><div class="txt"><b>${nm}</b><small>${have}${c.ok ? '' : `・${c.why}`}</small></div>
         <button class="chunky yel" data-do="buy" data-arg="${k}" ${c.ok ? '' : 'disabled'}>${yen(S.shopPrice(s, k))}</button></div>`;
     }).join('');
+    const perk = S.perkOf(s).text ? `<p style="margin:0 0 6px;font-size:12px;font-weight:800;color:var(--ink2)">この店の 強み：<b>${S.perkOf(s).text}</b></p>` : '';
     let stage = '';
     if (ns) {
       const a = Math.min(1, s.totalSales / ns.unlock.totalSales), b = Math.min(1, s.rep / ns.unlock.rep);
@@ -636,11 +641,11 @@ const PANELS = {
     const dc = S.canDecorate(s);
     const lv = DECO.levels[s.deco || 0];
     const deco = `<div class="sec">店を飾る</div>
-      <div class="card"><div class="ic">🎏</div><div class="txt"><b>${lv ? lv.name : '飾りは ぜんぶ そろった'}<small class="lvl">${s.deco || 0}/${DECO.levels.length}</small></b><small>飾るほど、ふつうより 高めの値段でも 客が離れにくい（1段で ${Math.round(DECO.priceUp * 100)}%）${lv && !dc.ok ? `・${dc.why}` : ''}</small></div>
+      <div class="card"><div class="ic">🎏</div><div class="txt"><b>${lv ? lv.name : '飾りは ぜんぶ そろった'}<small class="lvl">${s.deco || 0}/${DECO.levels.length}</small></b><small>飾るほど、ふつうより 高めの値段でも 客が離れにくい（1段で ${Math.round(S.priceUpOf(s) * 100)}%）${lv && !dc.ok ? `・${dc.why}` : ''}</small></div>
         ${lv ? `<button class="chunky yel" data-do="deco" ${dc.ok ? '' : 'disabled'}>${yen(lv.price)}</button>` : ''}</div>
-      <div class="card" style="flex-direction:column;align-items:stretch"><div class="txt"><b>名物料理${s.signature ? `：${DISHES[s.signature].name}` : ''}</b><small>名物にした料理は よく頼まれる。1品だけ。変えるときも ${yen(DECO.signaturePrice)}</small></div>
+      <div class="card" style="flex-direction:column;align-items:stretch"><div class="txt"><b>名物料理${s.signature ? `：${DISHES[s.signature].name}` : ''}</b><small>名物にした料理は よく頼まれ、来る人も 少し増える。1品だけ。変えるときも ${yen(DECO.signaturePrice)}</small></div>
         <div class="chips">${s.known.filter((id) => S.canCook(s, id)).map((id) => `<button class="${s.signature === id ? 'on' : ''}" data-do="sig" data-arg="${id}" ${s.signature === id || s.money < DECO.signaturePrice ? 'disabled' : ''}>${DISHES[id].name}</button>`).join('')}</div></div>`;
-    return `${lp.top}${stage}${branch}<div class="sec">${S.stageOf(s).name}の設備</div>${items}${deco}${lp.bottom}`;
+    return `${lp.top}${stage}${branch}<div class="sec">${S.stageOf(s).name}の設備</div>${perk}${items}${deco}${lp.bottom}`;
   },
   staff() {
     const st = S.stageOf(s);
@@ -933,6 +938,18 @@ function show() {
   renderTop();
 }
 
+// 開店中は 画面を スリープさせない（Screen Wake Lock・Safari 16.4 / Chrome）。一時停止と 閉店で 離す。
+// 画面を切り替えて戻ってきたら ブラウザが 離しているので 取り直す。Expo 版では expo-keep-awake を 同じ範囲で使う
+let wakeLock = null;
+async function keepAwake(on) {
+  try {
+    if (on && !wakeLock && !paused && s.phase === 'service' && navigator.wakeLock && !document.hidden) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } else if (!on && wakeLock) { const w = wakeLock; wakeLock = null; await w.release(); }
+  } catch { wakeLock = null; }
+}
+
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
@@ -940,13 +957,15 @@ function frame(now) {
   const hold = updateCoach();
   if (s.phase === 'service' && !paused && !hold) {
     S.tick(s, dt * (fast ? FAST : 1));
-    if (s.phase !== 'service') { save(); show(); }
+    if (s.phase !== 'service') { save(); show(); keepAwake(false); }
     else renderService();
     renderTop();
   } else if (s.phase === 'service' && hold) renderService();
+  const awake = s.phase === 'service' && !paused;
+  if (awake !== !!wakeLock) keepAwake(awake);
   requestAnimationFrame(frame);
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(); else keepAwake(true); });
 
 
 show();

@@ -111,7 +111,9 @@ export const GENRES = {
     // 出店：1号店が この段になったら。小さな中華料理店から始まる
     need: { shop: 'washoku', stage: 2 }, price: 60000, startStage: 1, start: { seats: 4, stations: { board: 1, stove: 1 }, prep: 8 },
     blurb: 'コンロが主役の店。少ない台で 速く回す',
+    perk: { stovePrice: 0.6, text: 'コンロが 4割 安い' },
   },
+  // perk：その店で 効く投資（席の上限 seats・台の上限 stations・コンロの値段 stovePrice・内装の効き priceUp）。第2回レビュー 6
   // 3号店から。eat：食べている時間の倍率 / period：時間帯ごとの 来る人の倍率（lunch 11〜14時・day 14〜17時・dinner 17時〜）
   burger: {
     name: 'バーガー スマイル', short: 'バーガー', no: 3, stageNames: ['バーガーの屋台', '小さなバーガー店', '町の人気バーガー'],
@@ -120,6 +122,7 @@ export const GENRES = {
     need: { shop: 'chuka', stage: 2 }, price: 90000, startStage: 1, start: { seats: 4, stations: { board: 1, stove: 1, fryer: 1 }, prep: 10 },
     blurb: '安くて 早い店。お客さんは さっと食べて すぐ帰る。昼に 行列',
     eat: 0.45, period: { lunch: 1.5, day: 0.9, dinner: 0.8 },
+    perk: { stations: 2, text: '台を 2つ 多く 置ける' },
   },
   cafe: {
     name: 'カフェ こもれび', short: 'カフェ', no: 4, stageNames: ['コーヒーの屋台', '小さなカフェ', '町の人気カフェ'],
@@ -128,6 +131,7 @@ export const GENRES = {
     need: { shop: 'burger', stage: 2 }, price: 120000, startStage: 1, start: { seats: 6, stations: { board: 1, stove: 1 }, prep: 10 },
     blurb: 'お客さんが 一日じゅう 少しずつ来て、長く座る店。席の数が ものを言う',
     eat: 2.2, period: { lunch: 0.8, day: 1.8, dinner: 0.7 },
+    perk: { seats: 4, text: '席を 4つ 多く 置ける' },
   },
   italian: {
     name: 'トラットリア ソーレ', short: 'イタリアン', no: 5, stageNames: ['パスタの屋台', '小さなイタリアン', '町の人気イタリアン'],
@@ -136,6 +140,7 @@ export const GENRES = {
     need: { shop: 'cafe', stage: 2 }, price: 150000, startStage: 1, start: { seats: 6, stations: { board: 1, stove: 2 }, prep: 10 },
     blurb: '夜に お客さんが多い、値段の高い店。商店街で いちばん大きな店になる',
     eat: 1.4, period: { lunch: 0.8, day: 0.7, dinner: 1.6 },
+    perk: { priceUp: 0.12, text: '内装の 1段ごとに 値段を 12% 高く見せられる（ほかの店は 6%）' },
   },
 };
 export const BRANCH_ORDER = ['washoku', 'chuka', 'burger', 'cafe', 'italian'];
@@ -148,6 +153,7 @@ export const GUEST = {
   queuePatience: 34,     // 入口の列に入ってから待てる秒
   orderPatience: 50,     // 座ってから料理が届くまで待てる秒
   lineShown: 3,          // 入口の列に並べる人数。あふれた人は通りで様子を見ていて、列に入ってから待ち時間を数える
+  lineExtra: 1.0,        // 通りで 様子を見る人は 席の数 × これ まで。それより 多いと 店の前で 引き返す（評判は 下がらない・第2回レビュー 7）
   eatSeconds: 9,
   priceSense: 2.2,       // 値段に敏感な度合い（大きいほど高いと頼まない）
   maxPriceRatio: 1.7,    // ふつうの値段のこれ倍を超えると誰も頼まない
@@ -167,6 +173,25 @@ export const WEATHER = [
 ];
 // ときどきの出来事。前の晩の貼り紙で分かり、仕込みで備えられる。3日目から 1日 chance の確率で どれか1つ
 // period：その時間帯に来る人が boost 倍（lunch 11〜14時・dinner 17時〜）/ nMul：1日の人数 / repMul：その日の評判の動き
+// 季節：30日ごとに 春→夏→秋→冬 と めぐる（1日目は 春）。旬の料理は よく頼まれ、食材の値段が 動く。
+// 商店街の顔の あとも 日々が 変わり続けるための 1つ（第2回レビュー 8）
+export const SEASON = {
+  days: 30, hotMul: 1.3, cheapMul: 0.8, dearMul: 1.25,
+  list: [
+    { id: 'spring', name: '春', icon: '🌸', text: '旬：たけのこ・いちご・春キャベツ',
+      hot: ['onigiri', 'shogayaki', 'harumaki', 'tenshin', 'teriyaki', 'sandwich', 'parfait', 'caprese', 'pomodoro'],
+      cheap: ['tonjiru', 'gyoza', 'pancake', 'tart', 'minestrone'], dear: ['ebifry', 'ebichili', 'ebiburger', 'pescatore'] },
+    { id: 'summer', name: '夏', icon: '🌻', text: '旬：トマト・とうもろこし・冷たいもの',
+      hot: ['napolitan', 'curry', 'katsucurry', 'mapo', 'tantan', 'burger', 'fries', 'pudding', 'parfait', 'margherita', 'caprese'],
+      cheap: ['napolitan', 'pomodoro', 'margherita', 'caprese', 'tsukimi'], dear: ['tonjiru', 'ramen', 'doria', 'lasagna'] },
+    { id: 'autumn', name: '秋', icon: '🍁', text: '旬：きのこ・さつまいも・新米',
+      hot: ['oyakodon', 'tendon', 'katsudon', 'croquette', 'chahan', 'subuta', 'bigset', 'doria', 'tart', 'lasagna', 'fritto'],
+      cheap: ['onigiri', 'croquette', 'chahan', 'fries', 'tart'], dear: ['parfait', 'caprese', 'pudding'] },
+    { id: 'winter', name: '冬', icon: '⛄', text: '旬：大根・白菜・あたたかいもの',
+      hot: ['tonjiru', 'curry', 'ramen', 'tantan', 'mapo', 'hotdog', 'coffee', 'doria', 'toast', 'minestrone', 'lasagna'],
+      cheap: ['tonjiru', 'ramen', 'minestrone', 'coffee', 'hotdog'], dear: ['parfait', 'tart', 'ebiburger', 'pescatore'] },
+  ],
+};
 export const EVENTS = {
   chance: 0.25,
   list: [
@@ -184,8 +209,11 @@ export const RUSH = [
 
 // 評判（0〜100。★ は 20 ごと）
 // decay：高い評判は 毎日 少し戻る（[これより上なら, 1日に下がる量]）。★5 を保つのに 手が要る
+export const PREP_WARN = { soldOutDays: 3 }; // 支度の料理の行：売り切れが この日数 続いたら 赤
+
 export const REP = { start: 10, branchStart: 35, // 2号店からは 町に 名前が知られている
-  servedFast: 0.35, served: 0.2, left: -1.2, soldOut: -0.5, tooPricey: -0.2, decay: [[80, 2], [50, 1]] };
+  servedFast: 0.35, served: 0.2, left: -1.2, soldOut: -0.5, tooPricey: -0.2, decay: [[80, 2], [50, 1]],
+  gain: [[80, 0.1], [60, 0.4]] }; // 高い評判ほど 1人を出しても 伸びにくい（99で 張りつかないため・第2回レビュー 3）
 // 早送り（仕込み係とホール係がいる日だけ）
 export const FAST = 3;
 
@@ -212,9 +240,10 @@ export const STAFF = {
   stove: { name: 'コンロ係', wage: 1500 },
   fryer: { name: '揚げ場係', wage: 1500 },
   hall: { name: 'ホール係', wage: 1300 },
-  delay: 0.6,            // スタッフが次へ動かすまでの秒
+  delay: 0.9,            // スタッフが次へ動かすまでの秒（前は 0.6。あなたの指より 遅い。手を出す意味を残す・第2回レビュー 4）
   autoNext: 0.4,         // できあがった料理が 次の台へ ひとりでに移るまでの秒（空いていれば）
-  speed: 1.2,            // 人のいる台は 調理がこれだけ速い（慣れた人）
+  speed: 1.0,            // 人のいる台の 調理の速さ（前は 1.2。速さの差は 反応で付ける）
+  repMul: 0.6,           // ホール係が 運んだ料理の 評判の伸び（あなたが 運ぶと 1）
 };
 // 店を2つ持つと 8人＋8人 が並ぶので、名前は多めに（足りないときは「◯◯2」）
 export const STAFF_NAMES = ['ハル', 'ミオ', 'ソウタ', 'リコ', 'ケン', 'ナナ', 'ユウ', 'サキ', 'ダイチ', 'アオイ', 'リク', 'モモ',
@@ -259,7 +288,7 @@ export const TOWN = {
 export const REGULAR = { chance: 0.35, loveToUsual: 3, missDays: 3, upsetDays: 4, upsetDrop: 0.3, pricey: 1.3 };
 
 // 店長（2号店から。立たない店に置ける）。仕込みを きのう売れた数＋extra に合わせ、仕込み係と ホール係が いなければ呼ぶ。給料は 毎日
-export const MANAGER = { wage: 2500, extra: 2, minPrep: 3, outMul: 1.4 }; // 売り切れた料理は きのうの 1.4倍＋2
+export const MANAGER = { wage: 2000, rate: 0.05, extra: 2, minPrep: 3, outMul: 1.4 }; // 給料は 1日 wage ＋ その店の 売上の rate（前は 一律 ¥2,500・第2回レビュー 7）。売り切れた料理は きのうの 1.4倍＋2
 
 // 広告（見たい人が見るものだけ。1日の上限）
 export const ADS = { perDay: 5, profitMul: 1.5, flyerMul: 1.25 };
@@ -321,15 +350,15 @@ export const BUILD = {
   from: 2, // 店の数
   list: [
     { id: 'hiroba', name: '駅前広場', short: '広場', price: 300000, text: 'お客さんが 1割 増える', nMul: 1.1 },
-    { id: 'koen', name: '公園', short: '公園', price: 400000, text: '昼すぎの 客が 増える', period: 'day', boost: 1.5 },
-    { id: 'chusha', name: '駐車場', short: '駐車場', price: 500000, text: '夜の 客が 増える', period: 'dinner', boost: 1.3 },
+    { id: 'koen', name: '公園', short: '公園', price: 400000, text: '昼すぎの 客が 増え、全体も 5% 増える', period: 'day', boost: 1.5, nMul: 1.05 },
+    { id: 'chusha', name: '駐車場', short: '駐車場', price: 500000, text: '夜の 客が 増え、全体も 5% 増える', period: 'dinner', boost: 1.3, nMul: 1.05 },
     { id: 'arcade', name: 'アーケード', short: '屋根', price: 700000, text: '雨の日も 客が 減らない', dry: true },
     { id: 'busstop', name: 'バス停', short: 'バス停', price: 900000, text: 'お客さんが さらに 1割 増える', nMul: 1.1 },
-    { id: 'annai', name: '観光案内所', short: '案内所', price: 1200000, text: '行事の日が 増え、評判が 下がりにくい', eventMul: 1.4, decayMul: 0.7 },
+    { id: 'annai', name: '観光案内所', short: '案内所', price: 1200000, text: '町の人の お願いが 2倍 届き、行事の日も 増える', eventMul: 1.4, decayMul: 0.7, askMul: 2, askMore: 2 },
   ],
 };
 // 商店街まつり：あしたを まつりにする。全部の店に 人が多く来る。間を空ければ 何度でも
-export const FESTIVAL = { from: 2, price: 150000, nMul: 1.7, rep: 3, gap: 7 };
+export const FESTIVAL = { from: 2, price: 60000, nMul: 1.7, rep: 3, gap: 7 }; // 値段は 150,000→60,000（1回で 元が取れる額に・第2回レビュー 5）
 // 店を飾る：内装（3段）と 名物料理（1品）。店ごと
 export const DECO = {
   levels: [
@@ -338,5 +367,5 @@ export const DECO = {
     { name: '照明と 飾り', price: 600000 },
   ],
   priceUp: 0.06, // 1段ごとに、ふつうの値段より 6% 高くても ふつうに見える
-  signaturePrice: 100000, signatureAppeal: 1.6,
+  signaturePrice: 100000, signatureAppeal: 1.6, signatureMul: 1.05, // 名物が あると 来る人も 5% 増える
 };
