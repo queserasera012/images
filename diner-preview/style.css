@@ -162,7 +162,7 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 .report-actions{display:flex;flex-direction:column;gap:10px;margin-top:6px}
 
 /* ---- 夜 ---- */
-#night{min-height:0}
+#night{min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
 .night-head{display:flex;align-items:baseline;gap:10px;padding:2px 2px 6px}
 .night-head h1{margin:0;font-family:var(--pop);font-size:22px;color:var(--ink)}
 .night-head p{margin:0;font-size:12px;font-weight:800;color:var(--ink)}
@@ -170,7 +170,7 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 .tab{flex:1;font-weight:800;font-size:12px;padding:8px 0 10px;border-radius:12px 12px 0 0;border:2.5px solid var(--line);border-bottom:0;background:rgba(255,255,255,.6);position:relative}
 .tab.on{background:var(--paper);transform:translateY(2px)}
 .tab .dot{position:absolute;top:4px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--red);border:1.5px solid var(--line)}
-.panel{flex:1;min-height:0;overflow-y:auto;background:var(--paper);border:2.5px solid var(--line);border-radius:0 0 16px 16px;padding:12px 10px 16px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
+.panel{flex:none;background:var(--paper);border:2.5px solid var(--line);border-radius:0 0 16px 16px;padding:12px 10px 16px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
 .card{border:2.5px solid var(--line);border-radius:14px;padding:10px;display:flex;align-items:center;gap:10px;background:#fffdf6}
 .card .ic{font-size:30px;width:40px;text-align:center;flex-shrink:0}
 .card .txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
@@ -375,7 +375,7 @@ p.later{margin:0;font-size:12px;font-weight:800;color:var(--ink2)}
 /* 試作：開店を上・タブを下に（2026-10-20 オーナー案のサンプル） */
 .open-bar.top{padding:2px 0 8px}
 .open-bar.top .big{padding:12px 0;font-size:20px}
-.panel{border-radius:16px 16px 0 0}
+.panel{border-radius:0 0 16px 16px}
 .tabs.bottom{gap:0;background:var(--paper);border:2.5px solid var(--line);border-top:0;border-radius:0 0 16px 16px;padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px));box-shadow:0 4px 0 var(--line)}
 .tabs.bottom .tab{display:flex;flex-direction:column;align-items:center;gap:1px;border:0;border-radius:12px;background:transparent;padding:4px 0 3px;transform:none;font-size:11px;color:var(--ink2)}
 .tabs.bottom .tab .ti{width:26px;height:26px;opacity:.55;filter:grayscale(.6)}
@@ -486,3 +486,11 @@ small.lvl{font-size:10.5px;color:var(--ink2);margin-left:6px}
 .prep .todo .jump{flex:none;font:800 11px var(--pop);color:var(--ink2)}
 .exfacts{position:absolute;right:10px;bottom:10px;font:800 11px/1 var(--body);background:#fff;border:2px solid var(--line);border-radius:999px;padding:4px 10px}
 .panel>.sec:first-child{margin-top:0}
+
+/* ---- タブは 広告の下・紙の上（2026-10-21 オーナー：下のタブだと スクロールの範囲が狭い） ---- */
+.tabs.top{gap:4px;padding:0 4px}
+.tabs.top .tab{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:5px;padding:6px 0 8px;font-size:12.5px;color:var(--ink2);background:rgba(255,255,255,.6)}
+.tabs.top .tab .ti{width:22px;height:22px;opacity:.55;filter:grayscale(.6)}
+.tabs.top .tab.on{background:var(--paper);color:var(--ink);transform:translateY(2.5px)}
+.tabs.top .tab.on .ti{opacity:1;filter:none}
+.tabs.top .tab .dot{top:4px;right:8px}
