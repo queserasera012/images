@@ -212,7 +212,7 @@ export const RUSH = [
 export const PREP_WARN = { soldOutDays: 3 }; // 支度の料理の行：売り切れが この日数 続いたら 赤
 
 export const REP = { start: 10, branchStart: 35, // 2号店からは 町に 名前が知られている
-  servedFast: 0.35, served: 0.2, left: -1.2, soldOut: -0.5, tooPricey: -0.2, decay: [[80, 2], [50, 1]],
+  servedFast: 0.35, served: 0.2, left: -1.2, soldOut: -0.5, tooPricey: -0.2, decay: [[80, 1, 0.25], [50, 1]], // [これを超えたら, 毎日 戻る量, 超えた1点ごとに さらに戻る量]。80を超えるほど 戻りが大きく、90台は 速く出す店でないと 保てない
   gain: [[80, 0.1], [60, 0.4]] }; // 高い評判ほど 1人を出しても 伸びにくい（99で 張りつかないため・第2回レビュー 3）
 // 早送り（仕込み係とホール係がいる日だけ）
 export const FAST = 3;
@@ -242,7 +242,7 @@ export const STAFF = {
   hall: { name: 'ホール係', wage: 1300 },
   delay: 0.9,            // スタッフが次へ動かすまでの秒（前は 0.6。あなたの指より 遅い。手を出す意味を残す・第2回レビュー 4）
   autoNext: 0.4,         // できあがった料理が 次の台へ ひとりでに移るまでの秒（空いていれば）
-  speed: 1.0,            // 人のいる台の 調理の速さ（前は 1.2。速さの差は 反応で付ける）
+  speed: 1.1,            // 人のいる台は 調理がこれだけ速い（前は 1.2。人を置く意味は ここ。速すぎると 手を出す意味が 消える）
   repMul: 0.6,           // ホール係が 運んだ料理の 評判の伸び（あなたが 運ぶと 1）
 };
 // 店を2つ持つと 8人＋8人 が並ぶので、名前は多めに（足りないときは「◯◯2」）
@@ -288,7 +288,15 @@ export const TOWN = {
 export const REGULAR = { chance: 0.35, loveToUsual: 3, missDays: 3, upsetDays: 4, upsetDrop: 0.3, pricey: 1.3 };
 
 // 店長（2号店から。立たない店に置ける）。仕込みを きのう売れた数＋extra に合わせ、仕込み係と ホール係が いなければ呼ぶ。給料は 毎日
-export const MANAGER = { wage: 2000, rate: 0.05, extra: 2, minPrep: 3, outMul: 1.4 }; // 給料は 1日 wage ＋ その店の 売上の rate（前は 一律 ¥2,500・第2回レビュー 7）。売り切れた料理は きのうの 1.4倍＋2
+export const MANAGER = { wage: 2000, rate: 0.05, extra: 2, minPrep: 3, outMul: 1.4, stance: 'sales' };
+// 店長の方針（店ごと）。どれかを取ると どれかを失う（2026-10-21 オーナー「トレードオフな仕組み」）
+//   prepMul：仕込みの倍率 / extra：仕込みの上乗せ（無ければ MANAGER.extra）/ priceMul：値段 / hallRep：ホール係が運んだ料理の評判の伸び（無ければ STAFF.repMul）
+//   hallDelay：ホール係が運ぶまでの秒の倍率 / lean：仕込み係とホール係だけで回す
+export const STANCES = {
+  sales: { name: '売上重視', text: '仕込み 1.15倍・値段を ふつうの +5%。売り切れは 減るが 食材が 余る', prepMul: 1.15, priceMul: 1.05 },
+  rep: { name: '評判重視', text: '仕込み 1.2倍・ホール係が ひとりひとり 丁寧に 運ぶ。評判は 落ちにくいが 出せる数が 減り、食材が 余る', prepMul: 1.2, hallRep: 1.3, hallDelay: 2.5 },
+  lean: { name: 'むだなし', text: '仕込みは きのう売れた数 ちょうど・バイトは 仕込み係と ホール係だけ。食材は 余らないが 売り切れが 出る', prepMul: 1.0, extra: 0, lean: true },
+}; // 給料は 1日 wage ＋ その店の 売上の rate（前は 一律 ¥2,500・第2回レビュー 7）。売り切れた料理は きのうの 1.4倍＋2
 
 // 広告（見たい人が見るものだけ。1日の上限）
 export const ADS = { perDay: 5, profitMul: 1.5, flyerMul: 1.25 };

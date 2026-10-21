@@ -2,7 +2,7 @@
 // 画面（main.js）は state を読み、ここの関数を呼ぶだけ。
 import {
   DAY, STATIONS, DISHES, GUEST, DEMAND, WEATHER, RUSH, REP, STAGES, SHOP,
-  STAFF, STAFF_NAMES, REGULARS, REGULAR, ADS, START, TRIAL_COST, GENRES, BRANCH_ORDER, EVENTS, TOWN, MANAGER, ASK, ASK_FROM, STORIES, STORY_AT, BUILD, FESTIVAL, DECO, PREP_WARN, SEASON,
+  STAFF, STAFF_NAMES, REGULARS, REGULAR, ADS, START, TRIAL_COST, GENRES, BRANCH_ORDER, EVENTS, TOWN, MANAGER, ASK, ASK_FROM, STORIES, STORY_AT, BUILD, FESTIVAL, DECO, PREP_WARN, SEASON, STANCES,
 } from './config.js';
 
 export const SAVE_VERSION = 1;
@@ -54,7 +54,7 @@ export const fairPrice = (s, id) => DISHES[id].base * (1 + (s.deco || 0) * price
 
 // ---- はじめの状態 ----
 // 店ごとに持つもの（お金・日付・日報・広告は 全部の店で共通）
-export const SHOP_KEYS = ['genre', 'stage', 'totalSales', 'rep', 'seats', 'stations', 'staff', 'menu', 'prep', 'known', 'tried', 'regulars', 'lastCrew', 'manager', 'deco', 'signature'];
+export const SHOP_KEYS = ['genre', 'stage', 'totalSales', 'rep', 'seats', 'stations', 'staff', 'menu', 'prep', 'known', 'tried', 'regulars', 'lastCrew', 'manager', 'stance', 'managerNote', 'deco', 'signature'];
 export function createShop(genre = 'washoku') {
   const g = GENRES[genre];
   const start = g.start || START;
@@ -69,7 +69,7 @@ export function createShop(genre = 'washoku') {
   for (const r of REGULARS) if (shopOfReg(r) === genre) regulars[r.id] = { love: 0, lastDay: 0, visits: 0, noted: false, upset: 0, story: 0 };
   return {
     genre, stage: g.startStage || 0, totalSales: 0, rep: genre === 'washoku' ? REP.start : REP.branchStart, seats: start.seats, stations, staff: [],
-    menu, prep, known: Object.keys(menu), tried: [], regulars, lastCrew: [], manager: false, deco: 0, signature: null,
+    menu, prep, known: Object.keys(menu), tried: [], regulars, lastCrew: [], manager: false, stance: MANAGER.stance, managerNote: null, deco: 0, signature: null,
   };
 }
 export function createState(seed = (Date.now() >>> 0)) {
@@ -148,6 +148,13 @@ export function setManager(s, genre, on) {
   s.branches[genre].manager = !!on;
   return { ok: true };
 }
+export const stanceOf = (sh) => STANCES[sh.stance] ? sh.stance : MANAGER.stance;
+export function setStance(s, genre, id) {
+  const sh = shopInfo(s, genre);
+  if (s.phase !== 'night' || !sh || !STANCES[id]) return { ok: false };
+  sh.stance = id;
+  return { ok: true };
+}
 export const managerWage = (sales) => MANAGER.wage + Math.round(sales * MANAGER.rate);
 // 天気と出来事と まつりで 人数が 何倍になる日か（貼り紙に 書いてあるぶん）
 function dayMul(s, weatherId, eventId, festival) {
@@ -159,26 +166,43 @@ function dayMul(s, weatherId, eventId, festival) {
 // 店長の段取り：人が足りなければ呼び、仕込みを きのう売れた数に合わせる。
 // 貼り紙（あしたの天気・出来事・まつり）を読み、きのうと 人数が 違う日は その分 増やす・減らす（第2回レビュー 2）
 function managerPlan(s, weather = null) {
+  const st = STANCES[stanceOf(s)];
   if (!s.staff.length) rehire(s);
+  // むだなし：仕込み係と ホール係だけ
+  if (st.lean) s.staff = s.staff.filter((x) => x.role === 'board' || x.role === 'hall');
   for (const role of ['board', 'hall']) if (!s.staff.some((x) => x.role === role) && canHire(s, role).ok) hire(s, role);
   const last = s.reports.filter((r) => !r.closed && (r.shop || 'washoku') === genreOf(s)).pop();
+  s.managerNote = null;
   if (!last) return;
+  const wId = weather || weatherOf(s).id;
   const ev = eventOf(s);
-  const ratio = dayMul(s, weather || weatherOf(s).id, ev ? ev.id : null, festivalTomorrow(s)) / dayMul(s, last.weather, last.event, last.festival);
+  const ratio = dayMul(s, wId, ev ? ev.id : null, festivalTomorrow(s)) / dayMul(s, last.weather, last.event, last.festival);
   // 売り切れて 帰した人のぶんも 見込む（どの料理かは 分からないので 全体に）
   const missed = 1 + Math.min(0.5, ((last.left && last.left.soldOut) || 0) / Math.max(1, last.served));
+  const extra = st.extra != null ? st.extra : MANAGER.extra;
+  const outs = [];
   for (const [id, m] of Object.entries(s.menu)) {
     if (!m.on) continue;
     const sold = last.sold[id] || 0;
     const out = last.soldOutAt[id] != null;
-    s.prep[id] = Math.max(MANAGER.minPrep, Math.ceil(sold * ratio * (out ? MANAGER.outMul * missed : 1)) + MANAGER.extra);
+    if (out) outs.push(id);
+    s.prep[id] = Math.max(MANAGER.minPrep, Math.ceil(sold * ratio * st.prepMul * (out ? MANAGER.outMul * missed : 1)) + extra);
   }
   // その日の お願いの分も 仕込む
+  let askN = 0;
   for (const a of asksDue(s, genreOf(s))) {
     if (!s.menu[a.dish] || !canCook(s, a.dish)) continue;
     s.menu[a.dish].on = true;
     s.prep[a.dish] = (s.prep[a.dish] || 0) + a.n;
+    askN += a.n;
   }
+  // 店長の一言（日報に出す。何を読んで どう決めたか）
+  const why = festivalTomorrow(s) ? 'まつり' : ev && ev.nMul ? ev.name : `${WEATHER.find((x) => x.id === wId).name}`;
+  const pct = Math.round((ratio - 1) * 100);
+  const parts = [pct >= 8 ? `${why}で 人が 増えそうなので 仕込みを ${pct}% 増やした` : pct <= -8 ? `${why}で 人が 減りそうなので 仕込みを ${-pct}% 減らした` : 'きのうと 同じくらいの 人出と 見た'];
+  if (outs.length) parts.push(`${outs.map((id) => DISHES[id].name).join('・')}は 売り切れたので ${MANAGER.outMul}倍`);
+  if (askN) parts.push(`お願いの ${askN}食も 仕込んだ`);
+  s.managerNote = `店長（${st.name}）：${parts.join('。')}`;
 }
 
 // ---- 町の人のお願い・常連さんの物語 ----
@@ -525,6 +549,7 @@ export function startDay(s, { branch = false, weather = null } = {}) {
   const w = townThings(s).some((n) => n.dry) ? { ...w0, mul: Math.max(1, w0.mul) } : w0;
   today.festival = festivalTomorrow(s);
   if (today.festival) s.rep = clampRep(s.rep + FESTIVAL.rep);
+  today.stance = branch && s.manager ? STANCES[stanceOf(s)] : null;
 
   // 仕入れ。お金が足りない分は ツケ（閉店のときに 売上から返す）
   const cost = prepCost(s);
@@ -586,7 +611,8 @@ function order(s, today, g) {
   for (const [id, m] of Object.entries(s.menu)) {
     if (!m.on || !canCook(s, id) || !s.known.includes(id)) continue;
     const d = DISHES[id];
-    const ratio = m.price / fairPrice(s, id);
+    const price = Math.round(m.price * (today.stance && today.stance.priceMul ? today.stance.priceMul : 1) / 10) * 10;
+    const ratio = price / fairPrice(s, id);
     let w = ratio > GUEST.maxPriceRatio ? 0 : d.appeal * Math.exp(-sense * (ratio - 1));
     if (s.signature === id) w *= DECO.signatureAppeal;
     if (seasonTag(s, id) === 'hot') w *= SEASON.hotMul;
@@ -602,7 +628,7 @@ function order(s, today, g) {
   for (const [id, w] of cands) { if ((x -= w) < 0) { pick = id; break; } }
   today.stock[pick] -= 1;
   if (today.stock[pick] === 0) today.stats.soldOutAt[pick] = clockOf(today.t);
-  g.dish = pick; g.price = s.menu[pick].price;
+  g.dish = pick; g.price = Math.round(s.menu[pick].price * (today.stance && today.stance.priceMul ? today.stance.priceMul : 1) / 10) * 10;
   if (g.reg) {
     const r = REGULARS.find((x) => x.id === g.reg);
     if (r.fav === pick && s.regulars[g.reg].love >= REGULAR.loveToUsual) { g.usual = true; today.stats.usual.push(g.reg); }
@@ -685,7 +711,7 @@ export function tapPass(s, jobId, byStaff = false) {
   g.state = 'eating'; g.servedAt = today.t;
   const fast = today.t - g.seatedAt < GUEST.orderPatience * 0.5;
   const gain = REP.gain.find(([over]) => s.rep > over);
-  s.rep = clampRep(s.rep + (fast ? REP.servedFast : REP.served) * (today.repMul || 1) * (gain ? gain[1] : 1) * (byStaff ? STAFF.repMul : 1));
+  s.rep = clampRep(s.rep + (fast ? REP.servedFast : REP.served) * (today.repMul || 1) * (gain ? gain[1] : 1) * (byStaff ? (today.stance && today.stance.hallRep ? today.stance.hallRep : STAFF.repMul) : 1));
   emit(today, { type: 'serve', seat: g.seat, dish: job.dish, fast });
   return { ok: true };
 }
@@ -771,7 +797,7 @@ export function tick(s, dt) {
           if (s.stations.some((x) => x.type === type && today.slots[x.id] == null && staffOf(s, x.id))) tapStation(s, j.station);
         } else if (hasStaff(s, 'hall')) tapStation(s, j.station);
       }
-    } else if (j.state === 'pass' && hasStaff(s, 'hall') && t - j.at >= STAFF.delay) tapPass(s, j.id, true);
+    } else if (j.state === 'pass' && hasStaff(s, 'hall') && t - j.at >= STAFF.delay * (today.stance && today.stance.hallDelay ? today.stance.hallDelay : 1)) tapPass(s, j.id, true);
   }
   // 食べ終わって払う
   for (const g of today.guests) {
@@ -826,7 +852,7 @@ function closeDay(s) {
   s.debt -= repaid; s.money -= repaid;
   // 高い評判は 毎日 少し戻る
   const dec = REP.decay.find(([over]) => s.rep > over);
-  if (dec) s.rep = clampRep(s.rep - dec[1] * townMul(s, 'decayMul'));
+  if (dec) s.rep = clampRep(s.rep - (dec[1] + (dec[2] || 0) * (s.rep - dec[0])) * townMul(s, 'decayMul'));
   const before = s.totalSales;
   s.totalSales += st.sales + (today.asks || []).reduce((a, x) => a + (x.pay || 0), 0);
   for (const m of [10000, 50000, 100000, 300000, 1000000]) if (before < m && s.totalSales >= m) note(s, 'sales', `売上の合計が ${m.toLocaleString('ja-JP')}円に`);
@@ -859,7 +885,7 @@ function closeDay(s) {
     soldOutAt: st.soldOutAt, sold: st.sold, usual: st.usual, notes,
     rep: s.rep, repDelta: s.rep - st.repStart, closedOut: st.closedOut,
     profit: st.sales + (today.asks || []).reduce((a, x) => a + (x.pay || 0), 0) - today.prepCost - wage - rent,
-    crew: s.staff.map((x) => ({ name: x.name, role: x.role })), manager: !!(today.branch && s.manager),
+    crew: s.staff.map((x) => ({ name: x.name, role: x.role })), manager: !!(today.branch && s.manager), managerNote: today.branch && s.manager ? s.managerNote : null, stance: today.branch && s.manager ? stanceOf(s) : null,
   };
   // アルバイトは閉店で帰る
   s.lastCrew = report.crew;
@@ -908,7 +934,7 @@ function runBranches(s, weather) {
     swapTo(s, home);
     out.push({ shop: genre, closed: !!r.closed, why: r.why, served: r.served || 0, guests: r.guests || 0, sales: r.sales || 0, profit: r.profit || 0,
       left: r.closed ? 0 : r.left.queue + r.left.wait + r.left.soldOut + r.left.pricey + (r.left.full || 0),
-      asks: (r.asks || []).map((x) => ({ ...x, shop: genre })), stories: r.closed ? [] : r.notes.filter((n) => n.story).map((n) => n.text) });
+      managerNote: r.managerNote || null, asks: (r.asks || []).map((x) => ({ ...x, shop: genre })), stories: r.closed ? [] : r.notes.filter((n) => n.story).map((n) => n.text) });
   }
   return out;
 }

@@ -4,7 +4,7 @@ import { personSVG, LOOK_COUNT } from './people.js';
 import { stationSVG } from './kitchen-art.js';
 import { exteriorSVG, festivalSVG } from './exterior.js';
 import { foodSVG } from './food-art.js';
-import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_LATER, EVENTS, FAST, GUEST, TOWN, MANAGER, ASK, STORIES, STORY_AT, BUILD, FESTIVAL, DECO } from './config.js';
+import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_LATER, EVENTS, FAST, GUEST, TOWN, MANAGER, ASK, STORIES, STORY_AT, BUILD, FESTIVAL, DECO, STANCES } from './config.js';
 
 const SAVE_KEY = 'diner.proto.v1';
 const UI_KEY = 'diner.proto.ui.v1';
@@ -293,6 +293,7 @@ function reportPaper(r, { live = false } = {}) {
       : [`お願い：${a.who}の ${a.what}に ${at}届けられなかった（${a.why}）`, null]);
   }
   if (r.closedOut) rows.push([`閉店で入れなかった ${r.closedOut}人`, null]);
+  if (r.managerNote) rows.push([r.managerNote, null, true]);
   if (!rows.length) rows.push(['大きな出来事は なかった', null, true]);
 
   const delta = Math.round(r.repDelta * 10) / 10;
@@ -329,7 +330,7 @@ function branchLines(r) {
     const g = GENRES[b.shop];
     const body = b.closed ? `<span>${b.why || '人がいない'}ので 休み</span><b></b>`
       : `<span>${b.served}/${b.guests}人・売上 ${yen(b.sales)}${b.left ? `・帰った ${b.left}人` : ''}</span><b class="${b.profit >= 0 ? 'plus' : 'minus'}">${yen(b.profit)}</b>`;
-    return `<button class="brow" data-bshop="${b.shop}" data-bday="${r.day}" ${b.closed ? 'disabled' : ''}><em>${g.no}号店 ${g.name}${b.closed ? '' : '<small>（タップで日報）</small>'}</em><div class="row">${body}</div></button>`;
+    return `<button class="brow" data-bshop="${b.shop}" data-bday="${r.day}" ${b.closed ? 'disabled' : ''}><em>${g.no}号店 ${g.name}${b.closed ? '' : '<small>（タップで日報）</small>'}</em><div class="row">${body}</div>${b.managerNote ? `<small class="mnote">${b.managerNote}</small>` : ''}</button>`;
   }).join('');
   const total = r.profit + r.branches.reduce((a, b) => a + (b.profit || 0), 0);
   return `<div class="branches"><small>ほかの店（アルバイトで回した）</small>${rows}<div class="row total"><span>全部の店の もうけ</span><b class="${total >= 0 ? 'plus' : 'minus'}">${yen(total)}</b></div></div>`;
@@ -528,7 +529,8 @@ function crewSheet(genre, back) {
         <button class="chunky mint" data-hire="${r}" ${c.ok ? '' : 'disabled'}>あした呼ぶ</button></div>`;
     }).join('');
     const plan = S.crewPlan(s, genre);
-    const mgr = `<div class="card mgr ${sh.manager ? 'on' : ''}"><div class="txt"><b>店長 ${sh.manager ? 'がいる' : 'は いない'}</b><small>1日 ${yen(MANAGER.wage)} ＋ その店の 売上の ${Math.round(MANAGER.rate * 100)}%。貼り紙を読んで 仕込みを 決め、仕込み係と ホール係が いなければ 呼ぶ</small></div><button class="chunky ${sh.manager ? '' : 'mint'}" data-mgr="${sh.manager ? 0 : 1}">${sh.manager ? '帰す' : '置く'}</button></div>`;
+    const mgr = `<div class="card mgr ${sh.manager ? 'on' : ''}"><div class="txt"><b>店長 ${sh.manager ? 'がいる' : 'は いない'}</b><small>1日 ${yen(MANAGER.wage)} ＋ その店の 売上の ${Math.round(MANAGER.rate * 100)}%。貼り紙を読んで 仕込みを 決め、仕込み係と ホール係が いなければ 呼ぶ。決めたことは 日報に 書く</small></div><button class="chunky ${sh.manager ? '' : 'mint'}" data-mgr="${sh.manager ? 0 : 1}">${sh.manager ? '帰す' : '置く'}</button></div>`
+      + (sh.manager ? `<div class="sec">店長の 方針</div><div class="card" style="flex-direction:column;align-items:stretch"><div class="chips">${Object.entries(STANCES).map(([id, st]) => `<button class="${S.stanceOf(sh) === id ? 'on' : ''}" data-stance="${id}">${st.name}</button>`).join('')}</div><small style="font-weight:800;color:var(--ink2);margin-top:6px">${STANCES[S.stanceOf(sh)].text}</small></div>` : '');
     return `<h3>${GENRES[genre].no}号店 ${GENRES[genre].name}の アルバイト</h3>${mgr}
       <p style="margin:0 0 8px;font-size:12px;font-weight:800;color:${plan.open ? 'var(--ink2)' : 'var(--red)'}">${plan.open ? (sh.manager ? `あしたは 店長が 回す。足りない係は 店長が 呼ぶ` : `あしたは ${plan.staff.length}人で回る。仕込み係と ホール係が いれば 回る`) : `${plan.why}ので 休みになる。仕込み係と ホール係が 要る`}</p>
       ${again}${now ? `<div class="sec">あした来る人</div>${now}` : ''}<div class="sec">呼ぶ</div>${roles}
@@ -541,6 +543,7 @@ function crewSheet(genre, back) {
     for (const b of o.querySelectorAll('[data-fire]')) onTap(b, () => { S.fireAt(s, genre, b.dataset.fire); redraw(); });
     for (const b of o.querySelectorAll('[data-rehire]')) onTap(b, () => { S.rehireAt(s, genre); redraw(); });
     for (const b of o.querySelectorAll('[data-mgr]')) onTap(b, () => { S.setManager(s, genre, b.dataset.mgr === '1'); redraw(); });
+    for (const b of o.querySelectorAll('[data-stance]')) onTap(b, () => { S.setStance(s, genre, b.dataset.stance); redraw(); });
     for (const b of o.querySelectorAll('[data-close]')) onTap(b, close);
   };
   const redraw = () => { $('overlay').firstElementChild.innerHTML = render(); wire(); };
