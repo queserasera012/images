@@ -23,7 +23,7 @@ if (ui.tut == null) ui.tut = s.day === 1 && s.phase === 'night' ? 0 : 99;
 let paused = false;
 let fast = false;
 let lastEv = 0;
-let tab = 'cook';
+let tab = 'prep';
 
 function load() { try { const t = localStorage.getItem(SAVE_KEY); return t ? S.parseSave(t) : null; } catch { return null; } }
 function save() { try { localStorage.setItem(SAVE_KEY, S.serialize(s)); } catch { /* 保存できなくても遊べる */ } }
@@ -363,43 +363,55 @@ function countUp(el, to) {
 const TI = 'viewBox="0 0 32 32" class="ti" aria-hidden="true"';
 const TL = 'stroke="#2a2350" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"';
 const TAB_ICON = {
-  cook: `<svg ${TI}><ellipse cx="16" cy="22" rx="13" ry="5" fill="#fff" ${TL}/><path d="M6 20 C6 10 26 10 26 20Z" fill="#ffd23f" ${TL}/><path d="M11 15 l3 -2 l3 2 l3 -2" fill="none" stroke="#e8302e" stroke-width="2" stroke-linecap="round"/></svg>`,
+  town: `<svg ${TI}><path d="M2 24 H30" ${TL}/><rect x="4" y="12" width="9" height="12" fill="#fff6e0" ${TL}/><path d="M3 13 L8.5 6 L14 13Z" fill="#ff4f5e" ${TL}/><rect x="18" y="14" width="10" height="10" fill="#e3f6ee" ${TL}/><path d="M17 15 L23 9 L29 15Z" fill="#2fd39e" ${TL}/><rect x="7" y="18" width="3" height="6" fill="#e9a25f" ${TL}/></svg>`,
+  prep: `<svg ${TI}><ellipse cx="16" cy="22" rx="13" ry="5" fill="#fff" ${TL}/><path d="M6 20 C6 10 26 10 26 20Z" fill="#ffd23f" ${TL}/><path d="M11 15 l3 -2 l3 2 l3 -2" fill="none" stroke="#e8302e" stroke-width="2" stroke-linecap="round"/></svg>`,
   shop: `<svg ${TI}><rect x="6" y="14" width="20" height="14" fill="#fff6e0" ${TL}/><path d="M3 15 L9 6 H23 L29 15Z" fill="#ff4f5e" ${TL}/><rect x="13" y="19" width="6" height="9" fill="#e9a25f" ${TL}/></svg>`,
   staff: `<svg ${TI}><path d="M6 29 C6 21 26 21 26 29Z" fill="#2fd39e" ${TL}/><circle cx="16" cy="14" r="7" fill="#ffd9bf" ${TL}/><path d="M9 9 C9 3 23 3 23 9 Z" fill="#fff" ${TL}/><circle cx="13.5" cy="15" r="1" fill="#2a2350"/><circle cx="18.5" cy="15" r="1" fill="#2a2350"/></svg>`,
   book: `<svg ${TI}><path d="M4 7 C9 5 13 6 16 8 C19 6 23 5 28 7 V26 C23 24 19 25 16 27 C13 25 9 24 4 26Z" fill="#fff" ${TL}/><path d="M16 8 V27" ${TL}/><path d="M7 11 h6 M7 15 h6 M19 11 h6 M19 15 h6" stroke="#ff9f43" stroke-width="2" stroke-linecap="round"/></svg>`,
 };
-const TABS = [['cook', '料理'], ['shop', 'お店'], ['staff', '人'], ['book', 'レシピ']];
+// 夜のタブは 3つ（2026-10-21 案1）：支度（料理・人・レシピ）／ お店（姿・広げる・設備・飾る・記録）／ 町（商店街）
+const TABS = [['prep', '支度'], ['shop', 'お店'], ['town', '町']];
 function renderNight() {
   const ns = S.nextStage(s);
-  $('nightTitle').textContent = `${s.day}日目の準備`;
-  $('nightSub').textContent = `${S.stageOf(s).name}・評判 ${Math.round(s.rep)}`;
   // あしたの貼り紙：天気と 出来事
   const fw = S.weatherOf(s), fe = S.eventOf(s);
   const fest = S.festivalTomorrow(s);
   $('notice').innerHTML = `<b>あしたは ${fw.icon} ${fw.name}</b>${fest ? '<span class="ev">🏮 商店街まつり<small>全部の店に 人が多く来る</small></span>' : ''}${fe ? `<span class="ev">${fe.icon} ${fe.name}<small>${fe.text}</small></span>` : ''}`;
   $('notice').classList.toggle('has-ev', !!fe || fest);
+  // 2行目：あした立つ店（店が2つ以上なら 押すと 町タブへ）
+  const shopsAll = S.shopsOf(s);
+  const otherN = shopsAll.length - 1;
+  $('notice').insertAdjacentHTML('beforeend', `<button class="shopline" id="shopLine" ${otherN ? '' : 'disabled'}><b>${otherN ? `${GENRES[S.genreOf(s)].no}号店 ` : ''}${GENRES[S.genreOf(s)].name}</b><span>${S.stageOf(s).name}・評判 ${Math.round(s.rep)}</span>${otherN ? `<em>ほか${otherN}店 ›</em>` : ''}</button>`);
+  if (otherN) onTap($('shopLine'), () => { tab = 'town'; renderNight(); });
   // 町の人のお願い：貼り紙の右に。届いたら 光る。受けたものは 件数を見せる
   const ak = s.asks;
   if (ak.offer || ak.list.length) {
     $('notice').insertAdjacentHTML('beforeend', `<button class="askchip ${ak.offer ? 'new' : ''}" id="askChip"><span>📮</span>${ak.offer ? 'お願いが届いた' : `お願い ${ak.list.length}件`}</button>`);
     onTap($('askChip'), () => askSheet());
   }
-  const shops = S.shopsOf(s);
-  const offer = S.townOffer(s);
-  $('shops').hidden = shops.length < 2 && !offer && !S.neighbors(s).length;
-  // 店の札は 1つのボタンだけ。押すと 商店街の地図（店が増えても 夜の画面は 伸びない・2026-10-20 オーナー）
-  const others = shops.filter((g) => g !== S.genreOf(s));
-  const shut = others.filter((g) => !S.crewPlan(s, g).open).length;
-  const badge = offer ? '<span class="warn">となりに 店が来る</span>' : shut ? `<span class="warn">休みの店 ${shut}</span>` : others.length ? `<span>ほか${others.length}店は バイトで</span>` : '<span>商店街</span>';
-  $('shops').innerHTML = `<button class="shopchip" id="shopChip"><small>あした立つ店</small><b>${GENRES[S.genreOf(s)].no}号店 ${GENRES[S.genreOf(s)].name}</b>${badge}<i>▾</i></button>`;
-  onTap($('shopChip'), () => townMap());
-  $('tabs').innerHTML = TABS.map(([id, nm]) => `<button class="tab ${id === tab ? 'on' : ''}" data-tab="${id}">${TAB_ICON[id]}<span>${nm}</span>${id === 'shop' && ns && ns.ready ? '<i class="dot"></i>' : ''}</button>`).join('');
+  // あしたの支度：3行（料理・人・お願い）。赤い行だけ 直せば 開店できる（案1・2026-10-21）
+  const pc = S.prepCheck(s);
+  const MARK = { ok: '✓', warn: '!', ng: '!', none: '' };
+  const rows = [['food', '料理と 仕込み', 'みる'], ['crew', '人', pc.crew.shop ? 'よぶ' : 'みる'], ['ask', '町の人の お願い', pc.ask.state === 'none' ? '' : 'よむ']]
+    .map(([k, nm, go]) => `<button class="todo ${pc[k].state}" data-todo="${k}"><i>${MARK[pc[k].state]}</i><span class="t"><b>${nm}</b><small>${pc[k].text}</small></span><span class="jump">${go ? `${go} ›` : ''}</span></button>`).join('');
+  $('prepList').innerHTML = `<div class="sec">あしたの支度</div>${rows}`;
+  for (const b of $('prepList').querySelectorAll('[data-todo]')) onTap(b, () => {
+    const k = b.dataset.todo;
+    if (k === 'ask') { if (pc.ask.state !== 'none') askSheet(); return; }
+    if (k === 'crew' && pc.crew.shop) { crewSheet(pc.crew.shop, () => renderNight()); return; }
+    tab = 'prep'; renderNight();
+    const el = $('panel').querySelector(k === 'crew' ? '#sec-staff' : '#sec-cook');
+    if (el) $('panel').scrollTop = el.offsetTop - $('panel').offsetTop - 6;
+  });
+  const townDot = !!S.townOffer(s) || (S.nextBranch(s) && S.nextBranch(s).ready);
+  $('tabs').innerHTML = TABS.map(([id, nm]) => `<button class="tab ${id === tab ? 'on' : ''}" data-tab="${id}">${TAB_ICON[id]}<span>${nm}</span>${(id === 'shop' && ns && ns.ready) || (id === 'town' && townDot) ? '<i class="dot"></i>' : ''}</button>`).join('');
   for (const b of $('tabs').children) onTap(b, () => { tab = b.dataset.tab; renderNight(); });
   const p = $('panel');
   const keep = p.scrollTop;
   p.innerHTML = PANELS[tab]();
   p.scrollTop = keep;
   for (const el of p.querySelectorAll('[data-do]')) onTap(el, () => doNight(el.dataset.do, el.dataset.arg, el));
+  if (tab === 'town') wireTown(p);
   // あしたの作戦（広告）は 開店ボタンのすぐ下に出す（2026-10-20 オーナー：押してほしいので タブの外へ）
   $('boostsTop').innerHTML = `${boostBtn('market', '仕入れ 半額')}${boostBtn('flyer', `チラシ 客＋${Math.round((ADS.flyerMul - 1) * 100)}%`)}`;
   for (const el of $('boostsTop').querySelectorAll('[data-do]')) onTap(el, () => doNight(el.dataset.do, el.dataset.arg, el));
@@ -435,7 +447,9 @@ function askSheet() {
 
 // 商店街の地図：上が 自分の店（ここに立つ・バイトを呼ぶ）、下が となりの店（人気店が 増えるたびに 1つ呼べる）
 const SHOP_SLOTS = 5;
-function townMap(sel = S.genreOf(s)) {
+// 商店街：町タブの中身（前は 紙だった。2026-10-21 案1で タブに）
+function townHTML() {
+  const sel = ui.townSel && S.shopsOf(s).includes(ui.townSel) ? ui.townSel : S.genreOf(s);
   const shops = S.shopsOf(s);
   const nb = S.nextBranch(s);
   const slots = Array.from({ length: SHOP_SLOTS }, (_, i) => {
@@ -481,17 +495,16 @@ function townMap(sel = S.genreOf(s)) {
   }
   const offer = S.townOffer(s);
   const ask = offer ? `<div class="sec">となりに 呼ぶ店を 1つ えらぶ</div>${offer.map((n) => `<div class="card pick offer"><div class="txt"><b>${n.name}</b><small>${n.text}</small></div><div class="btns"><button class="chunky yel" data-invite="${n.id}">呼ぶ</button></div></div>`).join('')}` : '';
-  const close = overlay(`<h3>まちかど商店街</h3>
-    <div class="street"><div class="row shops">${slots}</div><div class="road">まちかど商店街</div><div class="row lots">${lots}</div>${builtRow}</div>
-    ${effects}${detail}${ask}${spend}<p style="font-size:11.5px;color:var(--ink2)">あなたが立つのは 1日に1店。立たない店は アルバイトだけで回す。店が 町の人気店に なるたびに、となりに 店を1つ 呼べる</p>
-    <button class="big go" data-close>とじる</button>`, null);
-  const o = $('overlay');
-  for (const b of o.querySelectorAll('[data-sel]')) onTap(b, () => townMap(b.dataset.sel));
-  for (const b of o.querySelectorAll('[data-go]')) onTap(b, () => { if (S.switchShop(s, b.dataset.go).ok) { ui.pick = []; close(); save(); renderNight(); toast(`あしたは ${GENRES[b.dataset.go].name}に立つ`); } });
-  for (const b of o.querySelectorAll('[data-crew]')) onTap(b, () => crewSheet(b.dataset.crew, () => townMap(b.dataset.crew)));
-  for (const b of o.querySelectorAll('[data-build]')) onTap(b, () => { const r = S.build(s, b.dataset.build); if (r.ok) { save(); renderNight(); renderTop(); toast(`町に ${r.name}が できた`); townMap(sel); } });
-  for (const b of o.querySelectorAll('[data-fest]')) onTap(b, () => { if (S.holdFestival(s).ok) { save(); renderNight(); renderTop(); toast('あしたは 商店街まつり'); townMap(sel); } });
-  for (const b of o.querySelectorAll('[data-invite]')) onTap(b, () => { const r = S.inviteNeighbor(s, b.dataset.invite); if (r.ok) { save(); renderNight(); toast(`となりに ${r.name}が 開いた`); if (s.faceDay && !s.faceSeen) faceScene(); else townMap(sel); } });
+  return `<div class="street"><div class="row shops">${slots}</div><div class="road">まちかど商店街</div><div class="row lots">${lots}</div>${builtRow}</div>
+    ${effects}${detail}${ask}${spend}<p style="font-size:11.5px;color:var(--ink2);margin:0">あなたが立つのは 1日に1店。立たない店は アルバイトだけで回す。店が 町の人気店に なるたびに、となりに 店を1つ 呼べる</p>`;
+}
+function wireTown(o) {
+  for (const b of o.querySelectorAll('[data-sel]')) onTap(b, () => { ui.townSel = b.dataset.sel; saveUi(); renderNight(); });
+  for (const b of o.querySelectorAll('[data-go]')) onTap(b, () => { if (S.switchShop(s, b.dataset.go).ok) { ui.pick = []; ui.townSel = null; save(); renderNight(); toast(`あしたは ${GENRES[b.dataset.go].name}に立つ`); } });
+  for (const b of o.querySelectorAll('[data-crew]')) onTap(b, () => crewSheet(b.dataset.crew, () => renderNight()));
+  for (const b of o.querySelectorAll('[data-build]')) onTap(b, () => { const r = S.build(s, b.dataset.build); if (r.ok) { save(); renderNight(); renderTop(); toast(`町に ${r.name}が できた`); } });
+  for (const b of o.querySelectorAll('[data-fest]')) onTap(b, () => { if (S.holdFestival(s).ok) { save(); renderNight(); renderTop(); toast('あしたは 商店街まつり'); } });
+  for (const b of o.querySelectorAll('[data-invite]')) onTap(b, () => { const r = S.inviteNeighbor(s, b.dataset.invite); if (r.ok) { save(); renderNight(); toast(`となりに ${r.name}が 開いた`); if (s.faceDay && !s.faceSeen) faceScene(); } });
 }
 
 // ほかの店の アルバイトを、店を切り替えずに 呼ぶ
@@ -530,8 +543,6 @@ const BRANCH_ORDER_LEN = Object.keys(GENRES).length;
 const PANELS = {
   lookParts() {
     const st = S.stageOf(s);
-    const facts = [['席', `${s.seats}`], ['台', `${s.stations.length}`], ['スタッフ', `${s.staff.length}人`], ['評判', `${Math.round(s.rep)}`]]
-      .map(([k, v]) => `<div><small>${k}</small><b>${v}</b></div>`).join('');
     const days = s.reports.filter((r) => !r.closed && (r.shop || 'washoku') === S.genreOf(s)).reverse();
     const top = Math.max(1, ...days.map((r) => Math.abs(r.profit + (r.adBonus || 0))));
     const reports = days.map((r) => {
@@ -544,13 +555,19 @@ const PANELS = {
     }).join('');
     const log = s.log.slice().reverse().map((e) => `<li class="k-${e.kind}"><small><em>${e.day}</em>日目</small>${e.text}</li>`).join('');
     return {
-      top: `<div class="exwrap">${exteriorSVG(s)}<div class="exname">${S.shopsOf(s).length > 1 ? `${GENRES[S.genreOf(s)].no}号店 ` : ''}${st.name}</div></div>
-      <div class="facts">${facts}</div>`,
-      bottom: `${reports ? `<div class="sec">これまでの日報 <small>（タップで ひらく）</small></div><div class="days">${reports}</div>` : ''}
+      top: `<div class="exwrap">${exteriorSVG(s)}<div class="exname">${S.shopsOf(s).length > 1 ? `${GENRES[S.genreOf(s)].no}号店 ` : ''}${st.name}</div><div class="exfacts">席 ${s.seats}・台 ${s.stations.length}・評判 ${Math.round(s.rep)}</div></div>`,
+      bottom: `<button class="chunky wide" data-do="records">記録を みる（日報・あゆみ）</button>`,
+      records: `<h3>記録</h3>${reports ? `<div class="sec">これまでの日報 <small>（タップで ひらく）</small></div><div class="days">${reports}</div>` : ''}
       <div class="sec">あゆみ</div><ol class="ayumi">${log}</ol>
-      <div class="sec">やり直す</div><button class="chunky wide" data-do="reset">はじめから やり直す</button>`,
+      <div class="sec">やり直す</div><button class="chunky wide" data-do="reset">はじめから やり直す</button>
+      <button class="big go" data-close>とじる</button>`,
     };
   },
+  // 支度：料理と仕込み → 人 → レシピ帳 を 1本に（支度の行から 飛んでくる）
+  prep() {
+    return `<div class="sec" id="sec-cook">料理と 仕込み</div>${PANELS.cook()}<div class="sec" id="sec-staff">人</div>${PANELS.staff()}<div class="sec" id="sec-book">レシピ帳</div>${PANELS.book()}`;
+  },
+  town: () => townHTML(),
   // 料理：メニューと仕込みを 1枚に（料理ごとに 出す・値段・仕込み）
   cook() {
     const last = s.reports.filter((r) => !r.closed && (r.shop || 'washoku') === S.genreOf(s)).pop();
@@ -698,6 +715,11 @@ function doNight(what, arg) {
     case 'hire': { const r = S.hire(s, arg); if (r.ok) toast(`${r.name}さんが あした1日 来てくれる`); break; }
     case 'fire': S.fire(s, arg); break;
     case 'rehire': { const r = S.rehire(s); if (r.ok) toast(`${r.n}人 来てくれる`); break; }
+    case 'records': {
+      overlay(PANELS.lookParts().records, null);
+      for (const el of $('overlay').querySelectorAll('[data-do]')) onTap(el, () => doNight(el.dataset.do, el.dataset.arg, el));
+      return;
+    }
     case 'report': {
       const r = s.reports.find((x) => String(x.day) === arg && (x.shop || 'washoku') === S.genreOf(s));
       if (r) overlay(reportPaper(r), null, 'sheet bare');
@@ -713,7 +735,7 @@ function doNight(what, arg) {
     case 'branch': {
       const r = S.openBranch(s);
       if (r.ok) {
-        tab = 'shop'; ui.pick = [];
+        ui.pick = []; ui.townSel = null;
         const h = r.home;
         const line = h.open ? `${GENRES[h.genre].no}号店は ${h.crew.length > 3 ? `${h.crew.slice(0, 2).map((n) => `${n}さん`).join('・')}ほか ${h.crew.length}人` : h.crew.map((n) => `${n}さん`).join('・')}で 回る` : `${GENRES[h.genre].no}号店は 仕込み係と ホール係を 呼ばないと 休みになる（店の札の「バイトを呼ぶ」から）`;
         celebrate(`${r.name}を 出した！\n<small class="cel-sub">あしたは 2号店に立つ。<br>${line}</small>`);
@@ -838,9 +860,10 @@ const TUT = [
   { phase: 'report', mode: 'tap', target: () => document.querySelector('#report .lines'),
     text: '閉店すると <b>日報</b>が出る。書いてあるのは 起きたことと 損だけ。<br>はじめての日は たいてい赤字。あしたは 仕込みを「きのう売れた数」に合わせてみよう。そこから先は 自分で考える' },
   { phase: 'report', mode: 'act', target: () => $('toNight'), text: 'つぎは 夜の準備', done: () => s.phase === 'night' },
-  { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('cook'), target: () => document.querySelector('.tab[data-tab="cook"]'), text: '<b>料理</b>：出す料理・値段・あした何食 仕込むか。高くすると 来る人は減る。仕込みが足りないと売り切れ、余ると捨てる' },
-  { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('shop'), target: () => document.querySelector('.tab[data-tab="shop"]'), text: '<b>お店</b>：店の姿・席や台を増やす・これまでの日報。売上と評判が たまると 店を広げられる' },
-  { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('staff'), target: () => document.querySelector('.tab[data-tab="staff"]'), text: '<b>人</b>：あした<b>1日だけ</b>来てくれるアルバイト。持ち場を 任せられる' },
+  { phase: 'night', mode: 'tap', place: 'bottom', target: () => $('prepList'), text: '<b>あしたの支度</b>：料理・人・お願い の3行。<b>赤い行</b>があれば 押して直す。ぜんぶ 緑なら そのまま 開店できる' },
+  { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('prep'), target: () => document.querySelector('.tab[data-tab="prep"]'), text: '<b>支度</b>：出す料理・値段・あした何食 仕込むか。高くすると 来る人は減る。下に アルバイト（あした<b>1日だけ</b>）と レシピ帳' },
+  { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('shop'), target: () => document.querySelector('.tab[data-tab="shop"]'), text: '<b>お店</b>：店の姿・席や台を増やす・飾る。売上と評判が たまると 店を広げられる' },
+  { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('town'), target: () => document.querySelector('.tab[data-tab="town"]'), text: '<b>町</b>：商店街。店が増えたら ここで あした立つ店を えらぶ。となりに 店を呼んだり、町に 建てたりも ここ' },
   { phase: 'night', mode: 'act', target: () => $('openBtn'), text: '決めたら 開店！ あとは 自由に やってみよう', done: () => s.phase === 'service' },
 ];
 // あとから1回だけ出す案内（チュートリアルが 終わってから。見たら ui.hints に残す）

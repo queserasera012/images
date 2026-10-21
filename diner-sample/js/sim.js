@@ -915,3 +915,30 @@ export function parseSave(text) {
       reports: Array.isArray(o.reports) ? o.reports : [], lastCrew: Array.isArray(o.lastCrew) ? o.lastCrew : [], boosts: { ...base.boosts, ...o.boosts }, town: { picked: o.town && Array.isArray(o.town.picked) ? o.town.picked : [], built: o.town && Array.isArray(o.town.built) ? o.town.built : [] }, festival: o.festival && typeof o.festival.last === 'number' ? o.festival : base.festival, asks: o.asks && Array.isArray(o.asks.list) ? { ...newAsks(), ...o.asks } : newAsks(), today: null });
   } catch { return null; }
 }
+
+// あしたの支度：夜の画面の いちばん上に出す 3行（料理・人・お願い）。
+// state は ok（緑）・warn（黄・開店はできるが 気づいてほしい）・ng（赤・このままだと 損をする）・none（灰・用事がない）
+export function prepCheck(s) {
+  const g = genreOf(s);
+  const on = Object.entries(s.menu).filter(([id, m]) => m.on && s.known.includes(id) && canCook(s, id));
+  const total = on.reduce((a, [id]) => a + (s.prep[id] || 0), 0);
+  const due = asksDue(s, g);
+  const short = due.filter((a) => !s.menu[a.dish] || !s.menu[a.dish].on || (s.prep[a.dish] || 0) < a.n);
+  let food;
+  if (!on.length) food = { state: 'ng', text: 'メニューに 出す料理が ない' };
+  else if (total === 0) food = { state: 'ng', text: '仕込みが 0食' };
+  else if (short.length) food = { state: 'warn', text: `お願いの ${DISHES[short[0].dish].name}が 足りない（${short[0].n}食）` };
+  else food = { state: 'ok', text: `${on.length}品・仕込み ${total}食` };
+  // 人：立つ店は あなたが回す。立たない店は 仕込み係と ホール係が 要る
+  const others = shopsOf(s).filter((x) => x !== g);
+  const shut = others.filter((x) => !crewPlan(s, x).open);
+  let crew;
+  if (shut.length) crew = { state: 'ng', text: `${shut.map((x) => `${GENRES[x].no}号店`).join('・')}が 休み（${crewPlan(s, shut[0]).why}）`, shop: shut[0] };
+  else if (s.staff.length) crew = { state: 'ok', text: `${s.staff.map((x) => `${x.name}さん`).join('・')}${others.length ? `・ほか${others.length}店も 回る` : ''}` };
+  else crew = { state: 'warn', text: others.length ? `あなた ひとりで 回す・ほか${others.length}店は バイトで` : 'あなた ひとりで 回す' };
+  const ak = s.asks;
+  const ask = ak.offer ? { state: 'warn', text: '届いた お願いに 返事を していない' }
+    : ak.list.length ? { state: 'ok', text: `受けた お願い ${ak.list.length}件${due.length ? `・あした ${due.reduce((a, x) => a + x.n, 0)}食` : ''}` }
+      : { state: 'none', text: 'いまは ない' };
+  return { food, crew, ask };
+}
