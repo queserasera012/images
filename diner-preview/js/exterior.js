@@ -205,3 +205,102 @@ export function festivalSVG(s, people) {
     ${crowd}
   </svg>`;
 }
+
+// ---- 商店街の地図（町タブ）----
+// 上に 自分の店5枠、通り、下に となりの店5枠。読むだけ。
+// slots: [{ genre, sub, sel, here, shut } | { empty: true, ready }]（5つ）/ nbs: となりの店（TOWN.list の要素）/ built: 建てたもの（BUILD.list の要素）
+const F = 'M PLUS Rounded 1c, sans-serif';
+function facade(x, top, lk, lit) {
+  return `<rect x="${x + 3}" y="${top}" width="64" height="70" fill="#fff6e0" ${W}/>
+    <path d="M${x - 1} ${top + 4} L${x + 9} ${top - 10} H${x + 61} L${x + 71} ${top + 4}Z" fill="${lk.roof}" ${W}/>
+    <rect x="${x + 9}" y="${top + 10}" width="52" height="15" rx="4" fill="${lk.signFill}" ${W}/>
+    <text x="${x + 35}" y="${top + 21.5}" text-anchor="middle" font-size="${Math.min(10, 48 / [...lk.sign].length * 1.15).toFixed(1)}" font-weight="800" fill="${lk.signText}" font-family="${F}">${lk.sign}</text>
+    <rect x="${x + 10}" y="${top + 32}" width="22" height="20" rx="2" fill="${lit ? '#ffe9a8' : '#bfe9ff'}" ${W}/>
+    <rect x="${x + 38}" y="${top + 32}" width="22" height="38" fill="#e9a25f" ${W}/>
+    ${lantern(x + 35, top - 6, lit)}`;
+}
+// 空き家：色あせた家と 板を打った窓。出せるときは 旗が立つ
+function vacant(x, top, ready) {
+  return `<rect x="${x + 3}" y="${top}" width="64" height="70" fill="#f1ece2" ${W}/>
+    <path d="M${x - 1} ${top + 4} L${x + 9} ${top - 10} H${x + 61} L${x + 71} ${top + 4}Z" fill="#c9c3d6" ${W}/>
+    <rect x="${x + 10}" y="${top + 32}" width="22" height="20" rx="2" fill="#e4dfd3" ${W}/>
+    <path d="M${x + 11} ${top + 36} L${x + 31} ${top + 48} M${x + 31} ${top + 36} L${x + 11} ${top + 48}" stroke="#8a7f6a" stroke-width="2.5" stroke-linecap="round"/>
+    <rect x="${x + 38}" y="${top + 32}" width="22" height="38" fill="#cfc6b6" ${W}/>
+    <rect x="${x + 12}" y="${top + 10}" width="46" height="15" rx="4" fill="#fff" ${W}/>
+    <text x="${x + 35}" y="${top + 21.5}" text-anchor="middle" font-size="9.5" font-weight="800" fill="#8a7f6a" font-family="${F}">空き家</text>
+    ${ready ? `<path d="M${x + 60} ${top - 24} V${top - 2}" stroke="${L}" stroke-width="2"/><path d="M${x + 60} ${top - 24} H${x + 84} L${x + 76} ${top - 16} L${x + 84} ${top - 8} H${x + 60}Z" fill="#ffd23f" ${W}/><text x="${x + 70}" y="${top - 12.5}" text-anchor="middle" font-size="7.5" font-weight="800" fill="${L}" font-family="${F}">出せる</text>` : ''}`;
+}
+function neighborLot(x, top, nb) {
+  const lk = NB_LOOK[nb.id] || NB_LOOK.yaoya;
+  return `<rect x="${x + 3}" y="${top}" width="64" height="52" fill="${lk.wall}" ${W}/>${stripes(x + 1, top + 4, 68, 9, lk.a, lk.b)}
+    <rect x="${x + 12}" y="${top + 22}" width="46" height="15" rx="4" fill="#fff" ${W}/>
+    <text x="${x + 35}" y="${top + 33.5}" text-anchor="middle" font-size="9" font-weight="800" fill="${L}" font-family="${F}">${nb.short || nb.name}</text>
+    <rect x="${x + 27}" y="${top + 40}" width="16" height="12" fill="#e9a25f" ${W}/>`;
+}
+// 空き地：草と 低い柵と 立て札
+function field(x, top) {
+  const tufts = [8, 24, 44, 58].map((dx, i) => `<path d="M${x + dx} ${top + 46} q2 -8 4 0 q2 -8 4 0" fill="none" stroke="#169a70" stroke-width="1.8" stroke-linecap="round"/>${i % 2 ? `<circle cx="${x + dx + 4}" cy="${top + 36}" r="2.2" fill="${i === 1 ? '#ff6b9a' : '#ffd23f'}" stroke="${L}" stroke-width="1"/>` : ''}`).join('');
+  return `<rect x="${x + 3}" y="${top + 12}" width="64" height="40" rx="6" fill="#d8f5e6" stroke="${L}" stroke-width="2.5" stroke-dasharray="5 4"/>
+    <path d="M${x + 6} ${top + 22} H${x + 64} M${x + 12} ${top + 16} V${top + 28} M${x + 35} ${top + 16} V${top + 28} M${x + 58} ${top + 16} V${top + 28}" stroke="#a37b52" stroke-width="2" stroke-linecap="round"/>
+    ${tufts}
+    <path d="M${x + 35} ${top + 12} V${top + 2}" stroke="${L}" stroke-width="2"/>
+    <rect x="${x + 19}" y="${top - 8}" width="32" height="13" rx="3" fill="#fff" ${W}/>
+    <text x="${x + 35}" y="${top + 2}" text-anchor="middle" font-size="8" font-weight="800" fill="#8a7f6a" font-family="${F}">空き地</text>`;
+}
+// 建てたものの 小さな絵
+const BUILT_ART = {
+  hiroba: (x, y) => `<ellipse cx="${x}" cy="${y + 10}" rx="13" ry="5" fill="#bfe9ff" ${W}/><rect x="${x - 3}" y="${y - 4}" width="6" height="14" fill="#c9c3d6" ${W}/><path d="M${x} ${y - 4} q-6 -10 -10 -2 M${x} ${y - 4} q6 -10 10 -2" fill="none" stroke="#4cc9f0" stroke-width="2.5" stroke-linecap="round"/>`,
+  koen: (x, y) => `<rect x="${x - 2}" y="${y + 2}" width="4" height="12" fill="#a37b52" ${W}/><circle cx="${x - 6}" cy="${y}" r="7" fill="#2fd39e" ${W}/><circle cx="${x + 6}" cy="${y}" r="7" fill="#2fd39e" ${W}/><circle cx="${x}" cy="${y - 7}" r="7" fill="#2fd39e" ${W}/>`,
+  chusha: (x, y) => `<rect x="${x - 11}" y="${y - 8}" width="22" height="22" rx="4" fill="#4cc9f0" ${W}/><text x="${x}" y="${y + 9}" text-anchor="middle" font-size="15" font-weight="800" fill="#fff" font-family="${F}">P</text>`,
+  arcade: (x, y) => `<path d="M${x - 14} ${y + 14} V${y + 2} Q${x} ${y - 14} ${x + 14} ${y + 2} V${y + 14}" fill="#dff2ff" ${W}/><path d="M${x - 7} ${y + 14} V${y} M${x + 7} ${y + 14} V${y} M${x} ${y + 14} V${y - 4}" stroke="${L}" stroke-width="1.5"/>`,
+  busstop: (x, y) => `<path d="M${x} ${y - 6} V${y + 14}" stroke="${L}" stroke-width="2.5"/><circle cx="${x}" cy="${y - 6}" r="8" fill="#ff4f5e" ${W}/><rect x="${x - 4}" y="${y - 9}" width="8" height="6" rx="1.5" fill="#fff"/>`,
+  annai: (x, y) => `<rect x="${x - 11}" y="${y - 4}" width="22" height="18" fill="#fff2d6" ${W}/><path d="M${x - 14} ${y - 4} L${x} ${y - 14} L${x + 14} ${y - 4}Z" fill="#ffb020" ${W}/><text x="${x}" y="${y + 10}" text-anchor="middle" font-size="12" font-weight="800" fill="${L}" font-family="${F}">i</text>`,
+};
+export function townSVG(slots, nbs, built) {
+  const id = `town${uid++}`;
+  const TOP = 44, ROAD = 142, NB = 210;
+  const hasBuilt = built.length > 0;
+  const H = hasBuilt ? 316 : 268;
+  const shops = slots.map((sl, i) => {
+    const x = 4 + i * 71;
+    const tag = `<rect x="${x + 17}" y="${TOP - 36}" width="36" height="13" rx="6.5" fill="${sl.here ? '#ffd23f' : '#fff'}" ${W}/><text x="${x + 35}" y="${TOP - 26}" text-anchor="middle" font-size="8" font-weight="800" fill="${L}" font-family="${F}">${i + 1}号店</text>`;
+    if (sl.empty) return `<g class="lot empty">${tag}${vacant(x, TOP, sl.ready)}</g>`;
+    const pill = sl.here ? '#ffd23f' : sl.shut ? '#ffd9dc' : sl.manager ? '#e3f6ee' : '#fff';
+    const inkp = sl.shut ? '#c8293a' : L;
+    return `<g class="lot ${sl.sel ? 'sel' : ''} ${sl.here ? 'here' : ''}" data-sel="${sl.genre}" role="button" tabindex="0">
+      ${sl.sel ? `<rect x="${x - 2}" y="${TOP - 40}" width="74" height="136" rx="10" fill="none" stroke="#ff4f5e" stroke-width="3.5"/>` : ''}
+      ${tag}${facade(x, TOP, sl.look, !sl.shut)}
+      ${sl.here ? person(x + 6, TOP + 36, 26, 3, { chef: true }, 'happy') : sl.manager ? person(x + 6, TOP + 38, 24, 7, {}, 'happy') : ''}
+      ${sl.shut ? `<rect x="${x + 42}" y="${TOP + 44}" width="16" height="11" rx="2" fill="#fff" stroke="${L}" stroke-width="1.5"/><text x="${x + 50}" y="${TOP + 52.5}" text-anchor="middle" font-size="7" font-weight="800" fill="#c8293a" font-family="${F}">休</text>` : ''}
+      <rect x="${x + 5}" y="${TOP + 76}" width="60" height="15" rx="7.5" fill="${pill}" ${W}/>
+      <text x="${x + 35}" y="${TOP + 87}" text-anchor="middle" font-size="8.5" font-weight="800" fill="${inkp}" font-family="${F}">${sl.sub}</text>
+    </g>`;
+  }).join('');
+  const lots = Array.from({ length: 5 }, (_, i) => {
+    const x = 4 + i * 71, n = nbs[i];
+    return n ? neighborLot(x, NB, n) : field(x, NB);
+  }).join('');
+  const dashes = Array.from({ length: 9 }, (_, i) => i >= 4 && i <= 6 ? '' : `<rect x="${12 + i * 40}" y="${ROAD + 23}" width="18" height="3" rx="1.5" fill="#fff"/>`).join('');
+  const zebra = Array.from({ length: 5 }, (_, i) => `<rect x="${92 + i * 10}" y="${ROAD + 8}" width="5" height="34" fill="#fff" opacity=".9"/>`).join('');
+  const lamp = (x) => `<path d="M${x} ${ROAD - 2} V${ROAD - 26}" stroke="${L}" stroke-width="2.5"/><circle cx="${x}" cy="${ROAD - 28}" r="5" fill="#ffd23f" ${W}/>`;
+  const gate = `<text x="214" y="${ROAD + 31}" text-anchor="middle" font-size="13" font-weight="800" fill="#fff" font-family="${F}" letter-spacing="3" opacity=".95">まちかど商店街</text>`;
+  const car = `<g><rect x="22" y="${ROAD + 28}" width="34" height="14" rx="5" fill="#4cc9f0" ${W}/><path d="M30 ${ROAD + 28} L34 ${ROAD + 20} H46 L50 ${ROAD + 28}" fill="#bfe9ff" ${W}/><circle cx="30" cy="${ROAD + 43}" r="4" fill="#3c3a5c" ${W}/><circle cx="48" cy="${ROAD + 43}" r="4" fill="#3c3a5c" ${W}/></g>`;
+  const walkers = [[286, 10], [318, 2]].map(([x, lk]) => person(x, ROAD + 10, 22, lk, {}, 'happy')).join('');
+  const builtRow = hasBuilt ? built.map((b, i) => {
+    const n = built.length, x = 180 + (i - (n - 1) / 2) * 58;
+    return `<g>${(BUILT_ART[b.id] || BUILT_ART.koen)(x, 284)}<text x="${x}" y="${312}" text-anchor="middle" font-size="8" font-weight="800" fill="${L}" font-family="${F}">${b.short}</text></g>`;
+  }).join('') : '';
+  return `<svg viewBox="0 0 360 ${H}" class="townmap" role="img" aria-label="商店街の地図">
+    <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5ccdf2"/><stop offset="1" stop-color="#d6f3ff"/></linearGradient></defs>
+    <rect width="360" height="${H}" fill="url(#${id})"/>
+    <path d="M0 ${TOP - 22} V${TOP - 44} H30 V${TOP - 56} H60 V${TOP - 36} H90 V${TOP - 60} H120 V${TOP - 40} H150 V${TOP - 66} H190 V${TOP - 42} H220 V${TOP - 56} H260 V${TOP - 36} H300 V${TOP - 52} H330 V${TOP - 34} H360 V${TOP - 22}Z" fill="#a8d8ec" opacity=".7"/>
+    <rect x="0" y="${TOP + 70}" width="360" height="${H - TOP - 70}" fill="#e8d9c0"/>
+    <rect x="0" y="${ROAD}" width="360" height="50" fill="#cfc7b8" ${W}/>
+    <path d="M0 ${ROAD + 6} H360 M0 ${ROAD + 44} H360" stroke="#fff" stroke-width="1.5" opacity=".7"/>
+    ${dashes}${zebra}${lamp(14)}${lamp(346)}${car}${walkers}
+    ${gate}
+    ${shops}
+    ${lots}
+    ${hasBuilt ? `<path d="M0 ${NB + 58} H360" stroke="#d1bf9f" stroke-width="2"/>` : ''}${builtRow}
+  </svg>`;
+}

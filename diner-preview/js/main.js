@@ -2,7 +2,7 @@
 import * as S from './sim.js';
 import { personSVG, LOOK_COUNT } from './people.js';
 import { stationSVG } from './kitchen-art.js';
-import { exteriorSVG, festivalSVG } from './exterior.js';
+import { exteriorSVG, festivalSVG, townSVG } from './exterior.js';
 import { foodSVG } from './food-art.js';
 import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_LATER, EVENTS, FAST, GUEST, TOWN, MANAGER, ASK, STORIES, STORY_AT, BUILD, FESTIVAL, DECO, STANCES } from './config.js';
 
@@ -465,21 +465,16 @@ function townHTML() {
     const g = shops.at(i);
     if (g) {
       const plan = g === S.genreOf(s) ? null : S.crewPlan(s, g);
-      const sub = plan ? (S.shopInfo(s, g).manager ? '店長' : plan.open ? `バイト${plan.staff.length}人` : '休み') : 'あした立つ';
-      return `<button class="lot shop ${g === sel ? 'sel' : ''} ${g === S.genreOf(s) ? 'here' : ''} ${plan && !plan.open ? 'shut' : ''}" data-sel="${g}"><em>${i + 1}号店</em><b>${GENRES[g].short}</b><small>${sub}</small></button>`;
+      const manager = !!(plan && S.shopInfo(s, g).manager);
+      const sub = plan ? (manager ? '店長が 回す' : plan.open ? `バイト${plan.staff.length}人` : '休み') : 'あした立つ';
+      return { genre: g, look: GENRES[g].look, sub, sel: g === sel, here: g === S.genreOf(s), shut: !!(plan && !plan.open), manager };
     }
-    const next = nb && i === shops.length;
-    return `<div class="lot empty"><em>${i + 1}号店</em><b>空き家</b><small>${next && nb.ready ? '出せる' : ''}</small></div>`;
-  }).join('');
+    return { empty: true, ready: !!(nb && i === shops.length && nb.ready) };
+  });
   const nbs = S.neighbors(s);
-  const lots = Array.from({ length: TOWN.lots }, (_, i) => {
-    const n = nbs.at(i);
-    return n ? `<div class="lot nb"><b>${n.short || n.name}</b></div>` : '<div class="lot empty"><b>空き地</b></div>';
-  }).join('');
   const built = S.builtOf(s);
   const things = [...nbs, ...built];
   const effects = things.length ? `<p class="nbfx">${things.map((n) => `<b>${n.name}</b>：${n.text}`).join('<br>')}</p>` : '';
-  const builtRow = built.length ? `<div class="builtrow">${built.map((b) => `<span>${b.short}</span>`).join('')}</div>` : '';
   // えらんだ店の札
   let detail = '';
   if (shops.includes(sel)) {
@@ -504,7 +499,7 @@ function townHTML() {
   }
   const offer = S.townOffer(s);
   const ask = offer ? `<div class="sec">となりに 呼ぶ店を 1つ えらぶ</div>${offer.map((n) => `<div class="card pick offer"><div class="txt"><b>${n.name}</b><small>${n.text}</small></div><div class="btns"><button class="chunky yel" data-invite="${n.id}">呼ぶ</button></div></div>`).join('')}` : '';
-  return `<div class="street"><div class="row shops">${slots}</div><div class="road">まちかど商店街</div><div class="row lots">${lots}</div>${builtRow}</div>
+  return `<div class="street">${townSVG(slots, nbs, built)}</div>
     ${effects}${detail}${ask}${spend}<p style="font-size:11.5px;color:var(--ink2);margin:0">あなたが立つのは 1日に1店。立たない店は アルバイトだけで回す。店が 町の人気店に なるたびに、となりに 店を1つ 呼べる</p>`;
 }
 function wireTown(o) {
@@ -879,7 +874,19 @@ const TUT = [
   { phase: 'night', mode: 'act', target: () => $('openBtn'), text: '決めたら 開店！ あとは 自由に やってみよう', done: () => s.phase === 'service' },
 ];
 // あとから1回だけ出す案内（チュートリアルが 終わってから。見たら ui.hints に残す）
+// 2号店を出した夜：店長の役割と 方針（1回だけ・2026-10-21 オーナー「チュートリアルみたいに」）
+const homeShop = () => S.shopsOf(s).find((g) => g !== S.genreOf(s));
+const twoShops = () => S.shopsOf(s).length >= 2;
+const showHome = (sel) => () => { ui.townSel = homeShop(); tab = 'town'; renderNight(); scrollNightTo($('panel').querySelector(sel)); };
 const HINTS = [
+  { id: 'mgr1', phase: 'night', mode: 'card', ready: twoShops, enter: showHome('.townmap'),
+    text: '店が 2つに なった！<br>あなたが 立てるのは <b>1日に 1店</b>。立たない店は アルバイトだけで 回る。そこで <b>店長</b>の 出番' },
+  { id: 'mgr2', phase: 'night', mode: 'tap', ready: twoShops, enter: showHome('.townmap'), target: () => document.querySelector('.townmap [data-sel]:not(.here)') || document.querySelector('.townmap'),
+    text: '商店街の地図で 店を タップすると 下に 札が出る。<b>ここに立つ</b>で あした立つ店を 変えられる' },
+  { id: 'mgr3', phase: 'night', mode: 'tap', ready: twoShops, enter: showHome('.card.pick'), target: () => document.querySelector('.card.pick [data-crew]') || document.querySelector('.townmap'),
+    text: `<b>バイトを呼ぶ</b>の 中に 店長がいる。1日 ${yen(MANAGER.wage)}＋その店の 売上の ${Math.round(MANAGER.rate * 100)}%で、<b>貼り紙を読んで 仕込みを決め</b>、足りない 仕込み係と ホール係を 呼ぶ。決めたことは 日報に 書く` },
+  { id: 'mgr4', phase: 'night', mode: 'card', ready: twoShops,
+    text: `店長には <b>方針</b>を 決められる。<br><b>${STANCES.sales.name}</b>：仕込み多め・値段 +5%<br><b>${STANCES.rep.name}</b>：丁寧に運ぶ・評判が 落ちにくいが もうけは 減る<br><b>${STANCES.lean.name}</b>：きのう売れた数 ちょうど・余らないが 売り切れる<br>何を 大事にするかは あなたが 決める` },
   { id: 'fast', phase: 'service', mode: 'tap', hold: true, ready: () => !$('fastBtn').hidden, target: () => $('fastBtn'),
     text: `仕込み係と ホール係が そろったので <b>▶▶ 早送り</b>が 使える。<br>押すと 営業が ${FAST}倍の速さで進む。もう1回 押すと ふつうに戻る` },
 ];
