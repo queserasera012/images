@@ -404,8 +404,8 @@ function renderNight() {
   });
   const townDot = !!S.townOffer(s) || (S.nextBranch(s) && S.nextBranch(s).ready);
   $('tabs').innerHTML = TABS.map(([id, nm]) => `<button class="tab ${id === tab ? 'on' : ''}" data-tab="${id}">${TAB_ICON[id]}<span>${nm}</span>${(id === 'shop' && ns && ns.ready) || (id === 'town' && townDot) ? '<i class="dot"></i>' : ''}</button>`).join('');
-  // タブを押したら タブの行が 画面の上に来るまで 送る（夜の画面は 1本で スクロールする・2026-10-21 オーナー）
-  for (const b of $('tabs').children) onTap(b, () => { tab = b.dataset.tab; renderNight(); scrollNightTo($('tabs')); });
+  // タブを押しても スクロールの位置は 動かさない（上に送るのは「跳ねる」で 不評・2026-10-21 オーナー）
+  for (const b of $('tabs').children) onTap(b, () => { tab = b.dataset.tab; renderNight(); });
   const p = $('panel');
   p.innerHTML = PANELS[tab]();
   for (const el of p.querySelectorAll('[data-do]')) onTap(el, () => doNight(el.dataset.do, el.dataset.arg, el));
@@ -845,7 +845,7 @@ onTap($('openBtn'), () => {
 // card：まん中の札（つぎへ）／ tap：光らせた所の説明（どこを押しても つぎへ）／ act：光らせた所を 押すと進む
 // hold：出ているあいだ 営業の時間を止める
 const jobsIn = (st) => (s.today ? s.today.jobs.filter((j) => j.state === st) : []);
-const nightTab = (id) => () => { if (tab !== id) { tab = id; renderNight(); scrollNightTo($('tabs')); } };
+const nightTab = (id) => () => { if (tab !== id) { tab = id; renderNight(); } };
 const TUT = [
   { phase: 'night', mode: 'card', text: 'ようこそ！ きょうから 屋台の店主です。<br>1日は <b>営業 → 日報 → 夜の準備</b> の くりかえし。何日でも 好きなだけ 遊べます。' },
   { phase: 'night', mode: 'act', target: () => $('openBtn'), text: 'メニューと仕込みは 用意してあります。まずは 開店してみよう！', done: () => s.phase === 'service' },
