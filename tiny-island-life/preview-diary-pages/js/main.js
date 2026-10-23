@@ -464,7 +464,7 @@ function renderCard() {
       return;
     }
     const owner = state.residents.find((r) => r.id === pet.ownerId);
-    html = `<h3>${pet.name}</h3><div class="sub">${owner ? `${owner.name}の家の${label}` : label}</div><div class="now">いまは、${describePet(state, pet)}</div>`;
+    html = `<h3>${pet.name}</h3><div class="sub">${owner ? `${owner.name}の家の${label}` : label}</div><div class="now">いまは、<span>${describePet(state, pet)}</span></div>`;
   } else if (selected.kind === 'resident') {
     const r = personById(state, selected.id);
     if (r && selected.renaming) {
@@ -486,7 +486,7 @@ function renderCard() {
       : r.age && parents.length === 2
         ? `${parents[0].name}と${parents[1].name}の子ども（${{ baby: '赤ちゃん', kid: '幼稚園', pupil: '小学生', student: '学生' }[r.age]}）`
         : (r.elder ? 'お年寄り。' : '') + favoriteText(r) + (spouse ? `。${spouse.name}と結婚している` : '') + (parents.length === 2 ? `。${parents[0].name}と${parents[1].name}の子` : '');
-    html = `<h3>${dot(r)}${r.name}</h3><div class="sub">${sub}</div><div class="now">いまは、${describeResident(state, r)}</div>`;
+    html = `<h3>${dot(r)}${r.name}</h3><div class="sub">${sub}</div><div class="now">いまは、<span>${describeResident(state, r)}</span></div>`;
     // お願い（D335）：何をすれば かなうかも出す
     const wish = wishOf(state, r.id);
     if (wish) html += `<div class="card-wish"><b>お願い：「${wish.text}」</b><small>${wish.hint}</small></div>`;
@@ -1304,11 +1304,15 @@ function diaryPagerHtml(entries, at = entries.length - 1) {
 function diaryNavHtml() {
   const n = diaryPages.length;
   if (n < 2) return '';
-  const chips = diaryPages.map((e, i) => `<button class="d-chip${i === diaryPage ? ' on' : ''}" type="button" data-dpage="${i}"${i === diaryPage ? ' aria-current="true"' : ''}>Day ${e.day}</button>`).join('');
+  // いちばん新しい日を 左に（オーナー）。‹ で 新しい日へ、› で 前の日へ
+  const chips = diaryPages
+    .map((e, i) => `<button class="d-chip${i === diaryPage ? ' on' : ''}" type="button" data-dpage="${i}"${i === diaryPage ? ' aria-current="true"' : ''}>Day ${e.day}</button>`)
+    .reverse()
+    .join('');
   return (
-    `<button class="d-arrow" type="button" data-dpage="${diaryPage - 1}" aria-label="前の日"${diaryPage === 0 ? ' disabled' : ''}>${CHEVRON}</button>` +
+    `<button class="d-arrow" type="button" data-dpage="${diaryPage + 1}" aria-label="次の日"${diaryPage === n - 1 ? ' disabled' : ''}>${CHEVRON}</button>` +
     `<div class="d-chips">${chips}</div>` +
-    `<button class="d-arrow next" type="button" data-dpage="${diaryPage + 1}" aria-label="次の日"${diaryPage === n - 1 ? ' disabled' : ''}>${CHEVRON}</button>`
+    `<button class="d-arrow next" type="button" data-dpage="${diaryPage - 1}" aria-label="前の日"${diaryPage === 0 ? ' disabled' : ''}>${CHEVRON}</button>`
   );
 }
 function showDiaryPage(i) {
@@ -1329,7 +1333,7 @@ function showDiaryPage(i) {
   const top = nav.offsetTop - 20;
   if (body.scrollTop > top) body.scrollTop = top;
 }
-// えらんだ札が 帯の中に 見えるように（はじめは いちばん右＝新しい日）
+// えらんだ札が 帯の中に 見えるように（はじめは いちばん左＝新しい日）
 function scrollDayChip(smooth = false) {
   const strip = document.querySelector('#sheet .d-chips');
   const on = strip?.querySelector('.d-chip.on');
@@ -1514,7 +1518,7 @@ function renderQuest() {
     el.innerHTML = g?.body
       ? `<div class="quest-head"><b>目標：${g.goal}</b>${FOLD}</div><p>${g.body}</p>`
       : g
-      ? `<div class="quest-head"><b>目標：${g.goal}</b><span class="reward">${g.now} / ${g.need}${g.unit}</span>${FOLD}</div><p>${g.what}が ${g.need}${g.unit} になると、${g.note}${g.unit === '人' && state.residents.some(isChild) ? '（小学生までの子どもは数えない）' : ''}</p>${wishes ? `<div class="wishes"><small>お願い</small>${wishes}</div>` : ''}`
+      ? `<div class="quest-head"><b>目標：${g.goal}</b><span class="reward">${g.unit === '匹' ? `${g.now} / ${g.need}匹` : `${g.now} / ${g.need}${g.unit}`}</span>${FOLD}</div><p><span>${g.unit === '匹' ? `${g.what}が ${g.need}匹 になると、` : `${g.what}が ${g.need}${g.unit} になると、`}</span><span class="q-note">${g.note}${g.unit === '人' && state.residents.some(isChild) ? '（小学生までの子どもは数えない）' : ''}</span></p>${wishes ? `<div class="wishes"><small>お願い</small>${wishes}</div>` : ''}`
       : `<div class="quest-head"><b>島の人のお願い</b><span class="reward">かなえた ${state.wishDone || 0}</span>${FOLD}</div><div class="wishes">${wishes}</div>`;
     el.hidden = false;
     applyFold();

@@ -1889,11 +1889,12 @@ export function createRenderer(canvas) {
       ctx.stroke();
     }
     // 看板
+    ctx.font = `700 8px ${FONT}`;
+    const sw = Math.max(34, ctx.measureText('釣り堀').width + 10); // 英語（Fishing Pond）は 長いので 文字に合わせる
     ctx.fillStyle = PALETTE.white;
-    roundRect(ctx, x0 + w / 2 - 17, y0 - 4, 34, 11, 5);
+    roundRect(ctx, x0 + w / 2 - sw / 2, y0 - 4, sw, 11, 5);
     ctx.fill();
     ctx.fillStyle = PALETTE.ink;
-    ctx.font = `700 8px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('釣り堀', x0 + w / 2, y0 + 1.5);

@@ -955,3 +955,8 @@ h3 .dot { width: 14px; height: 14px; }
 .news-list li svg { width: 28px; height: 28px; flex: none; }
 .news-list li b { flex: 1; }
 .news-list li span { color: var(--muted); font-size: 14px; }
+
+/* 英語のときだけ：日本語では つめて並ぶ所に すきまを入れる（「いまは、」＋ようす・名前＋「お願い」） */
+html[lang='en'] .now > span { margin-left: 0.3em; }
+html[lang='en'] .wish b { margin-right: 0.3em; }
+html[lang='en'] #quest .q-note { margin-left: 0.3em; }
