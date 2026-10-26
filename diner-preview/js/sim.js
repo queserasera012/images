@@ -122,6 +122,13 @@ export function openBranch(s) {
 // 立たない店は アルバイトだけで回る。店長が きのうと同じ人を呼ぶ
 // 回るのは 仕込み係（札を受ける）と ホール係（台から運ぶ）が いるとき。ほかの台は 人がいなくても 流れる
 export const crewOk = (staff) => staff.some((x) => x.role === 'board') && staff.some((x) => x.role === 'hall');
+// 早送りできるか：仕込み係と ホール係が いる日。それと、売り切れて 台にも 受け渡し台にも 何も残っていないとき
+// （作るものが なく 待つだけの 時間を 飛ばす・2026-10-26 オーナー「売り切れてる店を 見続けるのは 苦痛」）
+export function canFast(s) {
+  if (!s.today) return false;
+  if (crewOk(s.staff)) return true;
+  return Object.values(s.today.stock).every((n) => n <= 0) && !s.today.jobs.some((j) => ['ticket', 'cook', 'ready', 'pass'].includes(j.state));
+}
 export function crewPlan(s, genre) {
   const sh = shopInfo(s, genre);
   const staff = sh.staff.length ? sh.staff : sh.lastCrew;

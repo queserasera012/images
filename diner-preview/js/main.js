@@ -220,9 +220,10 @@ function renderService() {
     $('passChef').innerHTML = hall ? `${personSVG(staffLook(hall), 'idle', { chef: true })}<b>${hall.name}<small>バイト</small></b>` : '';
   }
 
-  // 早送り：仕込み係と ホール係がいる日だけ
-  const canFast = S.crewOk(s.staff);
-  $('fastBtn').hidden = !canFast;
+  // 早送り：ボタンは いつも見せて、仕込み係と ホール係が いる日と 売り切れたあとだけ 押せる
+  const canFast = S.canFast(s);
+  $('fastBtn').hidden = false;
+  $('fastBtn').disabled = !canFast;
   if (!canFast) fast = false;
   $('fastBtn').classList.toggle('on', fast);
 
@@ -888,8 +889,8 @@ const HINTS = [
     text: `<b>バイトを呼ぶ</b>の 中に 店長がいる。1日 ${yen(MANAGER.wage)}＋その店の 売上の ${Math.round(MANAGER.rate * 100)}%で、<b>貼り紙を読んで 仕込みを決め</b>、足りない 仕込み係と ホール係を 呼ぶ。決めたことは 日報に 書く` },
   { id: 'mgr4', phase: 'night', mode: 'card', ready: twoShops,
     text: `店長には <b>方針</b>を 決められる。<br><b>${STANCES.sales.name}</b>：仕込み多め・値段 +5%<br><b>${STANCES.rep.name}</b>：丁寧に運ぶ・評判が 落ちにくいが もうけは 減る<br><b>${STANCES.lean.name}</b>：きのう売れた数 ちょうど・余らないが 売り切れる<br>何を 大事にするかは あなたが 決める` },
-  { id: 'fast', phase: 'service', mode: 'tap', hold: true, ready: () => !$('fastBtn').hidden, target: () => $('fastBtn'),
-    text: `仕込み係と ホール係が そろったので <b>▶▶ 早送り</b>が 使える。<br>押すと 営業が ${FAST}倍の速さで進む。もう1回 押すと ふつうに戻る` },
+  { id: 'fast', phase: 'service', mode: 'tap', hold: true, ready: () => S.canFast(s), target: () => $('fastBtn'),
+    text: () => `${S.crewOk(s.staff) ? '仕込み係と ホール係が そろった' : '売り切れて もう 作るものが ない'}ので <b>▶▶ 早送り</b>が 使える。<br>押すと 営業が ${FAST}倍の速さで進む。もう1回 押すと ふつうに戻る。売り切れたあとと、仕込み係と ホール係が いる日に 押せる` },
 ];
 let coachStep = -1;
 const curHint = () => (ui.tut >= TUT.length ? HINTS.find((h) => !(ui.hints || {})[h.id] && h.phase === s.phase && h.ready()) : null);
