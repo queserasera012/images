@@ -871,7 +871,8 @@ const TUT = [
   { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('prep'), target: () => document.querySelector('.tab[data-tab="prep"]'), text: '<b>支度</b>：出す料理・値段・あした何食 仕込むか。高くすると 来る人は減る。下に アルバイト（あした<b>1日だけ</b>）と レシピ帳' },
   { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('shop'), target: () => document.querySelector('.tab[data-tab="shop"]'), text: '<b>お店</b>：店の姿・席や台を増やす・飾る。売上と評判が たまると 店を広げられる' },
   { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('town'), target: () => document.querySelector('.tab[data-tab="town"]'), text: '<b>町</b>：商店街。店が増えたら ここで あした立つ店を えらぶ。となりに 店を呼んだり、町に 建てたりも ここ' },
-  { phase: 'night', mode: 'act', target: () => $('openBtn'), text: '決めたら 開店！ あとは 自由に やってみよう', done: () => s.phase === 'service' },
+  // 最後は 画面を 押さえない（前は 開店ボタンだけ 光らせて「開店しか できない」ように 見えた・2026-10-26 オーナー）
+  { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('prep'), target: () => $('openBtn'), text: '案内は ここまで。<b>支度</b>で 品数や 仕込みを 変えてから 開店しても、そのまま 開店しても いい。あとは 自由に やってみよう' },
 ];
 // あとから1回だけ出す案内（チュートリアルが 終わってから。見たら ui.hints に残す）
 // 2号店を出した夜：店長の役割と 方針（1回だけ・2026-10-21 オーナー「チュートリアルみたいに」）
