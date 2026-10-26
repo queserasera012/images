@@ -486,3 +486,4 @@ small.lvl{font-size:10.5px;color:var(--ink2);margin-left:6px}
 .tabs.top .tab.on{background:var(--paper);color:var(--ink);transform:translateY(2.5px)}
 .tabs.top .tab.on .ti{opacity:1;filter:none}
 .tabs.top .tab .dot{top:4px;right:8px}
+.chips.rshops{margin:0 0 8px}

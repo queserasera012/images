@@ -548,9 +548,12 @@ function crewSheet(genre, back) {
 
 const BRANCH_ORDER_LEN = Object.keys(GENRES).length;
 const PANELS = {
-  lookParts() {
+  lookParts(rshop = S.genreOf(s)) {
     const st = S.stageOf(s);
-    const days = s.reports.filter((r) => !r.closed && (r.shop || 'washoku') === S.genreOf(s)).reverse();
+    // 記録の日報は 店ごとに 切りかえて 見る（前は 立っている店の分しか 出なかった・2026-10-27 オーナー）
+    const shops = S.shopsOf(s);
+    const chips = shops.length > 1 ? `<div class="chips rshops">${shops.map((g) => `<button class="${g === rshop ? 'on' : ''}" data-rshop="${g}">${GENRES[g].no}号店 ${GENRES[g].short}</button>`).join('')}</div>` : '';
+    const days = s.reports.filter((r) => !r.closed && (r.shop || 'washoku') === rshop).reverse();
     const top = Math.max(1, ...days.map((r) => Math.abs(r.profit + (r.adBonus || 0))));
     const reports = days.map((r) => {
       const p = r.profit + (r.adBonus || 0);
@@ -564,7 +567,7 @@ const PANELS = {
     return {
       top: `<div class="exwrap">${exteriorSVG(s)}<div class="exname">${S.shopsOf(s).length > 1 ? `${GENRES[S.genreOf(s)].no}号店 ` : ''}${st.name}</div><div class="exfacts">席 ${s.seats}・台 ${s.stations.length}・評判 ${Math.round(s.rep)}</div></div>`,
       bottom: `<button class="chunky wide" data-do="records">記録を みる（日報・あゆみ）</button>`,
-      records: `<h3>記録</h3>${reports ? `<div class="sec">これまでの日報 <small>（タップで ひらく）</small></div><div class="days">${reports}</div>` : ''}
+      records: `<h3>記録</h3>${reports || chips ? `<div class="sec">これまでの日報 <small>（タップで ひらく）</small></div>${chips}<div class="days">${reports || '<p class="asknote">まだ 日報が ない（アルバイトだけで 回した日は 休みの日を 除いて ここに 入る）</p>'}</div>` : ''}
       <div class="sec">あゆみ</div><ol class="ayumi">${log}</ol>
       <div class="sec">やり直す</div><button class="chunky wide" data-do="reset">はじめから やり直す</button>
       <button class="big go" data-close>とじる</button>`,
@@ -709,7 +712,7 @@ function boostBtn(kind, label) {
   return `<button class="chunky yel ad" data-do="ad" data-arg="${kind}" ${S.adLeft(s) ? '' : 'disabled'}>${label}</button>`;
 }
 
-function doNight(what, arg) {
+function doNight(what, arg, el) {
   const m = s.menu[arg];
   switch (what) {
     case 'toggle': S.toggleMenu(s, arg); break;
@@ -724,12 +727,19 @@ function doNight(what, arg) {
     case 'fire': S.fire(s, arg); break;
     case 'rehire': { const r = S.rehire(s); if (r.ok) toast(`${r.n}人 来てくれる`); break; }
     case 'records': {
-      overlay(PANELS.lookParts().records, null);
-      for (const el of $('overlay').querySelectorAll('[data-do]')) onTap(el, () => doNight(el.dataset.do, el.dataset.arg, el));
+      const close = overlay(PANELS.lookParts().records, null);
+      const wire = () => {
+        const o = $('overlay');
+        for (const b of o.querySelectorAll('[data-close]')) onTap(b, close);
+        for (const el of o.querySelectorAll('[data-do]')) onTap(el, () => doNight(el.dataset.do, el.dataset.arg, el));
+        for (const el of o.querySelectorAll('[data-rshop]')) onTap(el, () => { o.firstElementChild.innerHTML = PANELS.lookParts(el.dataset.rshop).records; wire(); });
+      };
+      wire();
       return;
     }
     case 'report': {
-      const r = s.reports.find((x) => String(x.day) === arg && (x.shop || 'washoku') === S.genreOf(s));
+      const shop = (el && el.dataset.shop) || S.genreOf(s);
+      const r = s.reports.find((x) => String(x.day) === arg && (x.shop || 'washoku') === shop);
       if (r) overlay(reportPaper(r), null, 'sheet bare');
       return;
     }
