@@ -2,7 +2,7 @@
 // 画面（main.js）は state を読み、ここの関数を呼ぶだけ。
 import {
   DAY, STATIONS, DISHES, GUEST, DEMAND, WEATHER, RUSH, REP, STAGES, SHOP,
-  STAFF, STAFF_NAMES, REGULARS, REGULAR, ADS, START, TRIAL_COST, GENRES, BRANCH_ORDER, EVENTS, TOWN, MANAGER, ASK, ASK_FROM, STORIES, STORY_AT, BUILD, FESTIVAL, DECO, PREP_WARN, SEASON, STANCES,
+  STAFF, STAFF_NAMES, REGULARS, REGULAR, ADS, START, TRIAL_COST, GENRES, BRANCH_ORDER, EVENTS, TOWN, MANAGER, ASK, ASK_FROM, STORIES, STORY_AT, BUILD, FESTIVAL, DECO, PREP_WARN, SEASON, STANCES, RIVAL,
 } from './config.js';
 
 export const SAVE_VERSION = 1;
@@ -542,6 +542,100 @@ export function eventOf(s, day = s.day) {
   if (rand(r) >= EVENTS.chance * townMul(s, 'eventMul')) return null;
   return EVENTS.list[Math.floor(rand(r) * EVENTS.list.length)];
 }
+// ---- ライバル店 ----
+export const rivalOf = (s) => (s.rival && !s.rival.away ? RIVAL.list[s.rival.no % RIVAL.list.length] : null);
+export const tacticOf = (id) => RIVAL.tactics.find((x) => x.id === id);
+// その店・その日に 効いている 手（無ければ null）
+export function rivalNow(s, genre, day = s.day) {
+  const w = rivalOf(s) && s.rival.week;
+  if (!w || day < w.start || day > w.end) return null;
+  const tc = tacticOf(w.tactic);
+  return tc.all || w.shop === genre ? { ...tc, dish: w.dish, share: w.share, power: rivalOf(s).power } : null;
+}
+// 値段の高さ（ふつう＝1）。来る人数の 計算と同じ料理で 平均
+function priceRatio(s) {
+  const on = Object.entries(s.menu).filter(([id, m]) => m.on && canCook(s, id) && s.known.includes(id));
+  return on.length ? on.reduce((a, [id, m]) => a + m.price / fairPrice(s, id), 0) / on.length : 1;
+}
+// その手を かわせているか（夜の割引は 立っている店だけ かわせる）
+export function rivalDodged(s, rv, standing) {
+  if (rv.id === 'cheap') return priceRatio(s) <= rv.priceLine;
+  if (rv.id === 'ad') return s.rep >= rv.repGuard;
+  if (rv.id === 'copy') { const m = rv.dish && s.menu[rv.dish]; return !m || !m.on || m.price <= fairPrice(s, rv.dish) * rv.priceLine; }
+  if (rv.id === 'night') return standing;
+  return false;
+}
+const rivalSteal = (rv, dodged) => Math.min(0.9, rv.steal * rv.power) * (dodged ? rv.low : 1);
+// 来る人数に 掛ける数（夜の割引は 時間帯の方で 掛ける）。まねメニューは その料理に 頼っていた分だけ
+function rivalMul(rv, dodged) {
+  if (!rv || rv.period) return 1;
+  const st = rivalSteal(rv, dodged);
+  return 1 - (rv.id === 'copy' ? Math.min(1, st * (1 + 2 * (rv.share || 0))) : st);
+}
+const servedIn = (s, genre, from, to) => s.reports.filter((r) => !r.closed && (r.shop || 'washoku') === genre && r.day >= from && r.day <= to);
+// 次の1週間：いちばん客の多い店を ねらう（同じ店が 続くときは 2番目）。手は 前の週と 変える
+function planWeek(s) {
+  const r = { rng: hash(s.seed + 4241, s.day) };
+  const prev = s.rival.last;
+  const from = s.day - RIVAL.week, to = s.day - 1;
+  const ranked = shopsOf(s).map((g) => ({ g, n: servedIn(s, g, from, to).reduce((a, x) => a + x.served, 0) })).sort((a, b) => b.n - a.n);
+  const pick = ranked.length > 1 && prev && prev.shop === ranked[0].g && rand(r) < 0.6 ? ranked[1] : ranked[0];
+  const tactics = RIVAL.tactics.filter((x) => !prev || x.id !== prev.tactic);
+  const tc = tactics[Math.floor(rand(r) * tactics.length)];
+  const days = servedIn(s, pick.g, from, to);
+  const base = days.length >= RIVAL.week ? pick.n : days.length ? (pick.n / days.length) * RIVAL.week : 0;
+  // まねメニュー：先週 いちばん売れた料理と、その売上の割合
+  const sold = {};
+  for (const d of days) for (const [id, n] of Object.entries(d.sold || {})) sold[id] = (sold[id] || 0) + n;
+  const top = Object.entries(sold).sort((a, b) => b[1] - a[1])[0];
+  const total = Object.values(sold).reduce((a, n) => a + n, 0);
+  s.rival.week = {
+    start: s.day, end: s.day + RIVAL.week - 1, shop: pick.g, tactic: tc.id,
+    dish: top ? top[0] : null, share: top && total ? top[1] / total : 0,
+    goal: Math.max(RIVAL.minGoal, Math.round(base * rivalOf(s).goalMul)), served: 0, lost: 0,
+  };
+}
+function resolveWeek(s) {
+  const w = s.rival.week, rv = rivalOf(s);
+  const win = w.served >= w.goal;
+  const from = s.rival.power;
+  s.rival.power = Math.max(0, Math.min(100, from + (win ? -RIVAL.step : RIVAL.step)));
+  const res = { win, shop: w.shop, tactic: w.tactic, served: w.served, goal: w.goal, lost: w.lost, from, to: s.rival.power, name: rv.short, event: null };
+  if (s.rival.power <= 0) {
+    res.event = 'retreat'; res.prize = rv.prize;
+    s.money += rv.prize;
+    for (const g of shopsOf(s)) { const sh = shopInfo(s, g); sh.rep = clampRep(sh.rep + RIVAL.winRep); }
+    s.rival.away = s.day + 1 + RIVAL.gap;
+    s.rival.beaten = (s.rival.beaten || 0) + 1;
+    note(s, 'rival', `${rv.short}が 撤退した`);
+  } else if (s.rival.power >= 100) {
+    res.event = 'hit';
+    const sh = shopInfo(s, w.shop);
+    sh.rep = clampRep(sh.rep - RIVAL.hitRep);
+    s.rival.power = RIVAL.afterHit;
+    note(s, 'rival', `${rv.short}に ${GENRES[w.shop].no}号店の 客を 取られた`);
+  }
+  s.rival.result = res;
+  s.rival.last = { shop: w.shop, tactic: w.tactic };
+  s.rival.week = null;
+}
+// 閉店のあと（日付を 進めたあと）：ライバルが 来る・次の週を 決める
+function rivalNight(s) {
+  if (!s.rival) {
+    if (shopsOf(s).length < RIVAL.from) return;
+    s.rival = { no: 0, power: RIVAL.start, week: null, seen: false, result: null, away: null, beaten: 0 };
+    note(s, 'rival', `通りの 向かいに ${RIVAL.list[0].short}が 来た`);
+  }
+  if (s.rival.away) {
+    if (s.day < s.rival.away) return;
+    s.rival = { ...s.rival, no: s.rival.no + 1, power: RIVAL.start, week: null, seen: false, away: null };
+    note(s, 'rival', `通りの 向かいに ${rivalOf(s).short}が 来た`);
+  }
+  if (!s.rival.week) planWeek(s);
+}
+export const rivalSeen = (s) => { if (s.rival) s.rival.seen = true; };
+export const rivalResultSeen = (s) => { if (s.rival) s.rival.result = null; };
+
 export function startDay(s, { branch = false, weather = null } = {}) {
   // 営業の途中で閉じたら、開店前の状態に戻すための写し
   const snap = branch ? null : JSON.stringify({ ...s, today: null, phase: 'night' });
@@ -557,6 +651,9 @@ export function startDay(s, { branch = false, weather = null } = {}) {
   today.festival = festivalTomorrow(s);
   if (today.festival) s.rep = clampRep(s.rep + FESTIVAL.rep);
   today.stance = branch && s.manager ? STANCES[stanceOf(s)] : null;
+  const rv = rivalNow(s, genreOf(s));
+  const dodged = rv ? rivalDodged(s, rv, !branch) : false;
+  today.rival = rv ? { id: rv.id, dish: rv.dish, appeal: dodged ? 1 : rv.appeal, dodged } : null;
 
   // 仕入れ。お金が足りない分は ツケ（閉店のときに 売上から返す）
   const cost = prepCost(s);
@@ -570,13 +667,20 @@ export function startDay(s, { branch = false, weather = null } = {}) {
   s.money = Math.max(0, s.money - cost);
 
   // お客さんの来る時刻を先に決める
-  const n = Math.round((DEMAND.base + s.rep * DEMAND.perRep) * (DEMAND.stageMul[s.stage] || 1) * w.mul * (s.boosts.flyer ? ADS.flyerMul : 1) * priceDemand(s) * (ev && ev.nMul ? ev.nMul : 1) * townMul(s, 'nMul') * (today.festival ? FESTIVAL.nMul : 1) * (s.signature ? DECO.signatureMul : 1));
+  const n0 = Math.round((DEMAND.base + s.rep * DEMAND.perRep) * (DEMAND.stageMul[s.stage] || 1) * w.mul * (s.boosts.flyer ? ADS.flyerMul : 1) * priceDemand(s) * (ev && ev.nMul ? ev.nMul : 1) * townMul(s, 'nMul') * (today.festival ? FESTIVAL.nMul : 1) * (s.signature ? DECO.signatureMul : 1));
+  const rm = rivalMul(rv, dodged);
+  const n = Math.round(n0 * rm);
+  today.rivalLost = n0 - n;
+  const nightMul = rv && rv.period ? 1 - rivalSteal(rv, dodged) : 1;
   const arrivals = [];
   const span = DAY.seconds * DAY.lastEntryRatio;
   while (arrivals.length < n) {
     const t = rand(today) * span;
     const boost = (ev && ev.period && periodOf(clockOf(t)) === ev.period ? ev.boost : 1) * townBoost(s, periodOf(clockOf(t))) * ((GENRES[genreOf(s)].period || {})[periodOf(clockOf(t))] || 1);
-    if (rand(today) * 2.4 < rushWeight(clockOf(t)) * boost) arrivals.push(t);
+    const u = rand(today) * 2.4, wgt = rushWeight(clockOf(t)) * boost;
+    const night = rv && rv.period && periodOf(clockOf(t)) === rv.period;
+    if (u < wgt * (night ? nightMul : 1)) arrivals.push(t);
+    else if (night && u < wgt) today.rivalLost += 1;
   }
   arrivals.sort((a, b) => a - b);
   // 常連さん（来る日を決める。嫌なことがあった直後は 来にくい）
@@ -623,6 +727,7 @@ function order(s, today, g) {
     let w = ratio > GUEST.maxPriceRatio ? 0 : d.appeal * Math.exp(-sense * (ratio - 1));
     if (s.signature === id) w *= DECO.signatureAppeal;
     if (seasonTag(s, id) === 'hot') w *= SEASON.hotMul;
+    if (today.rival && today.rival.id === 'copy' && today.rival.dish === id) w *= today.rival.appeal;
     if (g.reg && REGULARS.find((r) => r.id === g.reg).fav === id) w *= 3;
     if ((today.stock[id] || 0) <= 0) { if (w >= GUEST.minWeight) wantedButOut = true; continue; }
     cands.push([id, w]);
@@ -892,8 +997,12 @@ function closeDay(s) {
     soldOutAt: st.soldOutAt, sold: st.sold, usual: st.usual, notes,
     rep: s.rep, repDelta: s.rep - st.repStart, closedOut: st.closedOut,
     profit: st.sales + (today.asks || []).reduce((a, x) => a + (x.pay || 0), 0) - today.prepCost - wage - rent,
+    rival: today.rival ? { id: today.rival.id, lost: today.rivalLost || 0, dodged: today.rival.dodged, name: rivalOf(s).short } : null,
     crew: s.staff.map((x) => ({ name: x.name, role: x.role })), manager: !!(today.branch && s.manager), managerNote: today.branch && s.manager ? s.managerNote : null, stance: today.branch && s.manager ? stanceOf(s) : null,
   };
+  // ライバルとの 勝負：ねらわれた店の その週の 人数を 数える
+  const rw = rivalOf(s) && s.rival.week;
+  if (rw && rw.shop === genreOf(s) && s.day >= rw.start && s.day <= rw.end) { rw.served += st.served; rw.lost += today.rivalLost || 0; }
   // アルバイトは閉店で帰る
   s.lastCrew = report.crew;
   s.staff = [];
@@ -911,9 +1020,11 @@ function closeDay(s) {
   s.asks.list = s.asks.list.filter((a) => a.due > s.day);
   s.lastReport = report;
   s.phase = 'report';
+  if (rivalOf(s) && s.rival.week && s.day >= s.rival.week.end) resolveWeek(s);
   s.day += 1;
   s.ads = 0;
   makeOffer(s);
+  rivalNight(s);
   return report;
 }
 
@@ -941,7 +1052,7 @@ function runBranches(s, weather) {
     swapTo(s, home);
     out.push({ shop: genre, closed: !!r.closed, why: r.why, served: r.served || 0, guests: r.guests || 0, sales: r.sales || 0, profit: r.profit || 0,
       left: r.closed ? 0 : r.left.queue + r.left.wait + r.left.soldOut + r.left.pricey + (r.left.full || 0),
-      managerNote: r.managerNote || null, asks: (r.asks || []).map((x) => ({ ...x, shop: genre })), stories: r.closed ? [] : r.notes.filter((n) => n.story).map((n) => n.text) });
+      managerNote: r.managerNote || null, rival: r.rival || null, asks: (r.asks || []).map((x) => ({ ...x, shop: genre })), stories: r.closed ? [] : r.notes.filter((n) => n.story).map((n) => n.text) });
   }
   return out;
 }

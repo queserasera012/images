@@ -2,9 +2,9 @@
 import * as S from './sim.js';
 import { personSVG, LOOK_COUNT } from './people.js';
 import { stationSVG } from './kitchen-art.js';
-import { exteriorSVG, festivalSVG, townSVG } from './exterior.js';
+import { exteriorSVG, festivalSVG, townSVG, rivalSVG } from './exterior.js';
 import { foodSVG } from './food-art.js';
-import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_LATER, EVENTS, FAST, GUEST, TOWN, MANAGER, ASK, STORIES, STORY_AT, BUILD, FESTIVAL, DECO, STANCES } from './config.js';
+import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_LATER, EVENTS, FAST, GUEST, TOWN, MANAGER, ASK, STORIES, STORY_AT, BUILD, FESTIVAL, DECO, STANCES, RIVAL } from './config.js';
 
 const SAVE_KEY = 'diner.proto.v1';
 const UI_KEY = 'diner.proto.ui.v1';
@@ -293,6 +293,7 @@ function reportPaper(r, { live = false } = {}) {
     rows.push(a.ok ? [`お願い：${a.who}の ${a.what}に ${at}${DISHES[a.dish].name} ${a.n}食を 届けた`, a.pay]
       : [`お願い：${a.who}の ${a.what}に ${at}届けられなかった（${a.why}）`, null]);
   }
+  if (r.rival) rows.push([`${r.rival.name}の ${S.tacticOf(r.rival.id).name}で 客を 取られた ${r.rival.lost}人${r.rival.dodged ? '（かわした）' : ''}`, null]);
   if (r.closedOut) rows.push([`閉店で入れなかった ${r.closedOut}人`, null]);
   if (r.managerNote) rows.push([r.managerNote, null, true]);
   if (!rows.length) rows.push(['大きな出来事は なかった', null, true]);
@@ -330,7 +331,7 @@ function branchLines(r) {
   const rows = r.branches.map((b) => {
     const g = GENRES[b.shop];
     const body = b.closed ? `<span>${b.why || '人がいない'}ので 休み</span><b></b>`
-      : `<span>${b.served}/${b.guests}人・売上 ${yen(b.sales)}${b.left ? `・帰った ${b.left}人` : ''}</span><b class="${b.profit >= 0 ? 'plus' : 'minus'}">${yen(b.profit)}</b>`;
+      : `<span>${b.served}/${b.guests}人・売上 ${yen(b.sales)}${b.left ? `・帰った ${b.left}人` : ''}${b.rival && b.rival.lost ? `・${b.rival.name}に ${b.rival.lost}人` : ''}</span><b class="${b.profit >= 0 ? 'plus' : 'minus'}">${yen(b.profit)}</b>`;
     return `<button class="brow" data-bshop="${b.shop}" data-bday="${r.day}" ${b.closed ? 'disabled' : ''}><em>${g.no}号店 ${g.name}${b.closed ? '' : '<small>（タップで日報）</small>'}</em><div class="row">${body}</div>${b.managerNote ? `<small class="mnote">${b.managerNote}</small>` : ''}</button>`;
   }).join('');
   const total = r.profit + r.branches.reduce((a, b) => a + (b.profit || 0), 0);
@@ -389,6 +390,13 @@ function renderNight() {
   const otherN = shopsAll.length - 1;
   $('notice').insertAdjacentHTML('beforeend', `<button class="shopline" id="shopLine" ${otherN ? '' : 'disabled'}><b>${otherN ? `${GENRES[S.genreOf(s)].no}号店 ` : ''}${GENRES[S.genreOf(s)].name}</b><span>${S.stageOf(s).name}・評判 ${Math.round(s.rep)}</span>${otherN ? `<em>ほか${otherN}店 ›</em>` : ''}</button>`);
   if (otherN) onTap($('shopLine'), () => { tab = 'town'; renderNight(); });
+  // ライバル店：今週 ねらわれている店と 勝負の人数
+  const rv = S.rivalOf(s), rw = rv && s.rival.week;
+  if (rw) {
+    const tc = S.tacticOf(rw.tactic);
+    $('notice').insertAdjacentHTML('beforeend', `<button class="shopline rivalline" id="rivalLine"><b>${tc.icon} ${rv.short}の ${tc.name}</b><span>${GENRES[rw.shop].no}号店で 勝負・${rw.served}/${rw.goal}人・あと${rw.end - s.day + 1}日</span><em>›</em></button>`);
+    onTap($('rivalLine'), () => rivalSheet());
+  }
   // 町の人のお願い：貼り紙の右に。届いたら 光る。受けたものは 件数を見せる
   const ak = s.asks;
   if (ak.offer || ak.list.length) {
@@ -431,6 +439,63 @@ function scrollNightTo(el) {
 }
 const dueText = (d) => (d === s.day ? 'あした' : d === s.day + 1 ? 'あさって' : `${d}日目`);
 const shopShort = (g) => (S.shopsOf(s).length > 1 ? `${GENRES[g].short || GENRES[g].name}・` : '');
+// ---- ライバル店 ----
+const pctOf = (x) => Math.round(x * 100);
+function rivalTacticText(rv, w) {
+  const tc = S.tacticOf(w.tactic), shop = `${GENRES[w.shop].no}号店`;
+  const st = Math.min(0.9, tc.steal * rv.power), low = st * tc.low;
+  const dish = w.dish ? DISHES[w.dish].name : '人気の料理';
+  if (tc.id === 'cheap') return `${shop}の 向かいで 全品 2割引き。店の 値段が 平均で ふつうの ${pctOf(tc.priceLine)}% より 高いと 客を ${pctOf(st)}% 取られる（それより 安ければ ${pctOf(low)}%）`;
+  if (tc.id === 'copy') return `${shop}の ${dish}を まねて 安く出す。${dish}が 頼まれにくくなり、${dish}に 頼っていた分だけ 客が 減る。${dish}を ふつうの ${pctOf(tc.priceLine)}% 以下にするか メニューから外すと 取られにくい`;
+  if (tc.id === 'night') return `${shop}の 向かいで 夜（17時から）だけ 割引き。夜の 客を ${pctOf(st)}% 取られる。あなたが 立つ日は 店主の顔で ${pctOf(low)}% で すむ`;
+  return `テレビで 宣伝。この週は 町じゅうの 全部の店で 客を ${pctOf(st)}% 取られる。評判 ${tc.repGuard} 以上の店は ${pctOf(low)}% で すむ。勝負は ${shop}`;
+}
+function rivalSheet() {
+  const rv = S.rivalOf(s), w = rv && s.rival.week;
+  if (!w) return;
+  const tc = S.tacticOf(w.tactic);
+  const sh = S.shopInfo(s, w.shop);
+  const dodged = S.rivalDodged(sh, { ...tc, dish: w.dish }, w.shop === S.genreOf(s));
+  const p = s.rival.power;
+  const close = overlay(`<h3>${rv.name}</h3><div class="rivalwrap">${rivalSVG(rv.look, p)}</div>
+    <div class="sec">勢い</div><div class="rivalbar"><i style="width:${p}%"></i><span>${p}</span></div>
+    <p class="asknote">0 で 撤退（${yen(rv.prize)}と 全部の店の 評判 +${RIVAL.winRep}）。100 で ねらわれた店の 評判が ${RIVAL.hitRep} 下がる。1週間ごとに 勝つと −${RIVAL.step}、負けると ＋${RIVAL.step}</p>
+    <div class="sec">今週の 手：${tc.icon} ${tc.name}（${w.start}〜${w.end}日目）</div>
+    <div class="card" style="flex-direction:column;align-items:stretch"><small style="font-weight:800;line-height:1.6">${rivalTacticText(rv, w)}</small></div>
+    <div class="sec">勝負：${GENRES[w.shop].no}号店 ${GENRES[w.shop].name}</div>
+    <div class="card" style="flex-direction:column;align-items:stretch"><b style="font:800 18px/1.3 var(--pop)">${w.served} / ${w.goal}人 <small style="font-size:12px;color:var(--ink2)">あと${w.end - s.day + 1}日</small></b>
+      <small style="font-weight:800;color:var(--ink2)">この週に ${w.goal}人（先週の ${pctOf(rv.goalMul)}%）を さばけば 勝ち。これまでに 取られた客 ${w.lost}人</small>
+      <small style="font-weight:800;margin-top:4px;color:${dodged ? 'var(--mint-d)' : 'var(--red-d)'}">あしたの ${GENRES[w.shop].no}号店：${dodged ? 'いまの ままなら 取られにくい' : 'いまの ままだと 取られる'}</small></div>
+    <button class="big go" data-close>とじる</button>`, () => renderNight());
+  void close;
+}
+// 夜の画面を 開いたときの 場面：週の結果 → ライバルが 来た
+function rivalScenes() {
+  if (!s.rival || !$('overlay').hidden) return;
+  const res = s.rival.result;
+  if (res) {
+    S.rivalResultSeen(s); save();
+    const tc = S.tacticOf(res.tactic);
+    const head = res.event === 'retreat' ? `${res.name}が 撤退した！` : res.win ? `${res.name}に 勝った！` : `${res.name}に 負けた…`;
+    const tail = res.event === 'retreat' ? `<br>${yen(res.prize)}と 全部の店の 評判 +${RIVAL.winRep}。${RIVAL.gap}日ほどで 次の店が 来る`
+      : res.event === 'hit' ? `<br>${GENRES[res.shop].no}号店の 客を 取られて 評判が ${RIVAL.hitRep} 下がった` : '';
+    const body = `<div class="celebrate">${head}<small class="cel-sub">${tc.icon} ${tc.name}・${GENRES[res.shop].no}号店で ${res.served} / ${res.goal}人（取られた客 ${res.lost}人）<br>勢い ${res.from} → ${res.to}${tail}</small></div><button class="big go" data-close>つぎへ</button>`;
+    overlay(body, () => { renderNight(); rivalScenes(); });
+    return;
+  }
+  const rv = S.rivalOf(s);
+  if (rv && !s.rival.seen) {
+    S.rivalSeen(s); save();
+    const w = s.rival.week;
+    overlay(`<h3>通りの 向かいに ${rv.name}が 開いた</h3><div class="rivalwrap">${rivalSVG(rv.look, s.rival.power)}</div>
+      <p class="asknote" style="font-size:13px">全国チェーンの 店。<b>1週間ごとに あなたの店を 1つ ねらって</b>、安売り・まねメニュー・夜の割引・テレビの宣伝 の どれかを 打ってくる。</p>
+      <p class="asknote" style="font-size:13px">ねらわれた店が その週に <b>先週の ${pctOf(rv.goalMul)}% の客</b>を さばけば 勝ち。勝てば 勢いが 下がり、0 で 撤退する。負け続けて 100 になると、その店の 評判が 大きく 下がる。</p>
+      ${w ? `<div class="card" style="flex-direction:column;align-items:stretch"><b>${S.tacticOf(w.tactic).icon} 今週は ${GENRES[w.shop].no}号店に ${S.tacticOf(w.tactic).name}</b><small style="font-weight:800;line-height:1.6">${rivalTacticText(rv, w)}</small></div>` : ''}
+      <p class="asknote">いまの 様子は 貼り紙の「${rv.short}の …」を 押すと 見られる</p>
+      <button class="big go" data-close>受けて立つ</button>`, () => renderNight());
+  }
+}
+
 // お願いの紙：届いたお願い（受ける・ことわる）と、受けたお願い
 function askSheet() {
   const render = () => {
@@ -955,7 +1020,7 @@ function show() {
   $('night').hidden = s.phase !== 'night';
   for (const id of ['queue', 'seats', 'tickets', 'kitchen', 'pass']) { const b = $(id); b.innerHTML = ''; b._map = null; }
   if (s.phase === 'report') renderReport();
-  if (s.phase === 'night') { renderNight(); if (s.faceDay && !s.faceSeen) faceScene(); }
+  if (s.phase === 'night') { renderNight(); if (s.faceDay && !s.faceSeen) faceScene(); else rivalScenes(); }
   if (s.phase === 'service') renderService();
   renderTop();
 }

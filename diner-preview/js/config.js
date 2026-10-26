@@ -377,3 +377,28 @@ export const DECO = {
   priceUp: 0.06, // 1段ごとに、ふつうの値段より 6% 高くても ふつうに見える
   signaturePrice: 100000, signatureAppeal: 1.6, signatureMul: 1.05, // 名物が あると 来る人も 5% 増える
 };
+
+// ライバル店（2026-10-27 オーナー「3号店あたりで マンネリ」→ ライバル店を えらんだ）
+// 店が from 店に なった次の夜に 通りの向かいへ チェーン店が出る。1週間（week 日）ごとに あなたの店を1つ ねらって 手を打つ。
+// ねらわれた店が その週に さばいた人数が「先週の人数 × goalMul」に 届けば 勝ち（客を 守りきった）。勝つと 勢いが step 下がり、負けると 上がる。
+// 勢い 0 で 撤退（prize と 全部の店に 評判 +winRep）。gap 日あとに 次の ライバルが来る（list の順。強くなる）。
+// 勢い 100 で ねらわれた店の 評判が hitRep 下がり、勢いは afterHit に 戻る。
+export const RIVAL = {
+  from: 3, week: 7, start: 50, step: 25, afterHit: 75, hitRep: 20, winRep: 5, gap: 14, minGoal: 40,
+  list: [
+    { id: 'granmo', name: 'ファミリーキッチン グランモ', short: 'グランモ', goalMul: 0.9, power: 1.0, prize: 100000, look: { roof: '#3a6fd8', sign: 'GRANMO', signFill: '#fff', signText: '#3a6fd8' } },
+    { id: 'quick', name: 'クイックダイナー QD', short: 'QD', goalMul: 0.95, power: 1.15, prize: 200000, look: { roof: '#e04a2a', sign: 'QD', signFill: '#ffd23f', signText: '#e04a2a' } },
+    { id: 'royal', name: 'ロイヤルテーブル', short: 'ロイヤル', goalMul: 1.0, power: 1.3, prize: 300000, look: { roof: '#2a2350', sign: 'ROYAL', signFill: '#d4af37', signText: '#2a2350' } },
+  ],
+  // 手：steal は 取られる客の割合（power を 掛ける）。かわせたときは steal × low
+  //   cheap：店の値段が 平均で ふつうの priceLine 倍以下なら かわせる
+  //   copy：先週 いちばん売れた料理を まねる。その料理を ふつうの priceLine 倍以下にするか メニューから外すと かわせる
+  //   night：夜（17時から）の 客を 取る。あなたが その店に 立てば かわせる（店主の顔で 夜の客が 離れない）
+  //   ad：町じゅうの 全部の店で 取る。評判 repGuard 以上の店は かわせる（店長の 評判重視なら 届く）
+  tactics: [
+    { id: 'cheap', name: '安売り', icon: '🏷️', steal: 0.3, priceLine: 0.95, low: 0.25 },
+    { id: 'copy', name: 'まねメニュー', icon: '📋', steal: 0.3, priceLine: 0.9, appeal: 0.4, low: 0.25 },
+    { id: 'night', name: '夜の割引', icon: '🌙', steal: 0.85, period: 'dinner', low: 0.2 },
+    { id: 'ad', name: 'テレビの宣伝', icon: '📺', steal: 0.25, repGuard: 85, low: 0.2, all: true },
+  ],
+};

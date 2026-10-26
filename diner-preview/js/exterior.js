@@ -304,3 +304,24 @@ export function townSVG(slots, nbs, built) {
     ${hasBuilt ? `<path d="M0 ${NB + 58} H360" stroke="#d1bf9f" stroke-width="2"/>` : ''}${builtRow}
   </svg>`;
 }
+
+// ライバル店（通りの向かいの チェーン店）
+export function rivalSVG(lk, power = 50) {
+  const id = `rv${uid++}`;
+  const flag = power >= 75 ? '#ff4f5e' : power <= 25 ? '#2fd39e' : '#ffd23f';
+  return `<svg viewBox="0 0 160 120" class="rivalart" role="img" aria-label="ライバル店">
+    <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5ccdf2"/><stop offset="1" stop-color="#d6f3ff"/></linearGradient></defs>
+    <rect width="160" height="120" fill="url(#${id})"/>
+    <rect x="0" y="100" width="160" height="20" fill="#cfc7b8" ${W}/>
+    <rect x="18" y="26" width="124" height="76" fill="#eef1f7" ${W}/>
+    <path d="M10 30 L22 12 H138 L150 30Z" fill="${lk.roof}" ${W}/>
+    <rect x="40" y="2" width="80" height="20" rx="5" fill="${lk.signFill}" ${W}/>
+    <text x="80" y="16.5" text-anchor="middle" font-size="12" font-weight="800" fill="${lk.signText}" font-family="${F}" letter-spacing="1">${lk.sign}</text>
+    ${stripes(20, 34, 120, 10, lk.roof, '#ffffff')}
+    <rect x="28" y="54" width="46" height="30" rx="3" fill="#bfe9ff" ${W}/><rect x="86" y="54" width="46" height="46" fill="#bfe9ff" ${W}/>
+    <path d="M109 54 V100" stroke="${L}" stroke-width="2"/>
+    <rect x="26" y="86" width="52" height="12" rx="3" fill="${flag}" ${W}/>
+    <text x="52" y="95" text-anchor="middle" font-size="7" font-weight="800" fill="${L}" font-family="${F}">全国チェーン</text>
+    ${person(36, 58, 18, 6, {}, 'idle')}${person(52, 58, 18, 9, {}, 'idle')}
+  </svg>`;
+}
