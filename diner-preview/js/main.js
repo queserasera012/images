@@ -746,7 +746,7 @@ function doNight(what, arg) {
         ui.pick = []; ui.townSel = null;
         const h = r.home;
         const line = h.open ? `${GENRES[h.genre].no}号店は ${h.crew.length > 3 ? `${h.crew.slice(0, 2).map((n) => `${n}さん`).join('・')}ほか ${h.crew.length}人` : h.crew.map((n) => `${n}さん`).join('・')}で 回る` : `${GENRES[h.genre].no}号店は 仕込み係と ホール係を 呼ばないと 休みになる（店の札の「バイトを呼ぶ」から）`;
-        celebrate(`${r.name}を 出した！\n<small class="cel-sub">あしたは 2号店に立つ。<br>${line}</small>`);
+        celebrate(`${r.name}を 出した！\n<small class="cel-sub">あしたは ${GENRES[S.genreOf(s)].no}号店に立つ。<br>${line}</small>`);
       }
       break;
     }
