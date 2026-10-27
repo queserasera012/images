@@ -801,9 +801,17 @@ export function tapStation(s, stationId) {
   if (job.step + 1 < steps.length) {
     const type = steps[job.step + 1][0];
     const sid = freeStation(s, today, type);
-    if (!sid) return { ok: false, why: `${STATIONS[type].name}が ふさがっている` };
+    if (!sid) {
+      // 次の台が こちらの台を待つ料理で ふさがっていたら、入れかえる（コンロ ⇄ 揚げ場で 待ち合って止まらない）
+      const other = swapPartner(s, today, job);
+      if (!other) return { ok: false, why: `${STATIONS[type].name}が ふさがっている` };
+      const osid = other.station;
+      advance(today, other, stationId);
+      advance(today, job, osid);
+      return { ok: true, swap: true };
+    }
     today.slots[stationId] = null;
-    job.step += 1; job.state = 'cook'; job.station = sid; job.prog = 0; today.slots[sid] = job.id;
+    advance(today, job, sid);
   } else {
     const onPass = today.jobs.filter((j) => j.state === 'pass').length;
     if (onPass >= stageOf(s).pass) return { ok: false, why: '受け渡し台が いっぱい' };
@@ -812,6 +820,28 @@ export function tapStation(s, stationId) {
   }
   return { ok: true };
 }
+function advance(today, job, sid) {
+  job.step += 1; job.state = 'cook'; job.station = sid; job.prog = 0; today.slots[sid] = job.id;
+}
+// できあがって 次の台を待つ料理のうち、次の台に いて こちらの台の種類を待っているもの
+function swapPartner(s, today, job) {
+  const here = s.stations.find((x) => x.id === job.station);
+  const type = DISHES[job.dish].steps[job.step + 1][0];
+  for (const st of s.stations) {
+    if (st.type !== type) continue;
+    const o = today.jobs.find((j) => j.id === today.slots[st.id]);
+    if (!o || o.state !== 'ready') continue;
+    const os = DISHES[o.dish].steps;
+    if (o.step + 1 < os.length && os[o.step + 1][0] === here.type) return o;
+  }
+  return null;
+}
+// 次の台へ動けるか（空いている・入れかえられる）
+function canMove(s, today, j) {
+  const steps = DISHES[j.dish].steps;
+  return j.step + 1 < steps.length && (!!freeStation(s, today, steps[j.step + 1][0]) || !!swapPartner(s, today, j));
+}
+
 // 受け渡し台の料理をタップ → お客さんへ
 export function tapPass(s, jobId, byStaff = false) {
   const today = s.today;
@@ -890,8 +920,7 @@ export function tick(s, dt) {
   // できあがった料理は、次の台が空いていれば ひとりでに移る（最後の工程だけ 人が台へ出す）
   for (const j of [...today.jobs]) {
     if (j.state !== 'ready' || t - j.readyAt < STAFF.autoNext) continue;
-    const steps = DISHES[j.dish].steps;
-    if (j.step + 1 < steps.length && freeStation(s, today, steps[j.step + 1][0])) tapStation(s, j.station);
+    if (j.state === 'ready' && canMove(s, today, j)) tapStation(s, j.station);
   }
   // スタッフが受け持つ
   for (const j of [...today.jobs]) {
