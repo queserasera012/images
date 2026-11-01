@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>しんめ工房 | Shinme Kobo</title>
+<meta name="description" content="しんめ工房のアプリとLINEスタンプ。まなびクエスト・モコのからくり工房・Tiny Island Life・Bounce Pets・アルクエスト。">
+<meta property="og:title" content="しんめ工房 | Shinme Kobo">
+<meta property="og:description" content="家族のそばで作っている、小さなアプリとLINEスタンプ。">
+<meta property="og:type" content="website">
+<meta name="robots" content="noindex">
+<link rel="icon" href="img/karakuri-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fbf6ec; --paper:#fffdf8; --ink:#3a2f26; --sub:#7a6a5c; --line:#eadfcd;
+  --accent:#e8743b; --accent-ink:#fff; --chip:#f3e9d8; --shadow:0 2px 0 #eadfcd, 0 10px 24px -14px rgba(90,60,30,.35);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1f1b17; --paper:#2a251f; --ink:#f3ebe0; --sub:#b9a996; --line:#3d352c;
+    --accent:#f08a4f; --chip:#3a3229; --shadow:0 2px 0 #14110e, 0 10px 24px -14px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1f1b17; --paper:#2a251f; --ink:#f3ebe0; --sub:#b9a996; --line:#3d352c;
+  --accent:#f08a4f; --chip:#3a3229; --shadow:0 2px 0 #14110e, 0 10px 24px -14px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Zen Maru Gothic",system-ui,-apple-system,"Hiragino Maru Gothic ProN",sans-serif;font-weight:500;line-height:1.75}
+a{color:inherit}
+img{display:block;max-width:100%}
+.wrap{max-width:960px;margin:0 auto;padding:0 16px}
+
+/* 上の帯 */
+.bar{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.bar .wrap{display:flex;align-items:center;gap:12px;height:56px}
+.logo{font-weight:900;font-size:18px;text-decoration:none;display:flex;align-items:center;gap:8px}
+.logo i{width:26px;height:26px;border-radius:8px;background:var(--accent);display:grid;place-items:center;color:#fff;font-style:normal;font-size:14px}
+.nav{margin-left:auto;display:flex;gap:4px;align-items:center}
+.nav a{font-size:14px;text-decoration:none;padding:6px 10px;border-radius:999px;color:var(--sub)}
+.nav a:hover{background:var(--chip);color:var(--ink)}
+.lang{display:flex;border:1.5px solid var(--line);border-radius:999px;overflow:hidden;margin-left:4px}
+.lang button{font:inherit;font-size:13px;font-weight:700;border:0;background:none;color:var(--sub);padding:4px 10px;cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+@media (max-width:560px){.nav a{display:none}}
+
+/* はじめ */
+.hero{padding-block:56px 32px;text-align:center}
+.hero h1{font-size:clamp(34px,8vw,56px);font-weight:900;margin:0;letter-spacing:.04em;line-height:1.2}
+.hero h1 small{display:block;font-size:14px;letter-spacing:.3em;color:var(--sub);font-weight:700;margin-top:6px}
+.hero p{max-width:34em;margin:20px auto 0;color:var(--sub);font-size:16px}
+.icons{display:flex;justify-content:center;gap:10px;margin-top:28px;flex-wrap:wrap}
+.icons a{width:58px;height:58px;border-radius:15px;overflow:hidden;box-shadow:var(--shadow);transition:transform .15s}
+.icons a:hover{transform:translateY(-3px) rotate(-2deg)}
+
+/* 見出し */
+.sec{padding-block:40px 8px}
+.sec h2{font-size:24px;font-weight:900;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+.sec h2::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.sec .lead{color:var(--sub);margin:0 0 20px;font-size:15px}
+
+/* アプリの札 */
+.app{background:var(--paper);border:1px solid var(--line);border-radius:24px;padding:20px;margin-bottom:20px;box-shadow:var(--shadow);--c:var(--accent)}
+.app-head{display:flex;gap:16px;align-items:flex-start}
+.app-head img{width:76px;height:76px;border-radius:18px;flex:none;box-shadow:0 1px 0 var(--line)}
+.app-head h3{margin:0;font-size:21px;font-weight:900;line-height:1.35}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.tag{font-size:12px;font-weight:700;padding:2px 10px;border-radius:999px;background:var(--chip);color:var(--sub)}
+.tag.hot{background:var(--c);color:#fff}
+.app .desc{margin:14px 0 0;font-size:15px}
+.points{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:4px;font-size:14px;color:var(--sub)}
+.points li::before{content:"●";color:var(--c);font-size:10px;margin-right:8px;vertical-align:2px}
+.shots{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;margin:16px -20px 0;padding:4px 20px 10px;scrollbar-width:thin}
+.shots>*{flex:none;width:150px;scroll-snap-align:start;border-radius:14px;overflow:hidden;background:var(--chip);border:1px solid var(--line)}
+.shots img{width:150px;height:auto;aspect-ratio:480/1042;object-fit:cover}
+.shots video{width:150px;height:auto;aspect-ratio:480/1042;object-fit:cover;display:block;background:#000}
+.shots .vid{position:relative}
+.shots .vid span{position:absolute;left:8px;top:8px;font-size:11px;font-weight:700;background:rgba(0,0,0,.6);color:#fff;border-radius:999px;padding:1px 8px;pointer-events:none}
+@media (min-width:720px){.shots>*,.shots img,.shots video{width:180px}}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-weight:700;font-size:14px;padding:10px 18px;border-radius:999px;background:var(--ink);color:var(--bg);border:0}
+.btn svg{width:16px;height:16px;fill:currentColor}
+.btn.ghost{background:none;color:var(--ink);border:1.5px solid var(--line)}
+.btn.soon{background:var(--chip);color:var(--sub);cursor:default}
+.note{font-size:12px;color:var(--sub)}
+
+/* スタンプ */
+.stickers{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.st{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:12px;text-decoration:none;display:flex;flex-direction:column;gap:8px;box-shadow:var(--shadow);transition:transform .15s}
+.st:hover{transform:translateY(-3px)}
+.st img{width:100%;height:auto;aspect-ratio:1;object-fit:contain;background:#fff8ee;border-radius:12px;padding:6px}
+.st b{font-size:13px;line-height:1.45;font-weight:700}
+.st .new{font-size:11px;font-weight:900;color:#fff;background:var(--accent);border-radius:999px;padding:0 8px;align-self:flex-start}
+
+/* つながる */
+.follow{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:16px 18px;text-decoration:none;display:flex;gap:14px;align-items:center;box-shadow:var(--shadow)}
+.card .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--ink);color:var(--bg);flex:none}
+.card .ic svg{width:22px;height:22px;fill:currentColor}
+.card b{display:block;font-size:16px}
+.card span{font-size:13px;color:var(--sub)}
+
+footer{padding-block:48px 40px;color:var(--sub);font-size:12px;text-align:center}
+footer .links{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:center;margin-bottom:10px}
+
+[data-en]{display:none}
+html[lang="en"] [data-ja]{display:none}
+html[lang="en"] [data-en]{display:revert}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap">
+    <a class="logo" href="#top"><i>し</i><span data-ja>しんめ工房</span><span data-en>Shinme Kobo</span></a>
+    <nav class="nav">
+      <a href="#apps"><span data-ja>アプリ</span><span data-en>Apps</span></a>
+      <a href="#stickers"><span data-ja>スタンプ</span><span data-en>Stickers</span></a>
+      <a href="#follow"><span data-ja>発信</span><span data-en>Follow</span></a>
+      <div class="lang" role="group" aria-label="Language">
+        <button type="button" data-lang="ja">日本語</button>
+        <button type="button" data-lang="en">EN</button>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+<section class="hero wrap">
+  <h1><span data-ja>しんめ工房</span><span data-en>Shinme Kobo</span><small>SHINME KOBO</small></h1>
+  <p data-ja>家族のそばで、小さなアプリと LINE スタンプを作っています。<br>子どもと いっしょに遊べるものから、大人が ひと息つけるゲームまで。</p>
+  <p data-en>A tiny studio in Japan making small apps and LINE stickers —<br>from learning games for kids to cozy games for grown-ups.</p>
+  <div class="icons">
+    <a href="#manabi" aria-label="まなびクエスト"><img src="img/manabi-icon.png" alt="" width="64" height="64"></a>
+    <a href="#karakuri" aria-label="モコのからくり工房"><img src="img/karakuri-icon.png" alt="" width="64" height="64"></a>
+    <a href="#tiny" aria-label="Tiny Island Life"><img src="img/tiny-icon.png" alt="" width="64" height="64"></a>
+    <a href="#bounce" aria-label="Bounce Pets"><img src="img/bounce-icon.png" alt="" width="64" height="64"></a>
+    <a href="#aruquest" aria-label="アルクエスト"><img src="img/aruquest-icon.png" alt="" width="64" height="64"></a>
+  </div>
+</section>
+
+<section class="sec wrap" id="apps">
+  <h2><span data-ja>こどもと遊ぶアプリ</span><span data-en>Apps for kids</span></h2>
+  <p class="lead" data-ja>ようちえん〜小学生向け。広告なし・データの収集なし。</p>
+  <p class="lead" data-en>For ages about 4–12. No ads, no data collected.</p>
+
+  <article class="app" id="manabi" style="--c:#3e9a5b">
+    <div class="app-head">
+      <img src="img/manabi-icon.png" alt="" width="76" height="76">
+      <div>
+        <h3>まなびクエスト</h3>
+        <div class="tags"><span class="tag hot">iPhone / iPad</span><span class="tag" data-ja>ようちえん〜小6</span><span class="tag" data-en>K – Grade 6</span><span class="tag" data-en>Japanese only</span></div>
+      </div>
+    </div>
+    <p class="desc" data-ja>ひらがな・かず・漢字・算数・英語・理科など 9つの教科を、まいにち5分の「ぼうけん」に。最初の問題で実力をたしかめて、その子にちょうどいいレベルから始まります。</p>
+    <p class="desc" data-en>Nine subjects — hiragana, numbers, kanji, math, English, science and more — turned into a 5-minute daily quest. It starts at the level that fits your child. (Japanese language)</p>
+    <div class="shots">
+      <img loading="lazy" src="img/manabi-ja-1.jpg" alt="" width="480" height="1042"><img loading="lazy" src="img/manabi-ja-2.jpg" alt="" width="480" height="1042"><img loading="lazy" src="img/manabi-ja-3.jpg" alt="" width="480" height="1042"><img loading="lazy" src="img/manabi-ja-4.jpg" alt="" width="480" height="1042">
+    </div>
+    <div class="actions">
+      <a class="btn" href="https://apps.apple.com/jp/app/id6820847242"><svg viewBox="0 0 24 24"><path d="M16.4 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9 0 0-2.7-1-2.7-4.1zM13.9 5c.7-.9 1.2-2 1-3.2-1 0-2.3.7-3 1.6-.7.8-1.2 2-1.1 3.1 1.2.1 2.3-.6 3.1-1.5z"/></svg><span data-ja>App Store で見る</span><span data-en>App Store (Japan)</span></a>
+    </div>
+  </article>
+
+  <article class="app" id="karakuri" style="--c:#e8743b">
+    <div class="app-head">
+      <img src="img/karakuri-icon.png" alt="" width="76" height="76">
+      <div>
+        <h3><span data-ja>モコのからくり工房</span><span data-en>Moco's Workshop: Coding Puzzle</span></h3>
+        <div class="tags"><span class="tag hot">iPhone / iPad</span><span class="tag" data-ja>プログラミングの入口</span><span class="tag" data-en>First steps in coding</span><span class="tag" data-ja>日本語 / English</span><span class="tag" data-en>English / 日本語</span></div>
+      </div>
+    </div>
+    <p class="desc" data-ja>やじるしのブロックをならべて、ロボットの「モコ」をたからばこまで運ぶパズル。「くりかえし」「もし」「わざ」を、ことばを覚えなくても手で覚えられます。全64面、はじめの12面は無料。</p>
+    <p class="desc" data-en>Line up arrow blocks to guide Moco the robot to the treasure chest. Kids pick up loops, conditions and functions with their hands, no jargon needed. 64 stages — the first 12 are free.</p>
+    <div class="shots">
+      <img loading="lazy" src="img/karakuri-ja-1.jpg" data-src-en="img/karakuri-en-1.jpg" alt="" width="480" height="1042"><img loading="lazy" src="img/karakuri-ja-2.jpg" data-src-en="img/karakuri-en-2.jpg" alt="" width="480" height="1042"><img loading="lazy" src="img/karakuri-ja-3.jpg" data-src-en="img/karakuri-en-3.jpg" alt="" width="480" height="1042"><img loading="lazy" src="img/karakuri-ja-4.jpg" data-src-en="img/karakuri-en-4.jpg" alt="" width="480" height="1042">
+    </div>
+    <div class="actions">
+      <a class="btn" href="https://apps.apple.com/jp/app/id6812403692" data-href-en="https://apps.apple.com/us/app/id6812403692"><svg viewBox="0 0 24 24"><use href="#apple"/></svg><span data-ja>App Store で見る</span><span data-en>View on the App Store</span></a>
+    </div>
+  </article>
+</section>
+
+<section class="sec wrap">
+  <h2><span data-ja>だれでも遊べるゲーム</span><span data-en>Games for everyone</span></h2>
+  <p class="lead" data-ja>すきま時間に、のんびり。</p>
+  <p class="lead" data-en>Cozy games for a few spare minutes.</p>
+
+  <article class="app" id="tiny" style="--c:#4a8fb8">
+    <div class="app-head">
+      <img src="img/tiny-icon.png" alt="" width="76" height="76">
+      <div>
+        <h3>Tiny Island Life<span data-ja style="display:block;font-size:14px;color:var(--sub);font-weight:700">小さな島の暮らし</span></h3>
+        <div class="tags"><span class="tag hot">iPhone / iPad</span><span class="tag" data-ja>ながめるシミュレーション</span><span class="tag" data-en>Cozy life sim</span><span class="tag" data-ja>日本語 / English</span><span class="tag" data-en>English / 日本語</span></div>
+      </div>
+    </div>
+    <p class="desc" data-ja>小さな島で、住民たちの暮らしを眺めるゲーム。朝はコーヒーを買って出勤、昼はカフェでランチ、夕方は公園でひと休み。行列ができたら、どこに何を建てるかを島の上で考えます。答えは画面に出ません。</p>
+    <p class="desc" data-en>Watch the residents of a tiny island live their days — coffee before work, lunch at the café, a rest in the park. When a line forms, it's up to you to figure out where to build next. The game never tells you the answer.</p>
+    <div class="shots">
+      <div class="vid"><video src="https://queserasera012.github.io/images/marketing/tiny/tiny-short-jimakunashi.mp4" poster="https://queserasera012.github.io/images/marketing/tiny/cover.jpg" muted loop playsinline preload="none" controls></video><span data-ja>動画</span><span data-en>Video</span></div>
+      <img loading="lazy" src="img/tiny-ja-1.jpg" data-src-en="img/tiny-en-1.jpg" alt="" width="480" height="1042"><img loading="lazy" src="img/tiny-ja-2.jpg" data-src-en="img/tiny-en-2.jpg" alt="" width="480" height="1042"><img loading="lazy" src="img/tiny-ja-3.jpg" data-src-en="img/tiny-en-3.jpg" alt="" width="480" height="1042"><img loading="lazy" src="img/tiny-ja-4.jpg" data-src-en="img/tiny-en-4.jpg" alt="" width="480" height="1042">
+    </div>
+    <div class="actions">
+      <a class="btn" href="https://apps.apple.com/jp/app/id6816120839" data-href-en="https://apps.apple.com/us/app/id6816120839"><svg viewBox="0 0 24 24"><use href="#apple"/></svg><span data-ja>App Store で見る</span><span data-en>View on the App Store</span></a>
+    </div>
+  </article>
+
+  <article class="app" id="bounce" style="--c:#d9558a">
+    <div class="app-head">
+      <img src="img/bounce-icon.png" alt="" width="76" height="76">
+      <div>
+        <h3>Bounce Pets<span data-ja style="display:block;font-size:14px;color:var(--sub);font-weight:700">ペットとブロック崩し</span><span data-en style="display:block;font-size:14px;color:var(--sub);font-weight:700">Brick Breaker</span></h3>
+        <div class="tags"><span class="tag hot">iPhone / iPad</span><span class="tag" data-ja>ブロック崩し × ペット集め</span><span class="tag" data-en>Brick breaker × pet collecting</span><span class="tag" data-ja>日本語 / English</span><span class="tag" data-en>English / 日本語</span></div>
+      </div>
+    </div>
+    <p class="desc" data-ja>ボールを打ち返して、ブロックをこわして、落ちてくるたまごをキャッチ。かえったペットは それぞれ力を持っていて、いっしょに遊ぶほど育ちます。20ひきのペット、100ステージ。</p>
+    <p class="desc" data-en>Bounce the ball, break the bricks, and catch the eggs that fall. Every pet you hatch has its own power and levels up as you play together. 20 pets, 100 stages.</p>
+    <div class="shots">
+      <div class="vid"><video src="https://queserasera012.github.io/images/marketing/bounce/bp-ja-nocap.mp4" data-src-en="https://queserasera012.github.io/images/marketing/bounce/bp-en-nocap.mp4" poster="https://queserasera012.github.io/images/marketing/bounce/cover.jpg" muted loop playsinline preload="none" controls></video><span data-ja>動画</span><span data-en>Video</span></div>
+      <img loading="lazy" src="img/bounce-ja-1.jpg" data-src-en="img/bounce-en-1.jpg" alt="" width="480" height="1042"><img loading="lazy" src="img/bounce-ja-2.jpg" data-src-en="img/bounce-en-2.jpg" alt="" width="480" height="1042"><img loading="lazy" src="img/bounce-ja-3.jpg" data-src-en="img/bounce-en-3.jpg" alt="" width="480" height="1042"><img loading="lazy" src="img/bounce-ja-4.jpg" data-src-en="img/bounce-en-4.jpg" alt="" width="480" height="1042">
+    </div>
+    <div class="actions">
+      <a class="btn" href="https://apps.apple.com/jp/app/id6813130324" data-href-en="https://apps.apple.com/us/app/id6813130324"><svg viewBox="0 0 24 24"><use href="#apple"/></svg><span data-ja>App Store で見る</span><span data-en>View on the App Store</span></a>
+      <a class="btn ghost" href="https://www.roblox.com/games/136872833400954/Bounce-Pets-Brick-Breaker"><span data-ja>Roblox 版で遊ぶ</span><span data-en>Play on Roblox</span></a>
+    </div>
+  </article>
+
+  <article class="app" id="aruquest" style="--c:#7a5bc4">
+    <div class="app-head">
+      <img src="img/aruquest-icon.png" alt="" width="76" height="76">
+      <div>
+        <h3><span data-ja>アルクエスト</span><span data-en>AruQuest</span></h3>
+        <div class="tags"><span class="tag hot" data-ja>まもなく公開</span><span class="tag hot" data-en>Coming soon</span><span class="tag">iPhone</span><span class="tag" data-ja>歩いて育てるRPG</span><span class="tag" data-en>Walking RPG</span></div>
+      </div>
+    </div>
+    <p class="desc" data-ja>歩いた分だけ仲間が育つ、完全オートのRPG。今日の歩数で連続記録、これまでの歩数で旅が進みます。戦いは見守るだけ。決めるのは出発前の編成です。</p>
+    <p class="desc" data-en>An auto-battle RPG where your party grows with every step you take. Today's steps keep your streak; your lifetime steps carry the journey forward. You set the party, then just watch the battle.</p>
+    <div class="shots">
+      <img loading="lazy" src="img/aruquest-ja-1.jpg" data-src-en="img/aruquest-en-1.jpg" alt="" width="480" height="1042"><img loading="lazy" src="img/aruquest-ja-2.jpg" data-src-en="img/aruquest-en-2.jpg" alt="" width="480" height="1042"><img loading="lazy" src="img/aruquest-ja-3.jpg" data-src-en="img/aruquest-en-3.jpg" alt="" width="480" height="1042"><img loading="lazy" src="img/aruquest-ja-4.jpg" data-src-en="img/aruquest-en-4.jpg" alt="" width="480" height="1042">
+    </div>
+    <div class="actions">
+      <span class="btn soon"><span data-ja>App Store 審査中</span><span data-en>In App Store review</span></span>
+    </div>
+  </article>
+</section>
+
+<section class="sec wrap" id="stickers">
+  <h2><span data-ja>LINE スタンプ</span><span data-en>LINE Stickers</span></h2>
+  <p class="lead" data-ja>コーイケルホンディエ、ダックスフンド、ヨーキー、ゴールデン。犬のスタンプを作っています。</p>
+  <p class="lead" data-en>Dog stickers — Kooikerhondje, Dachshund, Yorkie and Golden Retriever.</p>
+  <div class="stickers" id="stickerGrid"></div>
+  <div class="actions" style="margin-top:16px">
+    <a class="btn ghost" href="https://store.line.me/stickershop/author/6578300/ja" data-href-en="https://store.line.me/stickershop/author/6578300/en"><span data-ja>LINE STORE ですべて見る</span><span data-en>See all on LINE STORE</span></a>
+  </div>
+</section>
+
+<section class="sec wrap" id="follow">
+  <h2><span data-ja>発信</span><span data-en>Follow</span></h2>
+  <p class="lead" data-ja>作っている途中のことや、うまくいかなかったことも書いています。</p>
+  <p class="lead" data-en>Notes on making things — including what didn't work.</p>
+  <div class="follow">
+    <a class="card" href="https://x.com/queserasera_012"><span class="ic"><svg viewBox="0 0 24 24"><path d="M17.8 3h3.1l-6.8 7.7 8 10.3h-6.2l-4.9-6.3L5.4 21H2.3l7.2-8.3L1.8 3h6.4l4.4 5.8L17.8 3zm-1.1 16.2h1.7L7.3 4.7H5.5l11.2 14.5z"/></svg></span><div><b>X</b><span>@queserasera_012</span></div></a>
+    <a class="card" href="https://note.com/queserasera_012"><span class="ic" style="font-weight:900;font-size:18px">n</span><div><b>note</b><span data-ja>しんめ工房、できるまで ほか</span><span data-en>Dev stories (Japanese)</span></div></a>
+  </div>
+</section>
+</main>
+
+<footer class="wrap">
+  <div class="links">
+    <a href="https://queserasera012.github.io/images/manabi/privacy.html"><span data-ja>まなびクエスト</span><span data-en>Manabi Quest</span> Privacy</a>
+    <a href="https://queserasera012.github.io/images/karakuri/privacy.html"><span data-ja>からくり工房</span><span data-en>Moco's Workshop</span> Privacy</a>
+    <a href="https://queserasera012.github.io/images/tiny-island-life/privacy.html">Tiny Island Life Privacy</a>
+    <a href="https://queserasera012.github.io/images/bounce-pets/privacy.html">Bounce Pets Privacy</a>
+    <a href="https://queserasera012.github.io/images/aruquest/privacy.html"><span data-ja>アルクエスト</span><span data-en>AruQuest</span> Privacy</a>
+  </div>
+  © 2026 Shinme Kobo
+</footer>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="apple" viewBox="0 0 24 24"><path d="M16.4 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9 0 0-2.7-1-2.7-4.1zM13.9 5c.7-.9 1.2-2 1-3.2-1 0-2.3.7-3 1.6-.7.8-1.2 2-1.1 3.1 1.2.1 2.3-.6 3.1-1.5z"/></symbol></svg>
+
+<script>
+// スタンプ（新しい順）。商品IDは LINE STORE の URL の数字
+const STICKERS = [
+  [37143415, 10, 'おしゃれコーイケル♡あったか水彩', 'Chic Kooiker - Cozy Winter', true],
+  [36675558, 9, 'ゴールデンレトリバー♡ふんわり文字なし', 'Golden Retriever - Soft, No Text'],
+  [36620724, 8, 'ヨークシャーテリア♡ふんわり文字なし', 'Yorkshire Terrier - 24 Stickers'],
+  [36615633, 7, 'ダックスフンド♡ふんわりカラー24個', 'Warm Dachshund - 24 Color'],
+  [36580026, 6, 'くっきり線のコーイケルホンディエ24個', 'Bold Kooikerhondje - 24 Stickers'],
+  [36578043, 5, 'ダックスフンド♡シンプル線画24個', 'Simple Dachshund - 24 Line'],
+  [36562457, 4, 'おしゃれコーイケル♡やわらか水彩', 'Chic Kooiker - 24 Watercolor'],
+  [36418465, 3, 'よく笑う♡うごくコーイケル(文字なし)', 'Smiley Kooiker - Animated'],
+  [36249713, 2, 'レトロかわいい♡ドット絵コーイケル', 'Retro Pixel Kooiker - Animated'],
+  [36176031, 1, 'まるっとコーイケル♡毎日のあいさつ', 'Kooiker Dog - Japanese Greetings'],
+];
+const grid = document.getElementById('stickerGrid');
+grid.innerHTML = STICKERS.map(([id, n, ja, en, isNew]) =>
+  `<a class="st" href="https://store.line.me/stickershop/product/${id}/ja" data-href-en="https://store.line.me/stickershop/product/${id}/en">
+     <img loading="lazy" src="img/st-${n}.png" alt="" width="240" height="240">
+     ${isNew ? '<span class="new">NEW</span>' : ''}
+     <b><span data-ja>${ja}</span><span data-en>${en}</span></b>
+   </a>`).join('');
+
+// ことばの切りかえ（端末の言語で始め、押したら覚える）
+function setLang(lang) {
+  document.documentElement.lang = lang;
+  document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  document.querySelectorAll('[data-href-en]').forEach(a => {
+    if (!a.dataset.hrefJa) a.dataset.hrefJa = a.getAttribute('href');
+    a.setAttribute('href', lang === 'en' ? a.dataset.hrefEn : a.dataset.hrefJa);
+  });
+  document.querySelectorAll('[data-src-en]').forEach(el => {
+    if (!el.dataset.srcJa) el.dataset.srcJa = el.getAttribute('src');
+    const next = lang === 'en' ? el.dataset.srcEn : el.dataset.srcJa;
+    if (el.getAttribute('src') !== next) el.setAttribute('src', next);
+  });
+  try { localStorage.setItem('shinme.lang', lang); } catch (e) {}
+}
+let saved = null;
+try { saved = localStorage.getItem('shinme.lang'); } catch (e) {}
+const q = new URLSearchParams(location.search).get('lang');
+setLang(q || saved || ((navigator.language || 'ja').startsWith('ja') ? 'ja' : 'en'));
+document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+</script>
+</body>
+</html>
