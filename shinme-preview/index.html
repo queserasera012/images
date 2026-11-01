@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>しんめ工房 | Shinme Kobo</title>
-<meta name="description" content="しんめ工房のアプリとLINEスタンプ。まなびクエスト・モコのからくり工房・Tiny Island Life・Bounce Pets・アルクエスト。">
-<meta property="og:title" content="しんめ工房 | Shinme Kobo">
+<title>queserasera（ケセラセラ）</title>
+<meta name="description" content="queserasera（ケセラセラ）のアプリとLINEスタンプ。まなびクエスト・モコのからくり工房・Tiny Island Life・Bounce Pets・アルクエスト。">
+<meta property="og:title" content="queserasera（ケセラセラ）">
 <meta property="og:description" content="家族のそばで作っている、小さなアプリとLINEスタンプ。">
 <meta property="og:type" content="website">
 <meta name="robots" content="noindex">
@@ -116,7 +116,7 @@ html[lang="en"] [data-en]{display:revert}
 
 <header class="bar">
   <div class="wrap">
-    <a class="logo" href="#top"><i>し</i><span data-ja>しんめ工房</span><span data-en>Shinme Kobo</span></a>
+    <a class="logo" href="#top"><i>q</i><span>queserasera</span></a>
     <nav class="nav">
       <a href="#apps"><span data-ja>アプリ</span><span data-en>Apps</span></a>
       <a href="#stickers"><span data-ja>スタンプ</span><span data-en>Stickers</span></a>
@@ -131,9 +131,9 @@ html[lang="en"] [data-en]{display:revert}
 
 <main id="top">
 <section class="hero wrap">
-  <h1><span data-ja>しんめ工房</span><span data-en>Shinme Kobo</span><small>SHINME KOBO</small></h1>
+  <h1>queserasera<small>ケ セ ラ セ ラ</small></h1>
   <p data-ja>家族のそばで、小さなアプリと LINE スタンプを作っています。<br>子どもと いっしょに遊べるものから、大人が ひと息つけるゲームまで。</p>
-  <p data-en>A tiny studio in Japan making small apps and LINE stickers —<br>from learning games for kids to cozy games for grown-ups.</p>
+  <p data-en>Small apps and LINE stickers, made in Japan —<br>from learning games for kids to cozy games for grown-ups.</p>
   <div class="icons">
     <a href="#manabi" aria-label="まなびクエスト"><img src="img/manabi-icon.png" alt="" width="64" height="64"></a>
     <a href="#karakuri" aria-label="モコのからくり工房"><img src="img/karakuri-icon.png" alt="" width="64" height="64"></a>
@@ -264,7 +264,7 @@ html[lang="en"] [data-en]{display:revert}
   <p class="lead" data-en>Notes on making things — including what didn't work.</p>
   <div class="follow">
     <a class="card" href="https://x.com/queserasera_012"><span class="ic"><svg viewBox="0 0 24 24"><path d="M17.8 3h3.1l-6.8 7.7 8 10.3h-6.2l-4.9-6.3L5.4 21H2.3l7.2-8.3L1.8 3h6.4l4.4 5.8L17.8 3zm-1.1 16.2h1.7L7.3 4.7H5.5l11.2 14.5z"/></svg></span><div><b>X</b><span>@queserasera_012</span></div></a>
-    <a class="card" href="https://note.com/queserasera_012"><span class="ic" style="font-weight:900;font-size:18px">n</span><div><b>note</b><span data-ja>しんめ工房、できるまで ほか</span><span data-en>Dev stories (Japanese)</span></div></a>
+    <a class="card" href="https://note.com/queserasera_012"><span class="ic" style="font-weight:900;font-size:18px">n</span><div><b>note</b><span data-ja>作っている途中の記録</span><span data-en>Dev stories (Japanese)</span></div></a>
   </div>
 </section>
 </main>
@@ -277,7 +277,7 @@ html[lang="en"] [data-en]{display:revert}
     <a href="https://queserasera012.github.io/images/bounce-pets/privacy.html">Bounce Pets Privacy</a>
     <a href="https://queserasera012.github.io/images/aruquest/privacy.html"><span data-ja>アルクエスト</span><span data-en>AruQuest</span> Privacy</a>
   </div>
-  © 2026 Shinme Kobo
+  © 2026 queserasera
 </footer>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="apple" viewBox="0 0 24 24"><path d="M16.4 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9 0 0-2.7-1-2.7-4.1zM13.9 5c.7-.9 1.2-2 1-3.2-1 0-2.3.7-3 1.6-.7.8-1.2 2-1.1 3.1 1.2.1 2.3-.6 3.1-1.5z"/></symbol></svg>
@@ -317,10 +317,10 @@ function setLang(lang) {
     const next = lang === 'en' ? el.dataset.srcEn : el.dataset.srcJa;
     if (el.getAttribute('src') !== next) el.setAttribute('src', next);
   });
-  try { localStorage.setItem('shinme.lang', lang); } catch (e) {}
+  try { localStorage.setItem('qss.lang', lang); } catch (e) {}
 }
 let saved = null;
-try { saved = localStorage.getItem('shinme.lang'); } catch (e) {}
+try { saved = localStorage.getItem('qss.lang'); } catch (e) {}
 const q = new URLSearchParams(location.search).get('lang');
 setLang(q || saved || ((navigator.language || 'ja').startsWith('ja') ? 'ja' : 'en'));
 document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
