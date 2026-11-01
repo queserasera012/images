@@ -201,7 +201,7 @@ html[lang="en"] [data-en]{display:revert}
     <p class="desc" data-ja>小さな島で、住民たちの暮らしを眺めるゲーム。朝はコーヒーを買って出勤、昼はカフェでランチ、夕方は公園でひと休み。行列ができたら、どこに何を建てるかを島の上で考えます。答えは画面に出ません。</p>
     <p class="desc" data-en>Watch the residents of a tiny island live their days — coffee before work, lunch at the café, a rest in the park. When a line forms, it's up to you to figure out where to build next. The game never tells you the answer.</p>
     <div class="shots">
-      <div class="vid"><video src="https://queserasera012.github.io/images/marketing/tiny/tiny-short-jimakunashi.mp4" poster="https://queserasera012.github.io/images/marketing/tiny/cover.jpg" muted loop playsinline preload="none" controls></video><span data-ja>動画</span><span data-en>Video</span></div>
+      <div class="vid"><video src="https://queserasera012.github.io/images/marketing/tiny/tiny-short-jimakunashi.mp4" data-src-en="https://queserasera012.github.io/images/marketing/tiny/tiny-short-en.mp4" data-poster-en="https://queserasera012.github.io/images/marketing/tiny/cover-en.jpg" poster="https://queserasera012.github.io/images/marketing/tiny/cover.jpg" muted loop playsinline preload="none" controls></video><span data-ja>動画</span><span data-en>Video</span></div>
       <img loading="lazy" src="img/tiny-ja-1.jpg" data-src-en="img/tiny-en-1.jpg" alt="" width="480" height="1042"><img loading="lazy" src="img/tiny-ja-2.jpg" data-src-en="img/tiny-en-2.jpg" alt="" width="480" height="1042"><img loading="lazy" src="img/tiny-ja-3.jpg" data-src-en="img/tiny-en-3.jpg" alt="" width="480" height="1042"><img loading="lazy" src="img/tiny-ja-4.jpg" data-src-en="img/tiny-en-4.jpg" alt="" width="480" height="1042">
     </div>
     <div class="actions">
@@ -316,6 +316,10 @@ function setLang(lang) {
     if (!el.dataset.srcJa) el.dataset.srcJa = el.getAttribute('src');
     const next = lang === 'en' ? el.dataset.srcEn : el.dataset.srcJa;
     if (el.getAttribute('src') !== next) el.setAttribute('src', next);
+  });
+  document.querySelectorAll('[data-poster-en]').forEach(el => {
+    if (!el.dataset.posterJa) el.dataset.posterJa = el.getAttribute('poster');
+    el.setAttribute('poster', lang === 'en' ? el.dataset.posterEn : el.dataset.posterJa);
   });
   try { localStorage.setItem('qss.lang', lang); } catch (e) {}
 }
