@@ -209,7 +209,7 @@ export const RUSH = [
 
 // 評判（0〜100。★ は 20 ごと）
 // decay：高い評判は 毎日 少し戻る（[これより上なら, 1日に下がる量]）。★5 を保つのに 手が要る
-export const PREP_WARN = { soldOutDays: 3 }; // 支度の料理の行：売り切れが この日数 続いたら 赤
+export const PREP_WARN = { soldOutDays: 3, fixMul: 1.3 }; // 支度の料理の行：売り切れが この日数 続いたら 赤
 
 export const REP = { start: 10, branchStart: 35, // 2号店からは 町に 名前が知られている
   servedFast: 0.35, served: 0.2, left: -1.2, soldOut: -0.5, tooPricey: -0.2, decay: [[80, 1, 0.25], [50, 1]], // [これを超えたら, 毎日 戻る量, 超えた1点ごとに さらに戻る量]。80を超えるほど 戻りが大きく、90台は 速く出す店でないと 保てない

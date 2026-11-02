@@ -393,6 +393,14 @@ export function setPrice(s, dishId, price) {
   s.menu[dishId].price = p;
 }
 export function toggleMenu(s, dishId) { s.menu[dishId].on = !s.menu[dishId].on; }
+// 支度の 1タップの直し：料理を メニューに出して 仕込みを その数に（減らさない）
+export function applyPrepFix(s, items) {
+  for (const [id, n] of items) {
+    if (!s.menu[id] || !s.known.includes(id) || !canCook(s, id)) continue;
+    s.menu[id].on = true;
+    setPrep(s, id, Math.max(s.prep[id] || 0, n));
+  }
+}
 export function setPrep(s, dishId, n) { s.prep[dishId] = Math.max(0, Math.min(60, Math.round(n))); }
 export function prepCost(s) {
   let c = 0;
@@ -1139,6 +1147,13 @@ export function prepCheck(s) {
   else if (streak >= PREP_WARN.soldOutDays) food = { state: 'ng', text: `${DISHES[soldOut[0]].name}が ${streak}日 続けて 売り切れ（仕込み ${s.prep[soldOut[0]] || 0}食）` };
   else if (short.length) food = { state: 'warn', text: `お願いの ${DISHES[short[0].dish].name}が 足りない（${short[0].n}食）` };
   else if (soldOut.length) food = { state: 'warn', text: `きのう 売り切れた料理が ある（${soldOut.map((id) => DISHES[id].name).join('・')}）` };
+  // 1タップで 直すとき：売り切れた料理は きのう売れた数の 何割か 増し、お願いは 足りる数まで
+  if (soldOut.length && food.state !== 'ok' && !short.length) food.fix = soldOut.map((id) => [id, Math.max((s.prep[id] || 0) + 1, Math.ceil((last.sold[id] || 0) * PREP_WARN.fixMul))]);
+  else if (short.length && food.state === 'warn') {
+    // お願いの分は 朝に 仕込みから 渡すので、ふだんの分に 上乗せする
+    const id = short[0].dish, m = s.menu[id];
+    food.fix = [[id, (m && m.on ? s.prep[id] || 0 : 0) + short.filter((a) => a.dish === id).reduce((a, x) => a + x.n, 0)]];
+  }
   else food = { state: 'ok', text: `${on.length}品・仕込み ${total}食` };
   // 人：立つ店は あなたが回す（屋台のうちは ひとりで ふつう）。立たない店は 仕込み係と ホール係が 要る
   const others = shopsOf(s).filter((x) => x !== g);

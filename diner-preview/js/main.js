@@ -4,7 +4,7 @@ import { personSVG, LOOK_COUNT } from './people.js';
 import { stationSVG } from './kitchen-art.js';
 import { exteriorSVG, festivalSVG, townSVG, rivalSVG } from './exterior.js';
 import { foodSVG } from './food-art.js';
-import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_LATER, EVENTS, FAST, GUEST, TOWN, MANAGER, ASK, STORIES, STORY_AT, BUILD, FESTIVAL, DECO, STANCES, RIVAL } from './config.js';
+import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_ORDER, BRANCH_LATER, EVENTS, FAST, GUEST, TOWN, MANAGER, ASK, STORIES, STORY_AT, BUILD, FESTIVAL, DECO, STANCES, RIVAL } from './config.js';
 
 const SAVE_KEY = 'diner.proto.v1';
 const UI_KEY = 'diner.proto.ui.v1';
@@ -379,43 +379,31 @@ const TABS = [['prep', '支度'], ['shop', 'お店'], ['town', '町']];
 const SEASON_TAG = { cheap: '<span class="plus">（いま 安い）</span>', dear: '<span class="minus">（いま 高い）</span>' };
 function renderNight() {
   const ns = S.nextStage(s);
-  // あしたの貼り紙：天気と 出来事
-  const fw = S.weatherOf(s), fe = S.eventOf(s);
-  const fest = S.festivalTomorrow(s);
-  const se = S.seasonOf(s), seNew = S.seasonStarts(s.day);
-  $('notice').innerHTML = `<b>あしたは ${fw.icon} ${fw.name}</b>${seNew ? `<span class="ev">${se.icon} ${se.name}に なった<small>${se.text}</small></span>` : `<span class="season">${se.icon} ${se.name}</span>`}${fest ? '<span class="ev">🏮 商店街まつり<small>全部の店に 人が多く来る</small></span>' : ''}${fe ? `<span class="ev">${fe.icon} ${fe.name}<small>${fe.text}</small></span>` : ''}`;
-  $('notice').classList.toggle('has-ev', !!fe || fest);
-  // 2行目：あした立つ店（店が2つ以上なら 押すと 町タブへ）
-  const shopsAll = S.shopsOf(s);
-  const otherN = shopsAll.length - 1;
-  $('notice').insertAdjacentHTML('beforeend', `<button class="shopline" id="shopLine" ${otherN ? '' : 'disabled'}><b>${otherN ? `${GENRES[S.genreOf(s)].no}号店 ` : ''}${GENRES[S.genreOf(s)].name}</b><span>${S.stageOf(s).name}・評判 ${Math.round(s.rep)}</span>${otherN ? `<em>ほか${otherN}店 ›</em>` : ''}</button>`);
-  if (otherN) onTap($('shopLine'), () => { tab = 'town'; renderNight(); });
-  // ライバル店：今週 ねらわれている店と 勝負の人数
+  renderHero();
+  // ライバル店：今週 ねらわれている店と 勝負の人数（1本の ゲージ）
   const rv = S.rivalOf(s), rw = rv && s.rival.week;
   if (rw) {
     const tc = S.tacticOf(rw.tactic);
-    $('notice').insertAdjacentHTML('beforeend', `<button class="shopline rivalline" id="rivalLine"><b>${tc.icon} ${rv.short}の ${tc.name}</b><span>${GENRES[rw.shop].no}号店で 勝負・${rw.served}/${rw.goal}人・あと${rw.end - s.day + 1}日</span><em>›</em></button>`);
+    $('rivalBar').innerHTML = `<button class="rivalbar2" id="rivalLine"><span class="rvart">${rivalSVG(rv.look, s.rival.power)}</span>
+      <span class="rvt"><b>VS ${rv.short} ${tc.icon} ${tc.name}</b><em>${GENRES[rw.shop].no}号店 ${rw.served}/${rw.goal}人・あと${rw.end - s.day + 1}日</em>
+      <span class="rvgauge"><i style="width:${Math.min(100, (rw.served / Math.max(1, rw.goal)) * 100)}%"></i></span></span></button>`;
     onTap($('rivalLine'), () => rivalSheet());
-  }
-  // 町の人のお願い：貼り紙の右に。届いたら 光る。受けたものは 件数を見せる
-  const ak = s.asks;
-  if (ak.offer || ak.list.length) {
-    $('notice').insertAdjacentHTML('beforeend', `<button class="askchip ${ak.offer ? 'new' : ''}" id="askChip"><span>📮</span>${ak.offer ? 'お願いが届いた' : `お願い ${ak.list.length}件`}</button>`);
-    onTap($('askChip'), () => askSheet());
-  }
-  // あしたの支度：3行（料理・人・お願い）。赤い行だけ 直せば 開店できる（案1・2026-10-21）
+  } else $('rivalBar').innerHTML = '';
+  // あしたの支度：料理・人・お願い の 絵のボタン3つ（案A）＋ 店長の ひとこと（案C・2026-11-03 オーナー）
   const pc = S.prepCheck(s);
   const MARK = { ok: '✓', warn: '!', ng: '!', none: '' };
-  const rows = [['food', '料理と 仕込み', 'みる'], ['crew', '人', pc.crew.shop ? 'よぶ' : 'みる'], ['ask', '町の人の お願い', pc.ask.state === 'none' ? '' : 'よむ']]
-    .map(([k, nm, go]) => `<button class="todo ${pc[k].state}" data-todo="${k}"><i>${MARK[pc[k].state]}</i><span class="t"><b>${nm}</b><small>${pc[k].text}</small></span><span class="jump">${go ? `${go} ›` : ''}</span></button>`).join('');
-  $('prepList').innerHTML = `<div class="sec">あしたの支度</div>${rows}`;
+  const firstDish = (pc.food.fix && pc.food.fix[0][0]) || Object.keys(s.menu).find((id) => s.menu[id].on && s.known.includes(id)) || s.known[0];
+  const ART = { food: foodSVG(firstDish), crew: personSVG(3, 'happy', { chef: true }), ask: MAIL_SVG };
+  $('prepList').innerHTML = [['food', '料理'], ['crew', '人'], ['ask', 'お願い']]
+    .map(([k, nm]) => `<button class="qbtn ${pc[k].state}" data-todo="${k}"><span class="qart">${ART[k]}</span><b>${nm}</b>${MARK[pc[k].state] ? `<i>${MARK[pc[k].state]}</i>` : ''}</button>`).join('');
   for (const b of $('prepList').querySelectorAll('[data-todo]')) onTap(b, () => {
     const k = b.dataset.todo;
-    if (k === 'ask') { if (pc.ask.state !== 'none') askSheet(); return; }
+    if (k === 'ask') { if (s.asks.offer || s.asks.list.length) askSheet(); else toast('いまは お願いが ない'); return; }
     if (k === 'crew' && pc.crew.shop) { crewSheet(pc.crew.shop, () => renderNight()); return; }
     tab = 'prep'; renderNight();
     scrollNightTo($('panel').querySelector(k === 'crew' ? '#sec-staff' : '#sec-cook'));
   });
+  renderSay(pc);
   const townDot = !!S.townOffer(s) || (S.nextBranch(s) && S.nextBranch(s).ready);
   $('tabs').innerHTML = TABS.map(([id, nm]) => `<button class="tab ${id === tab ? 'on' : ''}" data-tab="${id}">${TAB_ICON[id]}<span>${nm}</span>${(id === 'shop' && ns && ns.ready) || (id === 'town' && townDot) ? '<i class="dot"></i>' : ''}</button>`).join('');
   // タブを押しても スクロールの位置は 動かさない（上に送るのは「跳ねる」で 不評・2026-10-21 オーナー）
@@ -428,7 +416,112 @@ function renderNight() {
   $('boostsTop').innerHTML = `${boostBtn('market', '仕入れ 半額')}${boostBtn('flyer', `チラシ 客＋${Math.round((ADS.flyerMul - 1) * 100)}%`)}`;
   for (const el of $('boostsTop').querySelectorAll('[data-do]')) onTap(el, () => doNight(el.dataset.do, el.dataset.arg, el));
   const cost = S.prepCost(s);
-  $('openBtn').textContent = `開店する！（仕入れ ${yen(cost)}）`;
+  $('openBtn').innerHTML = `開店！<small>仕入れ ${yen(cost)}</small>`;
+}
+
+const MAIL_SVG = '<svg viewBox="0 0 50 40" aria-hidden="true"><rect x="3" y="5" width="44" height="30" rx="4" fill="#fff" stroke="#2a2350" stroke-width="2.5"/><path d="M4 7l21 16 21-16" fill="none" stroke="#2a2350" stroke-width="2.5" stroke-linejoin="round"/></svg>';
+const LOCK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="12" rx="3" fill="#ffd23f" stroke="#2a2350" stroke-width="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="#2a2350" stroke-width="2.4"/><circle cx="12" cy="16" r="1.8" fill="#2a2350"/></svg>';
+
+// ---- 店先（ホームの上半分）：店の絵を 横に並べ、両どなりを のぞかせる。まだの店は 鍵（2026-11-03 オーナー）
+let heroKey = '';
+function renderHero() {
+  const here = S.genreOf(s), mine = S.shopsOf(s), nb = S.nextBranch(s);
+  const fw = S.weatherOf(s), fe = S.eventOf(s), fest = S.festivalTomorrow(s);
+  const se = S.seasonOf(s), seNew = S.seasonStarts(s.day);
+  const key = JSON.stringify([s.day, here, mine.map((g) => { const x = S.shopInfo(s, g); return [g, x.stage, Math.round(x.rep), x.staff.length, x.deco, !!x.manager, x.totalSales >= 150000]; }), nb && [nb.genre, nb.ready], fw.id, fe && fe.id, fest, s.town && s.town.picked]);
+  const box = $('hero');
+  if (key !== heroKey) {
+    heroKey = key;
+    const stick = [];
+    if (fest) stick.push(['🏮', '商店街まつり', '全部の店に 人が多く来る']);
+    if (fe) stick.push([fe.icon, fe.name, fe.text]);
+    if (seNew) stick.push([se.icon, `${se.name}に なった`, se.text]);
+    const stk = `<span class="hstk"><button class="wchip" data-say="あしたは ${fw.name}">${fw.icon}<span>あした ${fw.name}</span></button>
+        ${stick.slice(0, 2).map(([ic, nm, tx], i) => `<button class="estk e${i}" data-say="${nm}：${tx}"><span>${ic}</span>${nm}</button>`).join('')}</span>`;
+    const cards = BRANCH_ORDER.map((g) => {
+      const own = mine.includes(g), G = GENRES[g];
+      if (own) {
+        const x = S.shopInfo(s, g);
+        return `<div class="hcard ${g === here ? 'here' : ''}" data-shop="${g}" data-own="1"><span class="hart">${exteriorSVG(x)}</span>${x.manager && g !== here ? '<span class="hbadge">店長</span>' : ''}${g === here ? stk : ''}</div>`;
+      }
+      const next = nb && nb.genre === g;
+      return `<div class="hcard locked ${next && nb.ready ? 'ready' : ''}" data-shop="${g}"><span class="hart">${exteriorSVG({ ...S.createShop(g), totalSales: 0 })}</span>
+        <span class="hlock">${next && nb.ready ? '<b>出せる！</b>' : LOCK_SVG}</span></div>`;
+    }).join('');
+    box.innerHTML = `<div class="hstrip" id="hstrip">${cards}</div><div class="hrib" id="hrib"></div>`;
+    const strip = $('hstrip');
+    for (const c of strip.querySelectorAll('.hcard')) onTap(c, (e) => { const b = e.target.closest('[data-say]'); if (b) toast(b.dataset.say); else heroPick(c.dataset.shop, true); });
+    let tm = 0;
+    strip.addEventListener('scroll', () => { clearTimeout(tm); tm = setTimeout(() => heroSettle(), 140); paintRib(heroFocus()); }, { passive: true });
+  }
+  const strip = $('hstrip'), cur = strip.querySelector(`[data-shop="${here}"]`);
+  strip.scrollLeft = cur.offsetLeft - (strip.clientWidth - cur.clientWidth) / 2;
+  paintRib(here);
+}
+function heroFocus() {
+  const strip = $('hstrip'), mid = strip.scrollLeft + strip.clientWidth / 2;
+  let best = null, d = 1e9;
+  for (const c of strip.children) { const x = Math.abs(c.offsetLeft + c.clientWidth / 2 - mid); if (x < d) { d = x; best = c.dataset.shop; } }
+  return best;
+}
+function paintRib(g) {
+  const own = S.shopsOf(s).includes(g), G = GENRES[g], nb = S.nextBranch(s);
+  const dots = BRANCH_ORDER.map((x) => `<i class="${x === g ? 'on' : ''} ${S.shopsOf(s).includes(x) ? '' : 'lk'}"></i>`).join('');
+  let sub;
+  if (own) { const x = S.shopInfo(s, g); sub = `${G.stageNames[x.stage]}・評判 ${Math.round(x.rep)}${g === S.genreOf(s) ? '・あした ここに立つ' : ''}`; }
+  else if (nb && nb.genre === g) sub = nb.ready ? `${yen(nb.price)}で 出せる` : nb.needName;
+  else sub = 'まだ 先の店';
+  $('hrib').innerHTML = `<b>${G.no}号店 ${own || (nb && nb.genre === g) ? G.name : '？？？'}</b><small>${sub}</small><span class="hdots">${dots}</span>`;
+}
+// 指を はなして 止まったら：自分の店なら そこに立つ。鍵の店は 見せるだけ
+function heroSettle() {
+  const g = heroFocus();
+  if (g && g !== S.genreOf(s) && S.shopsOf(s).includes(g)) heroPick(g, false);
+}
+function heroPick(g, tapped) {
+  if (S.shopsOf(s).includes(g)) {
+    if (g === S.genreOf(s)) return;
+    if (S.switchShop(s, g).ok) { ui.pick = []; ui.townSel = null; save(); renderNight(); toast(`あしたは ${GENRES[g].name}に立つ`); }
+    return;
+  }
+  if (!tapped) return;
+  const nb = S.nextBranch(s);
+  if (nb && nb.genre === g) { tab = 'shop'; renderNight(); scrollNightTo($('panel').querySelector('.branchcard')); }
+  else toast('前の店を 出すと 見えてくる');
+}
+
+// 店長の ひとこと：直すことを 1つずつ。押せば その場で 直る（案C）
+let saySkip = { day: 0, keys: [] };
+function sayItems(pc) {
+  const out = [];
+  const f = pc.food;
+  if (f.state !== 'ok') {
+    if (f.fix) {
+      const [id, to] = f.fix[0], d = DISHES[id];
+      const soldOut = !/お願い/.test(f.text);
+      out.push({ k: `food:${id}`, st: f.state, art: foodSVG(id), text: soldOut ? `きのう ${f.fix.map(([x]) => DISHES[x].name).join('・')}が 売り切れました` : `お願いの ${d.name}が 足りません`,
+        btn: f.fix.length > 1 ? 'まとめて 増やす' : `${s.prep[id] || 0}→${to}食に`, act: () => { S.applyPrepFix(s, f.fix); save(); toast('仕込みを 増やした'); } });
+    } else out.push({ k: 'food', st: f.state, art: foodSVG(Object.keys(s.menu)[0]), text: f.text, btn: '支度を ひらく', act: () => { tab = 'prep'; renderNight(); scrollNightTo($('panel').querySelector('#sec-cook')); return 'stay'; } });
+  }
+  const c = pc.crew;
+  if (c.state === 'ng') out.push({ k: 'crew', st: c.state, art: personSVG(3, 'happy', { chef: true }), text: c.text, btn: 'バイトを呼ぶ', act: () => { crewSheet(c.shop, () => renderNight()); return 'stay'; } });
+  else if (c.state === 'warn') out.push({ k: 'crew', st: c.state, art: personSVG(3, 'happy', { chef: true }), text: 'あしたは ひとりで 回します', btn: '人を みる', act: () => { tab = 'prep'; renderNight(); scrollNightTo($('panel').querySelector('#sec-staff')); return 'stay'; } });
+  const a = pc.ask;
+  if (s.asks.offer) out.push({ k: 'ask', st: 'warn', art: MAIL_SVG, text: 'お願いが 届いています', btn: 'よむ', act: () => { askSheet(); return 'stay'; } });
+  else if (a.state === 'warn' && a.shop) out.push({ k: 'ask', st: 'warn', art: MAIL_SVG, text: a.text, btn: '町で みる', act: () => { ui.townSel = a.shop; tab = 'town'; renderNight(); scrollNightTo($('panel')); return 'stay'; } });
+  return out;
+}
+function renderSay(pc) {
+  if (saySkip.day !== s.day) saySkip = { day: s.day, keys: [] };
+  const all = sayItems(pc), list = all.filter((x) => !saySkip.keys.includes(x.k));
+  const box = $('sayBox');
+  if (!list.length) { box.innerHTML = ''; return; }
+  const it = list[0];
+  box.innerHTML = `<div class="say ${it.st}"><span class="sayguy">${personSVG(4, 'happy', { chef: true })}</span>
+    <div class="saybub"><p>${it.text}</p><div class="sayrow"><span class="sayart">${it.art}</span><button class="chunky yel" id="sayDo">${it.btn}</button></div>
+    <div class="saynext">${list.length > 1 ? `<span>あと${list.length - 1}つ</span>` : '<span></span>'}<button id="saySkip">このまま</button></div></div></div>`;
+  onTap($('sayDo'), () => { const r = it.act(); if (r !== 'stay') renderNight(); });
+  onTap($('saySkip'), () => { saySkip.keys.push(it.k); renderNight(); });
 }
 
 // 夜の画面（#night）の中の要素が 上に来るまで 送る
@@ -943,7 +1036,7 @@ const TUT = [
   { phase: 'report', mode: 'tap', target: () => document.querySelector('#report .lines'),
     text: '閉店すると <b>日報</b>が出る。書いてあるのは 起きたことと 損だけ。<br>はじめての日は たいてい赤字。あしたは 仕込みを「きのう売れた数」に合わせてみよう。そこから先は 自分で考える' },
   { phase: 'report', mode: 'act', target: () => $('toNight'), text: 'つぎは 夜の準備', done: () => s.phase === 'night' },
-  { phase: 'night', mode: 'tap', place: 'bottom', target: () => $('prepList'), text: '<b>あしたの支度</b>：料理・人・お願い の3行。<b>赤い行</b>があれば 押して直す。ぜんぶ 緑なら そのまま 開店できる' },
+  { phase: 'night', mode: 'tap', place: 'bottom', target: () => $('prepList'), text: '<b>あしたの支度</b>：料理・人・お願い。<b>！</b>が付いたら 下で 店長が 言うので、ボタン1つで 直せる。何も なければ そのまま 開店できる' },
   { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('prep'), target: () => document.querySelector('.tab[data-tab="prep"]'), text: '<b>支度</b>：出す料理・値段・あした何食 仕込むか。高くすると 来る人は減る。下に アルバイト（あした<b>1日だけ</b>）と レシピ帳' },
   { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('shop'), target: () => document.querySelector('.tab[data-tab="shop"]'), text: '<b>お店</b>：店の姿・席や台を増やす・飾る。売上と評判が たまると 店を広げられる' },
   { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('town'), target: () => document.querySelector('.tab[data-tab="town"]'), text: '<b>町</b>：商店街。店が増えたら ここで あした立つ店を えらぶ。となりに 店を呼んだり、町に 建てたりも ここ' },
