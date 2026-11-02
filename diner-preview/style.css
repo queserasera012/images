@@ -499,9 +499,9 @@ small.lvl{font-size:10.5px;color:var(--ink2);margin-left:6px}
 
 /* ---- 夜のホーム：店先（案A＋C・2026-11-03）。店の絵が主役、両どなりを のぞかせる ---- */
 .hero{position:relative;margin:4px -10px 0}
-.hstrip{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 14% 8px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.hstrip{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 7% 8px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .hstrip::-webkit-scrollbar{display:none}
-.hcard{position:relative;flex:0 0 72%;scroll-snap-align:center;border-radius:18px;transition:transform .2s,opacity .2s;transform:scale(.9);opacity:.75}
+.hcard{position:relative;flex:0 0 86%;scroll-snap-align:center;border-radius:18px;transition:transform .2s,opacity .2s;transform:scale(.9);opacity:.75}
 .hcard.here{transform:none;opacity:1}
 .hcard .hart{display:block}
 .hcard .exterior{border-width:3px;border-radius:18px;box-shadow:0 5px 0 var(--line)}
@@ -561,8 +561,25 @@ small.lvl{font-size:10.5px;color:var(--ink2);margin-left:6px}
 #openBtn small{font:800 12px/1 var(--body);letter-spacing:0}
 .open-bar.top{padding:14px 0 8px}
 @media (max-height:720px){
-  .hcard{flex-basis:62%}.hstrip{padding-inline:19%}
+  .hcard{flex-basis:80%}.hstrip{padding-inline:10%}
   .qbtn{height:74px}.qbtn .qart{width:40px;height:40px}
   .quick{margin-top:10px}.say{margin-top:8px}.saybub p{font-size:13px}
   #openBtn{font-size:24px}
 }
+
+/* ---- 料理・人・レシピ・お店・町は 下から出る紙（2026-11-03 オーナー「縦に長すぎる」） ---- */
+.homerow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:4px 0 0}
+.hbtn{position:relative;display:flex;align-items:center;justify-content:center;gap:6px;min-height:52px;border-radius:16px;background:#fff;border:2.5px solid var(--line);box-shadow:0 3px 0 var(--line);font:800 13px/1.1 var(--pop);color:var(--ink)}
+.hbtn svg{width:26px;height:26px;flex:none}
+.hbtn .dot{position:absolute;top:-4px;right:-4px;width:12px;height:12px;border-radius:50%;background:var(--red);border:2px solid var(--line)}
+.hbtn:active{transform:translateY(3px);box-shadow:0 0 0 var(--line)}
+.psheet{position:fixed;inset:0;z-index:15;background:rgba(42,35,80,.55);display:flex;align-items:flex-end;justify-content:center;animation:fadein .15s}
+.pcard{width:100%;max-width:480px;height:min(88dvh,calc(100% - 40px));display:flex;flex-direction:column;background:var(--sky2);border:3px solid var(--line);border-bottom:0;border-radius:22px 22px 0 0;padding:10px 10px 0;animation:sheetup .22s ease-out}
+.phead{display:flex;align-items:flex-end;gap:6px}
+.phead .tabs{flex:1;min-width:0;gap:3px}
+.phead .tab{display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 0 7px;font-size:11px;min-width:0}
+.phead .tab svg{width:22px;height:22px}
+.pclose{flex:none;width:40px;height:40px;margin-bottom:6px;border-radius:50%;background:#fff;border:2.5px solid var(--line);box-shadow:0 2px 0 var(--line);font:800 20px/1 var(--pop);color:var(--ink)}
+.psheet .panel{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;border-radius:0 12px 0 0;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+@keyframes sheetup{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}

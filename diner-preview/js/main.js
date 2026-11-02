@@ -23,7 +23,7 @@ if (ui.tut == null) ui.tut = s.day === 1 && s.phase === 'night' ? 0 : 99;
 let paused = false;
 let fast = false;
 let lastEv = 0;
-let tab = 'prep';
+let tab = null; // 開いている紙（料理・人・レシピ・お店・町）。null は 閉じている
 
 function load() { try { const t = localStorage.getItem(SAVE_KEY); return t ? S.parseSave(t) : null; } catch { return null; } }
 function save() { try { localStorage.setItem(SAVE_KEY, S.serialize(s)); } catch { /* 保存できなくても遊べる */ } }
@@ -55,7 +55,7 @@ function toast(text) {
 // タップは押した瞬間に受ける（描き直しで要素が入れかわっても取りこぼさない）
 // 押したらすぐ反応する。ただし スクロールする紙と夜の欄の中では click で受ける（スクロールしたら押さない）
 function onTap(el, fn) {
-  if (!el.closest('#overlay, #night')) { el.addEventListener('pointerdown', (e) => { if (e.button > 0) return; fn(e); }); return; }
+  if (!el.closest('#overlay, #night, #psheet')) { el.addEventListener('pointerdown', (e) => { if (e.button > 0) return; fn(e); }); return; }
   // 紙と夜の画面は ふつうの click。指を動かしたら（スクロールしたら）ブラウザが click を出さない
   el.addEventListener('click', (e) => fn(e));
 }
@@ -369,13 +369,13 @@ const TI = 'viewBox="0 0 32 32" class="ti" aria-hidden="true"';
 const TL = 'stroke="#2a2350" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"';
 const TAB_ICON = {
   town: `<svg ${TI}><path d="M2 24 H30" ${TL}/><rect x="4" y="12" width="9" height="12" fill="#fff6e0" ${TL}/><path d="M3 13 L8.5 6 L14 13Z" fill="#ff4f5e" ${TL}/><rect x="18" y="14" width="10" height="10" fill="#e3f6ee" ${TL}/><path d="M17 15 L23 9 L29 15Z" fill="#2fd39e" ${TL}/><rect x="7" y="18" width="3" height="6" fill="#e9a25f" ${TL}/></svg>`,
-  prep: `<svg ${TI}><ellipse cx="16" cy="22" rx="13" ry="5" fill="#fff" ${TL}/><path d="M6 20 C6 10 26 10 26 20Z" fill="#ffd23f" ${TL}/><path d="M11 15 l3 -2 l3 2 l3 -2" fill="none" stroke="#e8302e" stroke-width="2" stroke-linecap="round"/></svg>`,
+  cook: `<svg ${TI}><ellipse cx="16" cy="22" rx="13" ry="5" fill="#fff" ${TL}/><path d="M6 20 C6 10 26 10 26 20Z" fill="#ffd23f" ${TL}/><path d="M11 15 l3 -2 l3 2 l3 -2" fill="none" stroke="#e8302e" stroke-width="2" stroke-linecap="round"/></svg>`,
   shop: `<svg ${TI}><rect x="6" y="14" width="20" height="14" fill="#fff6e0" ${TL}/><path d="M3 15 L9 6 H23 L29 15Z" fill="#ff4f5e" ${TL}/><rect x="13" y="19" width="6" height="9" fill="#e9a25f" ${TL}/></svg>`,
   staff: `<svg ${TI}><path d="M6 29 C6 21 26 21 26 29Z" fill="#2fd39e" ${TL}/><circle cx="16" cy="14" r="7" fill="#ffd9bf" ${TL}/><path d="M9 9 C9 3 23 3 23 9 Z" fill="#fff" ${TL}/><circle cx="13.5" cy="15" r="1" fill="#2a2350"/><circle cx="18.5" cy="15" r="1" fill="#2a2350"/></svg>`,
   book: `<svg ${TI}><path d="M4 7 C9 5 13 6 16 8 C19 6 23 5 28 7 V26 C23 24 19 25 16 27 C13 25 9 24 4 26Z" fill="#fff" ${TL}/><path d="M16 8 V27" ${TL}/><path d="M7 11 h6 M7 15 h6 M19 11 h6 M19 15 h6" stroke="#ff9f43" stroke-width="2" stroke-linecap="round"/></svg>`,
 };
 // 夜のタブは 3つ（2026-10-21 案1）：支度（料理・人・レシピ）／ お店（姿・広げる・設備・飾る・記録）／ 町（商店街）
-const TABS = [['prep', '支度'], ['shop', 'お店'], ['town', '町']];
+const TABS = [['cook', '料理'], ['staff', '人'], ['book', 'レシピ'], ['shop', 'お店'], ['town', '町']];
 const SEASON_TAG = { cheap: '<span class="plus">（いま 安い）</span>', dear: '<span class="minus">（いま 高い）</span>' };
 function renderNight() {
   const ns = S.nextStage(s);
@@ -400,24 +400,41 @@ function renderNight() {
     const k = b.dataset.todo;
     if (k === 'ask') { if (s.asks.offer || s.asks.list.length) askSheet(); else toast('いまは お願いが ない'); return; }
     if (k === 'crew' && pc.crew.shop) { crewSheet(pc.crew.shop, () => renderNight()); return; }
-    tab = 'prep'; renderNight();
-    scrollNightTo($('panel').querySelector(k === 'crew' ? '#sec-staff' : '#sec-cook'));
+    openSheet(k === 'crew' ? 'staff' : 'cook');
   });
   renderSay(pc);
   const townDot = !!S.townOffer(s) || (S.nextBranch(s) && S.nextBranch(s).ready);
-  $('tabs').innerHTML = TABS.map(([id, nm]) => `<button class="tab ${id === tab ? 'on' : ''}" data-tab="${id}">${TAB_ICON[id]}<span>${nm}</span>${(id === 'shop' && ns && ns.ready) || (id === 'town' && townDot) ? '<i class="dot"></i>' : ''}</button>`).join('');
-  // タブを押しても スクロールの位置は 動かさない（上に送るのは「跳ねる」で 不評・2026-10-21 オーナー）
-  for (const b of $('tabs').children) onTap(b, () => { tab = b.dataset.tab; renderNight(); });
-  const p = $('panel');
-  p.innerHTML = PANELS[tab]();
-  for (const el of p.querySelectorAll('[data-do]')) onTap(el, () => doNight(el.dataset.do, el.dataset.arg, el));
-  if (tab === 'town') wireTown(p);
+  const dotOf = (id) => (id === 'shop' && ns && ns.ready) || (id === 'town' && townDot);
+  // ホームの下：レシピ・お店・町は ボタンから 紙（モーダル）で開く（2026-11-03 オーナー「縦に長すぎる」）
+  $('homeRow').innerHTML = [['book', 'レシピ帳'], ['shop', 'お店'], ['town', '町']]
+    .map(([id, nm]) => `<button class="hbtn" data-open="${id}">${TAB_ICON[id]}<span>${nm}</span>${dotOf(id) ? '<i class="dot"></i>' : ''}</button>`).join('');
+  for (const b of $('homeRow').children) onTap(b, () => openSheet(b.dataset.open));
+  const sh = $('psheet');
+  sh.hidden = !tab;
+  if (tab) {
+    $('tabs').innerHTML = TABS.map(([id, nm]) => `<button class="tab ${id === tab ? 'on' : ''}" data-tab="${id}">${TAB_ICON[id]}<span>${nm}</span>${dotOf(id) ? '<i class="dot"></i>' : ''}</button>`).join('');
+    for (const b of $('tabs').children) onTap(b, () => openSheet(b.dataset.tab));
+    const p = $('panel');
+    p.innerHTML = PANELS[tab]();
+    for (const el of p.querySelectorAll('[data-do]')) onTap(el, () => doNight(el.dataset.do, el.dataset.arg, el));
+    if (tab === 'town') wireTown(p);
+  }
   // あしたの作戦（広告）は 開店ボタンのすぐ下に出す（2026-10-20 オーナー：押してほしいので タブの外へ）
   $('boostsTop').innerHTML = `${boostBtn('market', '仕入れ 半額')}${boostBtn('flyer', `チラシ 客＋${Math.round((ADS.flyerMul - 1) * 100)}%`)}`;
   for (const el of $('boostsTop').querySelectorAll('[data-do]')) onTap(el, () => doNight(el.dataset.do, el.dataset.arg, el));
   const cost = S.prepCost(s);
   $('openBtn').innerHTML = `開店！<small>仕入れ ${yen(cost)}</small>`;
 }
+
+// 紙を開く（別の紙なら 上から）・閉じる
+function openSheet(id, sel) {
+  const same = tab === id;
+  tab = id; renderNight();
+  const p = $('panel');
+  if (sel) scrollNightTo(p.querySelector(sel));
+  else if (!same) p.scrollTop = 0;
+}
+function closeSheet() { if (tab) { tab = null; renderNight(); } }
 
 const MAIL_SVG = '<svg viewBox="0 0 50 40" aria-hidden="true"><rect x="3" y="5" width="44" height="30" rx="4" fill="#fff" stroke="#2a2350" stroke-width="2.5"/><path d="M4 7l21 16 21-16" fill="none" stroke="#2a2350" stroke-width="2.5" stroke-linejoin="round"/></svg>';
 const LOCK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="12" rx="3" fill="#ffd23f" stroke="#2a2350" stroke-width="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="#2a2350" stroke-width="2.4"/><circle cx="12" cy="16" r="1.8" fill="#2a2350"/></svg>';
@@ -486,7 +503,7 @@ function heroPick(g, tapped) {
   }
   if (!tapped) return;
   const nb = S.nextBranch(s);
-  if (nb && nb.genre === g) { tab = 'shop'; renderNight(); scrollNightTo($('panel').querySelector('.branchcard')); }
+  if (nb && nb.genre === g) openSheet('shop', '.branchcard');
   else toast('前の店を 出すと 見えてくる');
 }
 
@@ -501,14 +518,14 @@ function sayItems(pc) {
       const soldOut = !/お願い/.test(f.text);
       out.push({ k: `food:${id}`, st: f.state, art: foodSVG(id), text: soldOut ? `きのう ${f.fix.map(([x]) => DISHES[x].name).join('・')}が 売り切れました` : `お願いの ${d.name}が 足りません`,
         btn: f.fix.length > 1 ? 'まとめて 増やす' : `${s.prep[id] || 0}→${to}食に`, act: () => { S.applyPrepFix(s, f.fix); save(); toast('仕込みを 増やした'); } });
-    } else out.push({ k: 'food', st: f.state, art: foodSVG(Object.keys(s.menu)[0]), text: f.text, btn: '支度を ひらく', act: () => { tab = 'prep'; renderNight(); scrollNightTo($('panel').querySelector('#sec-cook')); return 'stay'; } });
+    } else out.push({ k: 'food', st: f.state, art: foodSVG(Object.keys(s.menu)[0]), text: f.text, btn: '支度を ひらく', act: () => { openSheet('cook'); return 'stay'; } });
   }
   const c = pc.crew;
   if (c.state === 'ng') out.push({ k: 'crew', st: c.state, art: personSVG(3, 'happy', { chef: true }), text: c.text, btn: 'バイトを呼ぶ', act: () => { crewSheet(c.shop, () => renderNight()); return 'stay'; } });
-  else if (c.state === 'warn') out.push({ k: 'crew', st: c.state, art: personSVG(3, 'happy', { chef: true }), text: 'あしたは ひとりで 回します', btn: '人を みる', act: () => { tab = 'prep'; renderNight(); scrollNightTo($('panel').querySelector('#sec-staff')); return 'stay'; } });
+  else if (c.state === 'warn') out.push({ k: 'crew', st: c.state, art: personSVG(3, 'happy', { chef: true }), text: 'あしたは ひとりで 回します', btn: '人を みる', act: () => { openSheet('staff'); return 'stay'; } });
   const a = pc.ask;
   if (s.asks.offer) out.push({ k: 'ask', st: 'warn', art: MAIL_SVG, text: 'お願いが 届いています', btn: 'よむ', act: () => { askSheet(); return 'stay'; } });
-  else if (a.state === 'warn' && a.shop) out.push({ k: 'ask', st: 'warn', art: MAIL_SVG, text: a.text, btn: '町で みる', act: () => { ui.townSel = a.shop; tab = 'town'; renderNight(); scrollNightTo($('panel')); return 'stay'; } });
+  else if (a.state === 'warn' && a.shop) out.push({ k: 'ask', st: 'warn', art: MAIL_SVG, text: a.text, btn: '町で みる', act: () => { ui.townSel = a.shop; openSheet('town'); return 'stay'; } });
   return out;
 }
 function renderSay(pc) {
@@ -527,7 +544,7 @@ function renderSay(pc) {
 // 夜の画面（#night）の中の要素が 上に来るまで 送る
 function scrollNightTo(el) {
   if (!el) return;
-  const n = $('night');
+  const n = el.closest('#panel') || $('night');
   n.scrollTop = el.getBoundingClientRect().top - n.getBoundingClientRect().top + n.scrollTop - 6;
 }
 const dueText = (d) => (d === s.day ? 'あした' : d === s.day + 1 ? 'あさって' : `${d}日目`);
@@ -584,7 +601,7 @@ function rivalScenes() {
       <p class="asknote" style="font-size:13px">全国チェーンの 店。<b>1週間ごとに あなたの店を 1つ ねらって</b>、安売り・まねメニュー・夜の割引・テレビの宣伝 の どれかを 打ってくる。</p>
       <p class="asknote" style="font-size:13px">ねらわれた店が その週に <b>先週の ${pctOf(rv.goalMul)}% の客</b>を さばけば 勝ち。勝てば 勢いが 下がり、0 で 撤退する。負け続けて 100 になると、その店の 評判が 大きく 下がる。</p>
       ${w ? `<div class="card" style="flex-direction:column;align-items:stretch"><b>${S.tacticOf(w.tactic).icon} 今週は ${GENRES[w.shop].no}号店に ${S.tacticOf(w.tactic).name}</b><small style="font-weight:800;line-height:1.6">${rivalTacticText(rv, w)}</small></div>` : ''}
-      <p class="asknote">いまの 様子は 貼り紙の「${rv.short}の …」を 押すと 見られる</p>
+      <p class="asknote">いまの 様子は 店の絵の下の「VS ${rv.short}」を 押すと 見られる</p>
       <button class="big go" data-close>受けて立つ</button>`, () => renderNight());
   }
 }
@@ -732,9 +749,6 @@ const PANELS = {
     };
   },
   // 支度：料理と仕込み → 人 → レシピ帳 を 1本に（支度の行から 飛んでくる）
-  prep() {
-    return `<div class="sec" id="sec-cook">料理と 仕込み</div>${PANELS.cook()}<div class="sec" id="sec-staff">人</div>${PANELS.staff()}<div class="sec" id="sec-book">レシピ帳</div>${PANELS.book()}`;
-  },
   town: () => townHTML(),
   // 料理：メニューと仕込みを 1枚に（料理ごとに 出す・値段・仕込み）
   cook() {
@@ -805,7 +819,8 @@ const PANELS = {
         ${lv ? `<button class="chunky yel" data-do="deco" ${dc.ok ? '' : 'disabled'}>${yen(lv.price)}</button>` : ''}</div>
       <div class="card" style="flex-direction:column;align-items:stretch"><div class="txt"><b>名物料理${s.signature ? `：${DISHES[s.signature].name}` : ''}</b><small>名物にした料理は よく頼まれ、来る人も 少し増える。1品だけ。変えるときも ${yen(DECO.signaturePrice)}</small></div>
         <div class="chips">${s.known.filter((id) => S.canCook(s, id)).map((id) => `<button class="${s.signature === id ? 'on' : ''}" data-do="sig" data-arg="${id}" ${s.signature === id || s.money < DECO.signaturePrice ? 'disabled' : ''}>${DISHES[id].name}</button>`).join('')}</div></div>`;
-    return `${lp.top}${stage}${branch}<div class="sec">${S.stageOf(s).name}の設備</div>${perk}${items}${deco}${lp.bottom}`;
+    // 店の絵は ホームに 大きく出ているので ここでは出さない。席や台を 先に（2026-11-03 オーナー）
+    return `<div class="sec">${S.stageOf(s).name}の設備</div>${perk}${items}${stage}${branch}${deco}${lp.bottom}`;
   },
   staff() {
     const st = S.stageOf(s);
@@ -1005,6 +1020,8 @@ onTap($('pauseBtn'), () => {
   if (m) onTap(m, () => { s.money += 50000; s.totalSales += 50000; s.rep = Math.min(100, s.rep + 20); renderTop(); });
 });
 
+onTap($('psClose'), () => closeSheet());
+$('psheet').addEventListener('click', (e) => { if (e.target === $('psheet')) closeSheet(); });
 onTap($('openBtn'), () => {
   const on = Object.entries(s.menu).filter(([id, m]) => m.on && S.canCook(s, id));
   if (!on.length) { toast('メニューを1つは出そう'); return; }
@@ -1017,7 +1034,7 @@ onTap($('openBtn'), () => {
 // card：まん中の札（つぎへ）／ tap：光らせた所の説明（どこを押しても つぎへ）／ act：光らせた所を 押すと進む
 // hold：出ているあいだ 営業の時間を止める
 const jobsIn = (st) => (s.today ? s.today.jobs.filter((j) => j.state === st) : []);
-const nightTab = (id) => () => { if (tab !== id) { tab = id; renderNight(); } };
+const noSheet = () => closeSheet();
 const TUT = [
   { phase: 'night', mode: 'card', text: 'ようこそ！ きょうから 屋台の店主です。<br>1日は <b>営業 → 日報 → 夜の準備</b> の くりかえし。何日でも 好きなだけ 遊べます。' },
   { phase: 'night', mode: 'act', target: () => $('openBtn'), text: 'メニューと仕込みは 用意してあります。まずは 開店してみよう！', done: () => s.phase === 'service' },
@@ -1037,17 +1054,17 @@ const TUT = [
     text: '閉店すると <b>日報</b>が出る。書いてあるのは 起きたことと 損だけ。<br>はじめての日は たいてい赤字。あしたは 仕込みを「きのう売れた数」に合わせてみよう。そこから先は 自分で考える' },
   { phase: 'report', mode: 'act', target: () => $('toNight'), text: 'つぎは 夜の準備', done: () => s.phase === 'night' },
   { phase: 'night', mode: 'tap', place: 'bottom', target: () => $('prepList'), text: '<b>あしたの支度</b>：料理・人・お願い。<b>！</b>が付いたら 下で 店長が 言うので、ボタン1つで 直せる。何も なければ そのまま 開店できる' },
-  { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('prep'), target: () => document.querySelector('.tab[data-tab="prep"]'), text: '<b>支度</b>：出す料理・値段・あした何食 仕込むか。高くすると 来る人は減る。下に アルバイト（あした<b>1日だけ</b>）と レシピ帳' },
-  { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('shop'), target: () => document.querySelector('.tab[data-tab="shop"]'), text: '<b>お店</b>：店の姿・席や台を増やす・飾る。売上と評判が たまると 店を広げられる' },
-  { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('town'), target: () => document.querySelector('.tab[data-tab="town"]'), text: '<b>町</b>：商店街。店が増えたら ここで あした立つ店を えらぶ。となりに 店を呼んだり、町に 建てたりも ここ' },
+  { phase: 'night', mode: 'tap', place: 'bottom', enter: noSheet, target: () => document.querySelector('.qbtn[data-todo="food"]'), text: '<b>料理</b>：出す料理・値段・あした何食 仕込むか。高くすると 来る人は減る。<b>人</b>は アルバイト（あした<b>1日だけ</b>）' },
+  { phase: 'night', mode: 'tap', place: 'top', enter: noSheet, target: () => document.querySelector('.hbtn[data-open="shop"]'), text: '<b>お店</b>：席や台を増やす・飾る。売上と評判が たまると 店を広げられる。<b>レシピ帳</b>で 新しい料理を 試す' },
+  { phase: 'night', mode: 'tap', place: 'top', enter: noSheet, target: () => document.querySelector('.hbtn[data-open="town"]'), text: '<b>町</b>：商店街。店が増えたら ここで あした立つ店を えらぶ。となりに 店を呼んだり、町に 建てたりも ここ' },
   // 最後は 画面を 押さえない（前は 開店ボタンだけ 光らせて「開店しか できない」ように 見えた・2026-10-26 オーナー）
-  { phase: 'night', mode: 'tap', place: 'top', enter: nightTab('prep'), target: () => $('openBtn'), text: '案内は ここまで。<b>支度</b>で 品数や 仕込みを 変えてから 開店しても、そのまま 開店しても いい。あとは 自由に やってみよう' },
+  { phase: 'night', mode: 'tap', place: 'top', enter: noSheet, target: () => $('openBtn'), text: '案内は ここまで。<b>料理</b>で 品数や 仕込みを 変えてから 開店しても、そのまま 開店しても いい。あとは 自由に やってみよう' },
 ];
 // あとから1回だけ出す案内（チュートリアルが 終わってから。見たら ui.hints に残す）
 // 2号店を出した夜：店長の役割と 方針（1回だけ・2026-10-21 オーナー「チュートリアルみたいに」）
 const homeShop = () => S.shopsOf(s).find((g) => g !== S.genreOf(s));
 const twoShops = () => S.shopsOf(s).length >= 2;
-const showHome = (sel) => () => { ui.townSel = homeShop(); tab = 'town'; renderNight(); scrollNightTo($('panel').querySelector(sel)); };
+const showHome = (sel) => () => { ui.townSel = homeShop(); openSheet('town', sel); };
 const HINTS = [
   { id: 'mgr1', phase: 'night', mode: 'card', ready: twoShops, enter: showHome('.townmap'),
     text: '店が 2つに なった！<br>あなたが 立てるのは <b>1日に 1店</b>。立たない店は アルバイトだけで 回る。そこで <b>店長</b>の 出番' },
@@ -1111,6 +1128,7 @@ function show() {
   $('service').hidden = s.phase !== 'service';
   $('report').hidden = s.phase !== 'report';
   $('night').hidden = s.phase !== 'night';
+  if (s.phase !== 'night') { tab = null; $('psheet').hidden = true; }
   for (const id of ['queue', 'seats', 'tickets', 'kitchen', 'pass']) { const b = $(id); b.innerHTML = ''; b._map = null; }
   if (s.phase === 'report') renderReport();
   if (s.phase === 'night') { renderNight(); if (s.faceDay && !s.faceSeen) faceScene(); else rivalScenes(); }
