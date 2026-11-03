@@ -587,3 +587,11 @@ small.lvl{font-size:10.5px;color:var(--ink2);margin-left:6px}
 @keyframes fadein{from{opacity:0}to{opacity:1}}
 .hcard.here .hbadge{display:none}
 .staffwho{margin:0 0 8px;font:800 16px/1.3 var(--pop)}.staffwho small{display:block;font-size:11.5px;color:var(--ink2)}
+/* ライバルの 体力：減っていく（2026-11-03）。暗い所が いま、明るい所が 今週 勝てば 削れる分 */
+.hp{position:relative;display:block;overflow:hidden}
+.hp i{position:absolute;left:0;top:0;bottom:0;display:block;transition:width .4s}
+.hp .hpgo{background:#ffc9cf}
+.hp .hpnow{background:linear-gradient(90deg,#ff4f5e,#ff8a3d)}
+.hp span{position:absolute;inset:0;text-align:center;font:800 10px/1 var(--pop);display:flex;align-items:center;justify-content:center;color:var(--ink)}
+.rvgauge.hp{height:16px}
+.rivalbar.hp span{font-size:11px}

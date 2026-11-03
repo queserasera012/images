@@ -386,7 +386,7 @@ function renderNight() {
     const tc = S.tacticOf(rw.tactic);
     $('rivalBar').innerHTML = `<button class="rivalbar2" id="rivalLine"><span class="rvart">${rivalSVG(rv.look, s.rival.power)}</span>
       <span class="rvt"><b>VS ${rv.short} ${tc.icon} ${tc.name}</b><em>${GENRES[rw.shop].no}号店 ${rw.served}/${rw.goal}人・あと${rw.end - s.day + 1}日</em>
-      <span class="rvgauge"><i style="width:${Math.min(100, (rw.served / Math.max(1, rw.goal)) * 100)}%"></i></span></span></button>`;
+      ${hpBar(s.rival.power, rw, 'rvgauge')}</span></button>`;
     onTap($('rivalLine'), () => rivalSheet());
   } else $('rivalBar').innerHTML = '';
   // あしたの支度：料理・人・お願い の 絵のボタン3つ（案A）＋ 店長の ひとこと（案C・2026-11-03 オーナー）
@@ -576,6 +576,12 @@ function rivalTacticText(rv, w) {
   if (tc.id === 'night') return `${shop}の 向かいで 夜（17時から）だけ 割引き。夜の 客を ${pctOf(st)}% 取られる。あなたが 立つ日は 店主の顔で ${pctOf(low)}% で すむ`;
   return `テレビで 宣伝。この週は 町じゅうの 全部の店で 客を ${pctOf(st)}% 取られる。評判 ${tc.repGuard} 以上の店は ${pctOf(low)}% で すむ。勝負は ${shop}`;
 }
+// ライバルの 体力（＝勢い）。0 で 撤退。今週 さばいた分だけ 削れていく見込みを 明るい色で 重ねる（2026-11-03 オーナー：減っていく方が 倒している感じ）
+function hpBar(power, w, cls) {
+  const dmg = w ? RIVAL.step * Math.min(1, w.served / Math.max(1, w.goal)) : 0;
+  const left = Math.max(0, power - dmg);
+  return `<span class="${cls} hp"><i class="hpgo" style="width:${power}%"></i><i class="hpnow" style="width:${left}%"></i><span>体力 ${Math.round(left)}</span></span>`;
+}
 function rivalSheet() {
   const rv = S.rivalOf(s), w = rv && s.rival.week;
   if (!w) return;
@@ -584,8 +590,8 @@ function rivalSheet() {
   const dodged = S.rivalDodged(sh, { ...tc, dish: w.dish }, w.shop === S.genreOf(s));
   const p = s.rival.power;
   const close = overlay(`<h3>${rv.name}</h3><div class="rivalwrap">${rivalSVG(rv.look, p)}</div>
-    <div class="sec">勢い</div><div class="rivalbar"><i style="width:${p}%"></i><span>${p}</span></div>
-    <p class="asknote">0 で 撤退（${yen(rv.prize)}と 全部の店の 評判 +${RIVAL.winRep}）。100 で ねらわれた店の 評判が ${RIVAL.hitRep} 下がる。1週間ごとに 勝つと −${RIVAL.step}、負けると ＋${RIVAL.step}</p>
+    <div class="sec">${rv.short}の 体力</div>${hpBar(p, w, 'rivalbar')}
+    <p class="asknote">体力を 0 に すると 撤退（${yen(rv.prize)}と 全部の店の 評判 +${RIVAL.winRep}）。1週間ごとに 勝つと −${RIVAL.step}、負けると ＋${RIVAL.step}。今週 さばくほど ゲージが 減って見え、目標の人数に 届くと その分が 本当に 削れる。100 まで 戻されると ねらわれた店の 評判が ${RIVAL.hitRep} 下がる</p>
     <div class="sec">今週の 手：${tc.icon} ${tc.name}（${w.start}〜${w.end}日目）</div>
     <div class="card" style="flex-direction:column;align-items:stretch"><small style="font-weight:800;line-height:1.6">${rivalTacticText(rv, w)}</small></div>
     <div class="sec">勝負：${GENRES[w.shop].no}号店 ${GENRES[w.shop].name}</div>
@@ -605,7 +611,7 @@ function rivalScenes() {
     const head = res.event === 'retreat' ? `${res.name}が 撤退した！` : res.win ? `${res.name}に 勝った！` : `${res.name}に 負けた…`;
     const tail = res.event === 'retreat' ? `<br>${yen(res.prize)}と 全部の店の 評判 +${RIVAL.winRep}。${RIVAL.gap}日ほどで 次の店が 来る`
       : res.event === 'hit' ? `<br>${GENRES[res.shop].no}号店の 客を 取られて 評判が ${RIVAL.hitRep} 下がった` : '';
-    const body = `<div class="celebrate">${head}<small class="cel-sub">${tc.icon} ${tc.name}・${GENRES[res.shop].no}号店で ${res.served} / ${res.goal}人（取られた客 ${res.lost}人）<br>勢い ${res.from} → ${res.to}${tail}</small></div><button class="big go" data-close>つぎへ</button>`;
+    const body = `<div class="celebrate">${head}<small class="cel-sub">${tc.icon} ${tc.name}・${GENRES[res.shop].no}号店で ${res.served} / ${res.goal}人（取られた客 ${res.lost}人）<br>体力 ${res.from} → ${res.to}${tail}</small></div><button class="big go" data-close>つぎへ</button>`;
     overlay(body, () => { renderNight(); rivalScenes(); });
     return;
   }
@@ -615,7 +621,7 @@ function rivalScenes() {
     const w = s.rival.week;
     overlay(`<h3>通りの 向かいに ${rv.name}が 開いた</h3><div class="rivalwrap">${rivalSVG(rv.look, s.rival.power)}</div>
       <p class="asknote" style="font-size:13px">全国チェーンの 店。<b>1週間ごとに あなたの店を 1つ ねらって</b>、安売り・まねメニュー・夜の割引・テレビの宣伝 の どれかを 打ってくる。</p>
-      <p class="asknote" style="font-size:13px">ねらわれた店が その週に <b>先週の ${pctOf(rv.goalMul)}% の客</b>を さばけば 勝ち。勝てば 勢いが 下がり、0 で 撤退する。負け続けて 100 になると、その店の 評判が 大きく 下がる。</p>
+      <p class="asknote" style="font-size:13px">ねらわれた店が その週に <b>先週の ${pctOf(rv.goalMul)}% の客</b>を さばけば 勝ち。勝つたびに 相手の 体力が 削れ、0 に すると 撤退する。負け続けて 100 になると、その店の 評判が 大きく 下がる。</p>
       ${w ? `<div class="card" style="flex-direction:column;align-items:stretch"><b>${S.tacticOf(w.tactic).icon} 今週は ${GENRES[w.shop].no}号店に ${S.tacticOf(w.tactic).name}</b><small style="font-weight:800;line-height:1.6">${rivalTacticText(rv, w)}</small></div>` : ''}
       <p class="asknote">いまの 様子は 店の絵の下の「VS ${rv.short}」を 押すと 見られる</p>
       <button class="big go" data-close>受けて立つ</button>`, () => renderNight());
