@@ -741,7 +741,7 @@ function crewSheet(genre, back) {
     const again = S.canRehireAt(s, genre) ? `<button class="chunky yel wide" data-rehire="1">きのうと同じ人を呼ぶ（${sh.lastCrew.map((x) => `${x.name}さん`).join('・')}）</button>` : '';
     const roles = ['board', 'stove', 'fryer', 'hall'].map((r) => {
       const c = S.canHireAt(s, genre, r);
-      return `<div class="card"><div class="ic">${{ board: '🔪', stove: '🔥', fryer: '🫕', hall: '🛎️' }[r]}</div><div class="txt"><b>${STAFF[r].name}</b><small>1日 ${yen(STAFF[r].wage)}${c.ok ? '' : `・${c.why}`}</small></div>
+      return `<div class="card"><div class="ic">${{ board: '🔪', stove: '🔥', fryer: '🫕', hall: '🛎️' }[r]}</div><div class="txt"><b>${STAFF[r].name}</b><small>1日 ${yen(STAFF[r].wage)}${c.ok ? '' : `<span>・${c.why}</span>`}</small></div>
         <button class="chunky mint" data-hire="${r}" ${c.ok ? '' : 'disabled'}>あした呼ぶ</button></div>`;
     }).join('');
     const plan = S.crewPlan(s, genre);
@@ -876,7 +876,7 @@ const PANELS = {
     const roles = ['board', 'stove', 'fryer', 'hall'].map((r) => {
       const c = S.canHire(s, r);
       const desc = r === 'hall' ? '受け渡し台の料理を運ぶ' : `${STATIONS[r].name}の料理を進める`;
-      return `<div class="card"><div class="ic">${{ board: '🔪', stove: '🔥', fryer: '🫕', hall: '🛎️' }[r]}</div><div class="txt"><b>${STAFF[r].name}</b><small>${desc}・1日 ${yen(STAFF[r].wage)}${c.ok ? '' : `・${c.why}`}</small></div>
+      return `<div class="card"><div class="ic">${{ board: '🔪', stove: '🔥', fryer: '🫕', hall: '🛎️' }[r]}</div><div class="txt"><b>${STAFF[r].name}</b><small>${desc}・1日 ${yen(STAFF[r].wage)}${c.ok ? '' : `<span>・${c.why}</span>`}</small></div>
         <button class="chunky mint" data-do="hire" data-arg="${r}" ${c.ok ? '' : 'disabled'}>あした呼ぶ</button></div>`;
     }).join('');
     // どの店の 人なのかを 先に書く。ほかの店は 下に並べて そこから呼ぶ（2026-11-03 オーナー：3号店に呼んだつもりが 立つ店に入っていた）

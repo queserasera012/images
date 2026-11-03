@@ -859,5 +859,7 @@ export const EN = {
  "お願い：{0}の {1}に {2}から {3} {4}食を 届けた": "Request: delivered {4} × {3} from {2} for {0} ({1})",
  "お願い：{0}の {1}に {2} {3}食を 届けた": "Request: delivered {3} × {2} for {0} ({1})",
  "お願い：{0}の {1}に {2}から 届けられなかった（{3}）": "Request: couldn't deliver from {2} for {0} ({1}): {3}",
- "お願い：{0}の {1}に 届けられなかった（{2}）": "Request: couldn't deliver for {0} ({1}): {2}"
+ "お願い：{0}の {1}に 届けられなかった（{2}）": "Request: couldn't deliver for {0} ({1}): {2}",
+ "1日 {0}": "{0}/day",
+ "{0}・1日 {1}": "{0} · {1}/day"
 };
