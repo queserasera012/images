@@ -1296,12 +1296,19 @@ const TUT = [
   { phase: 'report', mode: 'tap', target: () => document.querySelector('#report .lines'),
     text: '閉店すると <b>日報</b>が出る。書いてあるのは 起きたことと 損だけ。<br>はじめての日は たいてい赤字。あしたは 仕込みを「きのう売れた数」に合わせてみよう。そこから先は 自分で考える' },
   { phase: 'report', mode: 'act', target: () => $('toNight'), text: 'つぎは 夜の準備', done: () => s.phase === 'night' },
-  { phase: 'night', mode: 'tap', place: 'bottom', target: () => $('prepList'), text: '<b>あしたの支度</b>：料理・人・お願い。<b>！</b>が付いたら 下で 店長が 言うので、ボタン1つで 直せる。何も なければ そのまま 開店できる' },
-  { phase: 'night', mode: 'tap', place: 'bottom', enter: noSheet, target: () => document.querySelector('.qbtn[data-todo="food"]'), text: '<b>料理</b>：出す料理・値段・あした何食 仕込むか。高くすると 来る人は減る。<b>人</b>は アルバイト（あした<b>1日だけ</b>）' },
-  { phase: 'night', mode: 'tap', place: 'top', enter: noSheet, target: () => document.querySelector('.hbtn[data-open="shop"]'), text: '<b>お店</b>：席や台を増やす・飾る。売上と評判が たまると 店を広げられる。<b>レシピ帳</b>で 新しい料理を 試す' },
-  { phase: 'night', mode: 'tap', place: 'top', enter: noSheet, target: () => document.querySelector('.hbtn[data-open="town"]'), text: '<b>町</b>：商店街。店が増えたら ここで あした立つ店を えらぶ。となりに 店を呼んだり、町に 建てたりも ここ' },
+  // 夜の案内は ホームの 上から順に（2026-11-03 オーナー「料理に 光を当てて 人の話をしない」「お店・町が 画面から 切れる」「レシピに 触れない」）
+  { phase: 'night', mode: 'tap', enter: noSheet, target: () => $('hero'), text: '夜は <b>あしたの準備</b>。上は あなたの店。天気や 行事は 絵に シールで出る。横に送ると 次に出せる店が のぞける' },
+  { phase: 'night', mode: 'tap', enter: noSheet, target: () => document.querySelector('.qbtn[data-todo="food"]'), text: '<b>料理</b>：出す料理・値段・あした 何食 仕込むか。高くすると 来る人は 減る。<b>！</b>は 直すことが ある しるし' },
+  { phase: 'night', mode: 'tap', enter: noSheet, target: () => document.querySelector('.qbtn[data-todo="crew"]'), text: '<b>人</b>：アルバイトを 呼ぶ。来てくれるのは <b>あした 1日だけ</b>。<b>✓</b>は そろっている しるし' },
+  { phase: 'night', mode: 'tap', enter: noSheet, target: () => document.querySelector('.qbtn[data-todo="ask"]'), text: '<b>お願い</b>：4日目ごろから 町の人の 注文が 届く。受けると 少し高く売れて、評判も 上がる' },
+  { phase: 'night', mode: 'tap', enter: noSheet, target: () => document.querySelector('#sayBox .saybub') || $('prepList'),
+    text: () => (document.querySelector('#sayBox .saybub') ? '<b>店長</b>が 直したほうが いいことを 1つずつ 言う。<b>ボタン1つ</b>で 直る。いまなら 売り切れた料理の 仕込みを まとめて 増やせる' : '直したほうが いいことが あると、ここで <b>店長</b>が 言う。ボタン1つで 直る') },
+  { phase: 'night', mode: 'tap', enter: noSheet, target: () => document.querySelector('.hbtn[data-open="book"]'), text: '<b>レシピ帳</b>：食材を 2つ 組み合わせて <b>新しい料理</b>を 試せる。できた料理は メニューに 足せる' },
+  { phase: 'night', mode: 'tap', enter: noSheet, target: () => document.querySelector('.hbtn[data-open="shop"]'), text: '<b>お店</b>：席や台を 増やす・飾る。売上と評判が たまると 店を 広げられる' },
+  { phase: 'night', mode: 'tap', enter: noSheet, target: () => document.querySelector('.hbtn[data-open="town"]'), text: '<b>町</b>：商店街。店が 2つに なったら ここで あした立つ店を えらぶ。となりに 店を呼ぶのも ここ' },
+  { phase: 'night', mode: 'tap', enter: noSheet, target: () => document.querySelector('header.top'), text: '上の帯も ボタン。<b>お金</b>で 使い道、<b>評判</b>で 評判の中身、<b>日にち</b>で これまでの日報が 見られる' },
   // 最後は 画面を 押さえない（前は 開店ボタンだけ 光らせて「開店しか できない」ように 見えた・2026-10-26 オーナー）
-  { phase: 'night', mode: 'tap', place: 'top', enter: noSheet, target: () => $('openBtn'), text: '案内は ここまで。<b>料理</b>で 品数や 仕込みを 変えてから 開店しても、そのまま 開店しても いい。あとは 自由に やってみよう' },
+  { phase: 'night', mode: 'tap', enter: noSheet, target: () => $('openBtn'), text: '案内は ここまで。<b>料理</b>で 品数や 仕込みを 変えてから 開店しても、そのまま 開店しても いい。あとは 自由に やってみよう' },
 ];
 // あとから1回だけ出す案内（チュートリアルが 終わってから。見たら ui.hints に残す）
 // 2号店を出した夜：店長の役割と 方針（1回だけ・2026-10-21 オーナー「チュートリアルみたいに」）
@@ -1317,19 +1324,22 @@ const HINTS = [
     text: `<b>バイトを呼ぶ</b>の 中に 店長がいる。1日 ${yen(MANAGER.wage)}＋その店の 売上の ${Math.round(MANAGER.rate * 100)}%で、<b>貼り紙を読んで 仕込みを決め</b>、足りない 仕込み係と ホール係を 呼ぶ。決めたことは 日報に 書く` },
   { id: 'mgr4', phase: 'night', mode: 'card', ready: twoShops,
     text: `店長には <b>方針</b>を 決められる。<br><b>${STANCES.sales.name}</b>：仕込み多め・値段 +5%<br><b>${STANCES.rep.name}</b>：丁寧に運ぶ・評判が 落ちにくいが もうけは 減る<br><b>${STANCES.lean.name}</b>：きのう売れた数 ちょうど・余らないが 売り切れる<br>何を 大事にするかは あなたが 決める` },
-  { id: 'fast', phase: 'service', mode: 'tap', hold: true, ready: () => S.canFast(s), target: () => $('fastBtn'),
+  { id: 'fast', anytime: true, phase: 'service', mode: 'tap', hold: true, ready: () => S.canFast(s), target: () => $('fastBtn'),
     text: () => `${S.crewOk(s.staff) ? '仕込み係と ホール係が そろった' : '売り切れて もう 作るものが ない'}ので <b>▶▶ 早送り</b>が 使える。<br>押すと 営業が ${FAST}倍の速さで進む。もう1回 押すと ふつうに戻る。売り切れたあとと、仕込み係と ホール係が いる日に 押せる` },
 ];
 let coachStep = -1;
-const curHint = () => (ui.tut >= TUT.length ? HINTS.find((h) => !(ui.hints || {})[h.id] && h.phase === s.phase && h.ready()) : null);
+// anytime の案内は チュートリアルの途中でも、いまの画面に チュートリアルの手が ないときに出す（1日目の 売り切れで ▶▶ を 教える・2026-11-03 オーナー）
+const tutHere = () => ui.tut < TUT.length && TUT[ui.tut].phase === s.phase;
+const curHint = () => (tutHere() ? null : HINTS.find((h) => (ui.tut >= TUT.length || h.anytime) && !(ui.hints || {})[h.id] && h.phase === s.phase && h.ready()));
+const curStep = () => (tutHere() ? TUT[ui.tut] : curHint() || TUT[ui.tut]);
 function nextTut() {
-  const h = ui.tut >= TUT.length && curHint();
+  const h = !tutHere() && curHint();
   if (h) ui.hints = { ...(ui.hints || {}), [h.id]: 1 }; else ui.tut += 1;
   saveUi(); coachStep = -1;
 }
 function updateCoach() {
   const c = $('coach');
-  const st = TUT[ui.tut] || curHint();
+  const st = curStep();
   const visible = st && st.phase === s.phase && $('overlay').hidden && (!st.ready || st.ready());
   // 画面が切りかわって終わる手（開店・夜の準備へ）は、切りかわった先でも 終わったと分かる
   const finished = st && st.done && (st.phase === s.phase ? st.done() : !st.ready && st.done());
@@ -1339,6 +1349,9 @@ function updateCoach() {
   if (coachStep !== key) {
     coachStep = key;
     if (st.enter) st.enter();
+    // 光らせる所が 画面から 切れていたら、見える所まで 送る（小さい画面で お店・町が 切れていた・2026-11-03 オーナー）
+    const t0 = st.target && st.target();
+    if (t0) { const r0 = t0.getBoundingClientRect(); if (r0.top < 60 || r0.bottom > innerHeight - 20) t0.scrollIntoView({ block: 'center' }); }
     c.className = `coach ${st.mode}`;
     c.innerHTML = `<div class="ring"></div><div class="tip"><span class="guide">${personSVG(4, 'happy', { chef: true })}</span><p></p>${st.mode === 'card' ? '<button class="big go">つぎへ</button>' : st.mode === 'tap' ? '<small>タップで つぎへ</small>' : ''}</div>`;
     c._text = '';
@@ -1363,7 +1376,7 @@ function updateCoach() {
   return !!st.hold;
 }
 onTap($('coach'), (e) => {
-  const st = TUT[ui.tut] || curHint();
+  const st = curStep();
   if (!st || $('coach').hidden) return;
   if (st.mode === 'tap' || (st.mode === 'card' && e.target.closest('button'))) { e.preventDefault(); nextTut(); }
 });
