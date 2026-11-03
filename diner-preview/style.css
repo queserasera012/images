@@ -586,3 +586,4 @@ small.lvl{font-size:10.5px;color:var(--ink2);margin-left:6px}
 @keyframes sheetup{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
 @keyframes fadein{from{opacity:0}to{opacity:1}}
 .hcard.here .hbadge{display:none}
+.staffwho{margin:0 0 8px;font:800 16px/1.3 var(--pop)}.staffwho small{display:block;font-size:11.5px;color:var(--ink2)}

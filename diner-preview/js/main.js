@@ -418,6 +418,7 @@ function renderNight() {
     p.innerHTML = PANELS[tab]();
     for (const el of p.querySelectorAll('[data-do]')) onTap(el, () => doNight(el.dataset.do, el.dataset.arg, el));
     if (tab === 'town') wireTown(p);
+    for (const b of p.querySelectorAll('[data-crew]')) onTap(b, () => crewSheet(b.dataset.crew, () => renderNight()));
   }
   // あしたの作戦（広告）は 開店ボタンのすぐ下に出す（2026-10-20 オーナー：押してほしいので タブの外へ）
   $('boostsTop').innerHTML = `${boostBtn('market', '仕入れ 半額')}${boostBtn('flyer', `チラシ 客＋${Math.round((ADS.flyerMul - 1) * 100)}%`)}`;
@@ -848,10 +849,21 @@ const PANELS = {
       return `<div class="card"><div class="ic">${{ board: '🔪', stove: '🔥', fryer: '🫕', hall: '🛎️' }[r]}</div><div class="txt"><b>${STAFF[r].name}</b><small>${desc}・1日 ${yen(STAFF[r].wage)}${c.ok ? '' : `・${c.why}`}</small></div>
         <button class="chunky mint" data-do="hire" data-arg="${r}" ${c.ok ? '' : 'disabled'}>あした呼ぶ</button></div>`;
     }).join('');
-    return `<div class="note-oneday"><b>アルバイトは 1日だけ</b>あした1日 来てくれて、閉店したら帰る。続けて来てほしいときは 毎晩 呼び直す。アルバイト代は 閉店のときに払う。</div>
+    // どの店の 人なのかを 先に書く。ほかの店は 下に並べて そこから呼ぶ（2026-11-03 オーナー：3号店に呼んだつもりが 立つ店に入っていた）
+    const G = GENRES[S.genreOf(s)];
+    const card = (g) => {
+      const sh = S.shopInfo(s, g), plan = S.crewPlan(s, g);
+      const st = sh.manager ? '店長が 回す' : plan.open ? `アルバイト${plan.staff.length}人で 回る` : `${plan.why}ので 休み`;
+      return `<div class="card ${plan.open ? '' : 'shut'}"><div class="txt"><b>${GENRES[g].no}号店 ${GENRES[g].name}</b><small style="${plan.open ? '' : 'color:var(--red)'}">${st}</small></div><button class="chunky ${plan.open ? '' : 'mint'}" data-crew="${g}">バイトを呼ぶ</button></div>`;
+    };
+    const rest = S.shopsOf(s).filter((g) => g !== S.genreOf(s));
+    const shut = rest.filter((g) => !S.crewPlan(s, g).open).map(card).join(''), others = rest.filter((g) => S.crewPlan(s, g).open).map(card).join('');
+    return `${shut ? `<div class="sec" style="color:var(--red);margin-top:0">休みになる店</div>${shut}` : ''}
+      <h3 class="staffwho" style="${shut ? 'margin-top:16px' : ''}">${G.no}号店 ${G.name}の アルバイト<small>あした あなたが 立つ店</small></h3>
+      <div class="note-oneday"><b>アルバイトは 1日だけ</b>あした1日 来てくれて、閉店したら帰る。続けて来てほしいときは 毎晩 呼び直す。アルバイト代は 閉店のときに払う。</div>
       <p style="margin:0;font-size:12px;font-weight:800;color:var(--ink2)">任せた持ち場は ひとりでに進み、料理も少し速い。雇えるのは 台の数 ＋ ホール1人 まで（いま ${s.stations.length + 1}人）。</p>
       ${again}
-      ${now ? `<div class="sec">あした来る人</div>${now}` : ''}<div class="sec">あしたの アルバイトを呼ぶ</div>${roles}${regularCards()}`;
+      ${now ? `<div class="sec">あした来る人</div>${now}` : ''}<div class="sec">あしたの アルバイトを呼ぶ</div>${roles}${others ? `<div class="sec">ほかの店の アルバイト</div>${others}` : ''}${regularCards()}`;
   },
   book() {
     ui.pick = ui.pick || [];
