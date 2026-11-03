@@ -1049,7 +1049,8 @@ onTap($('pauseBtn'), () => {
   overlay(`<h3>ひと休み</h3><p>営業の途中で閉じると、この日は開店前から やり直しになります。</p>
     ${DEBUG ? '<button class="chunky" id="dbgEnd">（試し）すぐ閉店する</button><button class="chunky" id="dbgMoney">（試し）＋¥50,000・評判＋20</button>' : ''}
     <button class="big go" data-close>営業にもどる</button>
-    ${s.today && s.today.snap ? '<button class="chunky wide" id="backPrep" style="margin-top:10px">開店前に もどって 準備から やり直す</button>' : ''}`, () => { paused = false; });
+    ${s.today && s.today.snap ? (s.today.t <= DAY.undoUntil ? '<button class="chunky wide" id="backPrep" style="margin-top:10px">開店前に もどって 準備から やり直す</button>'
+      : '<p style="margin:10px 0 0;font-size:12px;font-weight:800;color:var(--ink2);text-align:center">開店前に もどれるのは 12時まで</p>') : ''}`, () => { paused = false; });
   // 間違えて 開店したとき：開店前の 写しに 戻す（仕入れも 戻る・2026-11-03 オーナー）
   const bp = $('backPrep');
   if (bp) onTap(bp, () => { s = S.parseSave(s.today.snap); $('overlay').hidden = true; paused = false; fast = false; $('fastBtn').classList.remove('on'); keepAwake(false); save(); renderTop(); show(); toast('開店前に もどった'); });
