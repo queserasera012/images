@@ -310,7 +310,8 @@ export const START = { money: 6000, seats: 3, stations: { board: 1, stove: 1, fr
 // 町の人のお願い：日にちと店と数だけが決まった注文。その日の朝、その店の仕込みから 届ける
 // 文には 起きることだけを書く（どうすればいいかは書かない）
 export const ASK = {
-  fromDay: 4, chance: 0.5, max: 3, lead: 3, // 何日先まで（1〜3晩あと）
+  fromDay: 4, chance: 0.5, oneShop: 0.25, max: 3, // 店が1つのあいだは oneShop（屋台の仕込みに 5〜8食は 重い・2026-11-03）
+  lead: 3, // 何日先まで（1〜3晩あと）
   n: [5, 4, 4], // 5 ＋ 段×4 ＋ 0〜3
   tip: 0.3, // ふつうの値段の 1.3倍で 買ってくれる
   rep: 2, failRep: 2,

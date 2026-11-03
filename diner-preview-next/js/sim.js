@@ -234,7 +234,7 @@ function makeOffer(s) {
     a.offer = { id: a.seq++, who: reg.name, what: q.what, shop: g, dish: reg.fav, n: askN(sh.stage, r), due, reg: reg.id, look: reg.look };
     return;
   }
-  if (s.day < ASK.fromDay || rand(r) >= ASK.chance * townMul(s, 'askMul')) return;
+  if (s.day < ASK.fromDay || rand(r) >= (shopsOf(s).length > 1 ? ASK.chance : ASK.oneShop) * townMul(s, 'askMul')) return;
   const opts = shopsOf(s).map((g) => [g, shopInfo(s, g)]).map(([g, sh]) => [g, sh, Object.keys(sh.menu).filter((id) => sh.menu[id].on && canCook(sh, id) && sh.known.includes(id))]).filter((x) => x[2].length);
   if (!opts.length) return;
   const [g, sh, dishes] = opts[Math.floor(rand(r) * opts.length)];
