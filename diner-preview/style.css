@@ -595,3 +595,5 @@ small.lvl{font-size:10.5px;color:var(--ink2);margin-left:6px}
 .hp span{position:absolute;inset:0;text-align:center;font:800 10px/1 var(--pop);display:flex;align-items:center;justify-content:center;color:var(--ink)}
 .rvgauge.hp{height:16px}
 .rivalbar.hp span{font-size:11px}
+/* 鍵の店を 見ている間：店の絵より下は 押せない */
+#night.lockview > :not(#hero){opacity:.35;filter:grayscale(1);pointer-events:none;transition:opacity .15s}

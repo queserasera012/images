@@ -500,6 +500,8 @@ function heroFocus() {
 }
 function paintRib(g) {
   const own = S.shopsOf(s).includes(g), G = GENRES[g], nb = S.nextBranch(s);
+  // 鍵の店を 見ている間は 下の ボタンも 全部 鍵（押せるように 見えて まぎらわしい・2026-11-03 オーナー）
+  $('night').classList.toggle('lockview', !own);
   const dots = heroShops().map((x) => `<i class="${x === g ? 'on' : ''} ${S.shopsOf(s).includes(x) ? '' : 'lk'}"></i>`).join('');
   let sub;
   if (own) { const x = S.shopInfo(s, g); sub = `${G.stageNames[x.stage]}・評判 ${Math.round(x.rep)}${g === S.genreOf(s) ? '・あした ここに立つ' : ''}`; }
