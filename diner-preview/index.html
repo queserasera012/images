@@ -8,16 +8,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=M+PLUS+Rounded+1c:wght@500;800&display=swap">
-<link rel="stylesheet" href="style.css?v=1114">
+<link rel="stylesheet" href="style.css?v=1115">
 </head>
 <body>
 <div id="app">
   <header class="top">
-    <div class="chip" id="dayChip">1日目</div>
+    <button class="chip tb" id="dayChip" aria-label="記録を みる">1日目</button>
     <div class="clock"><div class="clock-bar"><i id="clockFill"></i></div><span id="clockText">11:00</span></div>
-    <div class="pill money" id="money">¥0</div>
-    <div class="pill rep" id="rep">★1</div>
-    <button class="wallet" id="walletBtn" aria-label="お店のお財布"><span>お財布</span></button>
+    <button class="pill money tb" id="money" aria-label="お金の使い道">¥0</button>
+    <button class="pill rep tb" id="rep" aria-label="お店の評判"><small>評判</small><span id="repStars">★</span></button>
+    <button class="wallet" id="walletBtn" aria-label="ショップ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z" fill="#fff" stroke="#2a2350" stroke-width="2" stroke-linejoin="round"/><path d="M9 10V7a3 3 0 0 1 6 0v3" fill="none" stroke="#2a2350" stroke-width="2" stroke-linecap="round"/><path d="M9.5 14.5l1.8 1.8 3.4-3.6" fill="none" stroke="#ff4f5e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>ショップ</span></button>
   </header>
 
   <!-- 営業 -->
@@ -71,6 +71,6 @@
 <div class="overlay" id="overlay" hidden></div>
 <div class="toast" id="toast" hidden></div>
 <div class="coach" id="coach" hidden></div>
-<script type="module" src="js/main.js?v=1114"></script>
+<script type="module" src="js/main.js?v=1115"></script>
 </body>
 </html>

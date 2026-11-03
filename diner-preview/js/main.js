@@ -82,7 +82,7 @@ const ringColor = (p) => (p > 0.5 ? 'var(--mint)' : p > 0.25 ? 'var(--yolk)' : '
 function renderTop() {
   $('dayChip').textContent = `${s.today ? s.day : (s.phase === 'report' ? s.day - 1 : s.day)}日目`;
   $('money').innerHTML = `${yen(s.money)}${s.debt ? `<small>ツケ ${yen(s.debt)}</small>` : ''}`;
-  $('rep').textContent = '★'.repeat(S.stars(s.rep));
+  $('repStars').textContent = '★'.repeat(S.stars(s.rep));
   const t = s.today ? s.today.t : 0;
   $('clockFill').style.width = `${Math.min(100, (t / DAY.seconds) * 100)}%`;
   $('clockText').textContent = s.today
@@ -814,7 +814,7 @@ const PANELS = {
     if (ns) {
       const a = Math.min(1, s.totalSales / ns.unlock.totalSales), b = Math.min(1, s.rep / ns.unlock.rep);
       stage = `<div class="sec">お店を広げる</div>
-        <div class="card" style="flex-direction:column;align-items:stretch;background:${ns.ready ? '#fff4c2' : '#fffdf6'}">
+        <div class="card stagecard" style="flex-direction:column;align-items:stretch;background:${ns.ready ? '#fff4c2' : '#fffdf6'}">
           <b style="font-family:var(--pop);font-size:16px">${ns.name}に する</b>
           <small style="font-weight:800;color:var(--ink2)">席 ${ns.maxSeats}まで・台 ${ns.maxStations}つまで・スタッフ ${ns.maxStaff}人まで</small>
           <small style="font-weight:800">売上の合計 ${yen(s.totalSales)} / ${yen(ns.unlock.totalSales)}</small><div class="meter"><i style="width:${a * 100}%"></i></div>
@@ -838,7 +838,7 @@ const PANELS = {
     const lp = PANELS.lookParts();
     const dc = S.canDecorate(s);
     const lv = DECO.levels[s.deco || 0];
-    const deco = `<div class="sec">店を飾る</div>
+    const deco = `<div class="sec decosec">店を飾る</div>
       <div class="card"><div class="ic">🎏</div><div class="txt"><b>${lv ? lv.name : '飾りは ぜんぶ そろった'}<small class="lvl">${s.deco || 0}/${DECO.levels.length}</small></b><small>飾るほど、ふつうより 高めの値段でも 客が離れにくい（1段で ${Math.round(S.priceUpOf(s) * 100)}%）${lv && !dc.ok ? `・${dc.why}` : ''}</small></div>
         ${lv ? `<button class="chunky yel" data-do="deco" ${dc.ok ? '' : 'disabled'}>${yen(lv.price)}</button>` : ''}</div>
       <div class="card" style="flex-direction:column;align-items:stretch"><div class="txt"><b>名物料理${s.signature ? `：${DISHES[s.signature].name}` : ''}</b><small>名物にした料理は よく頼まれ、来る人も 少し増える。1品だけ。変えるときも ${yen(DECO.signaturePrice)}</small></div>
@@ -1034,9 +1034,48 @@ function celebrate(text) {
     setTimeout(() => c.remove(), 2600);
   }
 }
+// ---- 上の帯のボタン（2026-11-03 オーナー）：日にち → 記録・お金 → 使い道・評判 → 店ごとの評判・ショップ ----
+const topOk = () => { if (s.phase === 'service') { toast('営業が 終わってから 見られる'); return false; } return true; };
+onTap($('dayChip'), () => { if (topOk()) doNight('records'); });
+onTap($('money'), () => { if (topOk()) moneySheet(); });
+onTap($('rep'), () => { if (topOk()) repSheet(); });
+// お金の使い道：いま 使えるものと、あと いくらで 使えるか。押すと その紙へ
+function moneySheet() {
+  const G = GENRES[S.genreOf(s)], rows = [];
+  const row = (sec, name, price, ok, why, go) => rows.push({ sec, name, price, ok, why, go });
+  const need = (p) => (s.money >= p ? '' : `あと ${yen(p - s.money)}`);
+  const here = `${G.no}号店 ${G.name}`;
+  const items = ['seat', 'board', 'stove', 'fryer'].map((k) => ({ k, c: S.canBuy(s, k), p: S.shopPrice(s, k) }));
+  const nm = { seat: '席を1つ増やす', board: 'まな板を増やす', stove: 'コンロを増やす', fryer: '揚げ場を置く' };
+  for (const it of items) if (it.c.ok || /足りない/.test(it.c.why || '')) row(here, nm[it.k], it.p, it.c.ok, it.c.ok ? '' : need(it.p), () => openSheet('shop'));
+  const ns = S.nextStage(s);
+  if (ns) row(here, `${ns.name}に 広げる`, ns.price, ns.ready && ns.affordable, !ns.ready ? '売上と 評判が 届いたら' : need(ns.price), () => openSheet('shop', '.stagecard'));
+  const lv = DECO.levels[s.deco || 0];
+  if (lv) row(here, `店を飾る：${lv.name}`, lv.price, S.canDecorate(s).ok, need(lv.price), () => openSheet('shop', '.decosec'));
+  if (!s.signature) row(here, '名物料理を 決める', DECO.signaturePrice, s.money >= DECO.signaturePrice, need(DECO.signaturePrice), () => openSheet('shop', '.decosec'));
+  const nb = S.nextBranch(s);
+  if (nb) row('店を出す', `${nb.no}号店 ${nb.name}`, nb.price, nb.ready && nb.affordable, !nb.ready ? nb.needName : need(nb.price), () => openSheet('shop', '.branchcard'));
+  if (S.shopsOf(s).length >= BUILD.from) {
+    if (!S.festivalTomorrow(s)) { const f = S.canFestival(s); row('町', '商店街まつり（あした）', FESTIVAL.price, f.ok, f.ok ? '' : f.why, () => openSheet('town', '.fest')); }
+    for (const b of BUILD.list.filter((x) => !S.builtOf(s).includes(x))) row('町', `${b.name}を 建てる`, b.price, S.canBuild(s, b.id).ok, need(b.price), () => openSheet('town', '.build'));
+  } else row('町', '商店街まつり・町に 建てる', null, false, `${BUILD.from}号店を 出したら`, null);
+  const secs = [...new Set(rows.map((r) => r.sec))];
+  const body = secs.map((sec) => `<div class="sec">${sec}</div>${rows.map((r, i) => r.sec !== sec ? '' : `<button class="card mrow ${r.ok ? 'ok' : ''}" data-mi="${i}" ${r.go ? '' : 'disabled'}><div class="txt"><b>${r.name}</b><small>${r.ok ? '使える' : r.why}</small></div>${r.price != null ? `<span class="mprice">${yen(r.price)}</span>` : ''}</button>`).join('')}`).join('');
+  const close = overlay(`<h3>お金の使い道</h3><p class="mhave">いま ${yen(s.money)}${s.debt ? `<small>ツケ ${yen(s.debt)}（売上から 先に 返す）</small>` : ''}</p>${body}<button class="big go" data-close>とじる</button>`, null);
+  for (const b of $('overlay').querySelectorAll('[data-mi]')) onTap(b, () => { const r = rows[+b.dataset.mi]; if (!r.go) return; if (s.phase !== 'night') { toast('夜の準備で 使える'); return; } close(); r.go(); });
+}
+// 店ごとの評判
+function repSheet() {
+  const list = S.shopsOf(s).map((g) => {
+    const x = S.shopInfo(s, g), r = Math.round(x.rep), G = GENRES[g];
+    return `<div class="card repcard ${g === S.genreOf(s) ? 'here' : ''}"><div class="txt"><b>${G.no}号店 ${G.name}${g === S.genreOf(s) ? '<span class="oneday">あした 立つ</span>' : ''}</b><small>${G.stageNames[x.stage]}</small>
+      <div class="meter"><i style="width:${r}%"></i></div></div><div class="repv"><span class="stars">${'★'.repeat(S.stars(x.rep))}<i>${'★'.repeat(5 - S.stars(x.rep))}</i></span><b>${r}</b></div></div>`;
+  }).join('');
+  overlay(`<h3>お店の評判</h3><p class="mhave" style="font-size:12px">評判は 店ごと。0〜100 で、20 ごとに ★ が 1つ 増える。上の帯の ★ は あした 立つ店のもの</p>${list}<button class="big go" data-close>とじる</button>`, null);
+}
 onTap($('walletBtn'), () => {
   const wasPaused = paused; paused = true;
-  overlay(`<h3>お店のお財布</h3>
+  overlay(`<h3>ショップ</h3>
     <div class="product"><div class="txt"><b>広告なしパス</b><small>広告を見なくても、広告のごほうびを毎日もらえる</small></div><button class="chunky yel" disabled>¥980</button></div>
     <div class="product"><div class="txt"><b>レトロ喫茶の内装</b><small>見た目だけ変わる</small></div><button class="chunky yel" disabled>¥300</button></div>
     <div class="product"><div class="txt"><b>開店の応援パック</b><small>はじめの2週間だけ。コンロ1つと内装1つ</small></div><button class="chunky yel" disabled>¥480</button></div>
