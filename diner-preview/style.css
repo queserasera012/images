@@ -620,3 +620,11 @@ small.lvl{font-size:10.5px;color:var(--ink2);margin-left:6px}
 .repv .stars{color:var(--yolk-d);font-size:13px;letter-spacing:-.05em}.repv .stars i{font-style:normal;color:#d9d4e6}
 .repv b{font:400 20px/1 var(--num)}
 @media (max-width:380px){.top{gap:4px}.chip,.pill{padding:5px 7px;font-size:13px}.money{min-width:0}}
+.mbig{background:#fff4c2;border:2.5px solid var(--line);border-radius:16px;box-shadow:0 3px 0 var(--line);padding:10px 14px;margin:0 0 10px;text-align:center}
+.mbig small{display:block;font:800 11px/1.2 var(--pop);color:var(--ink2)}
+.mbig b{display:block;font:400 34px/1.15 var(--num);color:var(--ink)}
+.mbig em{display:block;font-style:normal;font:800 11px/1.3 var(--pop);color:var(--red-d)}
+.repv .rd{font-style:normal;font:800 11px/1 var(--pop);white-space:nowrap}
+.rd.up{color:var(--mint-d)}.rd.dn{color:var(--red-d)}.rd.z{color:var(--ink2)}
+.rnext{display:block;margin-top:4px;color:var(--ink)!important;font-weight:800}
+.rgood{font-weight:800;line-height:1.9}

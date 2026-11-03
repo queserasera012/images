@@ -4,7 +4,7 @@ import { personSVG, LOOK_COUNT } from './people.js';
 import { stationSVG } from './kitchen-art.js';
 import { exteriorSVG, festivalSVG, townSVG, rivalSVG } from './exterior.js';
 import { foodSVG } from './food-art.js';
-import { DAY, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_ORDER, BRANCH_LATER, EVENTS, FAST, GUEST, TOWN, MANAGER, ASK, STORIES, STORY_AT, BUILD, FESTIVAL, DECO, STANCES, RIVAL } from './config.js';
+import { DAY, DEMAND, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_ORDER, BRANCH_LATER, EVENTS, FAST, GUEST, TOWN, MANAGER, ASK, STORIES, STORY_AT, BUILD, FESTIVAL, DECO, STANCES, RIVAL } from './config.js';
 
 const SAVE_KEY = 'diner.proto.v1';
 const UI_KEY = 'diner.proto.ui.v1';
@@ -1061,17 +1061,37 @@ function moneySheet() {
   } else row('町', '商店街まつり・町に 建てる', null, false, `${BUILD.from}号店を 出したら`, null);
   const secs = [...new Set(rows.map((r) => r.sec))];
   const body = secs.map((sec) => `<div class="sec">${sec}</div>${rows.map((r, i) => r.sec !== sec ? '' : `<button class="card mrow ${r.ok ? 'ok' : ''}" data-mi="${i}" ${r.go ? '' : 'disabled'}><div class="txt"><b>${r.name}</b><small>${r.ok ? '使える' : r.why}</small></div>${r.price != null ? `<span class="mprice">${yen(r.price)}</span>` : ''}</button>`).join('')}`).join('');
-  const close = overlay(`<h3>お金の使い道</h3><p class="mhave">いま ${yen(s.money)}${s.debt ? `<small>ツケ ${yen(s.debt)}（売上から 先に 返す）</small>` : ''}</p>${body}<button class="big go" data-close>とじる</button>`, null);
+  const close = overlay(`<h3>お金の使い道</h3><div class="mbig"><small>いま 持っている お金</small><b>${yen(s.money)}</b>${s.debt ? `<em>ツケ ${yen(s.debt)}（あしたの 売上から 先に 返す）</em>` : ''}</div>${body}<button class="big go" data-close>とじる</button>`, null);
   for (const b of $('overlay').querySelectorAll('[data-mi]')) onTap(b, () => { const r = rows[+b.dataset.mi]; if (!r.go) return; if (s.phase !== 'night') { toast('夜の準備で 使える'); return; } close(); r.go(); });
 }
-// 店ごとの評判
+// 店ごとの評判：きのうからの変化と、評判で 何が変わるか（2026-11-03 オーナー）
+function repDelta(g) {
+  const x = S.shopInfo(s, g);
+  const r = [...s.reports].reverse().find((y) => (y.shop || 'washoku') === g && y.day === s.day - 1 && !y.closed && typeof y.rep === 'number');
+  if (!r) return null;
+  return Math.round(x.rep - (r.rep - (r.repDelta || 0)));
+}
+function repNext(g) {
+  const x = S.shopInfo(s, g), G = GENRES[g], st = STAGES[x.stage + 1];
+  if (st && x.rep < st.unlock.rep) return `${st.unlock.rep} で ${G.stageNames[x.stage + 1]}に 広げられる（売上も 要る）`;
+  const tv = RIVAL.tactics.find((y) => y.id === 'ad');
+  if (s.rival && x.rep < tv.repGuard) return `${tv.repGuard} で ライバルの テレビの宣伝を かわせる`;
+  return '';
+}
 function repSheet() {
   const list = S.shopsOf(s).map((g) => {
-    const x = S.shopInfo(s, g), r = Math.round(x.rep), G = GENRES[g];
-    return `<div class="card repcard ${g === S.genreOf(s) ? 'here' : ''}"><div class="txt"><b>${G.no}号店 ${G.name}${g === S.genreOf(s) ? '<span class="oneday">あした 立つ</span>' : ''}</b><small>${G.stageNames[x.stage]}</small>
-      <div class="meter"><i style="width:${r}%"></i></div></div><div class="repv"><span class="stars">${'★'.repeat(S.stars(x.rep))}<i>${'★'.repeat(5 - S.stars(x.rep))}</i></span><b>${r}</b></div></div>`;
+    const x = S.shopInfo(s, g), r = Math.round(x.rep), G = GENRES[g], d = repDelta(g), nx = repNext(g);
+    const dl = d == null ? '<em class="rd z">きのう 休み</em>' : `<em class="rd ${d > 0 ? 'up' : d < 0 ? 'dn' : 'z'}">きのうから ${d > 0 ? '▲' : d < 0 ? '▼' : '±'}${Math.abs(d)}</em>`;
+    const base = Math.round((DEMAND.base + x.rep * DEMAND.perRep) * (DEMAND.stageMul[x.stage] || 1));
+    return `<div class="card repcard ${g === S.genreOf(s) ? 'here' : ''}"><div class="txt"><b>${G.no}号店 ${G.name}${g === S.genreOf(s) ? '<span class="oneday">あした 立つ</span>' : ''}</b><small>${G.stageNames[x.stage]}・1日に 来る人の もと 約${base}人</small>
+      <div class="meter"><i style="width:${r}%"></i></div>${nx ? `<small class="rnext">次：${nx}</small>` : ''}</div><div class="repv"><span class="stars">${'★'.repeat(S.stars(x.rep))}<i>${'★'.repeat(5 - S.stars(x.rep))}</i></span><b>${r}</b>${dl}</div></div>`;
   }).join('');
-  overlay(`<h3>お店の評判</h3><p class="mhave" style="font-size:12px">評判は 店ごと。0〜100 で、20 ごとに ★ が 1つ 増える。上の帯の ★ は あした 立つ店のもの</p>${list}<button class="big go" data-close>とじる</button>`, null);
+  const tv = RIVAL.tactics.find((y) => y.id === 'ad');
+  overlay(`<h3>お店の評判</h3>${list}
+    <div class="sec">評判が 上がると</div>
+    <div class="card" style="flex-direction:column;align-items:stretch"><small class="rgood">👥 来る人が 増える（評判 10 で 約${Math.round(DEMAND.perRep * 10)}人。店が 大きいほど もっと）<br>🏠 店を 広げる 条件になる（${STAGES.slice(1).map((st, i) => `${st.unlock.rep}`).join('・')}）<br>📺 ${tv.repGuard} 以上の店は ライバルの テレビの宣伝を かわせる<br>⭐ 20 ごとに ★ が 1つ 増える</small></div>
+    <p class="mhave" style="font-size:11.5px;color:var(--ink2)">料理を 早く出すと 上がり、待たせて 帰したり 売り切れたりすると 下がる。80 を 超えると 毎日 少しずつ 戻る。店ごとに 別</p>
+    <button class="big go" data-close>とじる</button>`, null);
 }
 onTap($('walletBtn'), () => {
   const wasPaused = paused; paused = true;
