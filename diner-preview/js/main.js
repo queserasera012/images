@@ -455,7 +455,7 @@ function renderHero() {
     if (seNew) stick.push([se.icon, `${se.name}に なった`, se.text]);
     const stk = `<span class="hstk"><button class="wchip" data-say="あしたは ${fw.name}">${fw.icon}<span>あした ${fw.name}</span></button>
         ${stick.slice(0, 2).map(([ic, nm, tx], i) => `<button class="estk e${i}" data-say="${nm}：${tx}"><span>${ic}</span>${nm}</button>`).join('')}</span>`;
-    const cards = BRANCH_ORDER.map((g) => {
+    const cards = heroShops().map((g) => {
       const own = mine.includes(g), G = GENRES[g];
       if (own) {
         const x = S.shopInfo(s, g);
@@ -489,6 +489,8 @@ function renderHero() {
   }
   paintRib(here);
 }
+// 並べるのは 出した店と 次の1店だけ（先の店まで 見せない・2026-11-03 オーナー）
+function heroShops() { const mine = S.shopsOf(s), nb = S.nextBranch(s); return BRANCH_ORDER.filter((g) => mine.includes(g) || (nb && nb.genre === g)); }
 function heroFocus() {
   const strip = $('hstrip'), mid = strip.scrollLeft + strip.clientWidth / 2;
   let best = null, d = 1e9;
@@ -497,11 +499,10 @@ function heroFocus() {
 }
 function paintRib(g) {
   const own = S.shopsOf(s).includes(g), G = GENRES[g], nb = S.nextBranch(s);
-  const dots = BRANCH_ORDER.map((x) => `<i class="${x === g ? 'on' : ''} ${S.shopsOf(s).includes(x) ? '' : 'lk'}"></i>`).join('');
+  const dots = heroShops().map((x) => `<i class="${x === g ? 'on' : ''} ${S.shopsOf(s).includes(x) ? '' : 'lk'}"></i>`).join('');
   let sub;
   if (own) { const x = S.shopInfo(s, g); sub = `${G.stageNames[x.stage]}・評判 ${Math.round(x.rep)}${g === S.genreOf(s) ? '・あした ここに立つ' : ''}`; }
   else if (nb && nb.genre === g) sub = nb.ready ? `${yen(nb.price)}で 出せる` : nb.needName;
-  else sub = 'まだ 先の店';
   $('hrib').innerHTML = `<b>${G.no}号店 ${own || (nb && nb.genre === g) ? G.name : '？？？'}</b><small>${sub}</small><span class="hdots">${dots}</span>`;
 }
 // 指を はなして 止まったら：自分の店なら そこに立つ。鍵の店は 見せるだけ
