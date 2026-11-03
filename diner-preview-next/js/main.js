@@ -5,7 +5,7 @@ import { stationSVG } from './kitchen-art.js';
 import { exteriorSVG, festivalSVG, townSVG, rivalSVG } from './exterior.js';
 import { foodSVG } from './food-art.js';
 import { initLang, setLang, getLang, LANGS, missing } from './i18n.js';
-import { DAY, DEMAND, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_ORDER, BRANCH_LATER, EVENTS, FAST, GUEST, TOWN, MANAGER, ASK, STORIES, STORY_AT, BUILD, FESTIVAL, DECO, STANCES, RIVAL } from './config.js';
+import { DAY, DEMAND, DISHES, STATIONS, STAFF, INGREDIENTS, TRIAL_COST, REGULARS, WEATHER, STAGES, ADS, GENRES, BRANCH_ORDER, BRANCH_LATER, EVENTS, FAST, GUEST, TOWN, MANAGER, ASK, STORIES, STORY_AT, BUILD, FESTIVAL, DECO, STANCES, RIVAL, STORE, SALE } from './config.js';
 
 const SAVE_KEY = 'diner.proto.v1';
 const UI_KEY = 'diner.proto.ui.v1';
@@ -28,10 +28,11 @@ let lastEv = 0;
 let tab = null; // 開いている紙（料理・人・レシピ・お店・町）。null は 閉じている
 
 function load() { try { const t = localStorage.getItem(SAVE_KEY); return t ? S.parseSave(t) : null; } catch { return null; } }
-function save() {
+function save(force = false) {
   let text = null;
+  s.savedAt = Date.now(); // iCloud で どちらが新しいかを くらべる（native/cloud-rules.js）
   try { text = S.serialize(s); localStorage.setItem(SAVE_KEY, text); } catch { /* 保存できなくても遊べる */ }
-  if (NATIVE && text) native('backup', { data: text }); // アプリでは 写しも持つ（localStorage が消えても戻せる）
+  if (NATIVE && text) native('backup', { data: text, force }); // アプリでは 写しも持つ（localStorage が消えても戻せる・iCloud）
 }
 // アプリの中（native/App.js の WebView）で動いているとき：広告・画面をつけたまま・セーブの写しを アプリに頼む
 const NATIVE = typeof window !== 'undefined' && !!window.__DINER_NATIVE;
@@ -42,10 +43,107 @@ function native(type, extra = {}) {
   return new Promise((resolve) => {
     waiting[id] = resolve;
     try { window.ReactNativeWebView.postMessage(JSON.stringify({ id, type, ...extra })); } catch { delete waiting[id]; resolve(false); }
-    if (type === 'backup' || type === 'awake') { delete waiting[id]; resolve(true); } // 答えを待たない頼み
+    if (['backup', 'awake', 'notify', 'feel', 'volume'].includes(type)) { delete waiting[id]; resolve(true); } // 答えを待たない頼み
   });
 }
 if (NATIVE) window.__dinerNativeReply = (id, result) => { const r = waiting[id]; delete waiting[id]; if (r) r(result); };
+
+// ---- ショップ（アプリ内課金）・大売り出しの券・お願いの手紙・お知らせ（2026-11-03 オーナー決定）----
+// 広告なしパス：ストアが 持っているかを 覚えている（復元できる）。券：買った合計は アプリ（native/cloud.js）、使った数は セーブ（s.sale.used）
+const store = { noAds: !!ui.noAds, bought: Number(ui.bought) || 0, prices: {} };
+function takeStore(r) {
+  if (!r) return;
+  if (Array.isArray(r.owned) && r.ok !== false) store.noAds = r.owned.includes(STORE.noAds);
+  if (Number.isFinite(r.tickets)) store.bought = r.tickets;
+  ui.noAds = store.noAds; ui.bought = store.bought; saveUi();
+}
+function refreshStore() {
+  if (!NATIVE) return;
+  native('iap', { op: 'owned' }).then((r) => { takeStore(r); renderTop(); });
+  native('iap', { op: 'products', skus: [STORE.noAds, STORE.ticket] }).then((r) => {
+    if (r && r.products) for (const p of r.products) if (p.price) store.prices[p.id] = p.price;
+  });
+}
+// アプリからの知らせ：買う画面の外で 券が 届いた（買う途中で 落ちて 次の起動で 届いた など）
+if (NATIVE) window.__dinerNativeEvent = (name, data) => {
+  if (name === 'tickets' && Number.isFinite(data) && data > store.bought) { store.bought = data; ui.bought = data; saveUi(); toast('大売り出しの券が 届いた'); renderTop(); }
+};
+// 手紙の しるし：夕方6時で 1日が かわる（6時より前は きのうの手紙）
+function letterKeyNow(d = new Date()) {
+  const t = new Date(d);
+  if (t.getHours() < 18) t.setDate(t.getDate() - 1);
+  return `${t.getFullYear()}-${t.getMonth() + 1}-${t.getDate()}`;
+}
+// お知らせ（D506）：端末の中だけで予約。夕方6時に 1日1回、7日先までは 毎日、そのあとは 週に1回（8週）。開くたびに 入れ直す。
+// お願いが 受けられないうち（4日目まで・受けた お願いが いっぱい）は 入れない（届かない手紙を 知らせない）
+function scheduleNotify() {
+  if (!NATIVE) return;
+  const items = [];
+  if (ui.notify && s.day >= ASK.fromDay && s.asks.list.length < S.askMax(s)) {
+    const en = getLang() === 'en';
+    const title = en ? 'Diner Street' : 'Diner Street';
+    const body = en ? 'A request letter from someone in town has arrived.' : '町の人から お願いの手紙が 届いています';
+    const t = new Date(); t.setHours(18, 0, 0, 0);
+    if (t.getTime() <= Date.now()) t.setDate(t.getDate() + 1);
+    for (let i = 0; i < 15; i++) {
+      items.push({ at: t.getTime(), title, body });
+      t.setDate(t.getDate() + (i < 6 ? 1 : 7));
+    }
+  }
+  native('notify', { items });
+}
+function checkLetter() {
+  if (s.phase !== 'night' || ui.tut < 99 && s.day < 3) return;
+  if (!S.letterOffer(s, letterKeyNow())) return;
+  save();
+  const after = () => { if (NATIVE && !ui.notifyAsked) notifyPrompt(askSheet); else askSheet(); };
+  overlay(`<h3>お願いの手紙</h3><div class="letterart">${MAIL_SVG}</div>
+    <p>町の人から 手紙が 届いた。手紙は 毎日 夕方6時に 1通 届く。</p><button class="big go" data-close>よむ</button>`, after);
+}
+function notifyPrompt(then) {
+  const close = overlay(`<h3>手紙の お知らせ</h3><p>手紙が 届く 夕方6時に、1日1回 お知らせを 出せます。7日 開かない日が 続いたら、週に1回に へらします。あとから 記録の紙で 変えられます。</p>
+    <button class="big go" id="nfNext">次へ</button><button class="chunky wide" data-close>いまは しない</button>`, () => { ui.notifyAsked = true; saveUi(); then(); });
+  onTap($('nfNext'), () => {
+    native('notify-ask').then((r) => { ui.notify = !!(r && r.granted); ui.notifyAsked = true; saveUi(); scheduleNotify(); close(); });
+  });
+}
+function buy(sku) {
+  if (!NATIVE) { toast('ウェブの 試作では 買えません'); return; }
+  native('iap', { op: 'buy', sku }).then((r) => {
+    takeStore(r);
+    if (r && r.ok) toast(sku === STORE.noAds ? '広告なしパスを 買った' : '大売り出しの券を 3枚 買った');
+    else if (!(r && r.cancelled)) toast('買えなかった（あとで もう一度）');
+    renderTop(); shopSheet();
+  });
+}
+function shopSheet() {
+  const wasPaused = paused; paused = true;
+  const left = S.saleLeft(s, store.bought), today = S.saleToday(s);
+  const price = (sku, def) => store.prices[sku] || def;
+  const use = s.phase !== 'night' ? '<small class="saleinfo">夜の 準備の あいだに 使えます</small>'
+    : today ? '<small class="saleinfo on">あしたは 大売り出し</small>'
+    : `<button class="chunky red" id="saleUse" ${left > 0 ? '' : 'disabled'}>あしたに 使う</button>`;
+  const close = overlay(`<h3>ショップ</h3>
+    <div class="product"><div class="txt"><b>広告なしパス</b><small>広告を 見なくても、広告の ごほうびが もらえる（1日 ${ADS.perDay}回まで）。1回 買えば ずっと</small></div>
+      ${store.noAds ? '<button class="chunky" disabled>持っている</button>' : `<button class="chunky yel" data-buy="${STORE.noAds}">${price(STORE.noAds, '¥980')}</button>`}</div>
+    <div class="product"><div class="txt"><b>大売り出しの券（3枚）</b><small>使った日は、ぜんぶの店で お客さんが ${Math.round((SALE.nMul - 1) * 100)}% ふえます（1日1枚まで）。</small>
+      <small>3号店を 出すと、通りの 向かいに ライバル店が 来ます。ライバルに ねらわれている店では、効き目が 半分に なります。</small></div>
+      <button class="chunky yel" data-buy="${STORE.ticket}">${price(STORE.ticket, '¥250')}</button></div>
+    <div class="card saleleft"><div class="txt"><b>のこり ${left}枚</b></div>${use}</div>
+    <p class="asknote">券の のこりは iCloud で ほかの 端末と 合わせます。iCloud を 使っていない 端末で アプリを 消すと、のこりの 券も 消えます。</p>
+    ${NATIVE ? '<button class="chunky wide" id="restore">購入を 復元する</button>' : '<p class="asknote">ウェブの 試作では 買えません（アプリで 買えます）。</p>'}
+    ${DEBUG && !NATIVE ? '<button class="chunky" id="dbgTicket">（試し）券を 3枚 足す</button><button class="chunky" id="dbgNoAds">（試し）広告なしパスを 切りかえ</button>' : ''}
+    <button class="big go" data-close>とじる</button>`, () => { paused = wasPaused; });
+  const o = $('overlay');
+  for (const b of o.querySelectorAll('[data-buy]')) onTap(b, () => buy(b.dataset.buy));
+  if ($('saleUse')) onTap($('saleUse'), () => {
+    if (S.useSale(s, store.bought).ok) { save(); toast('あしたは 大売り出し'); renderNight(); close(); }
+  });
+  if ($('restore')) onTap($('restore'), () => native('iap', { op: 'restore' }).then((r) => { takeStore(r); toast(store.noAds ? '広告なしパスを 復元した' : '復元できる 購入は ありません'); shopSheet(); }));
+  if ($('dbgTicket')) onTap($('dbgTicket'), () => { store.bought += 3; ui.bought = store.bought; saveUi(); shopSheet(); });
+  if ($('dbgNoAds')) onTap($('dbgNoAds'), () => { store.noAds = !store.noAds; ui.noAds = store.noAds; saveUi(); shopSheet(); });
+}
+
 function loadUi() { try { return JSON.parse(localStorage.getItem(UI_KEY)) || { hint: 0 }; } catch { return { hint: 0 }; } }
 function saveUi() { try { localStorage.setItem(UI_KEY, JSON.stringify(ui)); } catch { /* */ } }
 
@@ -369,6 +467,7 @@ function renderReport() {
   $('report').innerHTML = reportPaper(r, { live: true });
   wireBranchRows($('report'));
   countUp($('profitNum'), r.profit + (r.adBonus || 0));
+  if (NATIVE && r.profit > 0 && !r.felt) { r.felt = true; native('feel', { name: 'coin' }); }
   const ad = $('adProfit');
   if (ad) onTap(ad, () => showAd(() => { S.watchAd(s, 'profit'); save(); renderReport(); }));
   onTap($('toNight'), () => { S.toNight(s); save(); show(); });
@@ -467,11 +566,12 @@ function renderHero() {
   const here = S.genreOf(s), mine = S.shopsOf(s), nb = S.nextBranch(s);
   const fw = S.weatherOf(s), fe = S.eventOf(s), fest = S.festivalTomorrow(s);
   const se = S.seasonOf(s), seNew = S.seasonStarts(s.day);
-  const key = JSON.stringify([s.day, mine.map((g) => { const x = S.shopInfo(s, g); return [g, x.stage, Math.round(x.rep), x.staff.length, x.deco, !!x.manager, x.totalSales >= 150000]; }), nb && [nb.genre, nb.ready], fw.id, fe && fe.id, fest, s.town && s.town.picked]);
+  const key = JSON.stringify([s.day, mine.map((g) => { const x = S.shopInfo(s, g); return [g, x.stage, Math.round(x.rep), x.staff.length, x.deco, !!x.manager, x.totalSales >= 150000]; }), nb && [nb.genre, nb.ready], S.saleToday(s), fw.id, fe && fe.id, fest, s.town && s.town.picked]);
   const box = $('hero');
   if (key !== heroKey) {
     heroKey = key;
     const stick = [];
+    if (S.saleToday(s)) stick.push(['📣', '大売り出し', `全部の店で お客さんが ${Math.round((SALE.nMul - 1) * 100)}% ふえる`]);
     if (fest) stick.push(['🏮', '商店街まつり', '全部の店に 人が多く来る']);
     if (fe) stick.push([fe.icon, fe.name, fe.text]);
     if (seNew) stick.push([se.icon, `${se.name}に なった`, se.text]);
@@ -790,6 +890,7 @@ const PANELS = {
       records: `<h3>記録</h3>${reports || chips ? `<div class="sec">これまでの日報 <small>（タップで ひらく）</small></div>${chips}<div class="days">${reports || '<p class="asknote">まだ 日報が ない（アルバイトだけで 回した日は 休みの日を 除いて ここに 入る）</p>'}</div>` : ''}
       <div class="sec">あゆみ</div><ol class="ayumi">${log}</ol>
       <div class="sec">ことば <small>Language</small></div><div class="langs">${LANGS.map((l) => `<button class="chunky ${getLang() === l.id ? 'yel' : ''}" data-do="lang" data-arg="${l.id}">${l.label}</button>`).join('')}</div>
+      ${NATIVE ? `<div class="sec">手紙の お知らせ</div><div class="langs"><button class="chunky ${ui.notify ? 'yel' : ''}" data-do="notify" data-arg="1">出す</button><button class="chunky ${ui.notify ? '' : 'yel'}" data-do="notify" data-arg="0">出さない</button></div>` : ''}
       <div class="sec">やり直す</div><button class="chunky wide" data-do="reset">はじめから やり直す</button>
       <button class="big go" data-close>とじる</button>`,
     };
@@ -986,6 +1087,7 @@ function doNight(what, arg, el) {
         ui.pick = []; ui.townSel = null;
         const h = r.home;
         const line = h.open ? `${GENRES[h.genre].no}号店は ${h.crew.length > 3 ? `${h.crew.slice(0, 2).map((n) => `${n}さん`).join('・')}ほか ${h.crew.length}人` : h.crew.map((n) => `${n}さん`).join('・')}で 回る` : `${GENRES[h.genre].no}号店は 仕込み係と ホール係を 呼ばないと 休みになる（店の札の「バイトを呼ぶ」から）`;
+        if (NATIVE && !ui.reviewAsked && S.shopsOf(s).length === 2) { ui.reviewAsked = true; saveUi(); setTimeout(() => native('review'), 3000); } // 評価のお願い：2号店を 出した夜に 1回（Apple の窓だけ）
         celebrate(`${r.name}を 出した！\n<small class="cel-sub">あしたは ${GENRES[S.genreOf(s)].no}号店に立つ。<br>${line}</small>`);
       }
       break;
@@ -1003,11 +1105,21 @@ function doNight(what, arg, el) {
       break;
     }
     case 'ad': showAd(() => { S.watchAd(s, arg); save(); renderNight(); renderTop(); }, arg); return;
-    case 'lang': setLang(arg); doNight('records'); return;
+    case 'lang': setLang(arg); scheduleNotify(); doNight('records'); return;
+    case 'notify':
+      if (arg === '1') native('notify-ask').then((r) => { ui.notify = !!(r && r.granted); ui.notifyAsked = true; saveUi(); scheduleNotify(); if (!ui.notify) toast('iPhone の 設定で お知らせを 許可してください'); doNight('records'); });
+      else { ui.notify = false; saveUi(); scheduleNotify(); doNight('records'); }
+      return;
     case 'reset': {
       overlay(`<h3>はじめから やり直す</h3><p>いまの お店・お金・日報は ぜんぶ消えて、1日目の屋台から はじまります。</p>
         <button class="chunky red wide" id="resetYes">消して 1日目から</button><button class="big go" data-close>やめる</button>`);
-      onTap($('resetYes'), () => { try { localStorage.removeItem(SAVE_KEY); localStorage.removeItem(UI_KEY); } catch { /* */ } location.reload(); });
+      onTap($('resetYes'), () => {
+        // 使った 券の数は 持ちこす（やり直して 券が もどらないように）。言葉・購入の写しも 残す
+        const fresh = S.createState(); fresh.sale = { used: s.sale.used, day: 0 };
+        try { localStorage.setItem(SAVE_KEY, S.serialize(fresh)); localStorage.setItem(UI_KEY, JSON.stringify({ hint: 0, noAds: ui.noAds, bought: ui.bought, notify: ui.notify, notifyAsked: ui.notifyAsked, reviewAsked: ui.reviewAsked })); } catch { /* */ }
+        if (NATIVE) native('backup', { data: S.serialize(fresh), force: true });
+        location.reload();
+      });
       return;
     }
   }
@@ -1024,6 +1136,7 @@ function overlay(html, onBack, cls = 'sheet') {
   return close;
 }
 function showAd(done, placement = 'profit') {
+  if (store.noAds) { done(); toast('ごほうびを受け取った'); return; } // 広告なしパス
   const wasPaused = paused; paused = true;
   if (NATIVE) {
     native('rewarded', { placement }).then((ok) => {
@@ -1054,6 +1167,7 @@ function faceScene() {
     <button class="big go" data-close>あしたの 準備へ</button></div>`, () => { S.faceSeen(s); save(); renderNight(); }, 'sheet bare');
 }
 function celebrate(text) {
+  if (NATIVE) native('feel', { name: 'build' });
   overlay(`<div class="celebrate">${text.replace('\n', '<br>')}</div><button class="big go" data-close>やったね</button>`);
   const colors = ['#ff4f5e', '#ffd23f', '#2fd39e', '#5ccdf2', '#6b4eff'];
   for (let i = 0; i < 40; i++) {
@@ -1131,15 +1245,7 @@ function repSheet() {
       <b>↺ 高いと 戻る</b><small>80 を 超えると、何もしなくても 毎日 少しずつ 下がる（高いほど 大きく）。高い評判は 毎日 早く出して 保つもの。評判は 店ごとに 別</small></div></div>
     <button class="big go" data-close>とじる</button>`, null);
 }
-onTap($('walletBtn'), () => {
-  const wasPaused = paused; paused = true;
-  overlay(`<h3>ショップ</h3>
-    <div class="product"><div class="txt"><b>広告なしパス</b><small>広告を見なくても、広告のごほうびを毎日もらえる</small></div><button class="chunky yel" disabled>¥980</button></div>
-    <div class="product"><div class="txt"><b>レトロ喫茶の内装</b><small>見た目だけ変わる</small></div><button class="chunky yel" disabled>¥300</button></div>
-    <div class="product"><div class="txt"><b>開店の応援パック</b><small>はじめの2週間だけ。コンロ1つと内装1つ</small></div><button class="chunky yel" disabled>¥480</button></div>
-    <p style="color:var(--ink2);font-weight:800">試作なので まだ買えません。</p>
-    <button class="big go" data-close>とじる</button>`, () => { paused = wasPaused; });
-});
+onTap($('walletBtn'), () => shopSheet());
 onTap($('fastBtn'), () => { fast = !fast; $('fastBtn').classList.toggle('on', fast); toast(fast ? `早送り ×${FAST}` : 'ふつうの速さ'); });
 onTap($('pauseBtn'), () => {
   paused = true;
@@ -1268,7 +1374,7 @@ function show() {
   if (s.phase !== 'night') { tab = null; $('psheet').hidden = true; }
   for (const id of ['queue', 'seats', 'tickets', 'kitchen', 'pass']) { const b = $(id); b.innerHTML = ''; b._map = null; }
   if (s.phase === 'report') renderReport();
-  if (s.phase === 'night') { renderNight(); if (s.faceDay && !s.faceSeen) faceScene(); else rivalScenes(); }
+  if (s.phase === 'night') { renderNight(); if (s.faceDay && !s.faceSeen) faceScene(); else { rivalScenes(); if ($('overlay').hidden) checkLetter(); } }
   if (s.phase === 'service') renderService();
   renderTop();
 }
@@ -1305,8 +1411,13 @@ function frame(now) {
   if (awake !== !!wakeLock) keepAwake(awake);
   requestAnimationFrame(frame);
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden) save(); else keepAwake(true); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { save(true); scheduleNotify(); } else { keepAwake(true); if (s.phase === 'night') { checkLetter(); renderNight(); } }
+});
 
 
+refreshStore();
 show();
+if (window.__dinerCloudNote) toast('iCloud から 店を 読みこみました');
+scheduleNotify();
 requestAnimationFrame(frame);

@@ -635,3 +635,11 @@ small.lvl{font-size:10.5px;color:var(--ink2);margin-left:6px}
 .rupdn b.up{color:var(--mint-d)}.rupdn b.dn{color:var(--red-d)}
 .rupdn small{line-height:1.6}
 .langs{display:flex;gap:8px}.langs .chunky{flex:1}
+/* ショップ：券の のこり・手紙（2026-11-03） */
+.product .txt small { display: block; }
+.product .txt small + small { margin-top: 4px; }
+.saleleft { align-items: center; justify-content: space-between; }
+.saleleft .saleinfo { font-weight: 800; color: var(--ink2); font-size: 12px; }
+.saleleft .saleinfo.on { color: var(--red-d); }
+.letterart { display: flex; justify-content: center; margin: 4px 0 8px; }
+.letterart svg { width: 84px; height: 68px; }
