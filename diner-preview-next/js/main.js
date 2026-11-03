@@ -125,10 +125,10 @@ function shopSheet() {
     : `<button class="chunky red" id="saleUse" ${left > 0 ? '' : 'disabled'}>あしたに 使う</button>`;
   const close = overlay(`<h3>ショップ</h3>
     <div class="product"><div class="txt"><b>広告なしパス</b><small>広告を 見なくても、広告の ごほうびが もらえる（1日 ${ADS.perDay}回まで）。1回 買えば ずっと</small></div>
-      ${store.noAds ? '<button class="chunky" disabled>持っている</button>' : `<button class="chunky yel" data-buy="${STORE.noAds}">${price(STORE.noAds, '¥980')}</button>`}</div>
+      ${store.noAds ? '<button class="chunky" disabled>持っている</button>' : `<button class="chunky yel" data-buy="${STORE.noAds}">${price(STORE.noAds, '¥900')}</button>`}</div>
     <div class="product"><div class="txt"><b>大売り出しの券（3枚）</b><small>使った日は、ぜんぶの店で お客さんが ${Math.round((SALE.nMul - 1) * 100)}% ふえます（1日1枚まで）。</small>
       <small>3号店を 出すと、通りの 向かいに ライバル店が 来ます。ライバルに ねらわれている店では、効き目が 半分に なります。</small></div>
-      <button class="chunky yel" data-buy="${STORE.ticket}">${price(STORE.ticket, '¥250')}</button></div>
+      <button class="chunky yel" data-buy="${STORE.ticket}">${price(STORE.ticket, '¥200')}</button></div>
     <div class="card saleleft"><div class="txt"><b>のこり ${left}枚</b></div>${use}</div>
     <p class="asknote">券の のこりは iCloud で ほかの 端末と 合わせます。iCloud を 使っていない 端末で アプリを 消すと、のこりの 券も 消えます。</p>
     ${NATIVE ? '<button class="chunky wide" id="restore">購入を 復元する</button>' : '<p class="asknote">ウェブの 試作では 買えません（アプリで 買えます）。</p>'}
@@ -1352,7 +1352,9 @@ function updateCoach() {
     const r = el.getBoundingClientRect(), pad = 6;
     ring.hidden = false;
     Object.assign(ring.style, { left: `${r.left - pad}px`, top: `${r.top - pad}px`, width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px` });
-    const below = r.top + r.height / 2 < innerHeight / 2;
+    // 上か下かは 手ごとに1回だけ決める（光らせた台は ぷるぷる動くので、まん中あたりにあると 毎こま 上下が入れかわって ちらついた・2026-11-03 iPhone）
+    if (c._sideKey !== key) { c._sideKey = key; c._below = r.top + r.height / 2 < innerHeight / 2; }
+    const below = c._below;
     tip.style.top = st.place === 'bottom' ? `${innerHeight - tip.offsetHeight - 110}px` : below ? `${Math.min(innerHeight - tip.offsetHeight - 12, r.bottom + 16)}px` : `${Math.max(12, r.top - tip.offsetHeight - 16)}px`;
   } else {
     ring.hidden = true;

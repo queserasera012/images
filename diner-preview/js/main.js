@@ -1216,7 +1216,9 @@ function updateCoach() {
     const r = el.getBoundingClientRect(), pad = 6;
     ring.hidden = false;
     Object.assign(ring.style, { left: `${r.left - pad}px`, top: `${r.top - pad}px`, width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px` });
-    const below = r.top + r.height / 2 < innerHeight / 2;
+    // 上か下かは 手ごとに1回だけ決める（光らせた台は ぷるぷる動くので、まん中あたりにあると 毎こま 上下が入れかわって ちらついた・2026-11-03 iPhone）
+    if (c._sideKey !== key) { c._sideKey = key; c._below = r.top + r.height / 2 < innerHeight / 2; }
+    const below = c._below;
     tip.style.top = st.place === 'bottom' ? `${innerHeight - tip.offsetHeight - 110}px` : below ? `${Math.min(innerHeight - tip.offsetHeight - 12, r.bottom + 16)}px` : `${Math.max(12, r.top - tip.offsetHeight - 16)}px`;
   } else {
     ring.hidden = true;
