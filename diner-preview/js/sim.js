@@ -27,7 +27,9 @@ const shopOfReg = (r) => r.shop || 'washoku';
 export const regularsOf = (s) => REGULARS.filter((r) => shopOfReg(r) === genreOf(s));
 // 店の段。名前は ジャンルごと（中華なら「小さな中華料理店」）
 export const perkOf = (s) => GENRES[genreOf(s)].perk || {};
-export const stageOf = (s, i = s.stage) => STAGES[i] && { ...STAGES[i], name: GENRES[genreOf(s)].stageNames[i], maxSeats: STAGES[i].maxSeats + (perkOf(s).seats || 0), maxStations: STAGES[i].maxStations + (perkOf(s).stations || 0) };
+export const stageOf = (s, i = s.stage) => STAGES[i] && { ...STAGES[i], name: GENRES[genreOf(s)].stageNames[i], maxSeats: STAGES[i].maxSeats + (perkOf(s).seats || 0), maxStations: STAGES[i].maxStations + (perkOf(s).stations || 0),
+  // 台が 多く置ける店は 呼べる人も 同じだけ 増える（バーガーで 台7つ・人6人 止まりに なっていた・2026-11-03）
+  maxStaff: STAGES[i].maxStaff + (perkOf(s).stations || 0) };
 // この店で使える食材と、使えるようになる段
 export const ingredientsOf = (s) => GENRES[genreOf(s)].ing;
 export const stars = (rep) => Math.max(1, Math.min(5, Math.floor(rep / 20) + 1));
