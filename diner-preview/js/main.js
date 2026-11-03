@@ -440,12 +440,12 @@ const MAIL_SVG = '<svg viewBox="0 0 50 40" aria-hidden="true"><rect x="3" y="5" 
 const LOCK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="12" rx="3" fill="#ffd23f" stroke="#2a2350" stroke-width="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="#2a2350" stroke-width="2.4"/><circle cx="12" cy="16" r="1.8" fill="#2a2350"/></svg>';
 
 // ---- 店先（ホームの上半分）：店の絵を 横に並べ、両どなりを のぞかせる。まだの店は 鍵（2026-11-03 オーナー）
-let heroKey = '';
+let heroKey = '', heroHere = '';
 function renderHero() {
   const here = S.genreOf(s), mine = S.shopsOf(s), nb = S.nextBranch(s);
   const fw = S.weatherOf(s), fe = S.eventOf(s), fest = S.festivalTomorrow(s);
   const se = S.seasonOf(s), seNew = S.seasonStarts(s.day);
-  const key = JSON.stringify([s.day, here, mine.map((g) => { const x = S.shopInfo(s, g); return [g, x.stage, Math.round(x.rep), x.staff.length, x.deco, !!x.manager, x.totalSales >= 150000]; }), nb && [nb.genre, nb.ready], fw.id, fe && fe.id, fest, s.town && s.town.picked]);
+  const key = JSON.stringify([s.day, mine.map((g) => { const x = S.shopInfo(s, g); return [g, x.stage, Math.round(x.rep), x.staff.length, x.deco, !!x.manager, x.totalSales >= 150000]; }), nb && [nb.genre, nb.ready], fw.id, fe && fe.id, fest, s.town && s.town.picked]);
   const box = $('hero');
   if (key !== heroKey) {
     heroKey = key;
@@ -459,20 +459,34 @@ function renderHero() {
       const own = mine.includes(g), G = GENRES[g];
       if (own) {
         const x = S.shopInfo(s, g);
-        return `<div class="hcard ${g === here ? 'here' : ''}" data-shop="${g}" data-own="1"><span class="hart">${exteriorSVG(x)}</span>${x.manager && g !== here ? '<span class="hbadge">店長</span>' : ''}${g === here ? stk : ''}</div>`;
+        return `<div class="hcard" data-shop="${g}" data-own="1"><span class="hart">${exteriorSVG(x)}</span>${x.manager ? '<span class="hbadge">店長</span>' : ''}</div>`;
       }
       const next = nb && nb.genre === g;
       return `<div class="hcard locked ${next && nb.ready ? 'ready' : ''}" data-shop="${g}"><span class="hart">${exteriorSVG({ ...S.createShop(g), totalSales: 0 })}</span>
         <span class="hlock">${next && nb.ready ? '<b>出せる！</b>' : LOCK_SVG}</span></div>`;
     }).join('');
-    box.innerHTML = `<div class="hstrip" id="hstrip">${cards}</div><div class="hrib" id="hrib"></div>`;
+    box.innerHTML = `<div class="hstrip" id="hstrip">${cards}</div><div class="hrib" id="hrib"></div><template id="hstkT">${stk}</template>`;
+    heroHere = '';
     const strip = $('hstrip');
     for (const c of strip.querySelectorAll('.hcard')) onTap(c, (e) => { const b = e.target.closest('[data-say]'); if (b) toast(b.dataset.say); else heroPick(c.dataset.shop, true); });
     let tm = 0;
     strip.addEventListener('scroll', () => { clearTimeout(tm); tm = setTimeout(() => heroSettle(), 140); paintRib(heroFocus()); }, { passive: true });
   }
+  // 立つ店が 変わっただけなら 描き直さない（描き直すと 横の位置が 0 に戻り、一瞬 ズレて見えた・2026-11-03）
   const strip = $('hstrip'), cur = strip.querySelector(`[data-shop="${here}"]`);
-  strip.scrollLeft = cur.offsetLeft - (strip.clientWidth - cur.clientWidth) / 2;
+  if (heroHere !== here) {
+    heroHere = here;
+    for (const c of strip.children) c.classList.toggle('here', c === cur);
+    const old = strip.querySelector('.hstk'), t = $('hstkT');
+    const stk = old || t.content.firstElementChild.cloneNode(true);
+    cur.appendChild(stk);
+  }
+  // 指で 送って そこに 止まっているなら 動かさない。ずれているときだけ 真ん中へ（なめらかにせず その場で）
+  if (heroFocus() !== here) {
+    strip.style.scrollSnapType = 'none';
+    strip.scrollLeft = cur.offsetLeft - (strip.clientWidth - cur.clientWidth) / 2;
+    requestAnimationFrame(() => { strip.style.scrollSnapType = ''; });
+  }
   paintRib(here);
 }
 function heroFocus() {
