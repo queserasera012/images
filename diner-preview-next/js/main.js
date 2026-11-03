@@ -1117,8 +1117,9 @@ function doNight(what, arg, el) {
         // 使った 券の数は 持ちこす（やり直して 券が もどらないように）。言葉・購入の写しも 残す
         const fresh = S.createState(); fresh.sale = { used: s.sale.used, day: 0 };
         try { localStorage.setItem(SAVE_KEY, S.serialize(fresh)); localStorage.setItem(UI_KEY, JSON.stringify({ hint: 0, noAds: ui.noAds, bought: ui.bought, notify: ui.notify, notifyAsked: ui.notifyAsked, reviewAsked: ui.reviewAsked })); } catch { /* */ }
-        if (NATIVE) native('backup', { data: S.serialize(fresh), force: true });
-        location.reload();
+        // アプリの中では location.reload() が 効かない（WebView に HTML を じかに渡しているため）。
+        // その場で 1日目に 入れかえ、起動の画面と同じ 幕を はさむ（2026-11-03 オーナー「何も画面遷移しないのは NG」）
+        restartFresh(fresh);
       });
       return;
     }
@@ -1409,6 +1410,28 @@ async function keepAwake(on) {
       wakeLock.addEventListener('release', () => { wakeLock = null; });
     } else if (!on && wakeLock) { const w = wakeLock; wakeLock = null; await w.release(); }
   } catch { wakeLock = null; }
+}
+
+// はじめから やり直す：起動の画面（木のオレンジ・ロゴ → フェード）を 出して、そのあいだに 1日目の夜に 入れかえる
+function restartFresh(fresh) {
+  const c = document.createElement('div');
+  c.className = 'curtain';
+  c.innerHTML = `<div class="logo">${personSVG(4, 'happy', { chef: true })}<b>Diner Street</b></div>`;
+  document.body.appendChild(c);
+  setTimeout(() => {
+    s = fresh;
+    ui = loadUi();
+    ui.tut = 0;
+    saveUi();
+    paused = false; fast = false; tab = null; coachStep = -1; heroKey = ''; heroHere = '';
+    $('fastBtn').classList.remove('on');
+    $('overlay').hidden = true;
+    keepAwake(false);
+    save(true);
+    renderTop();
+    show();
+    setTimeout(() => { c.classList.add('out'); setTimeout(() => c.remove(), 650); }, 500);
+  }, 250);
 }
 
 let last = performance.now();

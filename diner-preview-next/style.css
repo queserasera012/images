@@ -643,3 +643,10 @@ small.lvl{font-size:10.5px;color:var(--ink2);margin-left:6px}
 .saleleft .saleinfo.on { color: var(--red-d); }
 .letterart { display: flex; justify-content: center; margin: 4px 0 8px; }
 .letterart svg { width: 84px; height: 68px; }
+/* はじめから やり直す ときの幕（アプリの起動の画面と同じ色・2026-11-03） */
+.curtain{position:fixed;inset:0;z-index:100;background:#ff9f43;display:flex;align-items:center;justify-content:center;animation:curtainIn .25s ease-out;transition:opacity .6s}
+.curtain.out{opacity:0;pointer-events:none}
+.curtain .logo{display:flex;flex-direction:column;align-items:center;gap:10px}
+.curtain .logo svg{width:120px;height:auto}
+.curtain .logo b{font-size:28px;font-weight:900;color:#fff;letter-spacing:.02em;text-shadow:0 3px 0 rgba(42,35,80,.35)}
+@keyframes curtainIn{from{opacity:0}to{opacity:1}}
