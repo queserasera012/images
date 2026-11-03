@@ -628,3 +628,9 @@ small.lvl{font-size:10.5px;color:var(--ink2);margin-left:6px}
 .rd.up{color:var(--mint-d)}.rd.dn{color:var(--red-d)}.rd.z{color:var(--ink2)}
 .rnext{display:block;margin-top:4px;color:var(--ink)!important;font-weight:800}
 .rgood{font-weight:800;line-height:1.9}
+.card.rgood{align-items:flex-start;line-height:normal}
+.card.rgood .ic{font-size:26px}
+.card.rgood small{line-height:1.6}
+.rupdn .txt b{display:block;margin-top:8px;font-size:14px}.rupdn .txt b:first-child{margin-top:0}
+.rupdn b.up{color:var(--mint-d)}.rupdn b.dn{color:var(--red-d)}
+.rupdn small{line-height:1.6}

@@ -1089,8 +1089,16 @@ function repSheet() {
   const tv = RIVAL.tactics.find((y) => y.id === 'ad');
   overlay(`<h3>お店の評判</h3>${list}
     <div class="sec">評判が 上がると</div>
-    <div class="card" style="flex-direction:column;align-items:stretch"><small class="rgood">👥 来る人が 増える（評判 10 で 約${Math.round(DEMAND.perRep * 10)}人。店が 大きいほど もっと）<br>🏠 店を 広げる 条件になる（${STAGES.slice(1).map((st, i) => `${st.unlock.rep}`).join('・')}）<br>📺 ${tv.repGuard} 以上の店は ライバルの テレビの宣伝を かわせる<br>⭐ 20 ごとに ★ が 1つ 増える</small></div>
-    <p class="mhave" style="font-size:11.5px;color:var(--ink2)">料理を 早く出すと 上がり、待たせて 帰したり 売り切れたりすると 下がる。80 を 超えると 毎日 少しずつ 戻る。店ごとに 別</p>
+    ${[
+      ['👥', 'お客さんが 増える', `評判は 町の うわさ。10 上がるごとに、1日に 来る人が 約${Math.round(DEMAND.perRep * 10)}人 増える。店が 大きいほど よく効き、町の人気店なら 約${Math.round(DEMAND.perRep * 10 * DEMAND.stageMul[2])}人。いちばん 大きい 効き目`],
+      ['🏠', '店を 広げられる', `小さな店に するには 評判 ${STAGES[1].unlock.rep}、町の人気店に するには ${STAGES[2].unlock.rep} が 要る（売上の合計も 要る）`],
+      ['📺', 'ライバルに 強くなる', `ライバルが テレビの宣伝を 打ってきた週、評判 ${tv.repGuard} 以上の店は 客を ほとんど 取られない`],
+      ['⭐', '★が 増える', '20 ごとに ★が 1つ 増える。★5 は 80 から'],
+    ].map(([ic, h, tx]) => `<div class="card rgood"><div class="ic">${ic}</div><div class="txt"><b>${h}</b><small>${tx}</small></div></div>`).join('')}
+    <div class="sec">上がる・下がる</div>
+    <div class="card rupdn"><div class="txt"><b class="up">▲ 上がる</b><small>料理を 早く出す（待たせないほど 多く）・町の人の お願いを 届ける・商店街まつり・ライバルを 撤退させる（全部の店）</small>
+      <b class="dn">▼ 下がる</b><small>待たせて 帰した・売り切れで 頼めなかった・高すぎて やめた・お願いを 届けられなかった・ライバルに 負け続けた</small>
+      <b>↺ 高いと 戻る</b><small>80 を 超えると、何もしなくても 毎日 少しずつ 下がる（高いほど 大きく）。高い評判は 毎日 早く出して 保つもの。評判は 店ごとに 別</small></div></div>
     <button class="big go" data-close>とじる</button>`, null);
 }
 onTap($('walletBtn'), () => {
