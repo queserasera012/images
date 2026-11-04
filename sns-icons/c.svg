@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+<rect width="1000" height="1000" fill="#3DDC97"/>
+<g transform="rotate(-8 500 500)">
+<rect x="300" y="180" width="400" height="640" rx="80" fill="#1F2A44"/>
+<rect x="335" y="240" width="330" height="500" rx="40" fill="#24335A"/>
+<g fill="#FFD23F">
+<rect x="395" y="380" width="50" height="70"/><rect x="555" y="380" width="50" height="70"/>
+<rect x="385" y="540" width="40" height="40"/><rect x="575" y="540" width="40" height="40"/>
+<rect x="420" y="580" width="160" height="40"/>
+</g>
+<rect x="370" y="490" width="40" height="30" fill="#FF6B6B"/><rect x="590" y="490" width="40" height="30" fill="#FF6B6B"/>
+<rect x="455" y="205" width="90" height="14" rx="7" fill="#3B4A70"/>
+</g>
+<!-- sparkles -->
+<path d="M790 230 l20 50 50 20 -50 20 -20 50 -20 -50 -50 -20 50 -20z" fill="#fff"/>
+<path d="M200 700 l14 34 34 14 -34 14 -14 34 -14 -34 -34 -14 34 -14z" fill="#fff"/>
+</svg>

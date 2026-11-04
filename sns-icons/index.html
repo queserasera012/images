@@ -1,0 +1,71 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>SNS アイコン案</title>
+<style>
+:root{--bg:#f6f3ec;--card:#fff;--ink:#1f2a44;--sub:#5b6478;--line:#e3ddd0;--acc:#2e8fbf}
+@media (prefers-color-scheme:dark){:root{--bg:#171a22;--card:#232836;--ink:#eef0f5;--sub:#a7aec0;--line:#363c4e;--acc:#6cc6ee}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.7}
+main{max-width:760px;margin:0 auto;padding:24px 16px 60px}h1{font-size:22px;margin:0 0 4px}h2{font-size:18px;margin:36px 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0}
+.op{font-size:15px}.op b{color:var(--acc)}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}@media(min-width:640px){.grid{grid-template-columns:repeat(4,1fr)}}
+.ic{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:12px;text-align:center;cursor:pointer}
+.ic.on{border-color:var(--acc)}.ic img{width:100%;max-width:140px;border-radius:50%;display:block;margin:0 auto 8px}
+.ic h3{margin:0;font-size:15px}.ic p{margin:4px 0 0;font-size:12.5px;color:var(--sub);text-align:left}
+.tag{display:inline-block;background:var(--acc);color:#fff;font-size:11px;border-radius:99px;padding:1px 8px;margin-bottom:4px}
+.small{display:flex;gap:10px;align-items:center;justify-content:center;margin-top:8px}.ic .small img{width:auto;max-width:none;border-radius:50%;margin:0}
+.mock{display:flex;gap:16px;align-items:center}.mock img{width:86px;height:86px;border-radius:50%;flex:none}
+.mock .nm{font-weight:700}.bio{white-space:pre-wrap;font-size:14px}
+pre{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;margin:6px 0;font:inherit;font-size:14px}
+button{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:4px 12px;cursor:pointer}
+.meta{font-size:12.5px;color:var(--sub)}a{color:var(--acc)}
+.dl a{display:inline-block;margin:4px 8px 0 0}
+</style></head><body><main>
+<h1>SNS のアイコンとプロフィール案</h1>
+<div class="meta">2026-11-05 ・ Instagram／TikTok／X／note を1つにそろえる案</div>
+
+<h2>先に、正直な意見</h2>
+<div class="card op">
+<p><b>「40代のおじさん」が悪いのではなく、アイコンが いまの中身を何も伝えていないのが問題</b>だと思います。オレンジの背景にスーツの男性は、5月の「AI で副業」のころに作ったもので、ビジネス系の副業アカウントでよく見る形です。いまの中身は「子どもと遊べるゲームとアプリ」なので、見た人の頭の中で つながりません。</p>
+<p>Instagram と TikTok は、動画を見て「このゲームの人だ」と思い出してもらう場所です。<b>アイコンは 小さな丸（いちばん小さいと 32px）でしか見られない</b>ので、効くのは「目と口がある顔＋1色の背景」です。人の写真や細かい絵は、その大きさでは読めません。</p>
+<p>一方で「会社員で3児のパパが、夜にこつこつ作っている」は、X と note では いちばん強い話です。だから<b>人の顔はやめて、話はプロフィール文に残す</b>のがよいと考えます。4つの SNS で同じアイコン・同じ名前にすると、動画 → LP → X・note と渡り歩いた人が「同じ人だ」と気づけます。</p>
+<p><b>おすすめは A</b>（キャラクター「セラ」）。顔があって、頭のブロックで「作っている人」も伝わり、どの作品にも寄りすぎません。</p>
+</div>
+
+<h2>アイコン 4案</h2>
+<div class="meta">押すと、下のプロフィールの見本が その案に変わります。下の小さい丸は 48px と 32px（タイムラインでの大きさ）。</div>
+<div class="grid" id="icons"></div>
+
+<h2>プロフィールの見本（Instagram）</h2>
+<div class="card mock"><img id="mockimg" alt=""><div><div class="nm">ケセラセラ｜パパが作るゲームとアプリ</div><div class="meta">@queserasera012</div><div class="bio" id="mockbio"></div><a href="https://queserasera012.github.io/?from=ig">queserasera012.github.io</a></div></div>
+
+<h2>プロフィール文（コピーして使えます）</h2>
+<div id="texts"></div>
+<div class="card meta">
+・アプリの本数は いま公開中の5本で書いています。Diner Street が公開されたら「5本」を「6本」に直してください。<br>
+・アルクエストと Diner Street は「子ども向け」と名乗らない約束なので、「親子で遊べる知育アプリ＋大人も遊べるゲーム」と分けて書いています。<br>
+・ユーザー名（@queserasera012 など）は変えなくてよいです。変えるのは 表示名・アイコン・文だけ。
+</div>
+
+<h2>画像のダウンロード</h2>
+<div class="card dl meta">1000×1000 の PNG です。どの SNS も そのまま使えます（丸く切り抜かれる前提で、大事な部分は真ん中に寄せてあります）。<br><span id="dls"></span></div>
+</main>
+<script>
+const I=[
+{k:'a',n:'A. キャラクター「セラ」',t:'おすすめ',d:'ケセラセラの「セラ」。頭に作りかけのブロック。顔があるので小さくても目に入り、どの作品のキャラとも別なので全体の顔にできる。'},
+{k:'b',n:'B. Q のマーク',t:'',d:'queserasera の Q。しっぽは からくり工房の やじるしブロック。ロゴらしく引きしまるが、キャラより親しみは弱い。'},
+{k:'c',n:'C. 笑うスマホ',t:'',d:'画面がドット絵の顔。「スマホのゲームを作っている」が一目で分かる。少し よくある絵。'},
+{k:'d',n:'D. セラの親子',t:'',d:'A の親子版。「パパと子ども」の話がアイコンだけで伝わる。そのぶん 32px では少しつぶれる。'}];
+const T=[
+{h:'表示名（4つ共通）',v:'ケセラセラ｜パパが作るゲームとアプリ',m:'18字。X は50字・TikTok は30字まで'},
+{h:'Instagram（150字まで）',v:'会社員・3児のパパが、夜と週末に作るゲームとアプリ🎮\n親子で遊べる知育アプリ＋大人もハマるゲーム 5本\nLINEスタンプ12種も\n▼ぜんぶ ここから（無料で始められます）',m:'85字・リンク https://queserasera012.github.io/?from=ig'},
+{h:'TikTok（80字まで）',v:'3児のパパが作るゲーム🎮 親子で遊べるアプリ5本・LINEスタンプも\n▼無料で遊べるのは ここ',m:'47字・リンク https://queserasera012.github.io/?from=tt'},
+{h:'X（160字まで）',v:'会社員・3児のパパ。夜と週末に AI と一緒にゲームとアプリを作っています（からくり工房／まなびクエスト／Tiny Island Life／Bounce Pets／アルクエスト）。作ったもの・数字・失敗を正直に。LINEスタンプも',m:'115字・ウェブサイト欄に https://queserasera012.github.io/'},
+{h:'note（自己紹介）',v:'会社員・3児のパパ。夜と週末に AI と一緒に iPhone アプリを作り、6週間で5本出しました。作り方、売上、失敗を、数字そのままで書いています。親子で遊べる知育アプリと、大人も遊べるゲーム。LINEスタンプも作っています',m:'113字・リンク欄に https://queserasera012.github.io/'}];
+const g=document.getElementById('icons');let cur='a';
+I.forEach(o=>{const e=document.createElement('div');e.className='ic';e.dataset.k=o.k;e.innerHTML=`${o.t?`<span class="tag">${o.t}</span>`:''}<img src="${o.k}.png?v=1" alt=""><h3>${o.n}</h3><p>${o.d}</p><div class="small"><img src="${o.k}.png?v=1" width="48" height="48" alt=""><img src="${o.k}.png?v=1" width="32" height="32" alt=""></div>`;e.onclick=()=>pick(o.k);g.appendChild(e);
+document.getElementById('dls').insertAdjacentHTML('beforeend',`<a href="${o.k}.png?v=1" download="sns-icon-${o.k}.png">${o.n} をダウンロード</a>`)});
+function pick(k){cur=k;document.querySelectorAll('.ic').forEach(e=>e.classList.toggle('on',e.dataset.k==k));document.getElementById('mockimg').src=k+'.png?v=1'}
+document.getElementById('mockbio').textContent=T[1].v;
+const tx=document.getElementById('texts');T.forEach(o=>{const c=document.createElement('div');c.className='card';c.innerHTML=`<b>${o.h}</b><pre></pre><div class="meta"></div><button>コピー</button>`;c.querySelector('pre').textContent=o.v;c.querySelector('.meta').textContent=o.m;const b=c.querySelector('button');b.onclick=async()=>{try{await navigator.clipboard.writeText(o.v);b.textContent='コピーしました'}catch(e){b.textContent='長押しで選んでください'}setTimeout(()=>b.textContent='コピー',1500)};tx.appendChild(c)});
+pick('a');
+</script></body></html>
