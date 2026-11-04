@@ -301,6 +301,13 @@ export const STANCES = {
 
 // 広告（見たい人が見るものだけ。1日の上限）
 export const ADS = { perDay: 5, profitMul: 1.5, flyerMul: 1.25 };
+// ショップ（アプリ内課金・2026-11-03 オーナー決定）。製品 ID は App Store Connect と同じ（使い回せない）
+export const STORE = {
+  noAds: 'dinerstreet.no_ads', // 広告なしパス：広告を見ずに ごほうびが もらえる（1日 ADS.perDay 回までは 同じ）
+  ticket: 'dinerstreet.sale_ticket_3', // 大売り出しの券 3枚（消耗型）
+};
+// 大売り出しの券：使った日は ぜんぶの店で 来る人 nMul 倍。ライバルに ねらわれている店だけ rivalMul（効き目 半分）。1日1枚
+export const SALE = { nMul: 1.3, rivalMul: 1.15 };
 
 // お金が足りないときは「ツケ」になる（仕入れ・アルバイト代・家賃）。手持ちは 0 より下がらず、ツケは 閉店のときに 手持ちから返す
 // 利子は無い。詰まないための仕組みで、ツケの残りは 画面の上に出る

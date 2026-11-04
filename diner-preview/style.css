@@ -150,6 +150,7 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 .paper h2{margin:0;font-family:var(--pop);font-size:22px;display:flex;align-items:center;gap:8px}
 .stamp{position:absolute;right:10px;top:6px;transform:rotate(12deg);border:5px double var(--red);color:var(--red);font-family:var(--pop);font-size:34px;line-height:1;letter-spacing:2px;padding:8px 12px 6px;border-radius:12px;background:rgba(255,255,255,.75);mix-blend-mode:multiply;z-index:2;animation:stamp .5s .6s both cubic-bezier(.3,1.8,.5,1)}
 .stamp.black{border-color:var(--ink);color:var(--ink)}
+html[lang=en] .stamp{font-size:22px;letter-spacing:1px;padding:7px 9px 5px;right:6px}
 .paper h2{padding-right:110px}
 .paper .headline{margin-top:6px}
 .headline{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
@@ -634,3 +635,19 @@ small.lvl{font-size:10.5px;color:var(--ink2);margin-left:6px}
 .rupdn .txt b{display:block;margin-top:8px;font-size:14px}.rupdn .txt b:first-child{margin-top:0}
 .rupdn b.up{color:var(--mint-d)}.rupdn b.dn{color:var(--red-d)}
 .rupdn small{line-height:1.6}
+.langs{display:flex;gap:8px}.langs .chunky{flex:1}
+/* ショップ：券の のこり・手紙（2026-11-03） */
+.product .txt small { display: block; }
+.product .txt small + small { margin-top: 4px; }
+.saleleft { align-items: center; justify-content: space-between; }
+.saleleft .saleinfo { font-weight: 800; color: var(--ink2); font-size: 12px; }
+.saleleft .saleinfo.on { color: var(--red-d); }
+.letterart { display: flex; justify-content: center; margin: 4px 0 8px; }
+.letterart svg { width: 84px; height: 68px; }
+/* はじめから やり直す ときの幕（アプリの起動の画面と同じ色・2026-11-03） */
+.curtain{position:fixed;inset:0;z-index:100;background:#ff9f43;display:flex;align-items:center;justify-content:center;animation:curtainIn .25s ease-out;transition:opacity .6s}
+.curtain.out{opacity:0;pointer-events:none}
+.curtain .logo{display:flex;flex-direction:column;align-items:center;gap:10px}
+.curtain .logo svg{width:120px;height:auto}
+.curtain .logo b{font-size:28px;font-weight:900;color:#fff;letter-spacing:.02em;text-shadow:0 3px 0 rgba(42,35,80,.35)}
+@keyframes curtainIn{from{opacity:0}to{opacity:1}}

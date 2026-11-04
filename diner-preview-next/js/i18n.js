@@ -58,7 +58,7 @@ function compile() {
       src += (k === 1 && parts[0] === '') || (k === parts.length - 2 && parts.at(-1) === '') ? '(.*?)' : '(.+?)';
     });
     const literal = key.replace(/\{\d+\}/g, '').length;
-    patterns.push({ key, re: new RegExp(`^${src}$`, 's'), groups, literal });
+    patterns.push({ key, re: new RegExp(`^${src}$`, 's'), lits: parts.filter((x, k) => k % 2 === 0), groups, literal });
   }
   patterns.sort((a, b) => b.literal - a.literal);
 }
@@ -128,21 +128,40 @@ export function trLine(s) {
 }
 
 const deep = new Map(); // 分けて訳したときの答え（訳せない も覚える）
+// 文を 鍵の 決まった字（lits）で 切る切り方を ぜんぶ（多すぎるときは limit まで）。lits[0] と lits.at(-1) は 端に つく
+function splits(core, lits, limit) {
+  const out = [];
+  const n = lits.length - 1;
+  if (core.length < lits[0].length + lits[n].length || !core.startsWith(lits[0]) || !core.endsWith(lits[n])) return out;
+  const end = core.length - lits[n].length;
+  const go = (pos, k, acc) => {
+    if (out.length >= limit) return;
+    if (k === n - 1) { if (end >= pos) out.push([...acc, core.slice(pos, end)]); return; }
+    const lit = lits[k + 1];
+    for (let i = core.indexOf(lit, pos + 1); i >= 0 && i + lit.length <= end; i = core.indexOf(lit, i + 1)) go(i + lit.length, k + 1, [...acc, core.slice(pos, i)]);
+  };
+  go(lits[0].length, 0, []);
+  return out;
+}
+
 function translate(core, depth = 0) {
   if (!JA.test(core)) return core;
   if (core in TABLE) return TABLE[core];
   if (!patterns) compile();
   for (const p of patterns) {
-    const m = core.match(p.re);
-    if (!m) continue;
-    const vals = [];
-    let ok = true;
-    p.groups.forEach((ids, k) => {
-      const v = trPart(m[k + 1], depth);
-      if (v === null) ok = false;
-      ids.forEach((d, j) => (vals[d] = j === 0 ? v : ''));
-    });
-    if (ok) return fill(TABLE[p.key], vals);
+    // 短く当てて だめなら ほかの切り方も 試す（「工事の 現場の お昼の まとめ買いに」のように「の」が 何度も出る文）
+    const m0 = core.match(p.re);
+    if (!m0) continue;
+    for (const m of [m0.slice(1), ...splits(core, p.lits, 40)]) {
+      const vals = [];
+      let ok = true;
+      p.groups.forEach((ids, k) => {
+        const v = trPart(m[k], depth);
+        if (v === null) ok = false;
+        ids.forEach((d, j) => (vals[d] = j === 0 ? v : ''));
+      });
+      if (ok) return fill(TABLE[p.key], vals);
+    }
   }
   for (const [re, word] of MONEY) {
     re.lastIndex = 0;
@@ -218,6 +237,22 @@ function trNode(node) {
   if (t === v) return;
   ORIG.set(node, v);
   node.nodeValue = t;
+  if (p && p.nodeName === 'text' && p.namespaceURI === 'http://www.w3.org/2000/svg') fitSvgText(p, v, t);
+}
+
+// 絵の中の札（SVG の text）は 日本語の長さで 字の大きさが 決めてある。英語が 長くなる分だけ 小さくする（2026-11-04）
+// 幅は ざっくり：かな・漢字 1字＝1、英数字 1字＝0.56
+const textWidth = (str) => [...str].reduce((a, c) => a + (c.charCodeAt(0) < 0x2e80 ? 0.56 : 1), 0);
+function fitSvgText(el, ja, en) {
+  const fs = parseFloat(el.getAttribute('font-size'));
+  if (!fs || el.hasAttribute('writing-mode')) return;
+  const ratio = textWidth(ja) / textWidth(en);
+  if (ratio >= 1) return;
+  const o = ORIG_ATTR.get(el) || {};
+  if (!o['font-size']) o['font-size'] = el.getAttribute('font-size');
+  ORIG_ATTR.set(el, o);
+  el.setAttribute('font-size', (parseFloat(o['font-size']) * Math.max(0.55, ratio)).toFixed(1));
+  if (el.hasAttribute('letter-spacing')) { o['letter-spacing'] = o['letter-spacing'] || el.getAttribute('letter-spacing'); el.setAttribute('letter-spacing', '0'); }
 }
 
 function trAttr(el, name) {

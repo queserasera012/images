@@ -150,6 +150,7 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 .paper h2{margin:0;font-family:var(--pop);font-size:22px;display:flex;align-items:center;gap:8px}
 .stamp{position:absolute;right:10px;top:6px;transform:rotate(12deg);border:5px double var(--red);color:var(--red);font-family:var(--pop);font-size:34px;line-height:1;letter-spacing:2px;padding:8px 12px 6px;border-radius:12px;background:rgba(255,255,255,.75);mix-blend-mode:multiply;z-index:2;animation:stamp .5s .6s both cubic-bezier(.3,1.8,.5,1)}
 .stamp.black{border-color:var(--ink);color:var(--ink)}
+html[lang=en] .stamp{font-size:22px;letter-spacing:1px;padding:7px 9px 5px;right:6px}
 .paper h2{padding-right:110px}
 .paper .headline{margin-top:6px}
 .headline{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}

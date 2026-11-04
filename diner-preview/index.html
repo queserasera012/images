@@ -3,12 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<script>
+// iPad（幅 700 以上）では 画面ぜんたいを 大きくする。中身は スマホと同じ 縦1列なので、
+// 高さが 820 ほどに 見える幅を viewport に入れて、iOS に 拡大させる（2026-11-04）。回したら 入れ直す
+(function () {
+  var m = document.querySelector('meta[name=viewport]'), base = m.content, cur = base;
+  function fit() {
+    var vv = window.visualViewport, sc = vv ? vv.scale : 1, w = innerWidth * sc, h = innerHeight * sc, c = base;
+    if (w >= 700 && h >= 600) c = 'width=' + Math.max(480, Math.round(w * 820 / h)) + ', viewport-fit=cover, user-scalable=no';
+    if (c !== cur) { cur = c; m.content = c; }
+  }
+  fit(); addEventListener('resize', fit);
+})();
+</script>
 <meta name="theme-color" content="#5ccdf2">
 <title>まちかど食堂（試作）</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=M+PLUS+Rounded+1c:wght@500;800&display=swap">
-<link rel="stylesheet" href="style.css?v=1125">
+<link rel="stylesheet" href="style.css?v=1124">
 </head>
 <body>
 <div id="app">
@@ -71,6 +84,6 @@
 <div class="overlay" id="overlay" hidden></div>
 <div class="toast" id="toast" hidden></div>
 <div class="coach" id="coach" hidden></div>
-<script type="module" src="js/main.js?v=1125"></script>
+<script type="module" src="js/main.js?v=1124"></script>
 </body>
 </html>

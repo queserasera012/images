@@ -2,7 +2,7 @@
 // 画面（main.js）は state を読み、ここの関数を呼ぶだけ。
 import {
   DAY, STATIONS, DISHES, GUEST, DEMAND, WEATHER, RUSH, REP, STAGES, SHOP,
-  STAFF, STAFF_NAMES, REGULARS, REGULAR, ADS, START, TRIAL_COST, GENRES, BRANCH_ORDER, EVENTS, TOWN, MANAGER, ASK, ASK_FROM, STORIES, STORY_AT, BUILD, FESTIVAL, DECO, PREP_WARN, SEASON, STANCES, RIVAL,
+  STAFF, STAFF_NAMES, REGULARS, REGULAR, ADS, START, TRIAL_COST, GENRES, BRANCH_ORDER, EVENTS, TOWN, MANAGER, ASK, ASK_FROM, STORIES, STORY_AT, BUILD, FESTIVAL, DECO, PREP_WARN, SEASON, STANCES, RIVAL, SALE,
 } from './config.js';
 
 export const SAVE_VERSION = 1;
@@ -77,7 +77,7 @@ export function createShop(genre = 'washoku') {
 export function createState(seed = (Date.now() >>> 0)) {
   return {
     v: SAVE_VERSION, seed, day: 1, money: START.money, debt: 0, ...createShop('washoku'), branches: {},
-    town: { picked: [], built: [] }, festival: { day: 0, last: -99 }, asks: newAsks(), ads: 0, boosts: { market: false, flyer: false, freeTrial: false },
+    town: { picked: [], built: [] }, festival: { day: 0, last: -99 }, asks: newAsks(), sale: { used: 0, day: 0 }, letterKey: '', ads: 0, boosts: { market: false, flyer: false, freeTrial: false },
     history: [], reports: [], log: [{ day: 1, kind: 'open', text: '屋台を開いた' }], lastReport: null, today: null, phase: 'night',
   };
 }
@@ -235,13 +235,31 @@ function makeOffer(s) {
     return;
   }
   if (s.day < ASK.fromDay || rand(r) >= (shopsOf(s).length > 1 ? ASK.chance : ASK.oneShop) * townMul(s, 'askMul')) return;
+  a.offer = randomOffer(s, r, due);
+}
+function randomOffer(s, r, due) {
+  const a = s.asks;
   const opts = shopsOf(s).map((g) => [g, shopInfo(s, g)]).map(([g, sh]) => [g, sh, Object.keys(sh.menu).filter((id) => sh.menu[id].on && canCook(sh, id) && sh.known.includes(id))]).filter((x) => x[2].length);
-  if (!opts.length) return;
+  if (!opts.length) return null;
   const [g, sh, dishes] = opts[Math.floor(rand(r) * opts.length)];
   const have = neighbors(s).map((n) => n.id);
   const from = ASK_FROM.filter((f) => !f.need || have.includes(f.need));
   const f = from[Math.floor(rand(r) * from.length)];
-  a.offer = { id: a.seq++, who: f.who, what: f.what, shop: g, dish: dishes[Math.floor(rand(r) * dishes.length)], n: askN(sh.stage, r), due, look: f.look };
+  return { id: a.seq++, who: f.who, what: f.what, shop: g, dish: dishes[Math.floor(rand(r) * dishes.length)], n: askN(sh.stage, r), due, look: f.look };
+}
+// お願いの手紙（2026-11-03・アプリの お知らせ）：本当の1日に1通。key は その日の しるし（js/main.js が 時計から作る。sim は 時計を読まない）。
+// 4日目から・夜だけ・もう お願いが届いている夜は 重ねない（次の夜に）・受けている お願いが いっぱいなら 届かない
+export function letterReady(s, key) {
+  return !!key && s.letterKey !== key && s.phase === 'night' && s.day >= ASK.fromDay && !s.asks.offer && s.asks.list.length < askMax(s);
+}
+export function letterOffer(s, key) {
+  if (!letterReady(s, key)) return false;
+  const r = { rng: hash(s.seed + 7777, s.day) };
+  const o = randomOffer(s, r, s.day + 1 + Math.floor(rand(r) * ASK.lead));
+  if (!o) return false;
+  s.asks.offer = { ...o, letter: true };
+  s.letterKey = key;
+  return true;
 }
 export function answerAsk(s, yes) {
   const a = s.asks;
@@ -512,6 +530,21 @@ export function tryRecipe(s, a, b) {
   return { ok: true, found: null };
 }
 
+// 大売り出しの券（課金・2026-11-03）。買った数は アプリが持ち（bought）、使った数は セーブ（s.sale.used）。
+// 夜に 使うと、その夜の あした（s.day）は ぜんぶの店で 来る人が ふえる。ライバルに ねらわれている店だけ 半分
+export const saleLeft = (s, bought) => Math.max(0, (bought || 0) - s.sale.used);
+export const saleToday = (s) => s.sale.day === s.day;
+export function rivalTarget(s, genre, day = s.day) {
+  const w = rivalOf(s) && s.rival.week;
+  return !!w && day >= w.start && day <= w.end && w.shop === genre;
+}
+export const saleMul = (s, genre) => (saleToday(s) ? (rivalTarget(s, genre) ? SALE.rivalMul : SALE.nMul) : 1);
+export function useSale(s, bought) {
+  if (s.phase !== 'night' || saleToday(s) || saleLeft(s, bought) <= 0) return { ok: false };
+  s.sale = { used: s.sale.used + 1, day: s.day };
+  return { ok: true };
+}
+
 // 広告（見た人だけが得をする）
 export function adLeft(s) { return Math.max(0, ADS.perDay - s.ads); }
 export function watchAd(s, kind) {
@@ -677,7 +710,7 @@ export function startDay(s, { branch = false, weather = null } = {}) {
   s.money = Math.max(0, s.money - cost);
 
   // お客さんの来る時刻を先に決める
-  const n0 = Math.round((DEMAND.base + s.rep * DEMAND.perRep) * (DEMAND.stageMul[s.stage] || 1) * w.mul * (s.boosts.flyer ? ADS.flyerMul : 1) * priceDemand(s) * (ev && ev.nMul ? ev.nMul : 1) * townMul(s, 'nMul') * (today.festival ? FESTIVAL.nMul : 1) * (s.signature ? DECO.signatureMul : 1));
+  const n0 = Math.round((DEMAND.base + s.rep * DEMAND.perRep) * (DEMAND.stageMul[s.stage] || 1) * w.mul * (s.boosts.flyer ? ADS.flyerMul : 1) * priceDemand(s) * (ev && ev.nMul ? ev.nMul : 1) * townMul(s, 'nMul') * (today.festival ? FESTIVAL.nMul : 1) * (s.signature ? DECO.signatureMul : 1) * saleMul(s, genreOf(s)));
   const rm = rivalMul(rv, dodged);
   const n = Math.round(n0 * rm);
   today.rivalLost = n0 - n;
@@ -1124,7 +1157,7 @@ export function parseSave(text) {
     if (!o || o.v !== SAVE_VERSION || typeof o.money !== 'number' || !Array.isArray(o.stations)) return null;
     const base = createState(o.seed);
     return renameOldStaff({ ...base, ...o, debt: typeof o.debt === 'number' ? o.debt : 0, branches: o.branches && typeof o.branches === 'object' ? o.branches : {}, regulars: { ...(o.genre && o.genre !== 'washoku' ? {} : base.regulars), ...o.regulars }, log: Array.isArray(o.log) ? o.log : base.log,
-      reports: Array.isArray(o.reports) ? o.reports : [], lastCrew: Array.isArray(o.lastCrew) ? o.lastCrew : [], boosts: { ...base.boosts, ...o.boosts }, town: { picked: o.town && Array.isArray(o.town.picked) ? o.town.picked : [], built: o.town && Array.isArray(o.town.built) ? o.town.built : [] }, festival: o.festival && typeof o.festival.last === 'number' ? o.festival : base.festival, asks: o.asks && Array.isArray(o.asks.list) ? { ...newAsks(), ...o.asks } : newAsks(), today: null });
+      reports: Array.isArray(o.reports) ? o.reports : [], lastCrew: Array.isArray(o.lastCrew) ? o.lastCrew : [], boosts: { ...base.boosts, ...o.boosts }, town: { picked: o.town && Array.isArray(o.town.picked) ? o.town.picked : [], built: o.town && Array.isArray(o.town.built) ? o.town.built : [] }, festival: o.festival && typeof o.festival.last === 'number' ? o.festival : base.festival, asks: o.asks && Array.isArray(o.asks.list) ? { ...newAsks(), ...o.asks } : newAsks(), sale: o.sale && typeof o.sale.used === 'number' ? o.sale : base.sale, today: null });
   } catch { return null; }
 }
 
