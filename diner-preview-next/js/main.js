@@ -518,7 +518,7 @@ function renderNight() {
     .map(([k, nm]) => `<button class="qbtn ${pc[k].state}" data-todo="${k}"><span class="qart">${ART[k]}</span><b>${nm}</b>${MARK[pc[k].state] ? `<i>${MARK[pc[k].state]}</i>` : ''}</button>`).join('');
   for (const b of $('prepList').querySelectorAll('[data-todo]')) onTap(b, () => {
     const k = b.dataset.todo;
-    if (k === 'ask') { if (s.asks.offer || s.asks.list.length) askSheet(); else toast('いまは お願いが ない'); return; }
+    if (k === 'ask') { if (s.asks.offer || s.asks.list.length) askSheet(); else toast(s.day < ASK.fromDay ? `お願いは ${ASK.fromDay}日目ごろから 届く` : 'いまは お願いが ない'); return; }
     if (k === 'crew' && pc.crew.shop) { crewSheet(pc.crew.shop, () => renderNight()); return; }
     openSheet(k === 'crew' ? 'staff' : 'cook');
   });
@@ -1376,6 +1376,16 @@ function updateCoach() {
   }
   return !!st.hold;
 }
+// 「ここを押して」の手（act）のあいだは、光らせた所の ほかを 押せなくする。
+// 前は 案内の札や 暗い所の下の ボタンまで 押せて、1日目に「いまは お願いが ない」などが出た（2026-11-04 オーナー）
+for (const type of ['pointerdown', 'click']) document.addEventListener(type, (e) => {
+  const c = $('coach');
+  if (c.hidden || !c.classList.contains('act')) return;
+  const st = curStep();
+  const el = st && st.target ? st.target() : null;
+  if (el && el.contains(e.target)) return;
+  e.stopPropagation(); e.preventDefault();
+}, true);
 onTap($('coach'), (e) => {
   const st = curStep();
   if (!st || $('coach').hidden) return;

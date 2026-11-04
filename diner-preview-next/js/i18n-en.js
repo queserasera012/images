@@ -920,5 +920,6 @@ export const EN = {
  "で 使い道、": " shows what to spend on, ",
  "で 評判の中身、": " explains your reputation, ",
  "日にち": "the day",
- "で これまでの日報が 見られる": " shows past reports"
+ "で これまでの日報が 見られる": " shows past reports",
+ "お願いは {0}日目ごろから 届く": "Requests start arriving around day {0}"
 };
