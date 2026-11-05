@@ -1,6 +1,6 @@
 /* Claude 資格 問題集 — 出題・模試・復習・進捗（localStorage） */
 (function () {
-  const B = window.BLUEPRINT, Q = window.QUESTIONS;
+  const B = window.BLUEPRINT, QS = window.QUESTIONS, QH = window.QUESTIONS_HARD || {};
   const KEY = 'ccs.v1';
   const $app = document.getElementById('app'), $title = document.getElementById('title'),
         $back = document.getElementById('back'), $timer = document.getElementById('timer');
@@ -21,7 +21,8 @@
   const fmt = s => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
   const L = 'ABCDEFGH';
   function shuffle(a, rnd) { rnd = rnd || Math.random; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-  function qsOf(ex) { return (Q[ex] || []).map((q, i) => Object.assign({ exam: ex, id: q.id || (ex + '-' + i) }, q)); }
+  function level() { return S.level === 'hard' ? 'hard' : 'std'; }
+  function qsOf(ex, lv) { const src = ((lv || level()) === 'hard' ? QH : QS)[ex] || []; return src.map((q, i) => Object.assign({ exam: ex, id: q.id || (ex + '-' + i) }, q)); }
   function domainOf(ex, d) { return B[ex].domains.find(x => x.id === d); }
   function pct(a, b) { return b ? Math.round(100 * a / b) : 0; }
 
@@ -29,7 +30,7 @@
   let view = { name: 'home' }, timerId = null;
   function setTitle(t) { $title.textContent = t; document.title = t; }
   function go(v) { view = v; render(); window.scrollTo(0, 0); }
-  $back.onclick = () => { if (view.onBack) view.onBack(); else go({ name: view.exam ? 'exam' : 'home', exam: view.exam }); };
+  $back.onclick = () => { if (view.onBack) view.onBack(); else if (view.name === 'exam' || !view.exam) go({ name: 'home' }); else go({ name: 'exam', exam: view.exam }); };
   function stopTimer() { if (timerId) clearInterval(timerId); timerId = null; $timer.hidden = true; }
 
   function render() {
@@ -44,11 +45,15 @@
   function home() {
     setTitle('Claude 資格 問題集');
     const total = Object.keys(B).reduce((s, k) => s + qsOf(k).length, 0);
-    let h = `<p class="muted">Anthropic 公式の試験ガイド（2026年7月・v1.0）の出題範囲に沿って作った<b>オリジナル問題</b>です。本番の問題は NDA の下にあり公開されていません。合計 ${total} 問。</p>`;
+    const hard = level() === 'hard';
+    let h = `<p class="muted">Anthropic 公式の試験ガイド（2026年7月・v1.0）の出題範囲に沿って作った<b>オリジナル問題</b>です。本番の問題は NDA の下にあり公開されていません。</p>
+      <div class="card"><div class="row"><div class="grow"><b>難易度</b><div class="muted small">${hard ? '上級：選択肢の長さを揃え、複数選択と「どれも正しそう」な問題を増やした版' : '標準：出題範囲を一通り確かめる版'}</div></div>
+        <button class="btn ${hard ? '' : 'primary'}" data-lv="std">標準</button><button class="btn ${hard ? 'primary' : ''}" data-lv="hard">上級</button></div>
+        <div class="muted small" style="margin-top:6px">合計 ${total} 問。記録は難易度ごとに別。</div></div>`;
     for (const k of Object.keys(B)) {
       const b = B[k], qs = qsOf(k);
       const seen = qs.filter(q => stat(q.id).n).length, ok = qs.filter(q => stat(q.id).ok).length;
-      const mocks = S.mocks.filter(m => m.exam === k), best = mocks.length ? Math.max(...mocks.map(m => m.pct)) : null;
+      const mocks = S.mocks.filter(m => m.exam === k && (m.level || 'std') === level()), best = mocks.length ? Math.max(...mocks.map(m => m.pct)) : null;
       h += `<button class="card exam" data-ex="${k}">
         <div class="code">${b.code}</div><div class="name">${b.ja}</div>
         <div class="muted">${esc(b.name)}</div>
@@ -63,13 +68,15 @@
     </div>`;
     $app.innerHTML = h;
     $app.querySelectorAll('.exam').forEach(el => el.onclick = () => go({ name: 'exam', exam: el.dataset.ex }));
+    $app.querySelectorAll('button[data-lv]').forEach(el => el.onclick = () => { S.level = el.dataset.lv; save(); render(); });
     $app.querySelector('#reset').onclick = e => { e.preventDefault(); if (confirm('解答の記録と模試の履歴をぜんぶ消します。よいですか？')) { S = { stats: {}, mocks: [], flags: {} }; save(); render(); } };
   }
 
   // ---------- 試験ごとのホーム ----------
   function exam(v) {
     const b = B[v.exam], qs = qsOf(v.exam);
-    setTitle(b.code + ' ' + b.ja);
+    if (!qs.length) { setTitle(b.code); $app.innerHTML = '<div class="card">上級の問題はまだ用意していません。ホームで「標準」に切り替えてください。</div>'; return; }
+    setTitle(b.code + ' ' + b.ja + (level() === 'hard' ? '・上級' : ''));
     const wrong = qs.filter(q => stat(q.id).wrongLast).length, unseen = qs.filter(q => !stat(q.id).n).length;
     let rows = b.domains.map(d => {
       const dq = qs.filter(q => q.d === d.id), seen = dq.filter(q => stat(q.id).n);
@@ -88,7 +95,7 @@
       </div>
       <div class="card"><h2>模試</h2><p class="muted">本番と同じ問題数・時間・ドメイン配分で。終わるまで答えは見えない。</p>
         <button class="btn primary wide" id="mock">模試をはじめる（${b.items} 問・${b.minutes} 分）</button>
-        ${S.mocks.filter(m => m.exam === v.exam).length ? '<button class="btn wide" id="hist" style="margin-top:8px">模試の履歴</button>' : ''}
+        ${S.mocks.filter(m => m.exam === v.exam && (m.level || 'std') === level()).length ? '<button class="btn wide" id="hist" style="margin-top:8px">模試の履歴</button>' : ''}
       </div>
       <div class="card"><h2>ドメインごとの正答率</h2><table><tr><th>ドメイン</th><th class="num">配点</th><th class="num">問題</th><th class="num">正答率</th></tr>${rows}</table>
         <button class="btn wide" id="scope" style="margin-top:10px">出題範囲（目標ごとの成績）</button></div>`;
@@ -221,7 +228,7 @@
     v.onBack = () => go({ name: 'exam', exam: v.exam });
     const n = v.list.length, ok = v.answers.filter(a => a && a.ok).length, p = pct(ok, n);
     const by = b.domains.map(d => { const idx = v.list.map((q, i) => q.d === d.id ? i : -1).filter(i => i >= 0); const o = idx.filter(i => v.answers[i] && v.answers[i].ok).length; return { d, n: idx.length, ok: o }; });
-    if (v.mode === 'mock' && !v.saved) { v.saved = true; S.mocks.push({ exam: v.exam, at: Date.now(), n, ok, pct: p, by: by.map(x => [x.d.id, x.n, x.ok]), secs: v.start ? Math.round((Date.now() - v.start) / 1000) : 0 }); save(); }
+    if (v.mode === 'mock' && !v.saved) { v.saved = true; S.mocks.push({ exam: v.exam, level: level(), at: Date.now(), n, ok, pct: p, by: by.map(x => [x.d.id, x.n, x.ok]), secs: v.start ? Math.round((Date.now() - v.start) / 1000) : 0 }); save(); }
     const wrongs = v.list.map((q, i) => ({ q, i })).filter(x => !(v.answers[x.i] && v.answers[x.i].ok));
     $app.innerHTML = `<div class="card center"><div class="score ${p >= PASS_PCT ? '' : 'danger'}">${p}%</div><div class="muted">${ok} / ${n} 問${v.mode === 'mock' ? `・合格の目安 ${PASS_PCT}%（公式は 720/1000。素点との対応は非公開）` : ''}</div>
       ${p >= PASS_PCT && v.mode === 'mock' ? '<div class="pill ok" style="margin-top:8px">目安を超えた</div>' : ''}</div>
@@ -250,7 +257,7 @@
   function history(v) {
     const b = B[v.exam];
     setTitle('模試の履歴 ' + b.code);
-    const ms = S.mocks.filter(m => m.exam === v.exam).slice().reverse();
+    const ms = S.mocks.filter(m => m.exam === v.exam && (m.level || 'std') === level()).slice().reverse();
     $app.innerHTML = `<div class="card"><table><tr><th>日時</th><th class="num">正解</th><th class="num">率</th><th class="num">時間</th></tr>${ms.map(m => `<tr><td>${new Date(m.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td><td class="num">${m.ok}/${m.n}</td><td class="num ${m.pct >= PASS_PCT ? '' : 'danger'}">${m.pct}%</td><td class="num">${Math.floor(m.secs / 60)}分</td></tr>`).join('')}</table></div>
       <div class="card"><h2>ドメインごとの推移</h2><table><tr><th>ドメイン</th>${ms.slice(0, 5).reverse().map((_, i) => `<th class="num">${i + 1}</th>`).join('')}</tr>${b.domains.map(d => `<tr><td>${d.id}. ${esc(d.name)}</td>${ms.slice(0, 5).reverse().map(m => { const x = (m.by || []).find(y => y[0] === d.id); return `<td class="num">${x && x[1] ? pct(x[2], x[1]) + '%' : '–'}</td>`; }).join('')}</tr>`).join('')}</table><p class="note">直近5回。</p></div>`;
   }
