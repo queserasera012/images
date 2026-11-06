@@ -65,3 +65,13 @@ th{font-weight:600;color:var(--muted);border-top:0}
 .note{font-size:13px;color:var(--muted);margin-top:10px}
 .danger{color:var(--ng)}
 .tag{font-size:12px;color:var(--muted)}
+
+.text p{margin:8px 0;font-size:15px;line-height:1.75}
+.text ul{margin:6px 0 10px;padding-left:20px;font-size:15px;line-height:1.7}
+.text li{margin:3px 0}
+.text h4{font-size:14px;margin:12px 0 4px;color:var(--accent-ink)}
+.text .tip{background:var(--warn-bg);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:14px;line-height:1.7}
+.text .tip::before{content:"試験の見方　";font-weight:700}
+.text .docs{font-size:13px;color:var(--muted);margin-top:8px;line-height:2}
+.text .docs a{color:var(--accent-ink)}
+.text h3{line-height:1.5}

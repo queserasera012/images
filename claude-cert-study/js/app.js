@@ -1,6 +1,6 @@
 /* Claude 資格 問題集 — 出題・模試・復習・進捗（localStorage） */
 (function () {
-  const B = window.BLUEPRINT, QS = window.QUESTIONS, QH = window.QUESTIONS_HARD || {};
+  const B = window.BLUEPRINT, QS = window.QUESTIONS, QH = window.QUESTIONS_HARD || {}, T = window.TEXT || {};
   const KEY = 'ccs.v1';
   const $app = document.getElementById('app'), $title = document.getElementById('title'),
         $back = document.getElementById('back'), $timer = document.getElementById('timer');
@@ -9,8 +9,8 @@
   // ---------- 保存 ----------
   let S = load();
   function load() {
-    try { const s = JSON.parse(localStorage.getItem(KEY) || '{}'); s.stats = s.stats || {}; s.mocks = s.mocks || []; s.flags = s.flags || {}; return s; }
-    catch (e) { return { stats: {}, mocks: [], flags: {} }; }
+    try { const s = JSON.parse(localStorage.getItem(KEY) || '{}'); s.stats = s.stats || {}; s.mocks = s.mocks || []; s.flags = s.flags || {}; s.read = s.read || {}; return s; }
+    catch (e) { return { stats: {}, mocks: [], flags: {}, read: {} }; }
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
   function stat(id) { return S.stats[id] || (S.stats[id] = { n: 0, ok: 0, streak: 0, last: 0, wrongLast: false }); }
@@ -36,7 +36,7 @@
   function render() {
     stopTimer();
     $back.hidden = view.name === 'home';
-    const r = { home, exam, drill, question, result, review, scope, mockSetup, history }[view.name];
+    const r = { home, exam, drill, question, result, review, scope, mockSetup, history, text, textDomain }[view.name];
     $app.innerHTML = '';
     r(view);
   }
@@ -69,7 +69,7 @@
     $app.innerHTML = h;
     $app.querySelectorAll('.exam').forEach(el => el.onclick = () => go({ name: 'exam', exam: el.dataset.ex }));
     $app.querySelectorAll('button[data-lv]').forEach(el => el.onclick = () => { S.level = el.dataset.lv; save(); render(); });
-    $app.querySelector('#reset').onclick = e => { e.preventDefault(); if (confirm('解答の記録と模試の履歴をぜんぶ消します。よいですか？')) { S = { stats: {}, mocks: [], flags: {} }; save(); render(); } };
+    $app.querySelector('#reset').onclick = e => { e.preventDefault(); if (confirm('解答の記録と模試の履歴をぜんぶ消します。よいですか？')) { S = { stats: {}, mocks: [], flags: {}, read: {} }; save(); render(); } };
   }
 
   // ---------- 試験ごとのホーム ----------
@@ -89,6 +89,7 @@
         <div class="muted" style="margin-top:6px">本番：${b.items} 問・${b.minutes} 分・${b.fee}${b.scenarios ? '・シナリオ6本中4本' : ''}</div>
         <div class="row" style="margin-top:6px"><a class="small" href="${b.guide.ja}" target="_blank" rel="noopener">公式ガイド（日本語 PDF）</a><a class="small" href="${b.guide.en}" target="_blank" rel="noopener">英語 PDF</a></div>
       </div>
+      ${T[v.exam] ? `<div class="card"><h2>テキスト</h2><p class="muted">出題範囲の目標ごとに要点をまとめた読みもの。読んだ ${readCount(v.exam)} / ${objCount(v.exam)} 目標。</p><button class="btn primary wide" id="text">テキストを読む</button></div>` : ''}
       <div class="card"><h2>ドリル</h2><p class="muted">1問ずつ、答えるとすぐ解説。ドメインを選んで集中的に。</p>
         <div class="row"><button class="btn primary grow" id="drillAll">全ドメイン</button><button class="btn grow" id="drillUnseen" ${unseen ? '' : 'disabled'}>未出題 ${unseen}</button><button class="btn grow" id="drillWrong" ${wrong ? '' : 'disabled'}>前回まちがえた ${wrong}</button></div>
         <div class="row" style="margin-top:8px"><select id="dom" class="grow">${b.domains.map(d => `<option value="${d.id}">${d.id}. ${esc(d.name)}（${d.weight}%）</option>`).join('')}</select><button class="btn" id="drillDom">このドメイン</button></div>
@@ -105,6 +106,7 @@
     $app.querySelector('#drillWrong').onclick = () => start(qs.filter(q => stat(q.id).wrongLast), '前回まちがえた');
     $app.querySelector('#drillDom').onclick = () => { const d = +$app.querySelector('#dom').value; start(qs.filter(q => q.d === d), domainOf(v.exam, d).name); };
     $app.querySelector('#mock').onclick = () => go({ name: 'mockSetup', exam: v.exam });
+    const tb = $app.querySelector('#text'); if (tb) tb.onclick = () => go({ name: 'text', exam: v.exam });
     $app.querySelector('#scope').onclick = () => go({ name: 'scope', exam: v.exam });
     const hb = $app.querySelector('#hist'); if (hb) hb.onclick = () => go({ name: 'history', exam: v.exam });
   }
@@ -126,6 +128,58 @@
     }
     $app.innerHTML = h;
     $app.querySelectorAll('a[data-d]').forEach(a => a.onclick = e => { e.preventDefault(); const d = +a.dataset.d, o = +a.dataset.o; go({ name: 'drill', exam: v.exam, list: shuffle(qs.filter(q => q.d === d && q.o === o)), label: domainOf(v.exam, d).name }); });
+  }
+
+  // ---------- テキスト ----------
+  function objCount(ex) { return B[ex].domains.reduce((s, d) => s + d.objectives.length, 0); }
+  function readCount(ex, d) { return Object.keys(S.read).filter(k => k.startsWith(ex + '-' + (d ? d + '-' : ''))).length; }
+  // 軽いマークダウン：段落 / "- " 箇条書き / "> " 試験の見方 / **太字** / `code` / [文字](url)
+  function md(src) {
+    const inline = s => fmt(s).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    const out = []; let list = null, quote = null;
+    const flush = () => { if (list) { out.push('<ul>' + list.map(x => `<li>${inline(x)}</li>`).join('') + '</ul>'); list = null; } if (quote) { out.push(`<div class="tip">${quote.map(inline).join('<br>')}</div>`); quote = null; } };
+    for (const raw of src.split('\n')) {
+      const line = raw.trim();
+      if (!line) { flush(); continue; }
+      if (line.startsWith('- ')) { if (quote) flush(); (list = list || []).push(line.slice(2)); continue; }
+      if (line.startsWith('> ')) { if (list) flush(); (quote = quote || []).push(line.slice(2)); continue; }
+      if (line.startsWith('### ')) { flush(); out.push(`<h4>${inline(line.slice(4))}</h4>`); continue; }
+      flush(); out.push(`<p>${inline(line)}</p>`);
+    }
+    flush(); return out.join('');
+  }
+  function text(v) {
+    const b = B[v.exam], tx = T[v.exam];
+    setTitle('テキスト ' + b.code);
+    v.onBack = () => go({ name: 'exam', exam: v.exam });
+    let h = tx.intro ? `<div class="card text">${md(tx.intro)}</div>` : '';
+    for (const d of b.domains) {
+      const r = readCount(v.exam, d.id), n = d.objectives.length;
+      h += `<button class="card exam" data-d="${d.id}"><div class="name">${d.id}. ${esc(d.name)} <span class="tag">${d.weight}%</span></div><div class="muted">${esc(d.en)}・${n} ${b.code === 'CCAR-F' ? 'タスク' : '目標'}</div><div class="bar"><i class="${r === n ? 'ok' : ''}" style="width:${pct(r, n)}%"></i></div><div class="muted">読んだ ${r} / ${n}</div></button>`;
+    }
+    if (tx.appendix) h += `<div class="card text"><h2>${esc(tx.appendix.title)}</h2>${md(tx.appendix.body)}</div>`;
+    $app.innerHTML = h;
+    $app.querySelectorAll('button[data-d]').forEach(el => el.onclick = () => go({ name: 'textDomain', exam: v.exam, d: +el.dataset.d }));
+  }
+  function textDomain(v) {
+    const b = B[v.exam], d = domainOf(v.exam, v.d), td = (T[v.exam].domains || {})[v.d] || {}, qs = qsOf(v.exam);
+    setTitle(`${b.code} ${v.d}. ${d.name}`);
+    v.onBack = () => v.back ? go(v.back) : go({ name: 'text', exam: v.exam });
+    const ids = b.domains.map(x => x.id), pos = ids.indexOf(v.d);
+    let h = `<div class="card text"><h2>${v.d}. ${esc(d.name)} <span class="tag">${d.weight}%</span></h2><div class="muted">${esc(d.en)}</div>${td.intro ? md(td.intro) : ''}</div>`;
+    d.objectives.forEach((o, i) => {
+      const key = `${v.exam}-${v.d}-${i}`, sec = (td.obj || [])[i], oq = qs.filter(q => q.d === v.d && q.o === i);
+      const num = `${v.d}.${i + 1}`, label = o.startsWith(num + ' ') ? o : num + '　' + o;
+      h += `<div class="card text" id="o-${i}"><h3>${esc(label)}</h3>${sec ? md(sec.body) : '<p class="muted">（このテキストはまだ書いていません）</p>'}
+        ${sec && sec.docs && sec.docs.length ? `<div class="docs">公式ドキュメント：${sec.docs.map(x => `<a href="${x[1]}" target="_blank" rel="noopener">${esc(x[0])} ↗</a>`).join('　')}</div>` : ''}
+        <div class="row" style="margin-top:10px"><button class="btn ${S.read[key] ? 'primary' : ''}" data-read="${key}">${S.read[key] ? '✓ 読んだ' : '読んだ'}</button>${oq.length ? `<button class="btn" data-o="${i}">この目標を解く（${oq.length} 問）</button>` : ''}</div></div>`;
+    });
+    h += `<div class="row">${pos > 0 ? `<button class="btn grow" data-nav="${ids[pos - 1]}">‹ ${ids[pos - 1]}. ${esc(domainOf(v.exam, ids[pos - 1]).name)}</button>` : ''}${pos < ids.length - 1 ? `<button class="btn grow" data-nav="${ids[pos + 1]}">${ids[pos + 1]}. ${esc(domainOf(v.exam, ids[pos + 1]).name)} ›</button>` : ''}</div>`;
+    $app.innerHTML = h;
+    $app.querySelectorAll('button[data-read]').forEach(el => el.onclick = () => { const k = el.dataset.read; if (S.read[k]) delete S.read[k]; else S.read[k] = Date.now(); save(); el.className = 'btn ' + (S.read[k] ? 'primary' : ''); el.textContent = S.read[k] ? '✓ 読んだ' : '読んだ'; });
+    $app.querySelectorAll('button[data-o]').forEach(el => el.onclick = () => { const o = +el.dataset.o; go({ name: 'drill', exam: v.exam, list: shuffle(qs.filter(q => q.d === v.d && q.o === o)), label: d.name }); });
+    $app.querySelectorAll('button[data-nav]').forEach(el => el.onclick = () => go({ name: 'textDomain', exam: v.exam, d: +el.dataset.nav }));
+    if (v.o !== undefined) { const el = document.getElementById('o-' + v.o); if (el) setTimeout(() => el.scrollIntoView({ block: 'start' }), 0); }
   }
 
   // ---------- ドリル ----------
@@ -184,7 +238,7 @@
         <ul class="choices">${order.map((ci, k) => {
           let cls = 'choice'; if (answered) { cls += ' answered'; if (q.a.includes(ci)) cls += ' right'; else if (picked.has(ci)) cls += ' wrong'; } else if (picked.has(ci)) cls += ' sel';
           return `<li class="${cls}" data-c="${ci}"><span class="k">${L[k]}</span><span>${fmt(q.c[ci])}</span></li>`; }).join('')}</ul>
-        ${answered && !isMock ? `<div class="ex ${ok ? 'ok' : 'ng'}"><b>${ok ? '正解' : 'まちがい'}</b>　正解：${q.a.map(ci => L[order.indexOf(ci)]).sort().join('・')}\n${fmt(q.e)}${q.ref ? `\n<a href="${q.ref}" target="_blank" rel="noopener">参考 ↗</a>` : ''}</div>` : ''}
+        ${answered && !isMock ? `<div class="ex ${ok ? 'ok' : 'ng'}"><b>${ok ? '正解' : 'まちがい'}</b>　正解：${q.a.map(ci => L[order.indexOf(ci)]).sort().join('・')}\n${fmt(q.e)}${q.ref ? `\n<a href="${q.ref}" target="_blank" rel="noopener">参考 ↗</a>` : ''}${T[v.exam] ? `\n<a href="#" id="totext">📖 この目標のテキストを読む</a>` : ''}</div>` : ''}
         </div>
         <div class="row">
           ${v.i > 0 && isMock ? '<button class="btn" id="prev">前へ</button>' : ''}
@@ -204,6 +258,7 @@
         draw();
       };
       const nx = $app.querySelector('#next'); if (nx) nx.onclick = () => { if (v.i + 1 < v.list.length) { v.i++; render(); } else finish(); };
+      const tt = $app.querySelector('#totext'); if (tt) tt.onclick = e => { e.preventDefault(); go({ name: 'textDomain', exam: v.exam, d: q.d, o: q.o, back: v }); };
       const pv = $app.querySelector('#prev'); if (pv) pv.onclick = () => { v.i--; render(); };
     }
     function finish() {
