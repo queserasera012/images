@@ -8,7 +8,7 @@
 .t h1{font-weight:900;color:#1F2A44;letter-spacing:.04em;text-shadow:0 4px 0 rgba(255,255,255,.55)}
 .t p{font-weight:900;color:#fff;text-shadow:0 3px 0 rgba(31,42,68,.35)}
 .icons{display:flex}.icons img{border-radius:22%;box-shadow:0 4px 0 rgba(31,42,68,.25);border:3px solid #fff}
-.sub{display:inline-block;background:#FFFDF6;color:#1F2A44;font-weight:700;border-radius:99px;border:3px solid #1F2A44}
+.sub{display:inline-block;white-space:nowrap;background:#FFFDF6;color:#1F2A44;font-weight:700;border-radius:99px;border:3px solid #1F2A44}
 .dot{position:absolute;border-radius:50%;background:#fff;opacity:.18}
 </style></head><body><div class="c" id="c"></div>
 <script>
@@ -20,15 +20,15 @@ const add=(h)=>c.insertAdjacentHTML('beforeend',h);
 const blocks=L=='x'?[[560,40,44,'#FFD23F',-12],[1010,410,38,'#FF6B6B',14],[930,60,30,'#3DDC97',20],[470,420,30,'#FF6B6B',-8],[1440,430,40,'#FFD23F',10]]
 :[[150,70,50,'#FFD23F',-12],[1150,560,46,'#FF6B6B',14],[700,40,34,'#3DDC97',20],[90,520,40,'#FF6B6B',-8],[600,600,32,'#FFD23F',10]];
 blocks.forEach(([x,y,z,col,r])=>add(`<div class="blk" style="left:${x}px;top:${y}px;width:${z}px;height:${z}px;background:${col};transform:rotate(${r}deg);border:4px solid #1F2A44"></div>`));
-const ic=['manabi','karakuri','tiny','bounce','aruquest'];
+const ic=['manabi','karakuri','tiny','bounce','aruquest','diner'];
 if(L=='x'){
  add(`<img src="sera.svg" style="position:absolute;left:1120px;top:70px;height:400px">`);
  add(`<img src="small.svg" style="position:absolute;left:1330px;top:255px;height:200px">`);
- add(`<div class="t" style="left:470px;top:105px;width:640px">
+ add(`<div class="t" style="left:470px;top:105px;width:700px">
  <h1 style="font-size:96px;line-height:1.05">ケセラセラ</h1>
  <p style="font-size:40px;margin:14px 0 22px">パパが作る ゲームとアプリ</p>
- <div class="icons" style="gap:14px">${ic.map(n=>`<img src="${n}-icon.png" width="68" height="68">`).join('')}
- <span class="sub" style="font-size:22px;padding:14px 20px;margin-left:6px;align-self:center">＋ LINEスタンプ</span></div></div>`);
+ <div class="icons" style="gap:12px">${ic.map(n=>`<img src="${n}-icon.png" width="60" height="60">`).join('')}
+ <span class="sub" style="font-size:21px;padding:14px 18px;margin-left:4px;align-self:center">＋ LINEスタンプ</span></div></div>`);
 }else{
  add(`<img src="sera.svg" style="position:absolute;left:850px;top:120px;height:450px">`);
  add(`<img src="small.svg" style="position:absolute;left:1080px;top:340px;height:220px">`);
