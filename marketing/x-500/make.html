@@ -1,0 +1,56 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700;900&display=block" rel="stylesheet">
+<style>
+*{margin:0;box-sizing:border-box}body{font-family:"Zen Maru Gothic";overflow:hidden}
+.c{position:relative;overflow:hidden;background:radial-gradient(circle at 50% 38%,#8AD5F4 0,#4FB8E8 58%,#3A9FD3 100%)}
+.a{position:absolute}
+.dot{position:absolute;border-radius:50%;background:#fff;opacity:.16}
+.cf{position:absolute;border:3px solid #1F2A44}
+.num{font-weight:900;color:#FFFDF6;line-height:.9;letter-spacing:-.02em;-webkit-text-stroke:0;paint-order:stroke fill}
+.lab{display:inline-block;white-space:nowrap;background:#1F2A44;color:#fff;font-weight:900;border-radius:99px}
+.thx{display:inline-block;white-space:nowrap;background:#FFFDF6;color:#1F2A44;font-weight:900;border-radius:99px;border:5px solid #1F2A44;box-shadow:0 7px 0 #1F2A44}
+.icons{display:flex}.icons img{border-radius:22%;border:3px solid #fff;box-shadow:0 4px 0 rgba(31,42,68,.3)}
+.name{font-weight:900;color:#fff;text-shadow:0 3px 0 rgba(31,42,68,.4);white-space:nowrap}
+</style></head><body><div class="c" id="c"></div>
+<script>
+const q=new URLSearchParams(location.search),L=q.get('l')||'x';
+const W=L=='x'?1600:1080,H=L=='x'?900:1350;
+const c=document.getElementById('c');c.style.width=W+'px';c.style.height=H+'px';
+const add=h=>c.insertAdjacentHTML('beforeend',h);
+// うすい丸
+[[.06,.1,200],[.92,.9,280],[.95,.05,150],[.2,.95,170]].forEach(([x,y,r])=>add(`<div class="dot" style="left:${x*W-r}px;top:${y*H-r}px;width:${2*r}px;height:${2*r}px"></div>`));
+// 紙ふぶき（決まった乱数）
+let sd=L=='x'?7:11;const R=()=>(sd=(sd*9301+49297)%233280)/233280;
+const cols=['#FF6B6B','#FFD23F','#3DDC97','#FFFDF6'];
+const keep=L=='x'?[[560,90,1560,890],[60,300,540,820]]:[[60,100,1020,800],[180,820,900,1350]]; // 文字のまわりは あける
+let n=0,tries=0;while(n<(L=='x'?30:34)&&tries<2000){tries++;
+ const x=R()*W,y=R()*H,s=14+R()*26;if(keep.some(([a,b,cc,d])=>x>a-s&&x<cc&&y>b-s&&y<d))continue;
+ const col=cols[n%4],rot=R()*90-45,round=n%3==0?'50%':'24%';
+ add(`<div class="cf" style="left:${x}px;top:${y}px;width:${s}px;height:${s}px;background:${col};border-radius:${round};transform:rotate(${rot}deg)"></div>`);n++;}
+const ic=['manabi','karakuri','tiny','bounce','aruquest','diner','kanji'];
+const icons=(sz,gap)=>`<div class="icons" style="gap:${gap}px">${ic.map(n=>`<img src="${n}-icon.png" width="${sz}" height="${sz}">`).join('')}</div>`;
+const big=(fs,sw)=>`<span class="num" style="font-size:${fs}px;-webkit-text-stroke:${sw}px #1F2A44;text-shadow:0 ${sw*.9}px 0 #1F2A44">500</span>`;
+if(L=='x'){
+ add(`<img class="a" src="sera.svg" style="left:70px;top:300px;height:500px">`);
+ add(`<img class="a" src="small.svg" style="left:330px;top:560px;height:250px">`);
+ add(`<div class="a" style="left:600px;right:60px;top:110px;display:flex;flex-direction:column;align-items:center">
+  <span class="lab" style="font-size:44px;padding:10px 34px">X フォロワー</span>
+  <div style="display:flex;align-items:flex-end;margin-top:6px">${big(300,14)}<span class="num" style="font-size:110px;-webkit-text-stroke:10px #1F2A44;text-shadow:0 9px 0 #1F2A44;margin:0 0 28px 14px">人</span></div>
+  <span class="num" style="font-size:72px;-webkit-text-stroke:9px #1F2A44;text-shadow:0 7px 0 #1F2A44;color:#FFD23F;margin-top:6px">とっぱ！</span>
+  <span class="thx" style="font-size:56px;padding:16px 50px;margin-top:34px">いつも ありがとうございます！</span>
+ </div>`);
+ add(`<div class="a" style="left:600px;right:60px;top:735px;display:flex;flex-direction:column;align-items:center;gap:14px">
+  ${icons(62,12)}<div class="name" style="font-size:30px">ケセラセラ｜パパが作るゲームとアプリ</div></div>`);
+}else{
+ add(`<div class="a" style="left:0;right:0;top:120px;display:flex;flex-direction:column;align-items:center">
+  <span class="lab" style="font-size:50px;padding:12px 40px">X フォロワー</span>
+  <div style="display:flex;align-items:flex-end;margin-top:10px">${big(330,15)}<span class="num" style="font-size:120px;-webkit-text-stroke:10px #1F2A44;text-shadow:0 9px 0 #1F2A44;margin:0 0 30px 14px">人</span></div>
+  <span class="num" style="font-size:84px;-webkit-text-stroke:10px #1F2A44;text-shadow:0 8px 0 #1F2A44;color:#FFD23F;margin-top:8px">とっぱ！</span>
+  <span class="thx" style="font-size:54px;padding:16px 44px;margin-top:40px">いつも ありがとうございます！</span>
+ </div>`);
+ add(`<img class="a" src="sera.svg" style="left:250px;top:840px;height:330px">`);
+ add(`<img class="a" src="small.svg" style="left:600px;top:1000px;height:170px">`);
+ add(`<div class="a" style="left:0;right:0;top:1200px;display:flex;flex-direction:column;align-items:center;gap:14px">
+  ${icons(70,14)}<div class="name" style="font-size:34px">ケセラセラ｜パパが作るゲームとアプリ</div></div>`);
+}
+</script></body></html>
