@@ -202,7 +202,7 @@ function sum(days, ids, f) { return days.reduce((s, d) => s + num(d, ids, f), 0)
 const ICOL = ['#FF6B6B', '#4FB8E8', '#3DDC97', '#FFB03F', '#8f7be8', '#e87ba4'];
 function iconUrl(id) {
   const a = D.apps[id] || {}; if (a.icon) return a.icon;
-  const twin = Object.values(D.apps).find(b => b.icon && b.name === a.name);   // Android は 同じ名前の iOS の絵
+  const twin = Object.values(D.apps).find(b => b.icon && (b.name === a.name || b.short === a.short));   // Android は 同じ名前の iOS の絵
   return twin ? twin.icon : null;
 }
 function ico(id, cls = '') {
@@ -214,7 +214,7 @@ function spark(vals, color) {
   const max = Math.max(1, ...vals), w = 64 / vals.length;
   return `<svg viewBox="0 0 64 30" aria-hidden="true">${vals.map((v, i) => { const h = v ? Math.max(3, 26 * v / max) : 2; return `<rect x="${i * w + 1.5}" y="${30 - h}" width="${w - 3}" height="${h}" rx="2" fill="${v ? color : 'var(--line)'}"/>`; }).join('')}</svg>`;
 }
-const short = id => (D.apps[id] && (D.apps[id].short || D.apps[id].name)) || id;
+const short = id => { const a = D.apps[id]; return a ? (a.short || a.name) + (a.store === 'android' ? '（Android）' : '') : id; };
 function delta(now, before, fmt = v => v) {
   const d = now - before;
   if (!d) return `<em class="flat">±0</em>`;
@@ -422,7 +422,18 @@ function marksCard() {
 function render() {
   ls.set(K.ui, ui);
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.t === ui.tab));
+  // 横に送ったボタンの列と 縦の位置を 描き直しても そのままにする（同じタブの中だけ）
+  const same = main.dataset.tab === ui.tab, y = scrollY;
+  const xs = same ? [...main.querySelectorAll('.chips')].map(c => c.scrollLeft) : [];
   main.innerHTML = ({ today, app: appTab, country: countryTab, month: monthTab })[ui.tab]();
+  main.dataset.tab = ui.tab;
+  main.querySelectorAll('.chips').forEach((c, i) => {
+    if (xs[i] != null) c.scrollLeft = xs[i];
+    const on = c.querySelector('.chip.on');          // えらんだボタンが 隠れていたら 見える所まで
+    if (on) { const l = on.offsetLeft - c.offsetLeft, r = l + on.offsetWidth;
+      if (l < c.scrollLeft) c.scrollLeft = Math.max(0, l - 12); else if (r > c.scrollLeft + c.clientWidth) c.scrollLeft = r - c.clientWidth + 12; }
+  });
+  if (same) scrollTo(0, y);
 }
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-t],[data-app],[data-range],[data-month],[data-go],[data-delmark],#addmark,#mkimg,#reload');
