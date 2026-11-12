@@ -15,13 +15,13 @@
 </style></head><body><div class="c" id="c"></div>
 <script>
 const q=new URLSearchParams(location.search),L=q.get('l')||'a',N=q.get('n')||'700';
-const W=L=='p'?1080:1600,H=L=='p'?1350:900,c=document.getElementById('c');c.style.width=W+'px';c.style.height=H+'px';
+const W=(L=='p'||L=='dp')?1080:1600,H=(L=='p'||L=='dp')?1350:900,c=document.getElementById('c');c.style.width=W+'px';c.style.height=H+'px';
 const add=h=>c.insertAdjacentHTML('beforeend',h);
-const BG={d:'linear-gradient(#10163A 0%,#262B66 55%,#4B3E8E 100%)',p:'radial-gradient(circle at 50% 38%,#8AD5F4 0,#4FB8E8 58%,#3A9FD3 100%)',a:'radial-gradient(circle at 50% 38%,#8AD5F4 0,#4FB8E8 58%,#3A9FD3 100%)',
+const BG={dp:'linear-gradient(#10163A 0%,#262B66 55%,#4B3E8E 100%)',d:'linear-gradient(#10163A 0%,#262B66 55%,#4B3E8E 100%)',p:'radial-gradient(circle at 50% 38%,#8AD5F4 0,#4FB8E8 58%,#3A9FD3 100%)',a:'radial-gradient(circle at 50% 38%,#8AD5F4 0,#4FB8E8 58%,#3A9FD3 100%)',
  b:'radial-gradient(circle at 55% 40%,#FFD9DF 0,#FFB3C0 55%,#F59AAE 100%)',
  c:'linear-gradient(#3E5C9A 0%,#7C73B8 30%,#F39A8A 62%,#FFC77A 85%)'}[L];
 c.style.background=BG;
-if(L!='c'&&L!='d')[[.06,.1,200],[.92,.9,280],[.95,.05,150],[.2,.95,170]].forEach(([x,y,r])=>add(`<div class="dot" style="left:${x*W-r}px;top:${y*H-r}px;width:${2*r}px;height:${2*r}px"></div>`));
+if(L!='c'&&L!='d'&&L!='dp')[[.06,.1,200],[.92,.9,280],[.95,.05,150],[.2,.95,170]].forEach(([x,y,r])=>add(`<div class="dot" style="left:${x*W-r}px;top:${y*H-r}px;width:${2*r}px;height:${2*r}px"></div>`));
 let sd=L.charCodeAt(0);const R=()=>(sd=(sd*9301+49297)%233280)/233280;
 const conf=(keep,n,cols)=>{let k=0,t=0;while(k<n&&t<3000){t++;const x=R()*W,y=R()*H,s=12+R()*24;
  if(keep.some(([a,b,cc,d])=>x>a-s&&x<cc&&y>b-s&&y<d))continue;
@@ -120,5 +120,31 @@ if(L=='d'){ // D 夜空のロケット：ブロックの足あとが 100人ご�
  add(`<img class="a" src="small.svg" style="left:440px;top:140px;height:80px;transform:rotate(32deg)">`);
  document.head.insertAdjacentHTML('beforeend','<style>.lab{background:#FFD23F!important;color:#1F2A44!important}</style>');
  text('とっぱ！','いつも ありがとうございます！','#FFD23F');
+}
+if(L=='dp'){
+ document.head.insertAdjacentHTML('beforeend','<style>.lab{background:#FFD23F!important;color:#1F2A44!important}</style>');
+ for(let i=0;i<90;i++){const x=R()*W,y=R()*H*.85,r=1.2+R()*3;add(`<div class="a" style="left:${x}px;top:${y}px;width:${r*2}px;height:${r*2}px;border-radius:50%;background:#fff;opacity:${.35+R()*.6}"></div>`);}
+ add(`<svg class="a" style="left:900px;top:30px" width="130" height="130" viewBox="0 0 100 100"><path d="M60 8 A42 42 0 1 0 92 70 A34 34 0 1 1 60 8Z" fill="#FFE59A" stroke="#1F2A44" stroke-width="5"/></svg>`);
+ add(`<div class="a" style="left:0;right:0;top:70px;display:flex;flex-direction:column;align-items:center">
+  <span class="lab" style="font-size:44px;padding:10px 34px">X フォロワー</span>
+  <div style="display:flex;align-items:flex-end;margin-top:6px"><span class="num" style="font-size:270px;${S}:13px #1F2A44;text-shadow:0 12px 0 #1F2A44">${N}</span><span class="num" style="font-size:100px;${S}:10px #1F2A44;text-shadow:0 9px 0 #1F2A44;margin:0 0 26px 12px">人</span></div>
+  <span class="num" style="font-size:72px;${S}:9px #1F2A44;text-shadow:0 7px 0 #1F2A44;color:#FFD23F;margin-top:4px">とっぱ！</span>
+  <span class="thx" style="font-size:50px;padding:14px 40px;margin-top:28px">いつも ありがとうございます！</span>
+  <div style="margin-top:36px">${icons(76,14)}</div></div>`);
+ add(`<svg class="a" style="left:-150px;top:1010px" width="760" height="420" viewBox="0 0 760 420"><circle cx="380" cy="330" r="300" fill="#3DDC97" stroke="#1F2A44" stroke-width="10"/><circle cx="250" cy="150" r="34" fill="#2FB57C"/><circle cx="520" cy="200" r="22" fill="#2FB57C"/><circle cx="420" cy="110" r="16" fill="#2FB57C"/></svg>`);
+ add(`<img class="a" src="sera.svg" style="left:20px;top:845px;height:240px">`);
+ const n=+N/100,cols=['#FF6B6B','#FFD23F','#3DDC97'];
+ for(let i=0;i<n;i++){const t=i/(n-1),x=270+t*400,y=1000-t*150+Math.sin(t*5)*18,sz=28+t*14;
+  add(`<div class="cf" style="left:${x}px;top:${y}px;width:${sz}px;height:${sz}px;background:${cols[i%3]};border-radius:24%;border-width:4px;transform:rotate(${i*17}deg)"></div>`);}
+ add(`<svg class="a" style="left:760px;top:690px;transform:rotate(58deg) scale(.8);transform-origin:120px 210px" width="240" height="420" viewBox="0 0 240 420">
+  <path d="M120 395 Q95 340 105 300 L135 300 Q145 340 120 395Z" fill="#FFD23F" stroke="#1F2A44" stroke-width="7"/><path d="M120 360 Q108 330 113 300 L127 300 Q132 330 120 360Z" fill="#FF6B6B"/>
+  <path d="M60 230 L20 300 L70 285Z M180 230 L220 300 L170 285Z" fill="#FF6B6B" stroke="#1F2A44" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M120 20 C185 70 190 200 175 295 L65 295 C50 200 55 70 120 20Z" fill="#FFFDF6" stroke="#1F2A44" stroke-width="9" stroke-linejoin="round"/>
+  <path d="M120 20 C150 42 166 70 172 100 L68 100 C74 70 90 42 120 20Z" fill="#FF6B6B" stroke="#1F2A44" stroke-width="9" stroke-linejoin="round"/>
+  <circle cx="120" cy="175" r="44" fill="#8AD5F4" stroke="#1F2A44" stroke-width="9"/>
+  <image href="small.svg" x="90" y="138" width="60" height="82"/>
+  <rect x="78" y="250" width="84" height="28" rx="10" fill="#FFD23F" stroke="#1F2A44" stroke-width="6"/>
+  <text x="120" y="273" text-anchor="middle" font-family="Zen Maru Gothic" font-weight="900" font-size="24" fill="#1F2A44">${N}</text></svg>`);
+ add(`<div class="a name" style="left:0;right:0;top:1270px;text-align:center;font-size:34px">ケセラセラ｜パパが作るゲームとアプリ</div>`);
 }
 </script></body></html>
