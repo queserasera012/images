@@ -1,0 +1,71 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700;900&display=block" rel="stylesheet">
+<style>
+*{margin:0;box-sizing:border-box}body{font-family:"Zen Maru Gothic";overflow:hidden}
+.c{position:relative;overflow:hidden}.a{position:absolute}.t{z-index:10}
+.cf{position:absolute;border:3px solid #1F2A44}
+.num{font-weight:900;color:#FFFDF6;line-height:.9;letter-spacing:-.02em;paint-order:stroke fill}
+.lab{display:inline-block;white-space:nowrap;background:#1F2A44;color:#fff;font-weight:900;border-radius:99px}
+.thx{display:inline-block;white-space:nowrap;background:#FFFDF6;color:#1F2A44;font-weight:900;border-radius:99px;border:5px solid #1F2A44;box-shadow:0 7px 0 #1F2A44}
+.icons{display:flex}.icons img{border-radius:22%;border:3px solid #fff;box-shadow:0 4px 0 rgba(31,42,68,.3)}
+.name{font-weight:900;color:#fff;text-shadow:0 2px 0 #1F2A44,0 0 6px rgba(31,42,68,.5);white-space:nowrap}
+.blk{position:absolute;border:5px solid #1F2A44;border-radius:12px;box-shadow:inset 0 -7px 0 rgba(31,42,68,.15)}
+</style></head><body><div class="c" id="c"></div>
+<script>
+const q=new URLSearchParams(location.search),L=q.get('l')||'i',P=q.get('p')=='1',N=q.get('n')||'800';
+const W=P?1080:1600,H=P?1350:900,c=document.getElementById('c');c.style.width=W+'px';c.style.height=H+'px';
+const add=h=>c.insertAdjacentHTML('beforeend',h);
+const S='-webkit-text-stroke',n=+N/100,cols=['#FF6B6B','#FFD23F','#3DDC97'];
+const ic=['manabi','karakuri','tiny','bounce','aruquest','diner','kanji'];
+const icons=(sz,gap)=>`<div class="icons" style="gap:${gap}px">${ic.map(n=>`<img src="${n}-icon.png" width="${sz}" height="${sz}">`).join('')}</div>`;
+const rocket=(x,y,sc,rot)=>`<svg class="a" style="left:${x}px;top:${y}px;transform:rotate(${rot}deg) scale(${sc});transform-origin:120px 300px" width="240" height="320" viewBox="0 0 240 320">
+  <path d="M60 230 L20 300 L70 285Z M180 230 L220 300 L170 285Z" fill="#FF6B6B" stroke="#1F2A44" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M120 20 C185 70 190 200 175 295 L65 295 C50 200 55 70 120 20Z" fill="#FFFDF6" stroke="#1F2A44" stroke-width="9" stroke-linejoin="round"/>
+  <path d="M120 20 C150 42 166 70 172 100 L68 100 C74 70 90 42 120 20Z" fill="#FF6B6B" stroke="#1F2A44" stroke-width="9" stroke-linejoin="round"/>
+  <circle cx="120" cy="175" r="44" fill="#8AD5F4" stroke="#1F2A44" stroke-width="9"/>
+  <rect x="78" y="250" width="84" height="28" rx="10" fill="#FFD23F" stroke="#1F2A44" stroke-width="6"/>
+  <text x="120" y="273" text-anchor="middle" font-family="Zen Maru Gothic" font-weight="900" font-size="24" fill="#1F2A44">${N}</text></svg>`;
+const blk=(x,y,s,i,r=0)=>`<div class="blk" style="left:${x}px;top:${y}px;width:${s}px;height:${s}px;background:${cols[i%3]};transform:rotate(${r}deg)"></div>`;
+const TH={i:{bg:'linear-gradient(#8FE3F0 0%,#C9F4F2 55%,#E9FBF6 70%)',lab:'#1F2A44',acc:'#FFD23F'},
+ k:{bg:'linear-gradient(#FF9E7A 0%,#FFC49A 40%,#FFE7C4 75%,#FFF4E0 100%)',lab:'#1F2A44',acc:'#FFD23F'}}[L];
+c.style.background=TH.bg;
+const textBlock=(left,top,w,fs)=>add(`<div class="a t" style="left:${left}px;width:${w}px;top:${top}px;display:flex;flex-direction:column;align-items:center">
+  <span class="lab" style="font-size:44px;padding:10px 34px;background:${TH.lab}">X フォロワー</span>
+  <div style="display:flex;align-items:flex-end;margin-top:6px"><span class="num" style="font-size:${fs}px;${S}:14px #1F2A44;text-shadow:0 13px 0 #1F2A44">${N}</span><span class="num" style="font-size:${fs*.37}px;${S}:10px #1F2A44;text-shadow:0 9px 0 #1F2A44;margin:0 0 ${fs*.09}px 14px">人</span></div>
+  <span class="num" style="font-size:72px;${S}:9px #1F2A44;text-shadow:0 7px 0 #1F2A44;color:${TH.acc};margin-top:6px">とっぱ！</span>
+  <span class="thx" style="font-size:${P?50:52}px;padding:16px 46px;margin-top:${P?28:34}px">いつも ありがとうございます！</span>
+  ${P?`<div style="margin-top:34px">${icons(76,14)}</div>`:''}</div>`);
+if(P){textBlock(0,70,W,270);}
+else{textBlock(640,100,910,300);add(`<div class="a t" style="left:640px;width:910px;top:735px;display:flex;flex-direction:column;align-items:center;gap:14px">${icons(62,12)}<div class="name" style="font-size:30px">ケセラセラ｜パパが作るゲームとアプリ</div></div>`);}
+if(L=='k')document.head.insertAdjacentHTML('beforeend','<style>.name{color:#1F2A44!important;text-shadow:none!important}</style>');
+if(P)add(`<div class="a name" style="left:0;right:0;top:1272px;text-align:center;font-size:34px;z-index:5">ケセラセラ｜パパが作るゲームとアプリ</div>`);
+// 場面の原点（横：左の 0〜620・縦：下の 740〜1350）
+const ox=P?250:0,oy=P?470:0;
+if(L=='i'){ // 南の島に到着：ブロックで砂の城
+ add(`<div class="a" style="left:${P?860:90}px;top:${P?30:60}px;width:120px;height:120px;border-radius:50%;background:#FFE066;border:6px solid #1F2A44;box-shadow:0 0 0 18px rgba(255,224,102,.35)"></div>`);
+ [[P?60:330,P?40:110,1],[P?640:1250,P?690:40,.8],[P?150:600,P?720:30,.6]].forEach(([x,y,s])=>add(`<svg class="a" style="left:${x}px;top:${y}px" width="${200*s}" height="${80*s}" viewBox="0 0 200 80"><path d="M20 70 Q0 70 8 50 Q10 30 40 34 Q50 6 90 12 Q120 0 140 26 Q180 20 186 48 Q200 70 170 70Z" fill="#fff" stroke="#1F2A44" stroke-width="6"/></svg>`));
+ add(`<svg class="a" style="left:0;top:${H-(P?330:240)}px" width="${W}" height="330" viewBox="0 0 ${W} 330" preserveAspectRatio="none"><rect y="40" width="${W}" height="290" fill="#2EC4B6"/><path d="M0 40 ${[...Array(20)].map((_,i)=>`Q${i*W/20+W/40} 20 ${(i+1)*W/20} 40`).join(' ')}" fill="#2EC4B6" stroke="#1F2A44" stroke-width="6"/>${[...Array(8)].map((_,i)=>`<path d="M${(i*W/8+60)%W} ${120+(i%3)*60} q20 -14 40 0 q20 14 40 0" fill="none" stroke="#fff" stroke-width="5" opacity=".7" stroke-linecap="round"/>`).join('')}</svg>`);
+ const sx=ox,sy=oy;
+ add(`<svg class="a" style="left:${sx-40}px;top:${sy+640}px" width="700" height="220" viewBox="0 0 700 220"><ellipse cx="350" cy="120" rx="330" ry="90" fill="#FFE4A0" stroke="#1F2A44" stroke-width="8"/><circle cx="160" cy="120" r="6" fill="#E8C878"/><circle cx="420" cy="150" r="5" fill="#E8C878"/><circle cx="560" cy="110" r="6" fill="#E8C878"/></svg>`);
+ // ヤシ
+ add(`<svg class="a" style="left:${sx+430}px;top:${sy+420}px" width="200" height="320" viewBox="0 0 200 320"><path d="M96 315 Q86 200 108 90" fill="none" stroke="#1F2A44" stroke-width="22" stroke-linecap="round"/><path d="M96 315 Q86 200 108 90" fill="none" stroke="#C98B4E" stroke-width="12" stroke-linecap="round"/>${[[-60,30],[-20,-10],[30,-15],[70,25],[0,40]].map(([dx,dy])=>`<path d="M108 90 Q${108+dx*.6} ${80+dy-30} ${108+dx*1.4} ${90+dy}" fill="none" stroke="#1F2A44" stroke-width="30" stroke-linecap="round"/><path d="M108 90 Q${108+dx*.6} ${80+dy-30} ${108+dx*1.4} ${90+dy}" fill="none" stroke="#3DDC97" stroke-width="18" stroke-linecap="round"/>`).join('')}</svg>`);
+ add(rocket(sx+330,sy+440,.85,-8));
+ // ブロックの砂の城 3+3+2 ＝ 800
+ const bs=48,bx=sx+165,by=sy+700;[[0,0],[1,0],[2,0],[0,1],[1,1],[2,1],[.5,2],[1.5,2]].slice(0,n).forEach(([cx,cy],i)=>add(blk(bx+cx*bs,by-cy*bs,bs,i)));
+ add(`<img class="a" src="sera.svg" style="left:${sx+(P?-10:0)}px;top:${sy+(P?590:560)}px;height:${P?190:220}px">`);
+ add(`<img class="a" src="small.svg" style="left:${sx+295}px;top:${sy+640}px;height:${P?100:120}px">`);
+}
+if(L=='k'){ // 雲の上の島：ブロックの階段
+ [[P?40:40,P?40:60,1.2],[P?700:1300,P?700:30,1],[P?640:420,P?150:220,.7],[P?20:640,P?760:20,.6],[P?520:60,P?1220:770,1.1]].forEach(([x,y,s])=>add(`<svg class="a" style="left:${x}px;top:${y}px" width="${240*s}" height="${100*s}" viewBox="0 0 240 100"><path d="M24 90 Q0 90 8 64 Q12 40 48 44 Q60 8 108 14 Q144 0 168 32 Q216 24 224 60 Q240 90 204 90Z" fill="#FFFDF6" stroke="#1F2A44" stroke-width="6"/></svg>`));
+ add(`<div class="a" style="left:${P?820:1180}px;top:${P?560:520}px;width:280px;height:280px;border-radius:50%;background:#FFD27A;opacity:.6"></div>`);
+ const sx=ox,sy=oy;
+ // 浮かぶ島
+ add(`<svg class="a" style="left:${sx+150}px;top:${sy+330}px" width="460" height="330" viewBox="0 0 460 330"><path d="M20 70 L440 70 Q420 180 300 260 Q240 330 200 270 Q120 220 20 70Z" fill="#C98B4E" stroke="#1F2A44" stroke-width="8" stroke-linejoin="round"/><path d="M90 150 L130 150 M240 200 L290 200 M180 120 L220 120" stroke="#A86F3A" stroke-width="8" stroke-linecap="round"/><rect x="10" y="40" width="440" height="44" rx="22" fill="#3DDC97" stroke="#1F2A44" stroke-width="8"/>${[60,140,330,400].map(x=>`<circle cx="${x}" cy="40" r="10" fill="#FF6B6B" stroke="#1F2A44" stroke-width="4"/>`).join('')}</svg>`);
+ add(rocket(sx+370,sy+120,.85,6));
+ add(`<img class="a" src="small.svg" style="left:${sx+250}px;top:${sy+230}px;height:${P?120:140}px">`);
+ // ブロックの階段：下の雲から島へ
+ const bs=P?48:54;for(let i=0;i<n;i++){const x=sx+120+i*bs*.6,y=sy+(P?790:800)-i*bs*.92;add(blk(x,y,bs,i,(i%2?4:-4)));}
+ add(`<svg class="a" style="left:${sx-140}px;top:${sy+(P?790:800)}px" width="380" height="140" viewBox="0 0 240 100"><path d="M24 90 Q0 90 8 64 Q12 40 48 44 Q60 8 108 14 Q144 0 168 32 Q216 24 224 60 Q240 90 204 90Z" fill="#FFFDF6" stroke="#1F2A44" stroke-width="6"/></svg>`);
+ add(`<img class="a" src="sera.svg" style="left:${sx+(P?-20:5)}px;top:${sy+(P?660:670)}px;height:${P?160:180}px">`);
+}
+</script></body></html>
