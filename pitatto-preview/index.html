@@ -265,8 +265,8 @@ function askTilt(){try{const D=window.DeviceOrientationEvent;if(!D)return;
   const on=()=>addEventListener('deviceorientation',e=>{if(e.gamma==null||e.beta==null)return;
     grav.x=Math.max(-1,Math.min(1,Math.sin(e.gamma*Math.PI/180)));grav.y=Math.max(-1,Math.min(1,Math.sin(e.beta*Math.PI/180)));
     if(!tiltOn){tiltOn=true;$('tiltHint').classList.remove('hid');}});
-  if(typeof D.requestPermission==='function')D.requestPermission().then(r=>{if(r==='granted')on();}).catch(()=>{});else on();}catch(e){}}
-$('btnStart').onclick=()=>{askTilt();start();};$('btnAgain').onclick=start;
+  if(typeof D.requestPermission==='function')return D.requestPermission().then(r=>{if(r==='granted')on();}).catch(()=>{});on();}catch(e){}}
+let asked=false;$('btnStart').onclick=()=>{if(asked)return;asked=true;const go=()=>{asked=false;start();};const pr=askTilt();if(pr&&pr.then)pr.then(go,go);else go();};$('btnAgain').onclick=start;
 })();
 </script>
 </body></html>
