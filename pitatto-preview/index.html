@@ -27,6 +27,11 @@ body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);font-
 canvas{width:100%;height:100%;display:block;touch-action:manipulation}
 .cover{position:absolute;inset:0;background:var(--sky);display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px;font-weight:900}
 .cover.hid{display:none}
+.ci{display:flex;flex-direction:column;align-items:center;gap:14px;padding:20px;text-align:center;width:100%;box-sizing:border-box}
+.cl{font-size:15px;background:#fff;color:var(--navy);border-radius:99px;padding:3px 16px}
+.cq{word-break:keep-all;font-size:30px;line-height:1.35;text-wrap:balance}
+.cs{font-size:15px;font-weight:700;opacity:.95}
+.ci .btn{max-width:240px}
 .timer{position:absolute;left:0;top:0;height:8px;background:var(--yellow);width:100%;transition:width .1s linear}
 .ans{padding:10px 0 4px;display:flex;flex-direction:column;gap:8px}
 .num{display:flex;align-items:center;justify-content:center;gap:14px}
@@ -231,11 +236,17 @@ function next(){
   $('ansNum').classList.toggle('hid',cur.kind!=='num');$('ansTwo').classList.toggle('hid',cur.kind!=='two');
   if(cur.kind==='num'){const r=$('range');r.min=cur.min;r.max=cur.max;r.step=cur.step||1;r.value=Math.round((cur.min+cur.max)/2/(cur.step||1))*(cur.step||1);$('unit').textContent=cur.unit;setVal();}
   setInputs(false);cur.draw(false);
-  if(cur.expose){$('cover').classList.add('hid');$('timer').classList.remove('hid');$('timer').style.width='100%';
-    const t0=performance.now();clearInterval(timerId);
-    timerId=setInterval(()=>{const p=1-(performance.now()-t0)/cur.expose;$('timer').style.width=Math.max(0,p*100)+'%';
-      if(p<=0){clearInterval(timerId);$('timer').classList.add('hid');$('cover').classList.remove('hid');setInputs(true);}},50);
-  }else{$('cover').classList.add('hid');$('timer').classList.add('hid');setInputs(true);}
+  clearInterval(timerId);$('timer').classList.add('hid');
+  const c=$('cover');c.innerHTML='<div class="ci"><div class="cl">もんだい</div><div class="cq"></div><div class="cs">'+(cur.expose/1000)+'びょうだけ みえるよ。よく みてね</div><button class="btn" id="btnSee">みる！</button></div>';
+  c.querySelector('.cq').textContent=cur.text;c.classList.remove('hid');
+  c.querySelector('#btnSee').onclick=begin;
+}
+function begin(){
+  $('cover').classList.add('hid');$('timer').classList.remove('hid');$('timer').style.width='100%';
+  if(cur.live)cur.setup();
+  const t0=performance.now();clearInterval(timerId);
+  timerId=setInterval(()=>{const p=1-(performance.now()-t0)/cur.expose;$('timer').style.width=Math.max(0,p*100)+'%';
+    if(p<=0){clearInterval(timerId);$('timer').classList.add('hid');$('cover').textContent='？';$('cover').classList.remove('hid');setInputs(true);}},50);
 }
 function setInputs(on){['btnGo','btnL','btnR','minus','plus','range'].forEach(i=>$(i).disabled=!on);}
 function setVal(){$('val').textContent=$('range').value;}
