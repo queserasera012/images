@@ -48,7 +48,7 @@ else{textBlock(640,100,910,300);add(`<div class="a t" style="left:640px;width:91
 if(L=='z'||L=='s'||L=='t'||L=='b'||L=='y')document.head.insertAdjacentHTML('beforeend','<style>.name{color:#1F2A44!important;text-shadow:none!important}</style>');
 if(L=='f')document.head.insertAdjacentHTML('beforeend','<style>.name{color:#fff!important}</style>');
 if(L=='k')document.head.insertAdjacentHTML('beforeend','<style>.name{color:#1F2A44!important;text-shadow:none!important}</style>');
-if(P)add(`<div class="a name t" style="left:0;right:0;top:${(L=='k'||L=='m'||L=='f'||L=='z'||L=='s')?742:1272}px;text-align:center;font-size:34px;z-index:5">ケセラセラ｜パパが作るゲームとアプリ</div>`);
+if(P)add(`<div class="a name t" style="left:0;right:0;top:${(L=='k'||L=='m'||L=='f'||L=='z'||L=='s'||L=='t')?742:1272}px;text-align:center;font-size:34px;z-index:5">ケセラセラ｜パパが作るゲームとアプリ</div>`);
 // 場面の原点（横：左の 0〜620・縦：下の 740〜1350）
 const ox=P?250:0,oy=P?(L=='k'?540:L=='m'?410:L=='f'?380:470):0;const mark=c.children.length;
 if(L=='i'){ // 南の島に到着：ブロックで砂の城
@@ -141,7 +141,7 @@ const fr=(x,y,h,col,arms,flip)=>`<svg class="a" style="left:${x}px;top:${y}px${f
 const FC=['#FFFDF6','#FFE9A8','#FFD6DE','#D6F5E6','#D9ECFF','#EBDDFF'];
 if(L=='t'){ // なかま列車：13このブロックを のせて出発
  add(`<div class="a" style="left:${P?860:470}px;top:${P?60:50}px;width:120px;height:120px;border-radius:50%;background:#FFFDF6;border:6px solid #1F2A44;box-shadow:0 0 0 20px rgba(255,255,255,.4)"></div>`);
- add(`<svg class="a" style="left:0;top:${P?860:610}px" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="M0 70 Q${W*.18} 0 ${W*.36} 80 Q${W*.44} 150 ${W*.5} 245 L${W} 245 L${W} ${H} L0 ${H}Z" fill="#B9E77F" stroke="#1F2A44" stroke-width="7"/><path d="M0 170 Q${W*.2} 110 ${W*.4} 180 Q${W*.46} 236 ${W*.5} 248 L${W} 248 L${W} ${H} L0 ${H}Z" fill="#8FD86A" stroke="#1F2A44" stroke-width="7"/></svg>`);
+ add(`<svg class="a" style="left:0;top:${P?800:610}px" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="M0 70 Q${W*.18} 0 ${W*.36} 80 Q${W*.44} 150 ${W*.5} 245 L${W} 245 L${W} ${H} L0 ${H}Z" fill="#B9E77F" stroke="#1F2A44" stroke-width="7"/><path d="M0 170 Q${W*.2} 110 ${W*.4} 180 Q${W*.46} 236 ${W*.5} 248 L${W} 248 L${W} ${H} L0 ${H}Z" fill="#8FD86A" stroke="#1F2A44" stroke-width="7"/></svg>`);
  const sx=ox,sy=oy,ry=sy+862;
  // 線路
  add(`<div class="a" style="left:0;top:${ry}px;width:${W}px;height:12px;background:#1F2A44;border-radius:6px"></div>`);
@@ -159,7 +159,7 @@ if(L=='t'){ // なかま列車：13このブロックを のせて出発
  add(`<img class="a" src="sera.svg" style="left:${sx+440}px;top:${ry-330}px;height:150px">`);
  add(`<img class="a" src="small.svg" style="left:${sx+250}px;top:${ry-62-2*34-118}px;height:110px">`);
  // 見送るなかま
- [[sx+30,ry-262],[sx+150,ry-286]].forEach(([x,y],i)=>add(fr(x,y,56,FC[(i+4)%6],true)));
+ [[sx+30,ry-262],[sx+150,ry-286],...(P?[[sx-210,ry-130],[sx-120,ry-160],[sx-200,ry-300]]:[])].forEach(([x,y],i)=>add(fr(x,y,56,FC[(i+4)%6],true)));
 }
 if(L=='b'){ // パーティー：13このブロックのケーキと 1・3・0・0 の風船
  let r=5;const R=()=>(r=(r*9301+49297)%233280)/233280;const cs=['#FF6B6B','#3DDC97','#4FB8E8','#FFD23F','#FFFDF6'];
