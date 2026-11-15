@@ -220,12 +220,12 @@ clock:{name:'ちょうど',sense:'じかん',noTimer:true,buttons:['いま！'],
   btn(){finish(Math.abs(this.m)<=this.tol,Math.abs(this.m)<1?'ぴったり！':null);},
   draw(rev){const cx=W/2,cy=H/2,r=Math.min(W,H)*.42,tm=this.h*60+this.m;
     ctx.fillStyle='#F4F1E6';ctx.beginPath();ctx.arc(cx,cy,r,0,7);ctx.fill();ctx.lineWidth=6;ctx.strokeStyle=NAVY;ctx.stroke();
-    ctx.fillStyle='#B8E6B055';ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r*.96,-Math.PI/2-this.tol/60*6.283,-Math.PI/2+this.tol/60*6.283);ctx.fill();
+    ctx.fillStyle='#FFC93C';ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r*.96,-Math.PI/2-this.tol/60*6.283,-Math.PI/2+this.tol/60*6.283);ctx.fill();
     for(let i=0;i<60;i++){const a=i/60*6.283,l=i%5?r*.05:r*.12;ctx.lineWidth=i%5?2:4;ctx.beginPath();ctx.moveTo(cx+Math.sin(a)*(r-l),cy-Math.cos(a)*(r-l));ctx.lineTo(cx+Math.sin(a)*r*.96,cy-Math.cos(a)*r*.96);ctx.stroke();}
-    for(let i=1;i<=12;i++){const a=i/12*6.283;num(i,cx+Math.sin(a)*r*.76,cy-Math.cos(a)*r*.76,r*.18,i===this.h?'#FF9AA8':NAVY);}
+    for(let i=1;i<=12;i++){const a=i/12*6.283;num(i,cx+Math.sin(a)*r*.76,cy-Math.cos(a)*r*.76,i===this.h?r*.24:r*.18,i===this.h?'#D9433F':NAVY);}
     const ha=tm/720*6.283,ma=tm/60*6.283;ctx.lineCap='round';
     ctx.strokeStyle=NAVY;ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.sin(ha)*r*.48,cy-Math.cos(ha)*r*.48);ctx.stroke();
-    ctx.strokeStyle='#FF9AA8';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.sin(ma)*r*.74,cy-Math.cos(ma)*r*.74);ctx.stroke();ctx.lineCap='butt';
+    ctx.strokeStyle='#D9433F';ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.sin(ma)*r*.8,cy-Math.cos(ma)*r*.74);ctx.stroke();ctx.lineCap='butt';
     ctx.fillStyle=NAVY;ctx.beginPath();ctx.arc(cx,cy,7,0,7);ctx.fill();
     if(rev){const m=Math.round(this.m);pill(m===0?this.h+'じ ちょうど':m<0?this.h+'じの '+(-m)+'ふん まえ':this.h+'じ '+m+'ふん',cx,cy+r*.42,20,NAVY,'#F4F1E6');}}},
 // かずの かん：うごいても だいたい わかる
@@ -334,7 +334,7 @@ wclock:{name:'とけい',sense:'とけいを よむ',cmd(){return this.lab(this.
       [12,3,6,9].forEach(n=>{const a=n/12*6.283;num(n,cx+Math.sin(a)*r*.68,cy-Math.cos(a)*r*.68,r*.24);});
       const ha=(o[0]+o[1]/60)/12*6.283,ma=o[1]/60*6.283;ctx.lineCap='round';
       ctx.strokeStyle=NAVY;ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.sin(ha)*r*.46,cy-Math.cos(ha)*r*.46);ctx.stroke();
-      ctx.strokeStyle='#FF9AA8';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.sin(ma)*r*.78,cy-Math.cos(ma)*r*.78);ctx.stroke();ctx.lineCap='butt';
+      ctx.strokeStyle='#D9433F';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.sin(ma)*r*.78,cy-Math.cos(ma)*r*.78);ctx.stroke();ctx.lineCap='butt';
       if(rev){pill(this.lab(o[0],o[1]).trim(),W*.82,cy,16,NAVY,'#F4F1E6');if(o[0]===this.h&&o[1]===this.m)frame(4,50+((H-50)/3)*i+4,W-8,((H-50)/3)-8);}});}},
 // ならび：つぎの かず
 seq:{name:'つぎの かず',cmd(){return 'つぎの かずは？';},
