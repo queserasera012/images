@@ -51,6 +51,7 @@ canvas{width:100%;height:100%;display:block;touch-action:none}
 .sub2{font-size:14px;color:var(--mute);margin-top:-6px;text-align:center}
 .tray{height:14px;background:#A9744A;border-top:2px solid var(--wood-d);margin:0 -14px;position:relative}
 .tray i{position:absolute;bottom:14px;height:9px;border-radius:3px}
+.ver{position:absolute;left:2px;bottom:14px;font:400 11px var(--font);color:var(--mute);opacity:.75;-webkit-text-stroke:0;letter-spacing:.04em}
 .link{background:none;border:0;color:var(--mute);font:400 16px var(--font);text-decoration:underline;padding:8px;align-self:center}
 .result{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center}
 .result p{margin:0;color:var(--mute);font-size:17px}
@@ -141,6 +142,7 @@ body{-webkit-text-stroke:.45px currentColor}
 .ipad.land .title .shelf svg{width:40px;height:40px}
 .ipad.land .title #btnParent{grid-column:1;grid-row:4;justify-self:start;padding-left:0}
 .ipad.land .title #btnDay{grid-row:1}.ipad.land .title #btnStart{grid-row:2}
+.ipad.land .title .ver{left:auto;right:4px;bottom:0}
 .ipad.land .title .day{position:static;writing-mode:horizontal-tb;grid-column:1;grid-row:4;justify-self:end;font-size:16px}
 </style>
 
@@ -156,6 +158,7 @@ body{-webkit-text-stroke:.45px currentColor}
       <div class="two2"><button class="btn sky" id="btnPrac">れんしゅう<small><span class="nw">すきな</span> <span class="nw">ゲームを</span> <span class="nw">5かい</span></small></button><button class="btn grn" id="btnWeak"><span class="nw">にがて</span> <span class="nw">とっくん</span><small><span class="nw">まちがえた</span> <span class="nw">ゲームを</span> <span class="nw">9かい</span></small></button></div>
       <div class="two2"><button class="btn pur" id="btnVs"><span class="nw">ふたりで</span> <span class="nw">たいせん</span><small><span class="nw">むかいあって</span> <span class="nw">どうじに</span></small></button><button class="btn wht" id="btnBook"><span class="nw">はなまる</span><span class="nw">ちょう</span><small id="bookSub"></small></button></div>
       <button class="link" id="btnParent">おうちのかたへ</button>
+      <div class="ver">1.0.0-2a20</div>
     </div>
     <div class="tray"><i style="left:14%;width:46px;background:#F4F1E6"></i><i style="left:34%;width:30px;background:#FFB3C1"></i><i style="left:47%;width:38px;background:#FFE08A"></i><i style="right:10%;width:64px;height:18px;background:#3B4A7A;border-top:5px solid #C9B28A"></i></div>
   </div>
