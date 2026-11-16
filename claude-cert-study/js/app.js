@@ -1,6 +1,6 @@
 /* Claude 資格 問題集 — 出題・模試・復習・進捗（localStorage） */
 (function () {
-  const B = window.BLUEPRINT, QS = window.QUESTIONS, QH = window.QUESTIONS_HARD || {}, T = window.TEXT || {};
+  const B = window.BLUEPRINT, QS = window.QUESTIONS, QH = window.QUESTIONS_HARD || {}, QO = window.QUESTIONS_ORDER || {}, T = window.TEXT || {};
   const KEY = 'ccs.v1';
   const $app = document.getElementById('app'), $title = document.getElementById('title'),
         $back = document.getElementById('back'), $timer = document.getElementById('timer');
@@ -22,7 +22,10 @@
   const L = 'ABCDEFGH';
   function shuffle(a, rnd) { rnd = rnd || Math.random; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
   function level() { return S.level === 'hard' ? 'hard' : 'std'; }
-  function qsOf(ex, lv) { const src = ((lv || level()) === 'hard' ? QH : QS)[ex] || []; return src.map((q, i) => Object.assign({ exam: ex, id: q.id || (ex + '-' + i) }, q)); }
+  function qsOf(ex, lv) { const src = (((lv || level()) === 'hard' ? QH : QS)[ex] || []).concat(QO[ex] || []); return src.map((q, i) => Object.assign({ exam: ex, id: q.id || (ex + '-' + i) }, q)); }
+  // 並べ替え問題：q.t === 'order'。q.c は正しい順。答えは並べた順（添字の配列）が [0,1,2,...] と一致したら正解
+  function isOrder(q) { return q.t === 'order'; }
+  function orderOk(picked, q) { return picked.length === q.c.length && picked.every((ci, i) => ci === i); }
   function domainOf(ex, d) { return B[ex].domains.find(x => x.id === d); }
   function pct(a, b) { return b ? Math.round(100 * a / b) : 0; }
 
@@ -226,12 +229,14 @@
     v.onBack = () => { if (!isMock || v.answers.filter(a => a).length === 0 || confirm('模試をやめますか？ 結果は残りません。')) go({ name: 'exam', exam: v.exam }); };
     // 選択肢の並びは問題ごとに固定でシャッフル（id を種に）
     const order = q.order || (q.order = shuffle(q.c.map((_, i) => i), seeded(q.id)));
-    const multi = q.a.length > 1;
-    let picked = new Set(v.answers[v.i] ? v.answers[v.i].picked : []);
+    const ord = isOrder(q), multi = !ord && q.a.length > 1;
+    let picked = ord ? (v.answers[v.i] ? v.answers[v.i].picked.slice() : []) : new Set(v.answers[v.i] ? v.answers[v.i].picked : []);
     let answered = !!(v.answers[v.i] && v.answers[v.i].done);
+    const grade = () => ord ? orderOk(picked, q) : sameSet(picked, new Set(q.a));
 
     function draw() {
-      const ok = answered && sameSet(picked, new Set(q.a));
+      const ok = answered && grade();
+      if (ord) { drawOrder(ok); return; }
       $app.innerHTML = `<div class="prog"><span>${v.i + 1} / ${v.list.length}${v.label ? '・' + esc(v.label) : ''}</span><span>${d.id}. ${esc(d.name)}${q.s ? '・シナリオ' + q.s : ''}</span></div>
         <div class="card"><div class="q">${fmt(q.q)}</div>
         <div class="muted small" style="margin-top:6px">${multi ? `<b>${q.a.length} つ</b>選んでください` : '1 つ選んでください'}</div>
@@ -251,8 +256,11 @@
         else picked = new Set([ci]);
         draw();
       });
+      wireCommon();
+    }
+    function wireCommon() {
       const ans = $app.querySelector('#ans'); if (ans) ans.onclick = () => {
-        answered = true; const okNow = sameSet(picked, new Set(q.a));
+        answered = true; const okNow = grade();
         v.answers[v.i] = { picked: [...picked], done: true, ok: okNow };
         if (!isMock) record(q.id, okNow);
         draw();
@@ -260,6 +268,32 @@
       const nx = $app.querySelector('#next'); if (nx) nx.onclick = () => { if (v.i + 1 < v.list.length) { v.i++; render(); } else finish(); };
       const tt = $app.querySelector('#totext'); if (tt) tt.onclick = e => { e.preventDefault(); go({ name: 'textDomain', exam: v.exam, d: q.d, o: q.o, back: v }); };
       const pv = $app.querySelector('#prev'); if (pv) pv.onclick = () => { v.i--; render(); };
+      const rs = $app.querySelector('#reset'); if (rs) rs.onclick = () => { picked = []; draw(); };
+    }
+    // 並べ替え：押した順に 1,2,3… の番号が付く。番号の付いた項目を押すと外れる
+    function drawOrder(ok) {
+      const n = q.c.length;
+      $app.innerHTML = `<div class="prog"><span>${v.i + 1} / ${v.list.length}${v.label ? '・' + esc(v.label) : ''}</span><span>${d.id}. ${esc(d.name)}${q.s ? '・シナリオ' + q.s : ''}</span></div>
+        <div class="card"><div class="q">${fmt(q.q)}</div>
+        <div class="muted small" style="margin-top:6px"><b>正しい順番</b>に 1 つずつ押してください（${n} 項目・押し直すと外れる）</div>
+        <ul class="choices">${order.map(ci => {
+          const pos = picked.indexOf(ci);
+          let cls = 'choice', badge = pos >= 0 ? String(pos + 1) : '';
+          if (answered) { cls += ' answered'; cls += pos === ci ? ' right' : ' wrong'; badge = `${pos >= 0 ? pos + 1 : '–'}→${ci + 1}`; } else if (pos >= 0) cls += ' sel';
+          return `<li class="${cls}" data-c="${ci}"><span class="k${answered ? ' k2' : ''}">${badge}</span><span>${fmt(q.c[ci])}</span></li>`; }).join('')}</ul>
+        ${answered && !isMock ? `<div class="ex ${ok ? 'ok' : 'ng'}"><b>${ok ? '正解' : 'まちがい'}</b>　正しい順：\n${q.c.map((s, i) => `${i + 1}. ${fmt(s)}`).join('\n')}\n\n${fmt(q.e)}${q.ref ? `\n<a href="${q.ref}" target="_blank" rel="noopener">参考 ↗</a>` : ''}${T[v.exam] ? `\n<a href="#" id="totext">📖 この目標のテキストを読む</a>` : ''}</div>` : ''}
+        </div>
+        <div class="row">
+          ${v.i > 0 && isMock ? '<button class="btn" id="prev">前へ</button>' : ''}
+          ${!answered ? `<button class="btn" id="reset" ${picked.length ? '' : 'disabled'}>やり直す</button><button class="btn primary grow" id="ans" ${picked.length === n ? '' : 'disabled'}>${isMock ? '決める' : '答える'}</button>` : `<button class="btn primary grow" id="next">${v.i + 1 < v.list.length ? '次へ' : (isMock ? '採点する' : '結果を見る')}</button>`}
+        </div>
+        <div class="note">${answered ? '番号は「自分の順→正しい順」。' : '全部に番号が付くと答えられる。'}本番にも「手順を 1〜5 に並べる」形式がある（2026-11 受験者の報告）。</div>`;
+      $app.querySelectorAll('.choice').forEach(el => el.onclick = () => {
+        if (answered) return; const ci = +el.dataset.c, pos = picked.indexOf(ci);
+        if (pos >= 0) picked.splice(pos, 1); else if (picked.length < n) picked.push(ci);
+        draw();
+      });
+      wireCommon();
     }
     function finish() {
       stopTimer();
@@ -302,6 +336,9 @@
     v.onBack = () => go(v.back);
     $app.innerHTML = v.items.map(({ q, picked }, k) => {
       const order = q.order || (q.order = shuffle(q.c.map((_, i) => i), seeded(q.id)));
+      if (isOrder(q)) return `<div class="card"><div class="tag">${k + 1}. ${domainOf(v.exam, q.d).name}・並べ替え</div><div class="q">${fmt(q.q)}</div>
+        <ul class="choices">${q.c.map((s, i) => { const pos = picked.indexOf(i); return `<li class="choice answered ${pos === i ? 'right' : 'wrong'}"><span class="k k2">${pos >= 0 ? pos + 1 : '–'}→${i + 1}</span><span>${fmt(s)}</span></li>`; }).join('')}</ul>
+        <div class="ex">${fmt(q.e)}${q.ref ? `\n<a href="${q.ref}" target="_blank" rel="noopener">参考 ↗</a>` : ''}</div></div>`;
       return `<div class="card"><div class="tag">${k + 1}. ${domainOf(v.exam, q.d).name}</div><div class="q">${fmt(q.q)}</div>
         <ul class="choices">${order.map((ci, i) => `<li class="choice answered ${q.a.includes(ci) ? 'right' : (picked.includes(ci) ? 'wrong' : '')}"><span class="k">${L[i]}</span><span>${fmt(q.c[ci])}</span></li>`).join('')}</ul>
         <div class="ex">${fmt(q.e)}${q.ref ? `\n<a href="${q.ref}" target="_blank" rel="noopener">参考 ↗</a>` : ''}</div></div>`;
