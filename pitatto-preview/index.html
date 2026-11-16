@@ -217,6 +217,374 @@ body{-webkit-text-stroke:.45px currentColor}
   vfit();addEventListener('resize',vfit);})();
 (function(){
 const $=id=>document.getElementById(id);
+// ---------- English (i18n) ----------
+// The game always builds Japanese text. When LANG is 'en', text is translated right before it is shown:
+// canvas (fillText / strokeText / measureText) and DOM (text nodes + placeholder, via MutationObserver).
+// Keys of EN are the Japanese text with every run of digits replaced by {0},{1}.. ({s} = any short text, e.g. a child's name).
+// tools/i18n-keys.cjs plays every screen and lists keys that are missing from EN. Language: localStorage sansu.lang.v1 (not in the save).
+const JP=/[\u3040-\u30ff\u4e00-\u9fff]/,LKEY='sansu.lang.v1';
+let LANG=(()=>{try{const q=/[?&]lang=(en|ja)\b/.exec(location.search);if(q)return q[1];const v=localStorage.getItem(LKEY);if(v==='en'||v==='ja')return v;}catch(e){}return /^ja\b/i.test(navigator.language||'ja')?'ja':'en';})();
+const EN={
+// --- home / menus ---
+"{0}びょうさんすう":"{0}-Second Math",
+"きょうの {0}もん":"Today's {0}",
+"あそぶ":"Play",
+"れんしゅう":"Practice",
+"すきな":"Any",
+"ゲームを":"game",
+"{0}かい":"×{0}",
+"にがて":"Weak-spot",
+"とっくん":"Training",
+"まちがえた":"Missed",
+"ふたりで":"2-Player",
+"たいせん":"Duel",
+"むかいあって":"Face to face,",
+"どうじに":"same time",
+"はなまる":"Star",
+"ちょう":" Book",
+"おうちのかたへ":"For Parents",
+"ぜんぶ まぜて・{0}かい まちがえたら おしまい　じこベスト {1}":"All mixed. {0} misses and it's over.  Best {1}",
+"ぜんぶ まぜて・{0}かい まちがえたら おしまい":"All mixed. {0} misses and it's over.",
+"きょうの {0} / {1}":"Today {0} / {1}",
+"きょうは おわり！ はなまる":"Done for today! Great!",
+"まいにち かわる {0}もん":"{0} new questions every day",
+"なまえを きめる":"Set your name",
+"ふたりで たいせん":"2-Player Duel",
+"はなまるちょう":"Star Book",
+"だれが あそぶ？":"Who's playing?",
+"もどる":"Back",
+"やめる":"Quit",
+"ホーム":"Home",
+"もういちど":"Again",
+"はじめる":"Start",
+"クリア":"Clear",
+"クリアした かず":"Cleared",
+"じこベスト {0}":"Best {0}",
+"レベル {0}":"Level {0}",
+"れんしゅう {0} / {1}":"Practice {0} / {1}",
+"とっくん {0} / {1}":"Training {0} / {1}",
+"にがて とっくん：{0}かいの うち":"Weak-spot Training: out of {0}",
+"まちがえた ゲーム":"Missed games",
+"カレンダーに はなまる！":"A star on your calendar!",
+"せいかい！":"Correct!",
+"× ざんねん…":"× Oops…",
+"ぴったり！":"Perfect!",
+"{0}がつ":n=>['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][n[0]-1]||'',
+"に":"S","げ":"M","か":"T","す":"W","も":"T","き":"F","ど":"S",
+"・":"-",
+// --- kids / names ---
+"なまえ（{0}もじまで）":"Name (up to {0} letters)",
+"{0}にんまで。きろくと ほしは ひとりずつ べつべつ。":"Up to {0} players. Each keeps their own records and stars.",
+"この なまえに":"Use this",
+"する":"name",
+"あたらしく":"Add",
+"ついか":"a player",
+"なまえなし":"No name",
+// --- star book ---
+"こくばんの らくがき":"Chalkboard doodles",
+"あと ★{0} で つぎの らくがき":"★{0} more for the next doodle",
+"★ は {0}かい あそぶと つく。たくさん せいかいすると ★★★ まで ふえるよ。":"Play {0} times to get a ★. Get many right to reach ★★★.",
+"らくがき ぜんぶ そろった！":"All doodles collected!",
+// --- duel ---
+"むかいあって すわって、おなじ もんだいを どうじに スタート。":"Sit face to face. The same question starts for both at once.",
+"さきに せいかいした ほうが {0}てん。まちがえると おてつき。":"First correct answer gets {0} point. A wrong tap locks you out.",
+"さきに {0}てんで かち。つよい ひとは ハンデを つけよう。":"First to {0} wins. Stronger players can take a handicap.",
+"あか":"Red","あお":"Blue","きいろ":"Yellow",
+"ハンデ なし":"No handicap",
+"{0}びょう まつ":"Wait {0} sec",
+"もんだい":"Questions",
+"かけざん・わりざんも":"With × and ÷",
+"たす・ひく まで":"+ and − only",
+"ほか {0}ほん":"{0} more",
+"{0}てんで かち":"First to {0}",
+"{0}　ー　{1}":"{0}  -  {1}",
+"あかの かち！":"Red wins!",
+"あおの かち！":"Blue wins!",
+"ひきわけ":"Draw",
+"おてつき":"Locked",
+"まって":"Wait",
+// --- lock / gate ---
+"かぎの かかった あそび":"Locked",
+"ここから さきは":"To play this, unlock",
+"「ぜんぶ ひらく」で あそべるよ。":"everything with \"Unlock All\".",
+"おうちの ひとに":"Show this screen",
+"この がめんを みせてね。":"to a grown-up.",
+"おうちの かたへ":"For Parents",
+"「あそぶ」「たいせん」と、":"Play, Duel, and",
+"みどりの わくの れんしゅうは、":"the green-framed practice games",
+"このまま なんかいでも あそべるよ。":"are always free to play.",
+"たいせんの ほかの もんだい":"More duel questions",
+"「{s}」の ほかの れんしゅう":"More \"{s}\" practice",
+"きょうの {0}もん":"Today's {0}",
+"にがて とっくん":"Weak-spot Training",
+"ふたりめからの きろく":"Records for more players",
+"保護者の方へ":"For Parents",
+"この先は 保護者の方 向けの 画面です。":"This area is for parents.",
+"暗証番号（{0}けた）を入力してください。":"Enter the {0}-digit passcode.",
+"新しい暗証番号（{0}けた）を入力してください。":"Enter a new {0}-digit passcode.",
+"もう一度、同じ番号を入力してください。":"Enter the same passcode again.",
+"しょきち: {0}":"Default: {0}",
+"けす":"Del",
+"番号がちがいます。もう一度入力してください。":"Wrong passcode. Please try again.",
+"番号を忘れたとき":"Forgot the passcode?",
+"暗証番号を変える":"Change passcode",
+"暗証番号を変えました。":"Passcode changed.",
+"暗証番号が はじめの {0} のままです。お子さまに知られないよう、変えておくと安心です。":"The passcode is still the default {0}. Changing it keeps children out.",
+// --- parent page ---
+"{s} の きろく":"{s}'s records",
+"この{0}週間":"Last {0} week",
+"：{0}日のうち {1}日・{2}回":": {1} of {0} days, {2} plays",
+"：まだ記録がありません。遊ぶとここに分野ごとの様子が出ます。":": No records yet. Play and each area will show here.",
+"もう少し遊ぶと、とくい・のびしろが出ます（{0}分野{1}回から）。":"Play a little more to see strengths and areas to grow (from {1} plays in {0} area).",
+"とくい：{s}（{0}%）":"Strong: {s} ({0}%)",
+"のびしろ：{s}（{0}%）。「にがて とっくん」に出やすくなります":"To grow: {s} ({0}%). It will come up more often in Weak-spot Training",
+"これまでの記録":"All-time records",
+"：{0}回あそんで ○ {1}・× {2}。記録はこの端末の中だけに残ります。広告は出ません。お子さまの名前や記録を、開発者が受け取ることはありません。":": {0} plays, ○ {1}, × {2}. Records stay on this device. No ads. The developer never receives your child's name or records.",
+"{0}びょうさんすう は、数秒で{1}問の算数あそびです。":"{0}-Second Math is a set of math games, {1} question every few seconds.",
+"数・量・長さ・時間・お金の「感覚」と、基本の計算を、遊びながらくり返します。まちがえてもすぐ答え合わせが出ます。":"Children build a feel for numbers, amounts, length, time and money, and repeat basic arithmetic through play. Every miss shows the answer right away.",
+"レベル{0} ○{1} ×{2}（時間切れ {3}）":"Lv{0} ○{1} ×{2} (timeouts {3})",
+"レベル{0} ○{1} ×{2}":"Lv{0} ○{1} ×{2}",
+"{s}（無料）":"{s} (free)",
+"設定":"Settings",
+"音：オン":"Sound: On",
+"音：オフ":"Sound: Off",
+"かけ算・わり算・大きな数":"× / ÷ / big numbers",
+"いまは 出す（おすと 出さない）":"Shown now (tap to hide)",
+"いまは 出さない（おすと 出す）":"Hidden now (tap to show)",
+"：小{0}〜小{1}の内容です。まだ早い場合は外せます。":": Grade {0}-{1} content. You can hide it if it is too early.",
+"きろくを けす":"Erase records",
+"ほんとうに けす（もういちど おす）":"Really erase? (tap again)",
+"「{s}」を 消す":"Remove \"{s}\"",
+"ほんとうに 消す（記録も 消えます。もういちど おす）":"Really remove? Records go too. (tap again)",
+"ぜんぶ ひらく（買い切り）":"Unlock All (one-time purchase)",
+"{0}本すべて・きょうの {1}もん・にがて とっくん・はなまるちょう・{2}人ぶんの記録が開きます。":"Opens all {0} games, Today's {1}, Weak-spot Training, the Star Book and records for {2} players.",
+"{0}回だけのお支払いです。月額ではありません。広告はありません。":"A single payment. No subscription. No ads.",
+"無料のままでも「あそぶ」「ふたりで たいせん」と、各分野{0}本ずつの{1}本は、何回でも遊べます。":"Without buying, Play, 2-Player Duel and {1} games ({0} per area) stay free forever.",
+"ファミリー共有に対応しています。":"Family Sharing is supported.",
+"購入する":"Buy",
+"購入を復元する":"Restore purchase",
+"購入済みです":"Purchased",
+"処理中…":"Working…",
+"承認を待っています。保護者の方の承認がおりると、自動で開きます。":"Waiting for approval. It will unlock automatically once approved.",
+"購入できませんでした。時間をおいて、もう一度お試しください。":"The purchase did not go through. Please try again later.",
+"復元できる購入が見つかりませんでした。":"No purchase was found to restore.",
+"復元しました。":"Restored.",
+"ありがとうございます。ぜんぶ ひらきました。":"Thank you. Everything is unlocked.",
+"※ いまは試作です。「購入する」を押してもお金はかからず、開いた状態を試せるだけです。":"* Prototype: \"Buy\" costs nothing here and only previews the unlocked state.",
+"※ この試作では、すべて遊べます。":"* Everything is open in this prototype.",
+"ひらきました（試作のため、お支払いは発生していません）。":"Unlocked (prototype: no payment was made).",
+"試作のため、復元できる購入はありません。":"Prototype: there is no purchase to restore.",
+"ぜんぶ遊べる状態に戻しました。":"Back to everything open.",
+"未購入の状態に戻しました。":"Back to the not-purchased state.",
+"買い切り前の状態にしました。ホームに戻ると、かぎの印が付きます。":"Now in the before-purchase state. Lock marks appear on the home screen.",
+"（試作用）ためすのを やめて、ぜんぶ遊べる状態に戻す":"(Prototype) Stop previewing and open everything",
+"（試作用）未購入に戻す":"(Prototype) Back to not purchased",
+"（試作用）買い切り前の状態を ためす":"(Prototype) Preview the before-purchase state",
+"ことば":"Language",
+"ぜんぶ クリア！ はなまる":"All clear! Great!",
+"ほしを あつめると ここに らくがきが ふえるよ":"Collect stars and doodles appear here",
+"ぜんぶ あつめた！":"All collected!",
+"次の計算の答えを入力すると、":"Enter the answer to this sum and",
+"暗証番号が はじめの {0} に戻ります。":"the passcode goes back to the default {0}.",
+"記録や購入は そのままです。":"Records and purchases are kept.",
+"答えがちがいます。もう一度入力してください。":"Wrong answer. Please try again.",
+"確認のため、もう一度 同じ番号を入力してください。":"Enter the same passcode once more to confirm.",
+"番号が合いません。もう一度入力してください。":"The passcodes do not match. Please try again.",
+"どの分野も大きなかたよりはありません。":"No area stands out as strong or weak.",
+"のびた：{s}（先週 {0}% → {1}%）":"Improved: {s} (last week {0}% → {1}%)",
+"：{0}日のうち {1}日・{2}回（その前の週は {3}日）":": {1} of {0} days, {2} plays (the week before: {3} days)",
+"：{0}回あそんで ○ {1}・× {2}。記録はこの端末と、ご自身の iCloud に残ります（同じ Apple ID の iPhone で記録がそろいます）。広告は出ません。お子さまの名前や記録を、開発者が受け取ることはありません。":": {0} plays, ○ {1}, × {2}. Records stay on this device and in your own iCloud (devices on the same Apple ID share them). No ads. The developer never receives your child's name or records.",
+"※ お支払いは App Store を通して行われます。ファミリー共有に対応しています。承認待ち（承認と購入のリクエスト）の場合は、承認のあとにアプリを開き直すと反映されます。":"* Payment goes through the App Store. Family Sharing is supported. With Ask to Buy, reopen the app after approval to unlock.",
+"ありがとうございます。すべて ひらきました。":"Thank you. Everything is unlocked.",
+"保護者の方の承認を待っています（承認と購入のリクエスト）。承認のあと、アプリを開き直すと ひらきます。":"Waiting for a parent's approval (Ask to Buy). Reopen the app after approval to unlock.",
+"購入は完了しませんでした。時間をおいて、もう一度お試しください。":"The purchase was not completed. Please try again later.",
+"確認中…":"Checking…",
+"購入を復元しました。":"Purchase restored.",
+"「{s}」を消しました。":"Removed \"{s}\".",
+"記録を消しました。":"Records erased.",
+"ハンデ：{0}びょう まつ":"Handicap: wait {0} sec",
+"× おてつき":"× Locked out",
+"とった！":"Got it!",
+"× じかんぎれ":"× Time's up",
+"とられた…":"Too slow…",
+"まって…":"Wait…",
+"ひきわけ！":"Draw!",
+"{s}の かち！":"{s} wins!",
+"たいせんは きろくに のこりません":"Duels are not saved to records",
+"こころの なかで かぞえて":"Count in your head",
+"にほんごに する":"にほんごに する",
+// --- field names and descriptions ---
+"かずの かん":"Number Sense","ぱっと みて わかる":"See It at a Glance",
+"かぞえる・ならべる":"Count & Order","かぞえる・くらべる":"Count & Compare",
+"たす・ひく":"Add & Subtract","あわせる・のこり":"Add & Take Away",
+"ながさ・かさ":"Length & Volume","ながさと めもり":"Length & Scales",
+"じかん":"Time","とけいと びょう":"Clocks & Seconds",
+"おかね":"Money","かいもの":"Shopping",
+"かたち・はんぶん":"Shapes & Halves","かたちと はんぶん":"Shapes & Halves",
+"かけざんの かん":"Multiplication Sense","かけざん":"Multiplication",
+"わける":"Sharing",
+"おおきな かず・だいたい":"Big Numbers & Estimates","おおきな かず":"Big Numbers",
+"数えなくても「だいたいいくつ」が分かる力。かさや動きにだまされずに量をつかみます。":"Knowing \"about how many\" without counting, and judging amounts without being fooled by size or motion.",
+"動くものを数える、数の大小と位、きまりのある並びをつかみます。":"Counting moving things, comparing numbers and place value, and spotting number patterns.",
+"合わせる・残りを出す・{0}をつくる。筆算の前の「数の合成と分解」です。":"Putting together, taking away and making {0}: composing and splitting numbers before written sums.",
+"向きが違っても長さを比べる、同じ長さを写す、目盛りを読む。":"Comparing lengths in any direction, copying a length, and reading scales.",
+"時計を読む、「ちょうど」をつかむ、秒の長さを体で覚える。":"Reading clocks, catching \"o'clock\", and feeling how long a second is.",
+"値段を足して比べる、硬貨の枚数と値打ちの違い、おつり。":"Adding and comparing prices, coin count versus value, and change.",
+"角の数で形を見分ける、まん中を見つける、半分（分数のはじまり）。":"Telling shapes by corners, finding the middle, and halves (the start of fractions).",
+"並びを「いくつ分」で見る、九九の大きさを比べる、□に入る数を探す。":"Seeing arrays as \"groups of\", comparing times-table products, and finding the missing number.",
+"同じ数ずつ分ける、いくつ分とれるか、あまりが出るかを見ぬく。わり算の入口です。":"Sharing equally, how many groups fit, and whether there is a remainder: the doorway to division.",
+"数直線を読む、どちらに近いかで丸める、だいたいの答えを先につかむ（概数・見積もり）。":"Reading number lines, rounding to the nearer side, and estimating the answer first.",
+// --- games: names ---
+"おおいほう":"More","10ぴき":"Ten Bugs","さがせ":"Find It","ぱっと いくつ":"How Many?","{0}の まとまり":"Groups of {0}","なかまはずれ":"Odd One Out","おおい いろ":"Most Color","どのくらい":"About How Many",
+"ストップ":"Stop","おおきいかず":"Biggest","つぎの かず":"What's Next","ちいさいかず":"Smallest","じゅんばん":"In Order","あいだの かず":"In Between","ぬけた かず":"Missing Number","くらい":"Place Value",
+"サイコロ":"Dice","あわせて{0}":"Make {0}","のこり":"What's Left","たしざん":"Addition","いくつと いくつ":"Number Pairs","しき くらべ":"Compare Sums","あってる？":"Right or Wrong?",
+"ながいほう":"Longer","おなじ ながさ":"Same Length","めもり":"Scale","じょうぎ":"Ruler","みずの かさ":"Water","まがった みち":"Winding Paths","たんい":"Units","たんい がえ":"Unit Change",
+"ちょうど":"O'clock","とけい":"Clock","びょう":"Seconds","なんじ なんぷん":"What Time?","なんぷんご":"Minutes Later","ながい じかん":"Longer Time","なんぷん":"Minutes","なんじかん":"Hours Passed",
+"かえる":"Can Buy","おかねの かさ":"Coins","おつり":"Change","いくら？":"How Much?","まいすう":"Fewest Coins","たりる？":"Enough?","やすいのは":"Cheapest","りょうがえ":"Coin Swap",
+"かど":"Corners","はんぶん":"Half","はんぶんの いろ":"Half Colored","おりがみ":"Fold","ぶんすう":"Fractions","かたち かぞえ":"Count Shapes","つみき":"Blocks","ひろいほう":"Bigger Area",
+"ならび":"Arrays","かけざん くらべ":"Compare ×","あなあき":"Fill the Box","くく":"Times Tables","くく あってる？":"× Right or Wrong?","しきは どれ":"Which Sum?","だんの かず":"Table Numbers","なんばい":"How Many Times",
+"ふくろ":"Bags","あまる？":"Any Left Over?","わりざん":"Division","あまり":"Remainder","はんぶんの かず":"Half of a Number","わりざん くらべ":"Compare ÷","なんにんで":"Share Among",
+"かずのせん":"Number Line","ちかいのは":"Nearer","だいたい":"Estimate","かんじの かず":"Kanji Numbers","まるめる":"Round It","{0}ばい":"Times {0}","まんなか":"Middle","かず くらべ":"Compare Numbers",
+// --- games: commands ---
+"おおいほうを タップ！":"Tap the side with more!",
+"{0}こで ストップ！":"Stop at {0}!",
+"{0}えんで ぜんぶ かえる？":"Can you buy it all with {0} yen?",
+"ながいほうを タップ！":"Tap the longer one!",
+"{0}じ ちょうどで タップ！":"Tap at {0} o'clock sharp!",
+"{0}ぴきより おおい？":"More than {0}?",
+"はんぶんで きれ！":"Cut it in half!",
+"{0}こを さがせ！":"Find the group of {0}!",
+"あわせて おおいほう！":"Which total is more?",
+"かどが {0}つの かたち！":"The shape with {0} corners!",
+"いちばん おおきい かず！":"The biggest number!",
+"あわせて {0}に なるのは？":"What makes {0}?",
+"{0}の めもりで とめろ！":"Stop at {0} on the scale!",
+"{0}じ は どれ？":"Which shows {0}:00?",
+"{0}じはん は どれ？":"Which shows {0}:30?",
+"{0}じ{1}ふん は どれ？":n=>'Which shows '+n[0]+':'+String(n[1]).padStart(2,'0')+'?',
+"{0}じ{1}ぷん は どれ？":n=>'Which shows '+n[0]+':'+String(n[1]).padStart(2,'0')+'?',
+"つぎの かずは？":"What comes next?",
+"のこりは いくつ？":"How many are left?",
+"おなじ ながさで とめろ！":"Stop at the same length!",
+"{0}びょうで タップ！":"Tap at {0} seconds!",
+"おかねが おおいほう！":"Which is more money?",
+"おつりは いくら？":"How much change?",
+"はんぶん ぬってあるのは？":"Which one is half colored?",
+"ぜんぶで いくつ？":"How many in all?",
+"おおきいほうを タップ！":"Tap the bigger one!",
+"□に はいる かずは？":"What goes in the □?",
+"ひとり なんこ？":"How many each?",
+"なんふくろ できる？":"How many bags?",
+"{0}にんで おなじに わけられる？":"Can {0} people share equally?",
+"やじるしの かずは？":"What number is the arrow at?",
+"{0}に ちかいのは？":"Which is nearer to {0}?",
+"だいたい いくつ？":"About how much?",
+"ぱっと みて いくつ？":"How many at a glance?",
+"かずが ちがうのは？":"Which has a different count?",
+"いちばん おおい いろは？":"Which color has the most?",
+"だいたい なんこ？":"About how many?",
+"いちばん ちいさい かず！":"The smallest number!",
+"ちいさい じゅんは どれ？":"Which goes small to big?",
+"あいだの かずは？":"What number is in between?",
+"ぬけている かずは？":"Which number is missing?",
+"いちの くらいは？":"The ones digit?","じゅうの くらいは？":"The tens digit?","ひゃくの くらいは？":"The hundreds digit?","せんの くらいは？":"The thousands digit?",
+"いちの くらい":"ones","じゅうの くらい":"tens","ひゃくの くらい":"hundreds","せんの くらい":"thousands",
+"こたえは？":"The answer?",
+"この しき あってる？":"Is this sum right?",
+"なんセンチ？":"How many cm?",
+"みずが おおいほう！":"Which has more water?",
+"いちばん ながい みちは？":"Which path is the longest?",
+"どのくらいの ながさ？":"About how long?",
+"おなじ ながさは？":"Which is the same length?",
+"なんじ なんぷん？":"What time is it?",
+"{0}ぷんごは？":"What time in {0} minutes?",
+"{0}じかんごは？":"What time in {0} hour?",
+"ぜんぶで なんぷん？":"How many minutes in all?",
+"なんじかん たった？":"How many hours passed?",
+"ぜんぶで いくら？":"How much in all?",
+"なんまいで はらえる？":"Fewest coins to pay?",
+"この おかねで かえる？":"Is this enough money?",
+"いちばん やすいのは？":"Which is the cheapest?",
+"なんまいと おなじ？":"Same as how many coins?",
+"おると ぴったり かさなる？":"Does it match when folded?",
+"{0}ぶんの{1}は どれ？":"Which one shows {1}/{0}?",
+"さんかくは いくつ？":"How many triangles?","しかくは いくつ？":"How many squares?","まるは いくつ？":"How many circles?",
+"つみきは なんこ？":"How many blocks?",
+"ひろいほうを タップ！":"Tap the bigger area!",
+"この くく あってる？":"Is this right?",
+"しきは どれ？":"Which one matches?",
+"{0}の だんの こたえは？":"Which is in the {0} times table?",
+"あかは あおの なんばい？":"Red is how many times blue?",
+"あまりは いくつ？":"What is the remainder?",
+"はんぶんは いくつ？":"What is half?",
+"なんにんで わけられる？":"How many people can share it?",
+"すうじで かくと？":"Write it in digits?",
+"いちばん ちかいのは？":"Which is the nearest?",
+"{0}ばいは？":"{0} times as much?",
+"{0}で わると？":"Divided by {0}?",
+"かず くらべ":"Compare Numbers",
+// --- games: buttons ---
+"ストップ！":"Stop!","かえない":"Can't","おおい":"More","すくない":"Fewer","きる！":"Cut!","いま！":"Now!","とめる！":"Stop!",
+"あってる":"Right","ちがう":"Wrong","たりる":"Enough","たりない":"Not enough","ぴったり":"Matches","ずれる":"Doesn't","わけられる":"Yes","あまる":"Left over",
+// --- games: on the board / answers ---
+"{0}こ":"{0}","{0}ひき":"{0}","{0}ぴき":"{0}","{0}ます":"{0} squares","{0}かど":"{0} corners",
+"{0}えん":"{0} yen","ぜんぶで {0}えん":"Total {0} yen","もっている おかね":"You have","もっているのは {0}えん":"You have {0} yen","ねだん {0}えん":"Price {0} yen",
+"{0}えん はらう":"Pay {0} yen","{0}えんの えんぴつ":"{0}-yen pencil","{0}えんの おかし":"{0}-yen snack","{0}えんの ジュース":"{0}-yen juice","{0}えんの パン":"{0}-yen bread",
+"{0}えん は {1}まい":n=>n[0]+" yen takes "+n[1]+(n[1]==1?" coin":" coins"),"{0}えんだま {1}まい":"{0}-yen coin × {1}","{0}えんだま ？まい":"{0}-yen coin × ?","どちらも {0}えん":"Both are {0} yen",
+"いちばん すくない まいすうで":"Use the fewest coins",
+"りんご":"Apple","パン":"Bread","あめ":"Candy","ジュース":"Juice","ガム":"Gum","クッキー":"Cookie","おかし":"Snack","えんぴつ":"Pencil","ノート":"Notebook","けしゴム":"Eraser","ふでばこ":"Pencil case","のり":"Glue",
+"{0}じ":"{0}:00","{0}じはん":"{0}:30","{0}じ ちょうど":"{0}:00 sharp",
+"{0}じ{1}ふん":n=>n[0]+':'+String(n[1]).padStart(2,'0'),"{0}じ{1}ぷん":n=>n[0]+':'+String(n[1]).padStart(2,'0'),
+"{0}じの {1}ふん まえ":"{1} min before {0}:00","{0}じの {1}ぷん まえ":"{1} min before {0}:00",
+"{0}:{1} の {2}ぷんご":"{2} min after {0}:{1}","{0}:{1} の {2}じかんご":"{2} hr after {0}:{1}",
+"{0}:{1} から {2}:{3} まで {4}じかん":"{0}:{1} to {2}:{3} is {4} hr",
+"{0}じかん":"{0} hr","{0}ふん":"{0} min","{0}ぷん":"{0} min","{0}びょう":"{0} sec","{0}にち":"{0} day",
+"{0}じかん{1}ぷん":"{0} hr {1} min","{0}じかん {1}ふん":"{0} hr {1} min","{0}じかん {1}ぷん":"{0} hr {1} min","{0}ふん{1}びょう":"{0} min {1} sec","{0}ぷん{1}びょう":"{0} min {1} sec",
+"= {0}じかん":"= {0} hr","= {0}ぷん":"= {0} min","= {0}ふん":"= {0} min","= {0}びょう":"= {0} sec",
+"{0}じかん = {1}ぷん　{2} + {3} = {4}":"{0} hr = {1} min   {2} + {3} = {4}","{0}じかん = {1}ぷん　{2} = {3}":"{0} hr = {1} min   {2} = {3}",
+"{0}びょう で おした":"You tapped at {0} sec","おてほん":"Model","ここまで":"Up to here","ここが はんぶん":"Half is here",
+"{0} と {1} で {2}":"{0} and {1} make {2}","{0} と ？ で {1}":"{0} and ? make {1}","あわせて {0}":"Total {0}",
+"{0}ずつ ふえる":"Goes up by {0}","{0}ずつ へる":"Goes down by {0}",
+"かど {0}つ":"{0} corners","かど なし":"No corners",
+"{0}が {1}こ":n=>n[1]+(n[1]==1?" group":" groups")+" of "+n[0],"{0}が {1}こ と {2}こ で {3}":n=>n[1]+(n[1]==1?" group":" groups")+" of "+n[0]+" and "+n[2]+" more make "+n[3],
+"ほんとうは {0}こ":"Actually {0}","あか {0}":"Red {0}","あお {0}":"Blue {0}","きいろ {0}":"Yellow {0}",
+"ただしくは {0} + {1} = {2}":"It's {0} + {1} = {2}","ただしくは {0} − {1} = {2}":"It's {0} − {1} = {2}","ただしくは {0} × {1} = {2}":"It's {0} × {1} = {2}",
+"{0}cm くらい":"about {0} cm","{0}m くらい":"about {0} m","{0}mm くらい":"about {0} mm",
+"えんぴつの ながさ":"Length of a pencil","つくえの たかさ":"Height of a desk","けしゴムの ながさ":"Length of an eraser","はがきの よこ":"Width of a postcard","ランドセルの たかさ":"Height of a school bag",
+"{0}ねんせいの せの たかさ":"Height of a grade {0} child","てのひらの はば":"Width of your palm","ペットボトルの たかさ":"Height of a drink bottle","サッカーボールの おおきさ":"Size of a soccer ball","おはしの ながさ":"Length of chopsticks",
+"きょうかしょの たて":"Height of a textbook","いすの たかさ":"Height of a chair","きょうしつの よこ":"Width of a classroom","ドアの たかさ":"Height of a door","プールの ながさ":"Length of a pool",
+"バスの ながさ":"Length of a bus","でんちゅうの たかさ":"Height of a utility pole","くるまの ながさ":"Length of a car","こくばんの よこ":"Width of a blackboard","キリンの せの たかさ":"Height of a giraffe",
+"なわとびの なわの ながさ":"Length of a jump rope","たいいくかんの たて":"Length of a gym","ノートの あつさ":"Thickness of a notebook","ありの おおきさ":"Size of an ant","{0}えんだまの あつさ":"Thickness of a {0}-yen coin",
+"こめつぶの ながさ":"Length of a grain of rice","えんぴつの しんの ふとさ":"Width of a pencil lead","{0}えんだまの はば":"Width of a {0}-yen coin","{0}かいだての いえの たかさ":"Height of a {0}-story house","でんしゃ {0}りょうの ながさ":"Length of {0} train car",
+"はんぶんより すくない":"Less than half","はんぶんより おおい":"More than half",
+"みぎと ひだりが おなじ かたち":"Left and right are the same","みぎと ひだりが ちがう":"Left and right are different",
+"{0}こに わけた {1}こ":"{1} of {0} equal parts",
+"うしろに かくれた ぶんも かぞえる":"Count the hidden ones too",
+"{0}×{1} = {2}ます":"{0}×{1} = {2} squares",
+"{0}こが {1}れつ　{2}×{3} = {4}":"{1} rows of {0}   {2}×{3} = {4}",
+"{0}の だん":"{0} times table","{0}の だんで {1}":"{1} in the {0} times table",
+"{0}さらに {1}こ　{2}さらぶん":"{1} on {0} plate, {2} plates",
+"あおの {0}つぶん":"{0} times blue","いくつぶん":"How many times",
+"{0}こを {1}にんで わける":"Share {0} among {1}","{0}こを {1}こずつ ふくろに":"Put {0} into bags of {1}",
+"{0}こ × {1}ふくろ = {2}":"{0} × {1} bags = {2}","{0}こ × {1}ふくろ = {2}　あまり {3}":"{0} × {1} bags = {2}, {3} left over",
+"{0} ÷ {1} = {2} あまり {3}":"{0} ÷ {1} = {2} r {3}","{0} ÷ {1} = {2}　あまり {3}":"{0} ÷ {1} = {2} r {3}",
+"おなじ かずずつ・あまりなし":"Equal shares, none left over",
+"{0} の はんぶん":"Half of {0}",
+"だいたい {0} + {1} = {2}":"About {0} + {1} = {2}","だいたい {0} − {1} = {2}":"About {0} − {1} = {2}",
+"{0}を {1}こ つける":n=>"Add "+n[1]+(n[1]==1?" zero":" zeros"),"{0}を {1}こ とる":n=>"Take off "+n[1]+(n[1]==1?" zero":" zeros"),
+};
+const I18N={rec:/[?&]i18nrec\b/.test(location.search)?new Set():null,cache:new Map(),wild:null,miss:new Set()};
+const i18nKey=t=>{let n=0;return t.replace(/\d+(?:\.\d+)?/g,()=>'{'+(n++)+'}');};
+function T(t){if(typeof t!=='string'||!JP.test(t))return t;if(I18N.rec)I18N.rec.add(i18nKey(t.trim()));if(LANG!=='en')return t;
+  let r=I18N.cache.get(t);if(r!==undefined)return r;const lead=/^\s*/.exec(t)[0],tail=/\s*$/.exec(t)[0],core=t.trim(),nums=core.match(/\d+(?:\.\d+)?/g)||[];
+  r=EN[core];if(r===undefined||typeof r==='function'){r=EN[i18nKey(core)];if(typeof r==='function')r=r(nums);else if(r!==undefined)r=r.replace(/\{(\d+)\}/g,(m,i)=>nums[+i]!==undefined?nums[+i]:m);}
+  if(r===undefined){if(!I18N.wild)I18N.wild=Object.keys(EN).filter(k=>k.includes('{s')).map(k=>[new RegExp('^'+k.replace(/[.*+?^$()|[\]\\]/g,'\\$&').replace(/\{s\d?\}/g,'(.+?)').replace(/\{\d+\}/g,'(?:\\d+(?:\\.\\d+)?)')+'$'),k]);
+    for(const [re,k] of I18N.wild){const m=re.exec(core);if(m){let i=0;const ns=core.match(/\d+(?:\.\d+)?/g)||[];r=EN[k].replace(/\{s\d?\}/g,()=>T(m[++i])).replace(/\{(\d+)\}/g,(x,j)=>ns[+j]!==undefined?ns[+j]:x);break;}}}
+  if(r===undefined){I18N.miss.add(i18nKey(core));r=core;}r=lead+r+tail;I18N.cache.set(t,r);return r;}
+(function(){const P=CanvasRenderingContext2D.prototype;['fillText','strokeText','measureText'].forEach(f=>{const o=P[f];P[f]=function(t,...a){return o.call(this,T(String(t)),...a);};});
+  const walk=n=>{if(n.nodeType===3){const v=n.nodeValue,w=T(v);if(w!==v)n.nodeValue=w;}else if(n.nodeType===1&&n.tagName!=='SCRIPT'&&n.tagName!=='STYLE'){if(n.placeholder){const w=T(n.placeholder);if(w!==n.placeholder)n.placeholder=w;}n.childNodes.forEach(walk);}};
+  const go=()=>{document.documentElement.lang=LANG;walk(document.body);new MutationObserver(ms=>ms.forEach(m=>{if(m.type==='characterData')walk(m.target);else m.addedNodes.forEach(walk);})).observe(document.body,{childList:true,subtree:true,characterData:true});};
+  if(LANG==='en'||I18N.rec){if(document.body)go();else addEventListener('DOMContentLoaded',go);}})();
 const cv=$('cv');let ctx=cv.getContext('2d');
 const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 const PAL=['#FF9AA8','#FFE08A','#B8E6B0','#A9DDF5','#D5C3F7','#FFC89A'];
@@ -662,7 +1030,7 @@ path:{name:'まがった みち',cmd(){return 'いちばん ながい みちは�
   tap(x,y){finish(rowHit(y)===this.k);},
   draw(rev){const u=Math.min(W*.8/8,RH()*.42);this.p.forEach((q,i)=>{let x=W*.08,y=rowY(i)+u/2;ctx.strokeStyle=PAL[i+1];ctx.lineWidth=7;ctx.lineJoin='round';ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x,y);const pts=[[x,y]];
       q.m.forEach(d=>{x+=d[0]*u;y+=d[1]*u;ctx.lineTo(x,y);pts.push([x,y]);});ctx.stroke();ctx.lineCap='butt';
-      if(rev){pts.forEach(p=>ball(p[0],p[1],5,INK));pill(q.n+'ます',W*.88,rowY(i),17,NAVY,'#F4F1E6');}});if(rev)rowF(this.k);}},
+      if(rev){pts.forEach(p=>ball(p[0],p[1],5,INK));pill(q.n+'ます',W*(LANG==='en'?.84:.88),rowY(i),17,NAVY,'#F4F1E6');}});if(rev)rowF(this.k);}},
 unit:{name:'たんい',cmd(){return 'どのくらいの ながさ？';},
   // cm 12・m 12・mm 6（mm は レベル2から）。数は おおよそ（「くらい」と 出す）
   setup(lv){const L=[['えんぴつの ながさ',15,'cm'],['つくえの たかさ',70,'cm'],['けしゴムの ながさ',4,'cm'],['はがきの よこ',10,'cm'],['ランドセルの たかさ',30,'cm'],['3ねんせいの せの たかさ',130,'cm'],['てのひらの はば',7,'cm'],['ペットボトルの たかさ',20,'cm'],['サッカーボールの おおきさ',22,'cm'],['おはしの ながさ',20,'cm'],['きょうかしょの たて',26,'cm'],['いすの たかさ',40,'cm'],
@@ -902,7 +1270,9 @@ const FIELDS=[
 const FOF={};FIELDS.forEach((f,i)=>f.g.forEach(k=>FOF[k]=i));
 const ADV=new Set(FIELDS.slice(7).flatMap(f=>f.g));
 const FREE=new Set(FIELDS.map(f=>f.g[0]));
-const ORDER=Object.keys(GAMES);
+// English: the kanji-numeral game has no English form, so it is left out (79 games)
+const ENOFF=k=>LANG==='en'&&k==='kanji';if(LANG==='en')FIELDS.forEach(f=>{f.g=f.g.filter(k=>!ENOFF(k));});
+const ORDER=Object.keys(GAMES).filter(k=>!ENOFF(k));
 // じかんの かけ率（2026-11-16 レビュー B-1）：見て 押す 1・読む／数える 1.4・計算を 2つ する 1.8。足した 50本だけ（前から ある 30本は 息子が 遊んで ちょうど よかった）。
 // 数字は 作った側の 見立て。おうちのかたへ の レベル別の きろく（時間切れの 数）を 見て 直す
 [[1.4,'oddn hue order water path cmm read longt mins swap frac shp area dbig splitn kanji make tf enough'],[1.8,'cmp blocks after span pay few rem']].forEach(q=>q[1].split(' ').forEach(k=>{GAMES[k].tx=q[0];}));
@@ -999,7 +1369,7 @@ const dood=i=>i===9?HANA:'<svg viewBox="0 0 40 40" aria-hidden="true"><g class="
 function cal(){const d=new Date(),y=d.getFullYear(),m=d.getMonth(),n=new Date(y,m+1,0).getDate(),f=new Date(y,m,1).getDay();let h='<div style="color:var(--mute);font-size:14px;margin-top:8px">'+(m+1)+'がつ</div><div class="cal">'+'にげかすもきど'.split('').map(c=>'<span class="h">'+c+'</span>').join('')+'<span></span>'.repeat(f);
   for(let i=1;i<=n;i++){const k=dkey(new Date(y,m,i));h+='<span class="'+(i===d.getDate()?'t':'')+'">'+(save.days[k]?HANA:i)+'</span>';}return h+'</div>';}
 const kname=k=>k.name||'なまえなし';
-function home(){state='idle';g=null;show('scrTitle');const d=new Date();$('day').textContent=kan(d.getMonth()+1)+'月'+kan(d.getDate())+'日（'+'日月火水木金土'[d.getDay()]+'）';
+function home(){state='idle';g=null;show('scrTitle');const d=new Date();$('day').textContent=LANG==='en'?['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]+', '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+' '+d.getDate():kan(d.getMonth()+1)+'月'+kan(d.getDate())+'日（'+'日月火水木金土'[d.getDay()]+'）';
   $('homeBest').textContent='ぜんぶ まぜて・3かい まちがえたら おしまい'+(save.best?'　じこベスト '+save.best:'');
   $('btnKid').innerHTML='<i class="mg k'+root.cur+'"></i>'+(save.name||'なまえを きめる');const sa=starAll();$('bookSub').textContent='★ '+sa+' / '+ORDER.length*3;
   $('daySub').textContent=save.days[dkey()]?'きょうは おわり！ はなまる':'まいにち かわる 5もん';
@@ -1013,7 +1383,7 @@ function bookPage(){show('scrBook');const sa=starAll(),nx=DOOD.find(q=>sa<q[0]);
    +'<div class="note" style="font-family:var(--font);font-weight:400">★ は 3かい あそぶと つく。たくさん せいかいすると ★★★ まで ふえるよ。</div>';}
 function kidsPage(){show('scrKids');$('kidsBody').innerHTML=root.kids.map((k,i)=>'<button class="krow'+(i===root.cur?' on':'')+'" data-i="'+i+'"><i class="mg k'+i+'"></i>'+kname(k)+'<small>★ '+starAll(k)+'</small></button>').join('')
    +'<input class="inp" id="kidName" maxlength="8" placeholder="なまえ（8もじまで）" autocomplete="off">'
-   +'<div class="two2" style="margin-top:10px"><button class="btn sky" id="kidRen"><span class="nw">この なまえに</span> <span class="nw">かえる</span></button>'+(root.kids.length<4?'<button class="btn grn" id="kidAdd"><span class="nw">あたらしく</span> <span class="nw">ついか</span></button>':'')+'</div>'
+   +'<div class="two2" style="margin-top:10px"><button class="btn sky" id="kidRen"><span class="nw">この なまえに</span> <span class="nw">する</span></button>'+(root.kids.length<4?'<button class="btn grn" id="kidAdd"><span class="nw">あたらしく</span> <span class="nw">ついか</span></button>':'')+'</div>'
    +'<div class="note" style="font-family:var(--font);font-weight:400">4にんまで。きろくと ほしは ひとりずつ べつべつ。</div>';
   $('kidsBody').querySelectorAll('.krow').forEach(b=>b.onclick=()=>{root.cur=+b.dataset.i;save=root.kids[root.cur];persist();home();});
   const nm=()=>$('kidName').value.trim().slice(0,8);$('kidRen').onclick=()=>{if(!nm())return;save.name=nm();persist();kidsPage();};
@@ -1061,7 +1431,7 @@ function weekHtml(){const a=weekOf(0),b=weekOf(7),pc=q=>q[0]+q[1]?Math.round(q[0
   return '<div class="note"><b>この1週間</b>：7日のうち '+a.days+'日・'+tot+'回'+(b.days?'（その前の週は '+b.days+'日）':'')+'<table class="rec" style="margin-top:8px">'
    +rows.map(r=>'<tr><td style="width:38%">'+r.f.name+'</td><td><div style="height:10px;border:1px solid var(--line);border-radius:5px"><div style="height:100%;width:'+r.p+'%;background:'+(r.p>=80?'var(--green)':r.p>=60?'var(--yellow)':'var(--pink)')+';border-radius:5px"></div></div></td><td class="n" style="width:20%">'+r.p+'%'+(r.q!=null&&r.n>=5?'<br><span style="color:var(--mute);font-size:11px">'+(r.p-r.q>=0?'+':'')+(r.p-r.q)+'</span>':'')+'</td></tr>').join('')
    +'</table><div style="margin-top:8px">'+say.join('<br>')+'</div></div>';}
-const lvLine=k=>{const q=(save.lv||{})[k],t=q?q.map((r,i)=>r[0]+r[1]?'レベル'+(i+1)+' ○'+r[0]+' ×'+r[1]+(r[2]?'（時間切れ '+r[2]+'）':''):'').filter(Boolean).join('　'):'';return t?'<br><span style="color:var(--mute);font-size:11px">'+t+'</span>':'';};
+const lvLine=k=>{const q=(save.lv||{})[k],t=q?q.map((r,i)=>r[0]+r[1]?'レベル'+(i+1)+' ○'+r[0]+' ×'+r[1]+(r[2]?'（時間切れ '+r[2]+'）':''):'').filter(Boolean).map(x=>'<span>'+x+'</span>').join('　'):'';return t?'<br><span style="color:var(--mute);font-size:11px">'+t+'</span>':'';};
 function parentPage(note){show('scrParent');const sim=NATIVE||root.sim,own=!!root.full;let tot=[0,0];ORDER.forEach(k=>{const r=st(k);tot[0]+=r[0];tot[1]+=r[1];});
   $('parentBody').innerHTML=(typeof note==='string'?'<div class="note msg" id="pmsg">'+note+'</div>':'')+'<div class="pl"><i class="mg k'+root.cur+'"></i>'+kname(save)+' の きろく</div>'+weekHtml()+'<div class="note"><b>3びょうさんすう は、数秒で1問の算数あそびです。</b><br>数・量・長さ・時間・お金の「感覚」と、基本の計算を、遊びながらくり返します。まちがえてもすぐ答え合わせが出ます。</div>'
    +FIELDS.map(f=>'<div class="fld"><h2>'+f.name+'</h2><div class="d">'+f.desc+'</div><table class="rec">'+f.g.map(k=>{const r=st(k),n=r[0]+r[1];
@@ -1071,7 +1441,7 @@ function parentPage(note){show('scrParent');const sim=NATIVE||root.sim,own=!!roo
    +'<div class="note" id="buyBox"><b>ぜんぶ ひらく（買い切り）</b>　'+(storePrice||PRICE)+'<br>1回だけのお支払いです。月額ではありません。広告はありません。<br>'+ORDER.length+'本すべて・きょうの 5もん・にがて とっくん・はなまるちょう・4人ぶんの記録が開きます。<br>無料のままでも「あそぶ」「ふたりで たいせん」と、各分野1本ずつの10本は、何回でも遊べます。'
      +(sim?'<div class="pbtns">'+(own?'<button class="pbtn" disabled>購入済みです</button>'+(NATIVE?'':'<button class="pbtn" id="unbuy">（試作用）未購入に戻す</button>'):'<button class="pbtn get" id="buy">購入する</button><button class="pbtn" id="restore">購入を復元する</button>')+'</div>':'')
      +'<div class="leg">'+(NATIVE?'※ お支払いは App Store を通して行われます。ファミリー共有に対応しています。承認待ち（承認と購入のリクエスト）の場合は、承認のあとにアプリを開き直すと反映されます。':sim?'※ いまは試作です。「購入する」を押してもお金はかからず、開いた状態を試せるだけです。<br><button class="link" id="simOff" style="padding:4px 0;font-size:13px">（試作用）ためすのを やめて、ぜんぶ遊べる状態に戻す</button>':'※ この試作では、すべて遊べます。<br><button class="link" id="simOn" style="padding:4px 0;font-size:13px">（試作用）買い切り前の状態を ためす</button>')+'</div></div>'
-   +'<div class="note"><b>設定</b><div class="pbtns"><button class="pbtn" id="btnMute">音：'+(root.mute?'オフ':'オン')+'</button><button class="pbtn" id="btnPin">暗証番号を変える</button></div>'+(pinOf()===PIN0?'<div style="margin-top:6px">暗証番号が はじめの 1234 のままです。お子さまに知られないよう、変えておくと安心です。</div>':'')+'</div>'
+   +'<div class="note"><b>設定</b><div class="pbtns"><button class="pbtn" id="btnMute">音：'+(root.mute?'オフ':'オン')+'</button><button class="pbtn" id="btnPin">暗証番号を変える</button><button class="pbtn" id="btnLang">'+(LANG==='en'?'にほんごに する':'English')+'</button></div>'+(pinOf()===PIN0?'<div style="margin-top:6px">暗証番号が はじめの 1234 のままです。お子さまに知られないよう、変えておくと安心です。</div>':'')+'</div>'
    +'<div style="text-align:center;margin-top:14px"><button class="link" id="btnReset">きろくを けす</button>'+(root.cur>0?'<br><button class="link" id="btnDelKid" style="margin-top:6px">「'+kname(save)+'」を 消す</button>':'')+'</div>';
   $('btnAdv').onclick=()=>{save.adv=save.adv===false;persist();parentPage();};
   const on=(id,f)=>{if($(id))$(id).onclick=f;},busy=t=>{['buy','restore'].forEach(id=>{if($(id))$(id).disabled=true;});if($('buy'))$('buy').textContent=t;},
@@ -1082,14 +1452,14 @@ function parentPage(note){show('scrParent');const sim=NATIVE||root.sim,own=!!roo
   on('unbuy',()=>{root.full=false;persist();parentPage('未購入の状態に戻しました。');});
   on('simOn',()=>{root.sim=true;root.full=false;persist();parentPage('買い切り前の状態にしました。ホームに戻ると、かぎの印が付きます。');});
   on('simOff',()=>{delete root.sim;persist();parentPage('ぜんぶ遊べる状態に戻しました。');});
-  on('btnPin',pinChange);on('btnMute',()=>{root.mute=!root.mute;persist();say('mute',{on:!!root.mute});parentPage();});
+  on('btnPin',pinChange);on('btnLang',()=>{try{localStorage.setItem(LKEY,LANG==='en'?'ja':'en');}catch(e){}if(NATIVE)say('reload');else location.replace(location.href.replace(/([?&])lang=\w+&?/,'$1').replace(/[?&]$/,''));});on('btnMute',()=>{root.mute=!root.mute;persist();say('mute',{on:!!root.mute});parentPage();});
   if($('pmsg'))$('parentBody').scrollTop=0;maybeReview();
   // 子どもを 消す（ふたりめから。ひとりめは 消せない）。消した しるしは root.gone に 残し、iCloud で ほかの端末からも 消える（native/cloud-rules.js）
   let armD=false;on('btnDelKid',e=>{if(!armD){armD=true;e.target.textContent='ほんとうに 消す（記録も 消えます。もういちど おす）';return;}const nm=kname(save);(root.gone||(root.gone={}))[save.id]=Date.now();root.kids.splice(root.cur,1);root.cur=0;save=root.kids[0];persist();parentPage('「'+nm+'」を消しました。');});
   let armed=false;$('btnReset').onclick=e=>{if(!armed){armed=true;e.target.textContent='ほんとうに けす（もういちど おす）';return;}root.kids[root.cur]=save=Object.assign(newKid(save.name,save.id),{adv:save.adv,ep:Date.now()});/* ep：消した時刻。iCloud で ほかの端末にも 届く（native/cloud-rules.js） */persist();parentPage('記録を消しました。');};}
 
 // ---------- ふたりで たいせん（むかいあわせ・どうじ） ----------
-const DPOOL=['more','buy','longer','clock','bugs','half','find','dice','big','ten','cup','seq','sub','mlen','coin','chg','arr','mulbig','kuku','share','pack','fair','line','near','est','small','betw','hole','place','add','make','cmp','tf','hund','unit','cmm','longt','mins','mul','mtf','dan','div','rem','halfof','dbig','splitn','kanji','round','big10','sen','cbig'];
+const DPOOL=['more','buy','longer','clock','bugs','half','find','dice','big','ten','cup','seq','sub','mlen','coin','chg','arr','mulbig','kuku','share','pack','fair','line','near','est','small','betw','hole','place','add','make','cmp','tf','hund','unit','cmm','longt','mins','mul','mtf','dan','div','rem','halfof','dbig','splitn','kanji','round','big10','sen','cbig'].filter(k=>!ENOFF(k));
 let duelOn=false,cur=null;const P=[],D={sc:[0,0],bag:[],n:0,st:'',t:0,tl:0,tm:1,key:'',lv:0};
 function dBuild(){if(P.length)return;['hA','hB'].forEach((id,i)=>{const el=$(id);
   el.innerHTML='<div class="q"></div><div class="stage"><canvas></canvas><div class="timer"></div><div class="flash hid"></div><div class="cover"><div class="cmd"></div><div class="sub"></div></div></div><div class="btns"></div>';
@@ -1155,7 +1525,7 @@ $('btnAgain').onclick=()=>mode==='vs'?dStart():start();$('btnHome').onclick=()=>
 $('btnDQuit').onclick=()=>{duelOn=false;ctx=cv.getContext('2d');home();};
 $('btnQuit').onclick=()=>{state='idle';setButtons([]);mode==='prac'?pracPage():home();};
 home();
-window.__pitatto={get games(){return GAMES;},get state(){return state;},get pool(){return pool();},get key(){return gkey;},get mode(){return mode;},get vs(){return vs;},dpool(){return dPool();},get duel(){return {st:D.st,key:D.key,sc:D.sc,on:duelOn};}};
+window.__pitatto={get i18n(){return I18N;},get games(){return GAMES;},get state(){return state;},get pool(){return pool();},get key(){return gkey;},get mode(){return mode;},get vs(){return vs;},dpool(){return dPool();},get duel(){return {st:D.st,key:D.key,sc:D.sc,on:duelOn};}};
 })();
 </script>
 </body></html>
