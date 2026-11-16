@@ -112,7 +112,8 @@ button.go:focus-visible{outline:3px solid #5A463C}
 .hands button:active{transform:translateY(3px);box-shadow:1px 1px 0 rgba(90,70,60,.35)}
 
 .row2{display:flex;gap:10px}
-.wazab{position:absolute;left:12px;bottom:84px;appearance:none;font:inherit;font-size:19px;line-height:1.2;min-width:150px;min-height:72px;padding:8px 14px;cursor:pointer;border:2.5px solid #5A463C;border-radius:var(--wob);color:#3A2A22;box-shadow:3px 4px 0 rgba(90,70,60,.35);background:repeating-linear-gradient(135deg,#B9E8C9 0 3px,#E2F6E8 3px 6px)}
+.wazas{position:absolute;left:12px;bottom:84px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.wazab{appearance:none;font:inherit;font-size:19px;line-height:1.2;min-width:150px;min-height:72px;padding:8px 14px;cursor:pointer;border:2.5px solid #5A463C;border-radius:var(--wob);color:#3A2A22;box-shadow:3px 4px 0 rgba(90,70,60,.35);background:repeating-linear-gradient(135deg,#B9E8C9 0 3px,#E2F6E8 3px 6px)}
 .wazab small{display:block;font-size:11px;color:#1E6B49}
 .wazab:active{transform:translateY(3px);box-shadow:1px 1px 0 rgba(90,70,60,.35)}
 .cover.long{position:fixed;z-index:9;background:#FBF7EC;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px 16px 28px;gap:10px}
@@ -169,7 +170,7 @@ button.dr.lk{background:#E9E4D8;color:#8E867B}
   </div>
   <div class="ask" id="ask" hidden><div class="q" id="askq"></div><div class="bar"><i id="askbar"></i></div><div class="tip" id="asktip"></div></div>
   <button class="hey" id="hey" hidden>ヘイ！<small>ボールを よぶ</small></button>
-  <button class="wazab" id="waza" hidden></button>
+  <div class="wazas" id="waza" hidden></div>
   <div class="hands" id="hands" hidden><button id="hl">ひだり手</button><button id="hr">みぎ手</button></div>
   <div class="big" id="big"></div>
   <div class="coach" id="coach"><div class="mk" id="cmk"></div><div id="ctx"></div></div>
@@ -343,8 +344,13 @@ const WAZA = {
   leg: { name: "レッグスルー", cost: 0, type: "ドリブルの わざ", one: "ボールを 自分の 足の あいだに 通して、つく手を 右と 左で 入れかえる。" },
   fake: { name: "シュートフェイク", cost: 20, type: "ボールを もった時の わざ", one: "シュートを うつ「ふり」だけ して、あいてを とばせる。" },
   bd: { name: "バックドア", cost: 40, type: "ボールが ない時の わざ", one: "あいての うしろへ 走りこんで、ゴールの 下で パスを もらう。" },
+  pf: { name: "パスフェイク", cost: 70, type: "ボールを もった時の わざ", one: "パスを 出す「ふり」で あいてを つらせて、ぎゃくの なかまへ 本当の パスを 出す。" },
+  vc: { name: "Vカット", cost: 100, type: "ボールが ない時の わざ", one: "ゴールへ 1回 走りこんでから、きゅうに 外へ もどって、あいてを ふりきって パスを もらう。" },
+  deny: { name: "ディナイ", cost: 140, type: "まもりの わざ", one: "ボールの となりの あいてに、パスの 道へ 手を 出して「パスを させない」まもり。" },
+  box: { name: "ボックスアウト", cost: 180, type: "リバウンドの わざ", one: "シュートが 空に ある あいだに、あいてを 自分の 背中で おさえて、ボールが おちる 場所を とる。" },
 };
-const WZ_MAX = 2, WZ_KEY = "courteye.pencil.v1";
+// 2026-11-16（A-2）：わざを 3つ → 7つに。★は 20・40・70・100・140・180（ぜんぶで 550）。1試合で ★30 ほど なので、2週間で そろう くらい
+const WZ_MAX = 3, WZ_KEY = "courteye.pencil.v1";
 const WZ = {
   d: { bank: 0, own: ["leg"], eq: ["leg"] },
   load() { try { const o = JSON.parse(localStorage.getItem(WZ_KEY) || "null"); if (o && Array.isArray(o.own) && Array.isArray(o.eq)) this.d = { bank: Math.max(0, o.bank | 0), own: o.own.filter(k => WAZA[k]), eq: o.eq.filter(k => WAZA[k]).slice(0, WZ_MAX), lg: o.lg && typeof o.lg === "object" ? o.lg : null, full: !!o.full, mute: !!o.mute, slow: !!o.slow, nolook: !!o.nolook, played: Math.max(0, o.played | 0), ep: Number(o.ep) || 0 }; } catch (e) {} if (!this.d.own.includes("leg")) this.d.own.unshift("leg"); },
@@ -356,11 +362,72 @@ const WZ = {
 WZ.load();
 
 // --- 試合の中 ---
+// いま 使える わざ（止まった 場面の 種類で きまる。セットした ものだけ）。ボタンは 最大 2つ
+const WZ_WHEN = { fake: "ball", pf: "ball", bd: "move", vc: "move", deny: "def", box: "reb" };
 function wazaNow() {
   if (!S || S.mode !== "freeze" || !S.fz || S.drill || S.review || blend < .9) return null;
-  return S.fz.kind === "ball" && WZ.on("fake") ? "fake" : S.fz.kind === "move" && WZ.on("bd") ? "bd" : null;
+  const ks = WZ.d.eq.filter(k => WZ_WHEN[k] === S.fz.kind); return ks.length ? ks : null;
 }
-function wazaUse() { const k = wazaNow(); if (k === "fake") doFake(); else if (k === "bd") doBackdoor(); }
+function wazaUse(k) { if (!wazaNow() || !wazaNow().includes(k)) return; ({ fake: doFake, bd: doBackdoor, pf: doPassFake, vc: doVcut, deny: doDeny, box: doBoxout })[k](); }
+// パスフェイク：パスの 道に 赤が いる なかまへ「出す ふり」。その 赤が つられて 止まる あいだに、ぎゃくの なかまへ 本当の パス
+function doPassFake() {
+  const sc = S.fz.sc, opts = offenseOptions(sc, true), ps = opts.filter(o => o.kind === "pass");
+  const bad = ps.filter(o => o.v < 0 && o.steal >= 0).reduce((a, b) => !a || dist(sc.att[YOU], sc.att[b.to]) < dist(sc.att[YOU], sc.att[a.to]) ? b : a, null);
+  const alt = ps.filter(o => o.v >= .1 && (!bad || o.to !== bad.to)).reduce((a, b) => !a || b.v > a.v ? b : a, null);
+  sfx.pick(); S.firstTip = false; S.actions++; leaveFreeze(); att[YOU].up = .4;
+  if (!bad || !alt) {
+    judge(0); S.holdT = -.5; S.clock -= 1;
+    coach(0, !bad ? "パスの 道に 赤が いる なかまが いないから、フェイクは いらないよ。そのまま パスか シュート！" : "ふりを しても、ほかに パスを 出せる なかまが いないよ。なかまが 動くのを まとう", 7000);
+    return;
+  }
+  judge(2); S.stars++; hud(); const d = def[bad.steal]; d.lag = 1.4; d.jumpT = JUMP * .6; d.up = .8; S.holdT = -1.5;
+  big("パスフェイク！", `赤の ${NUM[bad.steal]}番が つられた！`, 1300);
+  coach(2, `ナイス！ ${NUM[bad.to]}番へ 出す ふりで 赤${NUM[bad.steal]}が 止まった。すぐ ぎゃくの ${NUM[alt.to]}番へ！`, 6500);
+  S.wz = { kind: "pf", t: .5, to: alt.to };
+}
+// Vカット：あいてが きみに ぴったり ついて いる時、ゴールへ 走って きゅうに 外へ もどる。あいてが おくれて、外で フリーに なる
+function doVcut() {
+  const sc = S.fz.sc, me = sc.att[YOU], d = sc.def[YOU], h = sc.att[sc.holder];
+  const tight = dist(me, d) < 2.0, room = dist(me, B) > 4.0, inn = lerp(me, B, Math.min(.6, 2.6 / dist(me, B)));
+  const ug = unit(B, me), side = (me.x - h.x) >= 0 ? 1 : -1, out = { x: clamp(me.x + ug.x * .6 + -ug.y * 1.2 * side, .6, 14.4), y: clamp(me.y + ug.y * .6 + ug.x * 1.2 * side, .6, 13.4) };
+  const pe = passEval(h, out, sc.def.map((p, i) => i === YOU ? inn : p), YOU);
+  sfx.pick(); S.firstTip = false; leaveFreeze();
+  if (!(tight && room && pe.v >= 0)) {
+    judge(0); S.holdT = 1.0;
+    coach(0, !tight ? "あいてが はなれて いるから、Vカットは いらないよ。そのまま「ヘイ！」で パスを もらおう" : !room ? "ゴールの 近くでは、走りこむ 場所が ないよ。外に いる時に 使おう" : `外へ もどっても、パスの 道に 赤${NUM[pe.steal]}が いて とどかないよ`, 7000);
+    return;
+  }
+  judge(2); S.stars++; stamp("ugoku"); S.run = inn; att[YOU].sp = 5.6; S.holdT = 0;
+  big("Vカット！", "中へ 走って、外へ もどれ！", 1300); coach(2, "ナイス！ ゴールへ 走る ふりで あいてが さがった。きゅうに 外へ もどって フリーだ！", 6500);
+  S.wz = { kind: "vc", t: .55, out, from: S.holder };
+}
+// ディナイ：ボールの となりの あいて（まだ ボールを もって いない）に、パスの 道へ 手を 出す。赤が それでも パスを 出すと とれる
+function doDeny() {
+  const sc = S.fz.sc, mk = sc.att[YOU], bl = sc.att[sc.holder], near = dist(mk, bl) <= 6.5, post = dist(mk, B) < 3.5, mine = sc.holder === YOU;
+  const ub = unit(mk, bl), spot = { x: clamp(mk.x + ub.x * .9 - ub.y * .25, .4, 14.6), y: clamp(mk.y + ub.y * .9 + ub.x * .25, .4, 13.6) };
+  sfx.pick(); S.firstTip = false; leaveFreeze(); S.slip = null;
+  if (mine || !near || post || S.fz && S.fz.kind === "help") {
+    judge(0); S.hint = { p: defSpot(sc), t: 2.4 };
+    coach(0, mine ? "きみの あいてが もう ボールを もって いる。ディナイは、パスを もらう 前の あいてに するよ" : !near ? "きみの あいては ボールから 遠い。遠い あいてには パスが 来にくいから、ディナイは ボールの となりの あいてに" : "ゴールの 近くで 前に 出ると、うしろ（バックドア）を とられるよ。ここは あいてと ゴールの あいだに", 7000);
+    return;
+  }
+  judge(2); S.stars++; S.myFix = spot; S.denyT = 4; S.myOff = { x: 0, y: 0 };
+  big("ディナイ！", "パスの 道に 手を 出せ！", 1300); coach(2, "ナイス！ あいてと ボールの あいだに 手を 出した。パスが 来たら とれる！", 6500);
+}
+// ボックスアウト：シュートが 空に ある あいだに、近くの あいてを 背中で おさえて、おちる 場所へ
+function doBoxout() {
+  const me = att[YOU], L = S.reb.L, nr = nearest(L, def), far = dist(me, L) > 4.5, lone = nr.d > 3.0 || dist(me, def[nr.i]) > 3.0;
+  sfx.pick(); S.firstTip = false; leaveFreeze();
+  if (far || lone) {
+    judge(0); S.run = lerp(me, L, Math.min(1, 1.2 / dist(me, L))); att[YOU].sp = 5.4; dropReb(1.2);
+    coach(0, far ? "おちる 場所が 遠いよ。ボックスアウトは、近くに おちて くる時に" : "近くに あいてが いないよ。おさえる 人が いない時は、そのまま とびこもう", 7000);
+    return;
+  }
+  judge(2); S.stars++; def[nr.i].lag = 1.8; def[nr.i].up = .5; S.boxed = true;
+  S.run = lerp(L, me, Math.min(1, .5 / Math.max(.1, dist(L, me)))); att[YOU].sp = 5.4;
+  big("ボックスアウト！", `赤の ${NUM[nr.i]}番を おさえた！`, 1300); coach(2, "ナイス！ ボールより 先に あいてを 背中で おさえた。これで リバウンドは きみの もの！", 6500);
+  dropReb(clamp(dist(me, L) / 5.4 + .35, 1.0, 2.2));
+}
 function doFake() {
   const sc = S.fz.sc, h = sc.att[YOU], gd = dist(h, sc.def[YOU]), hd = dist(h, B);
   sfx.pick(); S.firstTip = false; S.actions++; leaveFreeze(); att[YOU].up = .7;
@@ -395,7 +462,9 @@ function doBackdoor() {
 function wazaStep(dt) {
   const w = S.wz; if (!w || S.mode !== "live") return; w.t -= dt; if (w.t > 0) return; S.wz = null;
   if (w.kind === "fake") { if (S.holder !== YOU) return; if (w.plan) { S.drib = { who: YOU, ...w.plan }; att[YOU].sp = 5.2; } else shoot(YOU, false, .35); }
-  else if (S.holder === w.from && S.holder > 0 && !ball.fly) { S.actions++; passBall(S.holder, { att: YOU }); big("パスが 来た！", "ゴールは 目の前！", 1100); }
+  else if (w.kind === "pf") { if (S.holder !== YOU || ball.fly) return; S.myPass++; passBall(YOU, { att: w.to }); big("ぎゃくへ パス！", "", 1100); }
+  else if (w.kind === "vc") { S.run = w.out; att[YOU].sp = 5.6; def[YOU].lag = 1.3; S.wz = { kind: "vc2", t: .7, from: w.from }; }
+  else if (S.holder === w.from && S.holder > 0 && !ball.fly) { S.actions++; passBall(S.holder, { att: YOU }); big("パスが 来た！", w.kind === "bd" ? "ゴールは 目の前！" : "フリーだ！", 1100); }
 }
 function wazaEarn() {
   WZ.d.bank += S.stars; WZ.save(); const can = PAID() && Object.keys(WAZA).some(k => !WZ.d.own.includes(k) && WZ.d.bank >= WAZA[k].cost);
@@ -467,7 +536,43 @@ const WZ_SVG = {
     <text x="236" y="166" text-anchor="middle" font-size="10.5" fill="#B8402F" font-family="Yusei Magic,sans-serif">あいてが 前に 出て きた</text>
     <text x="196" y="30" font-size="11" ${WZ_TX}>① うしろへ 走る</text><text x="62" y="110" font-size="11" ${WZ_TX}>② パス</text></svg>`,
 };
-const WZ_LEG = { leg: "① いま ついて いる手（あいてに 近い）から、② あいてから 遠い手へ。<br>オレンジ＝きみ　赤＝あいて　点線の やじるし＝ボールの 動き（前から 見た 図）", fake: "あいては「うつ！」と 思って とぶ。おりて くるまで 動けない。<br>オレンジ＝きみ　赤＝あいて（よこから 見た 図）", bd: "うすい 点線＝あいてが ふさいで いる パスの 道。<br>オレンジ＝きみ　赤＝あいて　青＝なかま　太い線＝走る　点線＝パス（上から 見た 図）" };
+const WZ_TOP = (label) => `<rect x="8" y="12" width="284" height="190" fill="none" stroke="#5A463C" stroke-width="2"/><rect x="116" y="12" width="68" height="76" fill="rgba(245,162,30,.12)" stroke="#5A463C" stroke-width="1.5"/>
+    <line x1="134" y1="20" x2="166" y2="20" stroke="#5A463C" stroke-width="3"/><circle cx="150" cy="29" r="7" fill="none" stroke="#D8463A" stroke-width="2.5"/><text x="150" y="52" text-anchor="middle" font-size="11" ${WZ_TX}>ゴール</text>`;
+const WZ_DOT = (x, y, col, n) => `<circle cx="${x}" cy="${y}" r="12" fill="${col}" stroke="#5A463C" stroke-width="2"/>${n ? `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="11" ${WZ_TX}>${n}</text>` : ""}`;
+Object.assign(WZ_SVG, {
+  pf: `<svg viewBox="0 0 300 210" role="img" aria-label="パスフェイクの 図"><defs>${ARW("ap", "#C97400")}${ARW("ap2", "#B8402F")}</defs>${WZ_TOP()}
+    ${WZ_DOT(150, 176, WZ_C.you, "4")}<circle cx="166" cy="168" r="6" fill="${WZ_C.ball}" stroke="#5A463C" stroke-width="1.5"/><text x="150" y="200" text-anchor="middle" font-size="11" ${WZ_TX}>きみ（ボール）</text>
+    ${WZ_DOT(46, 120, WZ_C.mate)}${WZ_DOT(96, 146, WZ_C.foe)}${WZ_DOT(254, 110, WZ_C.mate)}${WZ_DOT(232, 80, WZ_C.foe)}
+    <path d="M136 170L62 128" fill="none" stroke="#8A776A" stroke-width="3" stroke-dasharray="4 5"/><text x="40" y="100" font-size="11" ${WZ_TX}>① 出す ふり</text>
+    <path d="M96 146L84 134" fill="none" stroke="#B8402F" stroke-width="3" marker-end="url(#ap2)"/><text x="104" y="170" font-size="10.5" fill="#B8402F" font-family="Yusei Magic,sans-serif">つられて 動く</text>
+    <path d="M164 170L238 118" fill="none" stroke="#C97400" stroke-width="3.5" stroke-dasharray="6 5" marker-end="url(#ap)"/><text x="196" y="136" font-size="11" ${WZ_TX}>② 本当の パス</text></svg>`,
+  vc: `<svg viewBox="0 0 300 210" role="img" aria-label="Vカットの 図"><defs>${ARW("av", "#C97400")}${ARW("av2", "#3F78C9")}</defs>${WZ_TOP()}
+    ${WZ_DOT(60, 170, WZ_C.mate)}<circle cx="74" cy="162" r="6" fill="${WZ_C.ball}" stroke="#5A463C" stroke-width="1.5"/><text x="60" y="196" text-anchor="middle" font-size="11" ${WZ_TX}>なかま（ボール）</text>
+    ${WZ_DOT(246, 128, WZ_C.you, "4")}${WZ_DOT(224, 112, WZ_C.foe)}<text x="270" y="118" font-size="12" ${WZ_TX}>きみ</text>
+    <path d="M238 118Q200 90 184 66" fill="none" stroke="#C97400" stroke-width="3.5" marker-end="url(#av)"/><text x="186" y="100" text-anchor="end" font-size="11" ${WZ_TX}>① ゴールへ 走る</text>
+    <path d="M190 70Q230 98 262 146" fill="none" stroke="#C97400" stroke-width="3.5" stroke-dasharray="6 5" marker-end="url(#av)"/><text x="236" y="176" font-size="11" ${WZ_TX}>② きゅうに 外へ</text>
+    <path d="M78 164Q170 170 248 156" fill="none" stroke="#3F78C9" stroke-width="3" stroke-dasharray="6 5" marker-end="url(#av2)"/><text x="130" y="152" font-size="11" fill="#3F78C9" font-family="Yusei Magic,sans-serif">さいごに パス</text>
+    <text x="208" y="94" text-anchor="end" font-size="10.5" fill="#B8402F" font-family="Yusei Magic,sans-serif">あいては おくれる</text></svg>`,
+  deny: `<svg viewBox="0 0 300 210" role="img" aria-label="ディナイの 図"><defs>${ARW("ad", "#C97400")}</defs>${WZ_TOP()}
+    ${WZ_DOT(64, 160, WZ_C.foe)}<circle cx="78" cy="152" r="6" fill="${WZ_C.ball}" stroke="#5A463C" stroke-width="1.5"/><text x="64" y="190" text-anchor="middle" font-size="11" ${WZ_TX}>赤（ボール）</text>
+    ${WZ_DOT(236, 132, WZ_C.foe)}<text x="236" y="162" text-anchor="middle" font-size="11" ${WZ_TX}>きみの あいて</text>
+    ${WZ_DOT(206, 118, WZ_C.you, "4")}<text x="206" y="98" text-anchor="middle" font-size="12" ${WZ_TX}>きみ</text>
+    <path d="M80 152L222 136" fill="none" stroke="#8A776A" stroke-width="2" stroke-dasharray="3 5"/><text x="120" y="130" font-size="11" ${WZ_TX}>パスの 道</text>
+    <path d="M198 126L176 140" fill="none" stroke="#C97400" stroke-width="4" stroke-linecap="round" marker-end="url(#ad)"/><text x="118" y="172" font-size="11" fill="#B65E00" font-family="Yusei Magic,sans-serif">手を 出す</text>
+    <text x="150" y="196" text-anchor="middle" font-size="10.5" fill="#B8402F" font-family="Yusei Magic,sans-serif">ゴールの 近くでは やらない（うしろを とられる）</text></svg>`,
+  box: `<svg viewBox="0 0 300 210" role="img" aria-label="ボックスアウトの 図"><defs>${ARW("ax", "#C97400")}</defs>${WZ_TOP()}
+    ${WZ_DOT(72, 150, WZ_C.mate)}<text x="72" y="180" text-anchor="middle" font-size="11" ${WZ_TX}>なかまが シュート</text>
+    <path d="M86 140Q150 20 206 70" fill="none" stroke="#8A776A" stroke-width="2" stroke-dasharray="3 5"/><circle cx="206" cy="72" r="9" fill="none" stroke="#5A463C" stroke-width="2" stroke-dasharray="3 3"/><text x="226" y="60" font-size="11" ${WZ_TX}>おちる 場所</text>
+    ${WZ_DOT(184, 110, WZ_C.you, "4")}${WZ_DOT(196, 142, WZ_C.foe)}
+    <path d="M170 104Q150 112 158 128" fill="none" stroke="#C97400" stroke-width="3.5" marker-end="url(#ax)"/><text x="104" y="118" font-size="11" ${WZ_TX}>① ふり向いて</text>
+    <text x="236" y="150" font-size="10.5" fill="#B8402F" font-family="Yusei Magic,sans-serif">背中で おさえる</text>
+    <text x="150" y="196" text-anchor="middle" font-size="11" ${WZ_TX}>② あいてを 外に して、ボールが おちる 場所を とる</text></svg>`,
+});
+const WZ_LEG = { leg: "① いま ついて いる手（あいてに 近い）から、② あいてから 遠い手へ。<br>オレンジ＝きみ　赤＝あいて　点線の やじるし＝ボールの 動き（前から 見た 図）", fake: "あいては「うつ！」と 思って とぶ。おりて くるまで 動けない。<br>オレンジ＝きみ　赤＝あいて（よこから 見た 図）", bd: "うすい 点線＝あいてが ふさいで いる パスの 道。<br>オレンジ＝きみ　赤＝あいて　青＝なかま　太い線＝走る　点線＝パス（上から 見た 図）",
+  pf: "うすい 点線＝出す「ふり」。赤が そっちへ 動いた すきに、ぎゃくへ 本当の パス。<br>オレンジ＝きみ　赤＝あいて　青＝なかま（上から 見た 図）",
+  vc: "太い線＝ゴールへ 走る → きゅうに 外へ（V の 字）。あいては 1回目の 走りに ついて きて、もどりに おくれる。<br>オレンジ＝きみ　赤＝あいて　青＝なかま（上から 見た 図）",
+  deny: "うすい 点線＝ボールから きみの あいてへの パスの 道。その 道に 手を 出す。<br>オレンジ＝きみ　赤＝あいて（上から 見た 図）",
+  box: "うすい 点線＝シュートの 道。ボールを 見る 前に、近くの あいてを 背中で おさえる。<br>オレンジ＝きみ　赤＝あいて　青＝なかま（上から 見た 図）" };
 const WZ_DOC = {
   leg: [
     ["どんな わざ？", "ドリブル（ボールを ゆかに つきながら すすむ こと）の とちゅうで、ボールを 自分の 足の あいだに 1回 はずませて、つく手を 右手と 左手で 入れかえる わざ。"],
@@ -489,6 +594,34 @@ const WZ_DOC = {
     ["いつ 使う？", "自分の あいてが、きみと ボールの あいだ（パスの 道）まで 出て きて、きみと ゴールの あいだに いない時だけ。<br>あいてが ちゃんと きみと ゴールの あいだに 立って いる時は、走っても そのまま ついて こられる。<br>ゴールの 下に べつの あいてが いる時も、うまく いかない。"],
     ["このゲームでは", "なかまが ボールを もって 時間が 止まった時、左下に「わざ バックドア」の ボタンが 出る。上からの 図で、黄色い わの あいて（きみの あいて）が、きみと ボールの あいだに 出て いて、きみと ゴールの あいだが あいて いたら チャンス。<br>おすと ゴールの 下へ 走り、なかまから パスが 来る。あとは シュートを えらぶだけ。<br>あいてが きみと ゴールの あいだに いる時に おすと、走らずに △ に なる。"],
     ["ほんものの 練習では", "1歩だけ ボールの ほうへ 出る ふりを してから、きゅうに ゴールへ 走ると、あいてが ついて これない。パスを 出す なかまと 目を 合わせて おくのも 大事。パスを 出す人は、走る人の 少し 前（ゴールがわ）に 出す。"],
+  ],
+  pf: [
+    ["どんな わざ？", "なかまに パスを 出す「ふり」だけ して、出さない わざ。ボールを 出す ほうへ 1回 ぐっと つき出して、ピタッと 止める。"],
+    ["なぜ 使うの？", "まもる人は パスを とりたいので、「出す！」と 思ったら そっちへ 手と 体を 動かす。<br>動いた 人は、すぐには もどれない。その あいだに、ぎゃくの なかまへの パスの 道が あく。"],
+    ["いつ 使う？", "出したい なかまへの パスの 道に、赤が 入って いる時。<br>赤が だれも パスの 道に いない時は、ふりは いらない。そのまま 出す ほうが はやい。<br>ふりを しても、ほかに 出せる なかまが いなければ 意味が ない。"],
+    ["このゲームでは", "きみが ボールを もって 時間が 止まった時、左下に「わざ パスフェイク」の ボタンが 出る。パスの 道に 赤が いる なかまが いて、ほかにも パスを 出せる なかまが いる時に おすと、赤が つられて 止まり、ぎゃくの なかまへ 本当の パスが 出る。<br>ふりを する 相手が いない時や、ほかに 出す 先が ない時は、何も おきずに 時間だけ へる。"],
+    ["ほんものの 練習では", "ふりは「目」と「ボール」で する。出す なかまの ほうを 見て、ボールを そっちへ つき出す。足は 動かさない（ピボットの 足を 守る）。<br>ふりの あとは すぐ 出す。おそいと、動いた 赤が もどって くる。"],
+  ],
+  vc: [
+    ["どんな わざ？", "ボールを もって いない時に、ゴールへ 1回 走りこんで、きゅうに 外へ もどる わざ。走った あとが「V」の 字に なるので Vカット。"],
+    ["なぜ 使うの？", "きみに ぴったり ついて いる あいては、きみが ゴールへ 走ると「シュートされる！」と 思って ついて くる。<br>そこで きゅうに 外へ もどると、あいては 体の 向きを かえるのに 時間が かかって、おくれる。その すきに 外で パスを もらえる。"],
+    ["いつ 使う？", "自分の あいてが、きみの すぐ そば（うでが とどく くらい）に いて、ただ 立って いても パスが もらえない時。<br>あいてが はなれて いる時は、走らなくても もらえる。ゴールの すぐ 近くに いる時は、走りこむ 場所が ない。"],
+    ["このゲームでは", "なかまが ボールを もって 時間が 止まった時、左下に「わざ Vカット」の ボタンが 出る。黄色い わの あいてが きみの そばに いて、きみが ゴールから はなれて いる時に おすと、ゴールへ 走って 外へ もどり、なかまから パスが 来る。<br>あいてが はなれて いる時や、ゴールの 近くに いる時は、走らずに △ に なる。"],
+    ["ほんものの 練習では", "1回目は 本気で ゴールへ 走る（ゆっくりだと あいてが ついて こない）。もどる時は 足を 1回 ぐっと ふんばって 向きを かえる。<br>バックドア（うしろを とる）と セットで おぼえると、あいてが 前に いても うしろに いても こまらない。"],
+  ],
+  deny: [
+    ["どんな わざ？", "自分の あいてが まだ ボールを もって いない時に、ボールと あいての あいだ（パスの 道）に 手を 出して、パスを もらわせない まもり。「ディナイ」は 英語で「だめ！」の 意味。"],
+    ["なぜ 使うの？", "ボールを もたせなければ、シュートも ドリブルも されない。<br>とくに、ボールの すぐ となりに いる あいては、つぎに パスを もらいやすい。そこで 先に 手を 出して おくと、パスが 出せなく なるか、出して きた パスを とれる。"],
+    ["いつ 使う？", "自分の あいてが ボールの となり（パスが とどく きょり）に いて、まだ ボールを もって いない時。<br>ボールから 遠い あいてには、パスは 来にくい。そこで 前に 出ると、ゴールの ほうが あいて しまう。<br>ゴールの 近くに いる あいてにも やらない。前に 出た すきに うしろ（バックドア）を とられる。"],
+    ["このゲームでは", "まもりで 時間が 止まった時（きみの あいてが ボールを もって いない時）、左下に「わざ ディナイ」の ボタンが 出る。おすと、あいてと ボールの あいだに 手を 出す。赤が それでも パスを 出して きたら、パスカットで とれる。<br>きみの あいてが ボールを もって いる時・遠い時・ゴールの 近くに いる時は △ に なる。"],
+    ["ほんものの 練習では", "ボールに 近い ほうの 手を、パスの 道に 上げる。あいてと ボールの 両方が 見える 向きに 立つ（どちらかを 見うしなうと、うしろへ 走られる）。<br>あいてが うしろへ 走ったら、手を 下ろして すぐ ついて いく。"],
+  ],
+  box: [
+    ["どんな わざ？", "シュートが 空に ある あいだに、ふり向いて 近くの あいてを 自分の 背中で おさえ、ボールが おちて くる 場所を 先に とる わざ。「四角（ボックス）の 外に 出す」から ボックスアウト。"],
+    ["なぜ 使うの？", "リバウンドは、高く とべる 人より「いい 場所に いる 人」が とる。<br>ボールだけを 見て いると、あいてに 前へ 入られる。先に あいてを おさえて しまえば、ボールが どこに おちても、きみの ほうが 近い。"],
+    ["いつ 使う？", "なかまが シュートを うった しゅんかん。ボールを 見る 前に、まず 近くの あいてを さがす。<br>近くに あいてが いない時は、そのまま おちる 場所へ とびこむ。おちる 場所が 遠い時は、まにあわない。"],
+    ["このゲームでは", "リバウンドで 時間が 止まった時、左下に「わざ ボックスアウト」の ボタンが 出る。おちる 場所の 近くに あいてが いて、きみも 近い時に おすと、その あいてを おさえて、リバウンドを とりやすく なる。<br>遠い時や、近くに あいてが いない時は、ふつうに とびこむ だけに なる。"],
+    ["ほんものの 練習では", "シュートが 上がったら、まず あいてを 見て、体の 向きを かえて（ふり向いて）、おしりと 背中で あいてを おさえる。ひじを はって 手で おしては いけない（はんそく）。<br>おさえたまま、ボールが おちる ところまで 下がる。"],
   ],
 };
 function wazaInfo(k, got) {
@@ -630,7 +763,7 @@ function parentMenu(note) {
     <p>広告は出ません。お子さまの名前・記録などのデータを、開発者が受け取ることはありません。${NATIVE ? "記録はこの端末と、ご自身の iCloud に保存されます（同じ Apple ID の iPhone・iPad で、★・わざ・リーグの記録がそろいます）。" : "記録はこの端末の中だけに保存されます。"}</p>
     <h4>ぜんぶ ひらく（買い切り）</h4>
     <div class="box"><b>${storePrice || PRICE}</b>　1回だけのお支払いです。月額ではありません。<ul>
-      <li>リーグ戦を最後まで（1日1試合・シーズンが続きます）</li><li>わざ「シュートフェイク」「バックドア」（今後 追加するわざも）</li><li>れんしゅう 6つ すべて</li></ul>
+      <li>リーグ戦を最後まで（1日1試合・シーズンが続きます）</li><li>わざ 6つ（シュートフェイク・バックドア・パスフェイク・Vカット・ディナイ・ボックスアウト。今後 追加するわざも）</li><li>れんしゅう 6つ すべて</li></ul>
       無料のままでも「いつでも 試合」と れんしゅう2つは 何回でも遊べます。リーグ戦は 2試合まで お試しできます。</div>
     <div class="bt2">${full ? `<button disabled>購入済みです</button>${NATIVE ? "" : `<button id="unbuy">（試作用）未購入に戻す</button>`}` : `<button class="get" id="buy">購入する</button><button id="restore">購入を復元する</button>`}</div>
     ${NATIVE ? `<p class="leg">※ お支払いは App Store を通して行われます。ファミリー共有に対応しています。承認待ち（承認と購入のリクエスト）の場合は、承認のあとにアプリを開き直すと反映されます。</p>` : `<p class="leg">※ いまは試作です。「購入する」を押しても お金はかからず、開いた状態を試せるだけです。</p>`}
@@ -776,7 +909,7 @@ function startPoss() {
   S.mir = mir;
   const flaws = [null, null, null, null, null]; const ks = [1, 2, 3, 4].sort(() => Math.random() - .5);
   const O = OPP || {};
-  if (Math.random() < (O.over ? .6 : WZ.on("bd") ? .4 : .25)) flaws[0] = "over"; flaws[ks[0]] = "watch"; if (!O.few) flaws[ks[1]] = O.over ? "over" : O.watch ? "watch" : Math.random() < .6 ? "over" : "slow";
+  if (Math.random() < (O.over ? .6 : WZ.on("bd") || WZ.on("vc") ? .4 : .25)) flaws[0] = "over"; flaws[ks[0]] = "watch"; if (!O.few) flaws[ks[1]] = O.over ? "over" : O.watch ? "watch" : Math.random() < .6 ? "over" : "slow";
   if (O.over) flaws[ks[2]] = "over"; if (O.watch) flaws[ks[2]] = "watch";
   def = att.map((a, i) => { const p = i === 0 ? { x: 7.5, y: 7.6 } : lerp(a, B, Math.min(.5, 1.0 / dist(a, B))); return { x: p.x, y: p.y, sp: flaws[i] === "slow" ? 2.3 : O.sp || 3.3, flaw: flaws[i] }; });
   ball = { x: 7.5, y: 12.8, z: .7, fly: null };
@@ -1016,8 +1149,8 @@ function chooseReb(pt) {
 function dropReb(dur = .95) {
   const L = S.reb.L; S.holder = -1;
   ball.fly = { fx: B.x, fy: B.y, fz: 2.75, to: L, tz: 1.1, t: 0, dur, arc: .9 + (dur - .95) * 1.2, done: () => {
-    const my = dist(att[YOU], L), dd = nearest(L, def).d - .5; let mj = -1, md = 99; for (let i = 1; i < 5; i++) { const q = dist(att[i], L); if (q < md) { md = q; mj = i; } }
-    if (my < 1.4) { stamp("reb"); judge(2); coach(2, "ナイス リバウンド！ もう1回 せめられる！"); big("リバウンド！", "とった！", 1300); S.holder = YOU; S.holdT = 0; S.drib = null; S.run = null; S.clock = 14; S.actions = Math.min(S.actions, 3); att.forEach(m => m.jumpT = 0); att[YOU].jumpT = JUMP; att[YOU].up = .7; }
+    const my = dist(att[YOU], L), dd = nearest(L, def.map(p => p.lag > 0 ? FAR9 : p)).d - .5, boxed = S.boxed; S.boxed = false; let mj = -1, md = 99; for (let i = 1; i < 5; i++) { const q = dist(att[i], L); if (q < md) { md = q; mj = i; } }
+    if (my < (boxed ? 2.4 : 1.4)) { stamp("reb"); judge(2); coach(2, "ナイス リバウンド！ もう1回 せめられる！"); big("リバウンド！", "とった！", 1300); S.holder = YOU; S.holdT = 0; S.drib = null; S.run = null; S.clock = 14; S.actions = Math.min(S.actions, 3); att.forEach(m => m.jumpT = 0); att[YOU].jumpT = JUMP; att[YOU].up = .7; }
     else if (md < dd) { judge(my < 2.5 ? 1 : 0); coach(1, `${NUM[mj]}番が リバウンドを とった！`); S.holder = mj; S.holdT = 0; S.asked = false; S.drib = null; S.clock = 14; S.actions = Math.min(S.actions, 3); att[mj].jumpT = JUMP; att[mj].up = .7; }
     else { judge(0); coach(0, "リバウンドは シュートの はんたいがわに おちやすいよ"); S.hint = { p: L, t: 2.2 }; big("あかの リバウンド", "まもりに もどれ！", 1700); endPoss(); }
     S.reb = null; if (S.drill === "reb" && S.mode !== "between") { S.wait = 1.4; endPoss(); }
@@ -1084,6 +1217,7 @@ function stepD(dt) {
   motion(dt);
   if (S.hint) { S.hint.t -= dt; if (S.hint.t <= 0) S.hint = null; }
   if (S.net) S.net = Math.max(0, S.net - dt);
+  if (S.denyT > 0) { S.denyT -= dt; if (S.denyT <= 0) S.myFix = null; }
   if (S.mode !== "live") return;
   if (arrived >= 0) { S.drib = null; def[arrived].sp = 3.6; return shootD(arrived); }
   if (S.drib) { // ドライブの 道に だれかが 入ったら 止まる
@@ -1105,6 +1239,8 @@ function redAct(j) {
   if (S.stopped) { S.stopped = false; if (bestP && Math.random() < .55) return passD(j, bestP.to, -1); return shootD(j); }
   // きみの まもりが 点に 出るように（A-3）：きみの あいてが あいて いたら、赤は そこへ パスして 打つ。きみが ついて いれば 来ない
   const myOpen = dist(att[YOU], def[YOU]) >= 2.2 && dist(def[YOU], B) < 7.5, toMe = ps.find(o => o.to === YOU);
+  // ディナイ（わざ）：パスの 道に 手が 出て いても、赤は ときどき 出して しまう → パスカット
+  if (S.denyT > 0 && j !== YOU && toMe && toMe.v < 0 && dist(def[YOU], def[j]) <= 7 && Math.random() < .7) { S.denyT = 0; return passD(j, YOU, YOU); }
   if (j === YOU && myOpen && Math.random() < .8) return shootD(j);
   if (j !== YOU && myOpen && toMe && toMe.v >= 0 && Math.random() < .8) return passD(j, YOU, -1);
   if (driveO.v > .3) return redDrive(j, false);
@@ -1534,7 +1670,7 @@ function frame2(now) {
     }
   }
   const hb = $("hey"), ok = heyOK(); if (hb.hidden === ok) hb.hidden = !ok;
-  const wb = $("waza"), wk = wazaNow(); if (wb.hidden === !!wk) { wb.hidden = !wk; if (wk) wb.innerHTML = `<small>わざ</small>${WAZA[wk].name}`; }
+  const wb = $("waza"), wk = wazaNow(), wkey = wk ? wk.join() : ""; if (wb.dataset.k !== wkey) { wb.dataset.k = wkey; wb.hidden = !wk; wb.innerHTML = wk ? wk.slice(0, 2).map(k => `<button class="wazab" data-use="${k}"><small>わざ</small>${WAZA[k].name}</button>`).join("") : ""; wb.querySelectorAll("[data-use]").forEach(b => b.onclick = () => wazaUse(b.dataset.use)); }
   fxStep(dt); updateCam(dt); draw(); fxDraw();
 }
 cv.addEventListener("pointerdown", ev => {
@@ -1560,7 +1696,7 @@ function title() {
     <div class="row2"><button class="go sub" id="prac">れんしゅう</button><button class="go sub" id="towaza">わざ ★${WZ.d.bank}</button><button class="go sub" id="lgt">リーグの 表</button></div>
     <button class="plink" id="par">おうちの 方へ</button>`;
   $("lg").onclick = leagueMenu; $("lgt").onclick = leagueMenu; $("par").onclick = () => parentGate(parentMenu);
-  $("towaza").onclick = wazaMenu; $("waza").onclick = wazaUse;
+  $("towaza").onclick = wazaMenu;
   $("prac").onclick = drillMenu;
   $("hey").onclick = hey; $("hl").onclick = () => { if (S && S.mode === "pose" && S.pz.kind === "hand" && S.pz.shown) poseDone(-1); }; $("hr").onclick = () => { if (S && S.mode === "pose" && S.pz.kind === "hand" && S.pz.shown) poseDone(1); };
   $("start").onclick = () => { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === "suspended") AC.resume(); } catch (e) {} newMatch(); };
