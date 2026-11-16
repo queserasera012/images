@@ -577,7 +577,7 @@ function norm(){if(!root.kids||!root.kids.length)root.kids=[newKid('','k0')];roo
 norm();
 // ---------- アプリ（native/）との やりとり・買い切りの 線 ----------
 // ブラウザでは NATIVE が false で、ぜんぶ 遊べる（おうちのかたへ の「買い切り前を ためす」で 線を 試せる。購入は 見本）。アプリの 中では App Store の 買い切り（native/iap.js）
-// 無料：「あそぶ」と 各分野の 1本め（FREE・10本）。買い切り：30本・きょうの 5もん・にがて とっくん・たいせん・はなまるちょう・ふたりめからの 記録
+// 無料：「あそぶ」・ふたりで たいせん（25本 ぜんぶ）と 各分野の 1本め（FREE・10本）。買い切り：30本・きょうの 5もん・にがて とっくん・はなまるちょう・ふたりめからの 記録
 const NATIVE=!!window.__SANSU_NATIVE,SKU='sansu3.full',PRICE='¥500';if(/[?&]lock\b/.test(location.search))root.sim=true;
 let natSeq=0,storePrice=null;const natWait={};
 window.__sansuReply=(id,r)=>{const f=natWait[id];delete natWait[id];if(f)f(r);};
@@ -660,7 +660,7 @@ function home(){state='idle';g=null;show('scrTitle');const d=new Date();$('day')
   $('homeBest').textContent='ぜんぶ まぜて・3かい まちがえたら おしまい'+(save.best?'　じこベスト '+save.best:'');
   $('btnKid').innerHTML='<i class="mg k'+root.cur+'"></i>'+(save.name||'なまえを きめる');const sa=starAll();$('bookSub').textContent='★ '+sa+' / '+ORDER.length*3;
   $('daySub').textContent=save.days[dkey()]?'きょうは おわり！ はなまる':'まいにち かわる 5もん';
-  ['btnDay','btnWeak','btnVs','btnBook'].forEach(id=>$(id).classList.toggle('lk',!full()));
+  ['btnDay','btnWeak','btnBook'].forEach(id=>$(id).classList.toggle('lk',!full()));
   const got=DOOD.map((q,i)=>sa>=q[0]?dood(i):'').join('');$('shelf').innerHTML=got||'ほしを あつめると ここに らくがきが ふえるよ';}
 function bookPage(){show('scrBook');const sa=starAll(),nx=DOOD.find(q=>sa<q[0]);
   $('bookBody').innerHTML='<div class="pl"><i class="mg k'+root.cur+'"></i>'+kname(save)+'　<span style="color:var(--yellow)">★ '+sa+' / '+ORDER.length*3+'</span></div>'
@@ -683,7 +683,7 @@ const LOCK='<svg viewBox="0 0 60 60" width="70" height="70" aria-hidden="true" f
 // 子の 画面には 値段を 出さない。値段と 購入は 関門の 奥（おうちのかたへ）だけ
 function lockPage(what){show('scrGate');$('gateT').textContent='かぎの かかった あそび';
   $('gateBody').innerHTML='<div style="margin-top:28px">'+LOCK+'</div><div style="font-size:23px;margin:6px 0 2px">'+what+'</div><p class="kid-p">ここから さきは<br>「ぜんぶ ひらく」で あそべるよ。<br>おうちの ひとに<br>この がめんを みせてね。</p>'
-   +'<div style="max-width:300px;margin:16px auto 0"><button class="btn yel" id="toPar">おうちの かたへ</button></div><p class="kid-p" style="font-size:14px;color:var(--mute)">「あそぶ」と、みどりの わくの<br>れんしゅうは、このまま<br>なんかいでも あそべるよ。</p>';
+   +'<div style="max-width:300px;margin:16px auto 0"><button class="btn yel" id="toPar">おうちの かたへ</button></div><p class="kid-p" style="font-size:14px;color:var(--mute)">「あそぶ」「たいせん」と、<br>みどりの わくの れんしゅうは、<br>このまま なんかいでも あそべるよ。</p>';
   $('toPar').onclick=()=>gatePage(parentPage);}
 // 2けた × 2けた（13〜29 × 11〜19）。九九や 2けた×1けたは 小3・小4で すぐ 通るため
 function gatePage(next){show('scrGate');$('gateT').textContent='保護者の方へ';const a=rnd(13,29),b=rnd(11,19);let v='';
@@ -709,7 +709,7 @@ function parentPage(note){show('scrParent');const sim=NATIVE||root.sim,own=!!roo
      return '<tr><td>'+GAMES[k].name+(FREE.has(k)?'（無料）':'')+'</td><td class="n">○ '+r[0]+'</td><td class="n">× '+r[1]+'</td><td class="n">'+(n?Math.round(r[0]/n*100)+'%':'—')+'</td></tr>';}).join('')+'</table></div>').join('')
    +'<div class="note"><b>これまでの記録</b>：'+(tot[0]+tot[1])+'回あそんで ○ '+tot[0]+'・× '+tot[1]+'。'+(NATIVE?'記録はこの端末と、ご自身の iCloud に残ります（同じ Apple ID の iPhone で記録がそろいます）。':'記録はこの端末の中だけに残ります。')+'広告は出ません。お子さまの名前や記録を、開発者が受け取ることはありません。</div>'
    +'<div class="note"><b>かけ算・わり算・大きな数</b>：小2〜小4の内容です。まだ早い場合は外せます。<br><button class="link" id="btnAdv" style="padding:6px 0">'+(save.adv!==false?'いまは 出す（おすと 出さない）':'いまは 出さない（おすと 出す）')+'</button></div>'
-   +'<div class="note" id="buyBox"><b>ぜんぶ ひらく（買い切り）</b>　'+(storePrice||PRICE)+'<br>1回だけのお支払いです。月額ではありません。広告はありません。<br>30本すべて・きょうの 5もん・にがて とっくん・ふたりで たいせん・はなまるちょう・4人ぶんの記録が開きます。<br>無料のままでも「あそぶ」と、各分野1本ずつの10本は、何回でも遊べます。'
+   +'<div class="note" id="buyBox"><b>ぜんぶ ひらく（買い切り）</b>　'+(storePrice||PRICE)+'<br>1回だけのお支払いです。月額ではありません。広告はありません。<br>30本すべて・きょうの 5もん・にがて とっくん・はなまるちょう・4人ぶんの記録が開きます。<br>無料のままでも「あそぶ」「ふたりで たいせん」と、各分野1本ずつの10本は、何回でも遊べます。'
      +(sim?'<div class="pbtns">'+(own?'<button class="pbtn" disabled>購入済みです</button>'+(NATIVE?'':'<button class="pbtn" id="unbuy">（試作用）未購入に戻す</button>'):'<button class="pbtn get" id="buy">購入する</button><button class="pbtn" id="restore">購入を復元する</button>')+'</div>':'')
      +'<div class="leg">'+(NATIVE?'※ お支払いは App Store を通して行われます。ファミリー共有に対応しています。承認待ち（承認と購入のリクエスト）の場合は、承認のあとにアプリを開き直すと反映されます。':sim?'※ いまは試作です。「購入する」を押してもお金はかからず、開いた状態を試せるだけです。<br><button class="link" id="simOff" style="padding:4px 0;font-size:13px">（試作用）ためすのを やめて、ぜんぶ遊べる状態に戻す</button>':'※ この試作では、すべて遊べます。<br><button class="link" id="simOn" style="padding:4px 0;font-size:13px">（試作用）買い切り前の状態を ためす</button>')+'</div></div>'
    +'<div class="note"><b>設定</b><div class="pbtns"><button class="pbtn" id="btnMute">音：'+(root.mute?'オフ':'オン')+'</button></div></div>'
@@ -783,7 +783,7 @@ $('btnStart').onclick=()=>enter(()=>start('mix'));
 $('btnPrac').onclick=pracPage;$('btnDay').onclick=()=>full()?enter(()=>start('day')):lockPage('きょうの 5もん');$('btnBook').onclick=()=>full()?bookPage():lockPage('はなまるちょう');$('btnKid').onclick=kidsPage;$('btnWeak').onclick=()=>full()?enter(()=>start('weak')):lockPage('にがて とっくん');
 function vsPage(){show('scrVs');['segA','segB'].forEach((id,p)=>{$(id).innerHTML=['ハンデ なし','1びょう まつ','2びょう まつ'].map((t,i)=>'<button class="chip'+(vs.lv[p]===i?' on':'')+'" data-i="'+i+'">'+t+'</button>').join('');
   $(id).querySelectorAll('.chip').forEach(b=>b.onclick=()=>{vs.lv[p]=+b.dataset.i;vsPage();});});}
-$('btnVs').onclick=()=>full()?vsPage():lockPage('ふたりで たいせん');$('btnVsGo').onclick=()=>enter(dStart);
+$('btnVs').onclick=vsPage;$('btnVsGo').onclick=()=>enter(dStart);
 $('btnParent').onclick=()=>gatePage(parentPage);
 document.querySelectorAll('[data-home]').forEach(b=>b.onclick=home);
 $('btnAgain').onclick=()=>mode==='vs'?dStart():start();$('btnHome').onclick=()=>mode==='prac'?pracPage():home();
