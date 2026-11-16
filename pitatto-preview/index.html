@@ -208,6 +208,13 @@ body{-webkit-text-stroke:.45px currentColor}
 </div>
 
 <script>
+// iPad (width 700+): swap the viewport width so iOS scales the whole page up. Layout stays the phone's single column (#app max 480).
+// Target: looks 760 tall in portrait, 640 in landscape (same idea as Diner Street, 2026-11-16). The app's WebView needs contentMode="mobile".
+(function(){var m=document.querySelector('meta[name=viewport]');if(!m)return;var base=m.content,cur=base;
+  function vfit(){var vv=window.visualViewport,sc=vv?vv.scale:1,w=innerWidth*sc,h=innerHeight*sc,c=base;
+    if(w>=700&&h>=600)c = 'width=' + Math.max(480, Math.round(w*(w>h?640:760)/h))+',viewport-fit=cover,user-scalable=no';
+    if(c!==cur){cur=c;m.content=c;}}
+  vfit();addEventListener('resize',vfit);})();
 (function(){
 const $=id=>document.getElementById(id);
 const cv=$('cv');let ctx=cv.getContext('2d');
@@ -909,7 +916,7 @@ function norm(){if(!root.kids||!root.kids.length)root.kids=[newKid('','k0')];roo
 norm();
 // ---------- アプリ（native/）との やりとり・買い切りの 線 ----------
 // ブラウザでは NATIVE が false で、ぜんぶ 遊べる（おうちのかたへ の「買い切り前を ためす」で 線を 試せる。購入は 見本）。アプリの 中では App Store の 買い切り（native/iap.js）
-// 無料：「あそぶ」・ふたりで たいせん（DPOOL ぜんぶ）と 各分野の 1本め（FREE・10本）。買い切り：80本 ぜんぶ・きょうの 5もん・にがて とっくん・はなまるちょう・ふたりめからの 記録
+// 無料：「あそぶ」・ふたりで たいせん（各分野の 1本めの うち たいせんに 出せる 8本）と 各分野の 1本め（FREE・10本）。買い切り：80本 ぜんぶ・きょうの 5もん・にがて とっくん・はなまるちょう・ふたりめからの 記録
 const NATIVE=!!window.__SANSU_NATIVE,SKU='sansu3.full',PRICE='¥500';if(/[?&]lock\b/.test(location.search))root.sim=true;
 let natSeq=0,storePrice=null;const natWait={};
 window.__sansuReply=(id,r)=>{const f=natWait[id];delete natWait[id];if(f)f(r);};
@@ -1094,8 +1101,10 @@ function use(pl){cur=pl;ctx=pl.ctx;W=pl.W;H=pl.H;}
 function dFit(){dpr=Math.min(2,devicePixelRatio||1);P.forEach(pl=>{const r=pl.cv.getBoundingClientRect();pl.W=r.width;pl.H=r.height;pl.cv.width=r.width*dpr;pl.cv.height=r.height*dpr;pl.ctx.setTransform(dpr,0,0,dpr,0,0);});}
 function dScore(){$('dsc').innerHTML='<i class="mg b"></i>'+D.sc[1]+'　ー　'+D.sc[0]+'<i class="mg a"></i>';$('dinfo').textContent='5てんで かち';}
 function dStart(){mode='vs';dBuild();duelOn=true;state='idle';g=null;D.sc=[0,0];D.bag=[];D.n=0;show('scrDuel');dFit();dScore();dNext();}
+// たいせんに 出るのは 開いている ゲームだけ（買い切り前は 各分野の 1本め・レビュー E-1。前は 有料の 43本も 出ていた）
+const dPool=()=>DPOOL.filter(k=>openG(k)&&(vs.adv!==false||!ADV.has(k)));
 function dNext(){if(Math.max(D.sc[0],D.sc[1])>=5||D.n>=20)return dOver();
-  if(!D.bag.length)D.bag=shuf(DPOOL.filter(k=>vs.adv!==false||!ADV.has(k)));D.key=(window.__dbag&&window.__dbag.shift())||D.bag.shift();D.lv=Math.min(2,Math.floor(D.n/3));D.n++;
+  if(!D.bag.length)D.bag=shuf(dPool());D.key=(window.__dbag&&window.__dbag.shift())||D.bag.shift();D.lv=Math.min(2,Math.floor(D.n/3));D.n++;
   const nb=!(GAMES[D.key].buttons||[]).length;P.forEach(pl=>pl.btns.classList.toggle('hid',nb));dFit();
   use(P[0]);const a=Object.create(GAMES[D.key]);a.setup(D.lv);const b=Object.create(GAMES[D.key]);Object.keys(a).forEach(k=>{b[k]=structuredClone(a[k]);});P[0].g=a;P[1].g=b;
   const c=a.cmd();P.forEach(pl=>{pl.out=false;pl.wait=vs.lv[pl.i];pl.q.textContent=c;pl.cmd.textContent=c;pl.sub.textContent=pl.wait?'ハンデ：'+pl.wait+'びょう まつ':'';
@@ -1135,7 +1144,10 @@ function vsPage(){show('scrVs');['segA','segB'].forEach((id,p)=>{$(id).innerHTML
   $(id).querySelectorAll('.chip').forEach(b=>b.onclick=()=>{vs.lv[p]=+b.dataset.i;vsPage();});});
   // かけざん・わりざん・おおきな かず を 出すか（はじめは いまの 子の 設定と 同じ）
   $('segC').innerHTML=['かけざん・わりざんも','たす・ひく まで'].map((t,i)=>'<button class="chip'+((vs.adv!==false)===(i===0)?' on':'')+'" data-i="'+i+'">'+t+'</button>').join('');
-  $('segC').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{vs.adv=b.dataset.i==='0';vsPage();});}
+  $('segC').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{vs.adv=b.dataset.i==='0';vsPage();});
+  // locked: the lock chip shares this row (an extra row pushes the start button below the fold on phones)
+  const more=DPOOL.filter(k=>!openG(k)).length;$('segC').style.gridTemplateColumns='repeat('+(more?3:2)+',1fr)';
+  if(more){$('segC').insertAdjacentHTML('beforeend','<button class="chip lk" id="vsLk"><span>ほか '+more+'ほん</span></button>');$('vsLk').onclick=()=>lockPage('たいせんの ほかの もんだい');}}
 $('btnVs').onclick=()=>{vs.adv=save.adv!==false;vsPage();};$('btnVsGo').onclick=()=>enter(dStart);
 $('btnParent').onclick=()=>gatePage(parentPage);
 document.querySelectorAll('[data-home]').forEach(b=>b.onclick=home);
@@ -1143,7 +1155,7 @@ $('btnAgain').onclick=()=>mode==='vs'?dStart():start();$('btnHome').onclick=()=>
 $('btnDQuit').onclick=()=>{duelOn=false;ctx=cv.getContext('2d');home();};
 $('btnQuit').onclick=()=>{state='idle';setButtons([]);mode==='prac'?pracPage():home();};
 home();
-window.__pitatto={get games(){return GAMES;},get state(){return state;},get pool(){return pool();},get key(){return gkey;},get mode(){return mode;},get vs(){return vs;},get duel(){return {st:D.st,key:D.key,sc:D.sc,on:duelOn};}};
+window.__pitatto={get games(){return GAMES;},get state(){return state;},get pool(){return pool();},get key(){return gkey;},get mode(){return mode;},get vs(){return vs;},dpool(){return dPool();},get duel(){return {st:D.st,key:D.key,sc:D.sc,on:duelOn};}};
 })();
 </script>
 </body></html>
