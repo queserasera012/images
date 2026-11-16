@@ -1098,13 +1098,9 @@ let last=0;function loop(t){const dt=Math.min(.033,(t-last)/1000||0);last=t;
   requestAnimationFrame(loop);}
 requestAnimationFrame(loop);
 cv.addEventListener('pointerdown',e=>{if(state!=='play'||!g.tap)return;const r=cv.getBoundingClientRect();g.tap(e.clientX-r.left,e.clientY-r.top);});
-function askTilt(){try{const D=window.DeviceOrientationEvent;if(!D)return;
-  const on=()=>addEventListener('deviceorientation',e=>{if(e.gamma==null||e.beta==null)return;
-    grav.x=Math.max(-1,Math.min(1,Math.sin(e.gamma*Math.PI/180)));grav.y=Math.max(.35,Math.min(1,Math.sin(e.beta*Math.PI/180)));});
-  if(typeof D.requestPermission==='function')return D.requestPermission().then(r=>{if(r==='granted')on();}).catch(()=>{});on();}catch(e){}}
 let asked=false,ready=false;
 function enter(fn){if(ready)return fn();if(asked)return;asked=true;try{ac=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}
-  const go=()=>{asked=false;ready=true;fn();};const pr=askTilt();if(pr&&pr.then)pr.then(go,go);else go();}
+  asked=false;ready=true;fn();}
 $('btnStart').onclick=()=>enter(()=>start('mix'));
 $('btnPrac').onclick=pracPage;$('btnDay').onclick=()=>full()?enter(()=>start('day')):lockPage('きょうの 5もん');$('btnBook').onclick=()=>full()?bookPage():lockPage('はなまるちょう');$('btnKid').onclick=kidsPage;$('btnWeak').onclick=()=>full()?enter(()=>start('weak')):lockPage('にがて とっくん');
 function vsPage(){show('scrVs');['segA','segB'].forEach((id,p)=>{$(id).innerHTML=['ハンデ なし','1びょう まつ','2びょう まつ'].map((t,i)=>'<button class="chip'+(vs.lv[p]===i?' on':'')+'" data-i="'+i+'">'+t+'</button>').join('');
