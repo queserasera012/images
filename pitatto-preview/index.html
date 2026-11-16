@@ -120,7 +120,7 @@ body{-webkit-text-stroke:.45px currentColor}
 .chip.lk{border-style:dashed}.chip.lk::after{top:auto;bottom:5px;right:6px;width:14px;height:14px}.chip.lk>span:first-child{opacity:.8}
 .gate{text-align:center}.gate p{font:600 14px/1.75 var(--read);margin:10px auto;max-width:21em}.gate .kid-p{font:400 17px/1.7 var(--font)}
 .gq{font:400 36px var(--font);margin:14px 0 2px;-webkit-text-stroke:.8px currentColor}.gmsg{font:600 13px var(--read);color:var(--pink);min-height:1.5em}
-.gq .pd{display:inline-block;width:22px;height:22px;margin:6px 9px;border:2.5px solid var(--fg);border-radius:50%}.gq .pd.on{background:var(--yellow);border-color:var(--yellow)}.phint{font:600 13px var(--read);color:var(--mute);margin-top:14px}
+.gq .pd{display:inline-block;width:22px;height:22px;margin:6px 9px;border:2.5px solid var(--fg);border-radius:50%}.gq .pd.on{background:var(--yellow);border-color:var(--yellow)}.phint{font:600 13px var(--read);color:var(--mute);margin-top:14px}.plink{background:none;border:0;color:var(--mute);font:600 13px var(--read);text-decoration:underline;padding:8px 12px}
 .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:280px;margin:8px auto 0}
 .pad button{border:2px solid var(--line);border-radius:10px;background:transparent;color:var(--fg);font:400 24px var(--font);padding:9px 0;touch-action:manipulation}.pad button:active{background:#ffffff1f}
 .pbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
@@ -1001,14 +1001,22 @@ function lockPage(what){show('scrGate');$('gateT').textContent='かぎの かか
 // おうちのかたへ の 入口：4けたの 暗証番号（しょきち 1234。ほかの しんめ工房の アプリと 同じ・2026-11-16 オーナー）。
 // 「しょきち: 1234」は いまの 番号が しょきちの ままの ときだけ 出す。番号は root.pin（変えた時刻 root.pinAt・iCloud は 新しいほう）
 const PIN0='1234',pinOf=()=>/^\d{4}$/.test(root.pin||'')?root.pin:PIN0;
-function pinPad(lead,hint,done){show('scrGate');$('gateT').textContent='保護者の方へ';let v='';
+function pinPad(lead,hint,done,forgot){show('scrGate');$('gateT').textContent='保護者の方へ';let v='';
   $('gateBody').innerHTML='<p style="margin-top:18px">'+lead+'</p><div class="gq" id="gq">'+[0,1,2,3].map(i=>'<i class="pd" id="pd'+i+'"></i>').join('')+'</div><div class="gmsg" id="gmsg"></div>'
-   +'<div class="pad">'+[1,2,3,4,5,6,7,8,9,'',0,'けす'].map(k=>k===''?'<span></span>':'<button data-k="'+k+'"'+(k>=0?'':' style="font-size:17px"')+'>'+k+'</button>').join('')+'</div>'+(hint?'<p class="phint" id="phint">'+hint+'</p>':'');
+   +'<div class="pad">'+[1,2,3,4,5,6,7,8,9,'',0,'けす'].map(k=>k===''?'<span></span>':'<button data-k="'+k+'"'+(k>=0?'':' style="font-size:17px"')+'>'+k+'</button>').join('')+'</div>'+(hint?'<p class="phint" id="phint">'+hint+'</p>':'')+(forgot?'<p class="phint"><button class="plink" id="btnForgot">番号を忘れたとき</button></p>':'');
+  if(forgot)$('btnForgot').onclick=forgot;
   const dots=()=>[0,1,2,3].forEach(i=>$('pd'+i).classList.toggle('on',i<v.length));
   $('gateBody').querySelectorAll('.pad button').forEach(bt=>bt.onclick=()=>{const k=bt.dataset.k;
     if(k==='けす')v=v.slice(0,-1);else if(v.length<4)v+=k;dots();
     if(v.length===4){const t=v;setTimeout(()=>{const m=done(t);if(m&&$('gmsg')){v='';dots();$('gmsg').textContent=m;}},140);}});}
-function gatePage(next){pinPad('この先は 保護者の方 向けの 画面です。<br>暗証番号（4けた）を入力してください。',pinOf()===PIN0?'しょきち: 1234':'',t=>t===pinOf()?next():'番号がちがいます。もう一度入力してください。');}
+function gatePage(next){pinPad('この先は 保護者の方 向けの 画面です。<br>暗証番号（4けた）を入力してください。',pinOf()===PIN0?'しょきち: 1234':'',t=>t===pinOf()?next():'番号がちがいます。もう一度入力してください。',pinOf()===PIN0?null:()=>forgotPage(next));}
+// 番号を 忘れたとき：大人向けの かけ算（2けた×2けた）が 解けたら 番号を しょきちに 戻す（記録・購入は そのまま。2026-11-16 オーナー）
+function forgotPage(next){show('scrGate');$('gateT').textContent='番号を忘れたとき';const a=rnd(13,29),b=rnd(11,19);let v='';
+  $('gateBody').innerHTML='<p style="margin-top:18px">次の計算の答えを入力すると、<br>暗証番号が はじめの 1234 に戻ります。<br>記録や購入は そのままです。</p><div class="gq" id="fq">'+a+' × '+b+' ＝ <span id="gv">？</span></div><div class="gmsg" id="gmsg"></div>'
+   +'<div class="pad">'+[1,2,3,4,5,6,7,8,9,'けす',0,'OK'].map(k=>'<button data-k="'+k+'"'+(k>=0?'':' style="font-size:17px"')+'>'+k+'</button>').join('')+'</div>';
+  $('gateBody').querySelectorAll('.pad button').forEach(bt=>bt.onclick=()=>{const k=bt.dataset.k;
+    if(k==='けす')v=v.slice(0,-1);else if(k==='OK'){if(+v===a*b){root.pin=PIN0;root.pinAt=Date.now();persist();return gatePage(next);}v='';$('gmsg').textContent='答えがちがいます。もう一度入力してください。';}else if(v.length<4)v+=k;
+    $('gv').textContent=v||'？';});}
 function pinChange(){pinPad('新しい暗証番号（4けた）を入力してください。','',a=>pinPad('確認のため、もう一度 同じ番号を入力してください。','',b=>{if(a!==b)return '番号が合いません。もう一度入力してください。';root.pin=a;root.pinAt=Date.now();persist();parentPage('暗証番号を変えました。');}));}
 function maybeReview(){try{if(!NATIVE||localStorage.getItem('sansu.review.v1')||Object.keys(save.hist||{}).length<5)return;localStorage.setItem('sansu.review.v1','1');setTimeout(()=>nat('review'),1200);}catch(e){}}
 function weekOf(off){const out={days:0,f:FIELDS.map(()=>[0,0])},h=save.hist||{};for(let i=0;i<7;i++){const d=new Date();d.setDate(d.getDate()-off-i);const r=h[dkey(d)];if(!r)continue;out.days++;Object.keys(r).forEach(k=>{if(out.f[k]){out.f[k][0]+=r[k][0];out.f[k][1]+=r[k][1];}});}return out;}
