@@ -984,11 +984,20 @@ const lookHide = () => !!(S && S.fz && S.fz.look && S.fz.look.done && blend > .3
 const lookVis = (team, i) => !lookHide() || S.fz.look.seen.has(lookKey(team, i));
 // その 場所の ほうを 見たか（採点の ことばに 使う）
 function lookSaw(p) { const l = S.fz && S.fz.look; if (!l) return true; const me = att[YOU], a = Math.atan2(p.y - me.y, p.x - me.x); return [...l.arcs].some(b => { let da = a - b * LOOK_STEP; da = Math.atan2(Math.sin(da), Math.cos(da)); return Math.abs(da) <= LOOK_FOV; }); }
-// 見た 方向の 扇（上からの 図）
+// 見た ところだけ 色が のこり、見て いない 床は グレー（上からの 図）。見た 方向の 扇を くりぬいて 塗る
 function drawLook() {
   const l = S && S.fz && S.fz.look; if (!l || blend < .3) return; const me = att[YOU], cover = new Set();
   l.arcs.forEach(b => { for (let k = -7; k <= 7; k++) cover.add((b + k + 72) % 72); });
-  cover.forEach(b => { const a = b * LOOK_STEP; poly3([V(me.x, me.y, .02), V(me.x + Math.cos(a - LOOK_STEP / 2) * LOOK_R, me.y + Math.sin(a - LOOK_STEP / 2) * LOOK_R, .02), V(me.x + Math.cos(a + LOOK_STEP / 2) * LOOK_R, me.y + Math.sin(a + LOOK_STEP / 2) * LOOK_R, .02)], "rgba(255,214,90,.22)"); });
+  // となりあう 5ど を つなげて 1つの 扇に
+  const runs = []; let start = null; for (let b = 0; b < 144; b++) { const on = cover.has(b % 72); if (on && start === null) start = b; if (!on && start !== null) { runs.push([start, b - 1]); start = null; } if (b >= 72 && start === null) break; }
+  if (start !== null) runs.push([start, 143]);
+  const seen = runs.filter(r => r[0] < 72).map(r => [r[0], Math.min(r[1], r[0] + 71)]);
+  const al = Math.min(1, (blend - .3) / .5);
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, CW, CH);
+  const arcs = seen.map(([b0, b1]) => { const pts = [project(V(me.x, me.y, .02))]; const a0 = (b0 - .5) * LOOK_STEP, a1 = (b1 + .5) * LOOK_STEP, n = Math.max(2, Math.ceil((a1 - a0) / (LOOK_STEP / 2))); for (let k = 0; k <= n; k++) { const a = a0 + (a1 - a0) * k / n; pts.push(project(V(me.x + Math.cos(a) * LOOK_R, me.y + Math.sin(a) * LOOK_R, .02))); } return pts.filter(Boolean); });
+  arcs.forEach(pts => { ctx.moveTo(pts[0].x, pts[0].y); pts.forEach(q => ctx.lineTo(q.x, q.y)); ctx.closePath(); });
+  ctx.fillStyle = `rgba(120,118,112,${.55 * al})`; ctx.fill("evenodd"); ctx.restore();
+  arcs.forEach(pts => { ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); pts.forEach(q => ctx.lineTo(q.x, q.y)); ctx.closePath(); ctx.strokeStyle = `rgba(232,149,0,${.8 * al})`; ctx.lineWidth = 2.5; ctx.lineJoin = "round"; ctx.stroke(); });
 }
 let lookPt = null;
 cv.addEventListener("pointermove", ev => { if (!lookPt || ev.pointerId !== lookPt.id) return; const dx = ev.clientX - lookPt.x; lookPt.x = ev.clientX; lookPt.moved += Math.abs(dx); lookTurn(dx / cv.getBoundingClientRect().width); });
