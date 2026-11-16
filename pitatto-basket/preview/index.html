@@ -1,0 +1,1783 @@
+<!doctype html>
+<html lang="ja">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<meta charset="utf-8">
+<title>ピタッとバスケ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap">
+<style>
+/* 体育館の夜の試合。画面いっぱいのコートが主役で、文字は その上に のせる（1つの世界に決めた暗い見た目） */
+:root{
+  --bg:#0F1620; --ink:#F4F7FA; --sub:#A9B6C4; --panel:rgba(15,22,32,.82);
+  --you:#FF9A1F; --mate:#2F6BFF; --foe:#E5463A; --good:#3DDC97; --gold:#FFD23F;
+  --font-display:"Dela Gothic One","Hiragino Sans","Yu Gothic",sans-serif;
+  --font-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-weight:700;font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;justify-content:center;align-items:flex-start}
+.stage{position:relative;width:100%;max-width:460px;margin-block:8px;border-radius:18px;overflow:hidden;
+  aspect-ratio:390/600;max-height:calc(100% - 16px);background:#1A2431;user-select:none;-webkit-user-select:none}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+.hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:flex-start;padding:10px;pointer-events:none;gap:8px}
+.score{background:var(--panel);border-radius:12px;padding:6px 12px;display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-size:22px;line-height:1}
+.score small{font-family:var(--font-body);font-size:11px;font-weight:900;display:block;margin-bottom:3px}
+.score .a small{color:#8FB1FF}.score .b small{color:#FF9A91}
+.score .sep{color:var(--sub);font-size:16px}
+.meta{background:var(--panel);border-radius:12px;padding:6px 10px;font-size:12px;text-align:right;line-height:1.35}
+.meta b{color:var(--gold);font-size:15px}
+.big{position:absolute;left:0;right:0;top:30%;text-align:center;font-family:var(--font-display);font-size:44px;line-height:1.1;
+  text-shadow:0 3px 0 rgba(0,0,0,.45),0 0 18px rgba(0,0,0,.5);pointer-events:none;opacity:0;transform:scale(.7);transition:opacity .18s,transform .18s}
+.big.on{opacity:1;transform:scale(1)}
+.big small{display:block;font-family:var(--font-body);font-weight:900;font-size:16px;margin-top:6px}
+.ask{position:absolute;left:10px;right:10px;top:66px;pointer-events:none;display:flex;flex-direction:column;gap:6px;align-items:center}
+.ask .q{background:var(--you);color:#1b1206;font-weight:900;border-radius:999px;padding:5px 16px;font-size:16px;box-shadow:0 3px 0 rgba(0,0,0,.35)}
+.ask .bar{width:70%;height:8px;border-radius:99px;background:rgba(255,255,255,.25);overflow:hidden}
+.ask .bar i{display:block;height:100%;background:var(--gold);width:100%}
+.ask .tip{font-size:12px;color:#fff;background:var(--panel);border-radius:8px;padding:3px 10px}
+.coach{position:absolute;left:10px;right:10px;bottom:10px;background:var(--panel);border-radius:14px;padding:9px 12px;display:flex;gap:10px;align-items:center;
+  pointer-events:none;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;font-size:15px}
+.coach.on{opacity:1;transform:none}
+.coach .mk{font-family:var(--font-display);font-size:26px;min-width:30px;text-align:center}
+.coach .mk.g2{color:var(--good)}.coach .mk.g1{color:#9BE3BF}.coach .mk.g0{color:var(--gold)}.coach .mk.gx{color:var(--foe)}
+.cover{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;
+  background:linear-gradient(180deg,rgba(15,22,32,.55),rgba(15,22,32,.9))}
+.cover h1{font-family:var(--font-display);font-weight:400;font-size:46px;margin:0;line-height:1.05;text-wrap:balance}
+.cover h1 span{color:var(--you)}
+.cover p{margin:0;max-width:30ch;color:var(--ink);font-size:15px}
+.cover ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;font-size:14px;text-align:left}
+.cover ol b{color:var(--gold)}
+.cover .res{font-family:var(--font-display);font-size:56px;line-height:1}
+.cover .stars{color:var(--gold);font-size:22px;letter-spacing:2px}
+button.hey{position:absolute;right:12px;bottom:84px;width:96px;height:96px;border-radius:50%;border:4px solid #fff;background:var(--you);color:#1b1206;
+  font:inherit;font-family:var(--font-display);font-size:24px;line-height:1;box-shadow:0 5px 0 #A85C00;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+button.hey small{font-family:var(--font-body);font-weight:900;font-size:10px}
+button.hey:active{transform:translateY(3px);box-shadow:0 2px 0 #A85C00}
+.words{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:320px}
+.words span{border:2px solid rgba(255,255,255,.25);color:var(--sub);border-radius:999px;padding:3px 10px;font-size:13px}
+.words span.on{border-color:var(--gold);color:#1b1206;background:var(--gold)}
+button.go{appearance:none;border:0;font:inherit;font-family:var(--font-display);font-size:22px;color:#1b1206;background:var(--you);
+  border-radius:16px;padding:14px 28px;box-shadow:0 5px 0 #A85C00;cursor:pointer}
+button.go:active{transform:translateY(3px);box-shadow:0 2px 0 #A85C00}
+button.go.sub{background:transparent;color:#fff;box-shadow:none;border:2px solid rgba(255,255,255,.45);font-family:var(--font-body);font-weight:900;font-size:15px;padding:9px 20px}
+.drills{display:grid;grid-template-columns:1fr 1fr;gap:6px;width:100%;max-width:330px}
+button.dr{appearance:none;border:0;font:inherit;font-weight:900;font-size:14px;line-height:1.3;color:#fff;background:#24405f;border-radius:12px;padding:8px 8px;min-height:54px;cursor:pointer}
+button.dr small{display:block;color:var(--gold);font-size:11px}
+button.dr:active{transform:translateY(2px)}
+button.go:focus-visible{outline:3px solid #fff;outline-offset:3px}
+@media (prefers-reduced-motion: reduce){.big,.coach{transition:none}}
+</style>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yusei+Magic&display=swap">
+<style>
+/* 色えんぴつ版：紙と えんぴつ。文字・ボタンも 手がきに そろえる */
+:root{--bg:#E6DCC6;--ink:#4A3A32;--sub:#8A776A;--panel:rgba(255,253,246,.94);--you:#F5A21E;--good:#12996A;--gold:#D98A00;--foe:#D8463A;
+  --font-display:"Yusei Magic","Hiragino Maru Gothic ProN",sans-serif;--font-body:"Yusei Magic","Hiragino Maru Gothic ProN",system-ui,sans-serif;color-scheme:light;
+  --wob:255px 18px 225px 18px/18px 225px 18px 255px;--line:2px solid #5A463C}
+body{font-weight:400;background:var(--bg)}
+.stage{background:#FBF7EC;box-shadow:0 3px 0 rgba(90,70,60,.25),0 10px 24px rgba(90,70,60,.18)}
+.score,.meta,.coach,.ask .tip{border:var(--line);border-radius:var(--wob);color:var(--ink)}
+.score small,.big small,.cover ol,.cover p{font-weight:400}
+.score .a small{color:#2F5FD0}.score .b small{color:#D0463A}
+.ask .tip{color:var(--ink)}
+.big{color:var(--ink);text-shadow:-2px -2px 0 #FBF7EC,2px -2px 0 #FBF7EC,-2px 2px 0 #FBF7EC,2px 2px 0 #FBF7EC,0 3px 0 #FBF7EC,0 -3px 0 #FBF7EC,3px 0 0 #FBF7EC,-3px 0 0 #FBF7EC,3px 5px 0 rgba(245,162,30,.55);transform:scale(.7) rotate(-3deg)}
+.big.on{transform:scale(1) rotate(-3deg)}
+.ask .q{border:var(--line);border-radius:var(--wob);color:#3A2A22;box-shadow:2px 3px 0 rgba(90,70,60,.3);font-weight:400;
+  background:repeating-linear-gradient(135deg,#FFC45E 0 3px,#FFDFA0 3px 6px)}
+.ask .bar{background:rgba(90,70,60,.18);border:1.5px solid #5A463C;height:9px}
+.ask .bar i{background:repeating-linear-gradient(135deg,#F5A21E 0 3px,#FFD27A 3px 6px)}
+.coach .mk.g1{color:#3DAE84}
+.cover{background:linear-gradient(rgba(251,247,236,.9),rgba(251,247,236,.96)),repeating-linear-gradient(transparent 0 23px,rgba(110,165,220,.45) 23px 24px)}
+.cover::before{content:"色えんぴつ版（見た目の ためし）";font-size:12px;color:var(--sub);border:1.5px dashed var(--sub);border-radius:999px;padding:2px 12px}
+.cover h1{color:var(--ink);font-size:50px}
+.cover p{max-width:21em;font-size:14px;text-wrap:balance}
+.cover ol b{color:var(--gold)}
+button.go,button.hey{border:2.5px solid #5A463C;border-radius:var(--wob);color:#3A2A22;box-shadow:3px 4px 0 rgba(90,70,60,.35);
+  background:repeating-linear-gradient(135deg,#FFC45E 0 3px,#FFDFA0 3px 6px)}
+button.hey{border-radius:50%}
+button.go:active,button.hey:active{box-shadow:1px 1px 0 rgba(90,70,60,.35)}
+button.go.sub{background:#FFFDF6;color:var(--ink);border:2px solid #5A463C;box-shadow:2px 3px 0 rgba(90,70,60,.25);font-weight:400}
+button.dr{color:var(--ink);border:2px solid #5A463C;border-radius:var(--wob);font-weight:400;background:repeating-linear-gradient(135deg,#CFE0FF 0 3px,#E6EEFF 3px 6px)}
+button.dr small{color:#B65E00}
+.words span{border:1.5px solid rgba(90,70,60,.4);color:var(--sub)}
+.words span.on{border-color:#5A463C;color:#3A2A22;background:#FFD86B}
+button.go:focus-visible{outline:3px solid #5A463C}
+.hands{position:absolute;left:12px;right:12px;bottom:78px;display:flex;justify-content:space-between;pointer-events:none}
+.hands button{pointer-events:auto;appearance:none;font:inherit;font-size:22px;width:132px;height:84px;cursor:pointer;border:2.5px solid #5A463C;border-radius:var(--wob);color:#3A2A22;box-shadow:3px 4px 0 rgba(90,70,60,.35);background:repeating-linear-gradient(135deg,#FFC45E 0 3px,#FFDFA0 3px 6px)}
+.hands button:active{transform:translateY(3px);box-shadow:1px 1px 0 rgba(90,70,60,.35)}
+
+.row2{display:flex;gap:10px}
+.wazab{position:absolute;left:12px;bottom:84px;appearance:none;font:inherit;font-size:19px;line-height:1.2;min-width:150px;min-height:72px;padding:8px 14px;cursor:pointer;border:2.5px solid #5A463C;border-radius:var(--wob);color:#3A2A22;box-shadow:3px 4px 0 rgba(90,70,60,.35);background:repeating-linear-gradient(135deg,#B9E8C9 0 3px,#E2F6E8 3px 6px)}
+.wazab small{display:block;font-size:11px;color:#1E6B49}
+.wazab:active{transform:translateY(3px);box-shadow:1px 1px 0 rgba(90,70,60,.35)}
+.cover.long{position:fixed;z-index:9;background:#FBF7EC;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px 16px 28px;gap:10px}
+.cover.long::before{display:none}
+.wzh{font-family:var(--font-display);font-size:26px;color:var(--ink)}
+.wzc{width:100%;max-width:350px;text-align:left;background:#FFFDF6;border:2px solid #5A463C;border-radius:var(--wob);padding:10px 12px;box-shadow:2px 3px 0 rgba(90,70,60,.22);color:var(--ink)}
+.wzc h3{margin:0;font-weight:400;font-size:19px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.wzc h3 em{font-style:normal;font-size:11px;color:#B65E00;white-space:nowrap}
+.wzc .one{font-size:13.5px;margin:4px 0 8px;line-height:1.55}
+.wzc .bt{display:flex;gap:8px;flex-wrap:wrap}
+.wzc button{appearance:none;font:inherit;font-size:14px;min-height:40px;padding:6px 14px;cursor:pointer;border:2px solid #5A463C;border-radius:var(--wob);color:#3A2A22;background:#FFFDF6;box-shadow:2px 3px 0 rgba(90,70,60,.22)}
+.wzc button.on{background:repeating-linear-gradient(135deg,#FFC45E 0 3px,#FFDFA0 3px 6px)}
+.wzc button.get{background:repeating-linear-gradient(135deg,#B9E8C9 0 3px,#E2F6E8 3px 6px)}
+.wzc button:disabled{opacity:.5;box-shadow:none}
+.wzd{width:100%;max-width:350px;text-align:left;color:var(--ink);font-size:14.5px;line-height:1.7}
+.wzd h4{margin:14px 0 2px;font-weight:400;font-size:16px;color:#B65E00;border-bottom:1.5px dashed rgba(90,70,60,.4)}
+.wzd p{margin:4px 0;max-width:none;font-size:14.5px;text-align:left;text-wrap:pretty}
+.wzd svg{display:block;width:100%;height:auto;background:#FFFDF6;border:2px solid #5A463C;border-radius:10px;margin:6px 0 2px}
+.wzd .leg{font-size:12px;color:var(--sub)}
+.wzd dl{margin:4px 0;font-size:13px}.wzd dt{float:left;clear:left;width:6.2em;color:#3A2A22}.wzd dd{margin:0 0 4px 6.6em;color:var(--sub)}
+.wzd .box{background:#FFF3C9;border:1.5px solid rgba(90,70,60,.5);border-radius:10px;padding:6px 10px;margin-top:6px}
+.row2 .go.sub{font-size:13.5px;padding:9px 11px}
+.lgt{width:100%;max-width:350px;border-collapse:collapse;background:#FFFDF6;border:2px solid #5A463C;font-size:13.5px;color:var(--ink)}
+.lgt th{font-weight:400;font-size:11px;color:var(--sub);padding:4px 2px;border-bottom:1.5px solid #5A463C}
+.lgt td{padding:6px 2px;text-align:center;border-bottom:1px dashed rgba(90,70,60,.3)}
+.lgt .nm{text-align:left;padding-left:6px}
+.lgt tr.me td{background:#FFE9B0}
+.lgbox{width:100%;max-width:350px;text-align:left;font-size:13px;line-height:1.6;background:#FFFDF6;border:2px solid #5A463C;border-radius:var(--wob);padding:8px 12px;color:var(--ink)}
+.lgbox b{font-weight:400;color:#B65E00}
+.row2.main{gap:12px}
+.row2.main .go{width:150px;padding:10px 6px;font-size:20px;line-height:1.25}
+.row2.main .go small{display:block;font-family:var(--font-body);font-size:12px;line-height:1.35;margin-top:3px}
+button.go.off,button.go.off:active{background:#D9D4C8;color:#8E867B;border-color:#A39B8E;box-shadow:none;transform:none;cursor:default}
+.cover::before{display:none!important}
+.plink{appearance:none;border:0;background:none;font:inherit;font-size:12px;color:var(--sub);text-decoration:underline;padding:6px 12px;cursor:pointer}
+button.dr.lk{background:#E9E4D8;color:#8E867B}
+.wzc.lk{background:#F1ECE1;border-style:dashed}.wzc.lk h3 em{color:#8E867B}
+.gq{font-family:var(--font-display);font-size:34px;color:var(--ink)}
+.pad{display:grid;grid-template-columns:repeat(3,76px);gap:8px}
+.pad button,.bt2 button{appearance:none;font:inherit;font-size:20px;min-height:52px;cursor:pointer;border:2px solid #5A463C;border-radius:var(--wob);color:#3A2A22;background:#FFFDF6;box-shadow:2px 3px 0 rgba(90,70,60,.22)}
+.pad button:active,.bt2 button:active{transform:translateY(2px);box-shadow:none}
+.bt2{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.bt2 button{font-size:14px;min-height:44px;padding:6px 14px}
+.bt2 button.get{background:repeating-linear-gradient(135deg,#B9E8C9 0 3px,#E2F6E8 3px 6px);font-size:17px;padding:8px 22px}
+.bt2 button:disabled{opacity:.55;box-shadow:none}
+.wzd.adult{font-family:"Zen Kaku Gothic New",sans-serif;font-size:14px}.wzd.adult p{font-size:14px}
+.wzd.adult .box b{font-size:22px;color:#B65E00}.wzd.adult ul{margin:6px 0;padding-left:1.2em}
+</style>
+
+<div class="stage" id="stage">
+  <canvas id="cv" width="780" height="1200" aria-label="バスケットの試合"></canvas>
+  <div class="hud" id="hud" hidden>
+    <div class="score" id="scorebox"><div class="a"><small>あお（きみ）</small><span id="sa">0</span></div><span class="sep">-</span><div class="b"><small>あか</small><span id="sb">0</span></div></div>
+    <div class="meta"><span id="poss">こうげき 1/6</span><br><b id="stars">★0</b>　<span id="words">ことば 0/9</span></div>
+  </div>
+  <div class="ask" id="ask" hidden><div class="q" id="askq"></div><div class="bar"><i id="askbar"></i></div><div class="tip" id="asktip"></div></div>
+  <button class="hey" id="hey" hidden>ヘイ！<small>ボールを よぶ</small></button>
+  <button class="wazab" id="waza" hidden></button>
+  <div class="hands" id="hands" hidden><button id="hl">ひだり手</button><button id="hr">みぎ手</button></div>
+  <div class="big" id="big"></div>
+  <div class="coach" id="coach"><div class="mk" id="cmk"></div><div id="ctx"></div></div>
+  <div class="cover" id="cover"></div>
+  <div id="err" hidden style="position:absolute;left:8px;right:8px;bottom:70px;background:#7a1c14;color:#fff;font-size:11px;border-radius:8px;padding:6px 8px;word-break:break-all"></div>
+</div>
+<script>
+// ===== ルール（DOM に触らない。node でも回せる） =====
+const W = 15, H = 14, B = { x: 7.5, y: 1.2 };
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const lerp = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+const unit = (a, b) => { const d = dist(a, b) || 1; return { x: (b.x - a.x) / d, y: (b.y - a.y) / d }; };
+// 線分 a→b に いちばん近い相手（a のうしろにいる相手は 数えない。skipNear: a から この距離の相手も数えない）
+function laneBlock(a, b, defs, skipNear = 0) {
+  const L = dist(a, b), u = unit(a, b); let best = { d: 99, i: -1 };
+  defs.forEach((p, i) => {
+    if (skipNear && dist(p, a) < skipNear) return;
+    const t = (p.x - a.x) * u.x + (p.y - a.y) * u.y;
+    if (t < 0.05) return;
+    const q = t > L ? b : { x: a.x + u.x * t, y: a.y + u.y * t };
+    const d = dist(p, q); if (d < best.d) best = { d, i };
+  });
+  return best;
+}
+function nearest(p, list, skip = -1) {
+  let best = { d: 99, i: -1 };
+  list.forEach((q, i) => { if (i === skip) return; const d = dist(p, q); if (d < best.d) best = { d, i }; });
+  return best;
+}
+function shotQ(p, defs) {
+  const d = dist(p, B);
+  const base = d < 1.6 ? .75 : d < 3 ? .55 : d < 4.5 ? .4 : d < 6 ? .28 : d < 7.5 ? .18 : .1;
+  const c = nearest(p, defs).d;
+  const f = c < 1 ? .2 : c < 2 ? .6 : c < 3 ? .85 : 1;
+  return base * f;
+}
+function driveQ(p, defs) {
+  const lb = laneBlock(p, B, defs);
+  if (lb.d < 1.0) return { v: 0, by: lb.i };
+  let v = lb.d < 1.6 ? .35 : .65;
+  if (dist(p, B) > 8) v *= .8;
+  return { v, by: lb.d < 1.6 ? lb.i : -1 };
+}
+function spotValue(p, defs) {
+  const s = shotQ(p, defs), dr = driveQ(p, defs);
+  return dr.v > s ? { v: dr.v, how: "drive" } : { v: s, how: "shot" };
+}
+// パス：パスを出す人の すぐそば(1.3m)の相手は まわりこめるので 数えない。
+// もらう人に ついている相手（1.2m 以内）は、パスの線の 真上（0.4m）に いる時だけ とる
+function passEval(from, to, defs, chaser = -1) {
+  const len = dist(from, to), u = unit(from, to); let lane = { d: 99, i: -1 }, steal = -1;
+  defs.forEach((p, i) => {
+    if (i === chaser || dist(p, from) < 2.2) return;
+    const t = (p.x - from.x) * u.x + (p.y - from.y) * u.y; if (t < .05) return;
+    const q = t > len ? to : { x: from.x + u.x * t, y: from.y + u.y * t }, d = dist(p, q);
+    const nearR = dist(p, to) < 1.2;
+    if (d < (nearR ? .55 : .7)) { if (steal < 0) steal = i; return; }
+    if (!nearR && d < lane.d) lane = { d, i };
+  });
+  if (steal >= 0) return { v: -.4, steal, lane };
+  const open = nearest(to, defs).d;
+  const sv = spotValue(to, defs);
+  let v = Math.max(sv.v, open > 2.5 ? .15 : 0);
+  if (lane.d < 1.0) v *= .3; else if (lane.d < 1.3) v *= .5; // パスの 道の すぐ よこに あいてが いる（手を 出されると とられる）
+  if (open < 1.5) v *= .3; else if (open < 2) v *= .6; // あいてが そばに いる なかまは フリーでは ない
+  if (len > 8) v *= .8;
+  return { v, lane, open, how: sv.v >= .15 || open <= 2.5 ? sv.how : "keep" };
+}
+// ドリブル：守っている相手は 移動の7割 ついてくる
+function dribbleEval(from, to, defs, guard) {
+  const lb = laneBlock(from, to, defs);
+  if (lb.d < 0.8) return { v: -.3, blocked: lb.i };
+  const nd = defs.map((p, i) => i === guard ? lerp(p, to, Math.min(1, dist(from, to) * .7 / Math.max(.1, dist(p, to)))) : p);
+  const s = shotQ(to, nd);
+  return { v: s, defs2: nd };
+}
+const driveTarget = () => ({ x: B.x, y: B.y + 0.9 });
+// ぬく：目の前の あいてを よけて、あいている 側から ゴールへ（ほかの あいてが 道に いない 側だけ）
+function driveAround(sc) {
+  const h = sc.att[sc.holder], g = sc.def[sc.holder], others = sc.def.map((p, i) => i === sc.holder ? { x: -99, y: -99 } : p);
+  const u = unit(h, B), r = { x: -u.y, y: u.x }; let best = { v: 0 }, alt = null;
+  if (dist(g, h) > 3.5) return best;
+  const gl = (g.x - h.x) * r.x + (g.y - h.y) * r.y; // あいてが どちらに よって いるか（＋：右）。よって いない 側が ぬきやすい
+  for (const sd of [-1, 1]) {
+    const w = { x: g.x + r.x * 1.7 * sd, y: g.y + r.y * 1.7 * sd }; if (!inCourt(w)) continue;
+    const m = Math.min(laneBlock(h, w, others).d, laneBlock(w, driveTarget(), others).d);
+    let v = m < 1.0 ? 0 : m < 1.7 ? .28 : .45; if (dist(h, B) > 8) v *= .9;
+    const c = { v, w, sd, m, pri: v + (sd * gl < -.1 ? .03 : 0) + Math.min(m, 4) * .001 };
+    if (v > 0) { if (!best.w || c.pri > best.pri) { alt = best.w ? best : null; best = c; } else alt = c; }
+  }
+  if (alt) best.alt = alt;
+  return best;
+}
+function offenseOptions(sc, around = false) {
+  const h = sc.att[sc.holder], defs = sc.def, opts = [];
+  opts.push({ kind: "shoot", v: shotQ(h, defs) });
+  const dr = dribbleEval(h, driveTarget(), defs, sc.holder), ar = around ? driveAround(sc) : { v: 0 };
+  if (ar.v > dr.v) opts.push({ kind: "drive", v: ar.v, w: ar.w, sd: ar.sd, alt: ar.alt }); else opts.push({ kind: "drive", v: dr.v, blocked: dr.blocked });
+  sc.att.forEach((p, i) => { if (i !== sc.holder) { const o = { kind: "pass", to: i, ...passEval(h, p, defs) }; if (around && o.v > 0 && dist(h, p) > 9.5) o.v *= .5; opts.push(o); } }); // コートの はしから はしの パスは 子どもには むずかしい
+  return opts;
+}
+// うごき：自分の相手は 走った きょりの 8割 ついてくる（行き先は「自分と ゴールの あいだ」）。
+// 遠くへ 走るほど あく、という 見え方に しない。なかま・ボールマンの じゃまを する 場所は 下げる
+function moveEval(sc, k, t) {
+  const me = sc.att[k], h = sc.att[sc.holder], L = dist(me, t), d0 = sc.def[k];
+  const gs = lerp(t, B, Math.min(.5, 1.0 / Math.max(.1, dist(t, B)))), dg = dist(d0, gs);
+  const nd = L < .05 ? d0 : lerp(d0, gs, Math.min(1, (L * .8) / Math.max(.1, dg)));
+  const defs = sc.def.map((p, i) => i === k ? nd : p);
+  const pe = passEval(h, t, defs, k);
+  const mates = sc.att.filter((_, i) => i !== k), crowd = nearest(t, mates).d, dB = dist(t, B), sep = dist(nd, t);
+  // 場所の よさ ＝ とどく きょり × パスが 通る × なかまと かさならない × あいてとの はなれ具合
+  let v = pe.v < 0 ? -.4 : (dB < 3.2 ? 1 : dB < 4.5 ? .85 : dB < 6 ? .6 : dB < 7 ? .3 : .1), spoil = false;
+  if (v > 0) {
+    if (pe.lane.d < 1.3) v *= .5;
+    if (dist(h, t) > 8) v *= .7;
+    v *= crowd < 2 ? .25 : crowd < 3 ? .5 : 1;
+    v *= sep < 1.2 ? .45 : sep < 2 ? .7 : sep < 3 ? .9 : 1;
+    // ボールマンの ドリブルの 道を、自分か 自分の あいてが ふさぐ
+    const others = sc.def.map((p, i) => i === k ? { x: -99, y: -99 } : p);
+    if (driveQ(h, others).v > 0 && (laneBlock(h, B, [nd]).d < 1.3 || laneBlock(h, B, [t]).d < 1.0) && dB > 2.2) { v *= .4; spoil = true; }
+    v -= .012 * L;
+  }
+  return { v, pe, crowd, defs, spoil, sep };
+}
+function inCourt(p) { return p.x > .3 && p.x < W - .3 && p.y > .35 && p.y < H - .3; }
+function moveBest(sc, k) {
+  const cells = []; let best = null;
+  for (let x = .5; x < W; x += .5) for (let y = .5; y < H - .2; y += .5) {
+    const t = { x, y }; if (dist(t, sc.att[k]) > 6.5) continue;
+    if (dist(t, B) < .8) continue;
+    const e = moveEval(sc, k, t); cells.push({ t, v: e.v });
+    if (!best || e.v > best.v) best = { t, v: e.v };
+  }
+  return { best, cells };
+}
+// まもり：あるべき位置
+function idealDef(sc, i) {
+  const m = sc.att[i], ball = sc.att[sc.holder];
+  if (i === sc.holder) return lerp(m, B, Math.min(.5, 1.1 / dist(m, B)));
+  const db = dist(m, ball);
+  if (dist(m, B) < 3.2) return lerp(m, ball, Math.min(.35, .8 / db)); // ゴール下：ボール側に前へ
+  if (db < 6.5) { const p = lerp(m, ball, .25); return lerp(p, B, .12); } // 1つ先：パスコースに手
+  // ボールが 遠い時：自分の あいてから 大きく はなれない（3m まで）。コートの まん中の線は こえない
+  let p = { x: m.x * .6 + ball.x * .1 + B.x * .3, y: m.y * .6 + ball.y * .1 + B.y * .3 };
+  if ((m.x - B.x) * (p.x - B.x) < 0) p.x = B.x;
+  const dp = dist(p, m); if (dp > 3) p = lerp(m, p, 3 / dp);
+  return p;
+}
+function defenseEval(sc) {
+  const ball = sc.att[sc.holder], defs = sc.def, rep = [];
+  defs.forEach((d, i) => {
+    const ideal = idealDef(sc, i), off = dist(d, ideal);
+    const m = sc.att[i];
+    const role = i === sc.holder ? "onball" : dist(m, B) < 3.2 ? "post" : dist(m, ball) < 6.5 ? "deny" : "help";
+    rep.push({ i, ideal, off, role, ok: off < 0.9 ? 2 : off < 1.6 ? 1 : 0 });
+  });
+  // もし ぬかれたら：ボールマンの相手を のぞいて ドライブの道を見る
+  const others = defs.map((p, i) => i === sc.holder ? { x: -99, y: -99 } : p);
+  const help = laneBlock(ball, B, others);
+  const onb = dist(defs[sc.holder], ball);
+  const between = dist(defs[sc.holder], B) < dist(ball, B);
+  const passes = sc.att.map((p, i) => i === sc.holder ? null : { i, ...passEval(ball, p, defs) }).filter(Boolean);
+  const bestPass = passes.reduce((a, b) => b.v > a.v ? b : a);
+  return { rep, help, onb, between, bestPass, passes };
+}
+
+
+
+// ===== わざ集め：★を ためて わざを もらい、2つまで セットして 試合で 使う =====
+const WAZA = {
+  leg: { name: "レッグスルー", cost: 0, type: "ドリブルの わざ", one: "ボールを 自分の 足の あいだに 通して、つく手を 右と 左で 入れかえる。" },
+  fake: { name: "シュートフェイク", cost: 20, type: "ボールを もった時の わざ", one: "シュートを うつ「ふり」だけ して、あいてを とばせる。" },
+  bd: { name: "バックドア", cost: 40, type: "ボールが ない時の わざ", one: "あいての うしろへ 走りこんで、ゴールの 下で パスを もらう。" },
+};
+const WZ_MAX = 2, WZ_KEY = "courteye.pencil.v1";
+const WZ = {
+  d: { bank: 0, own: ["leg"], eq: ["leg"] },
+  load() { try { const o = JSON.parse(localStorage.getItem(WZ_KEY) || "null"); if (o && Array.isArray(o.own) && Array.isArray(o.eq)) this.d = { bank: Math.max(0, o.bank | 0), own: o.own.filter(k => WAZA[k]), eq: o.eq.filter(k => WAZA[k]).slice(0, WZ_MAX), lg: o.lg && typeof o.lg === "object" ? o.lg : null, full: !!o.full, mute: !!o.mute, slow: !!o.slow, nolook: !!o.nolook, played: Math.max(0, o.played | 0), ep: Number(o.ep) || 0 }; } catch (e) {} if (!this.d.own.includes("leg")) this.d.own.unshift("leg"); },
+  save() { const raw = JSON.stringify(this.d); try { localStorage.setItem(WZ_KEY, raw); } catch (e) {}
+    // アプリの 中では 写しを アプリ側にも 持つ（WebView の 保存が 消えても 戻せる）
+    try { if (window.__PITATTO_NATIVE && window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({ type: "backup", data: raw })); } catch (e) {} },
+  on(k) { return this.d.eq.includes(k); },
+};
+WZ.load();
+
+// --- 試合の中 ---
+function wazaNow() {
+  if (!S || S.mode !== "freeze" || !S.fz || S.drill || S.review || blend < .9) return null;
+  return S.fz.kind === "ball" && WZ.on("fake") ? "fake" : S.fz.kind === "move" && WZ.on("bd") ? "bd" : null;
+}
+function wazaUse() { const k = wazaNow(); if (k === "fake") doFake(); else if (k === "bd") doBackdoor(); }
+function doFake() {
+  const sc = S.fz.sc, h = sc.att[YOU], gd = dist(h, sc.def[YOU]), hd = dist(h, B);
+  sfx.pick(); S.firstTip = false; S.actions++; leaveFreeze(); att[YOU].up = .7;
+  if (hd >= 6.2 || gd >= 2.2) {
+    judge(0); S.holdT = -.5; S.clock -= 1;
+    coach(0, hd >= 6.2 ? "フェイクしたけど、あいては とばなかった。ここは 遠くて「うたない」と 分かるからだよ。ゴールに 近い時に 使おう" : "あいてが はなれて いるから、フェイクは いらないよ。そのまま うつか、前へ すすもう", 7000);
+    return;
+  }
+  judge(2); S.stars++; hud(); const g = def[YOU]; g.jumpT = JUMP; g.up = 1.0; g.lag = 1.6; S.holdT = -2;
+  big("シュートフェイク！", "あいてが とんだ！", 1300);
+  const others = sc.def.map((p, k) => k === YOU ? { x: -99, y: -99 } : p), t = driveTarget(), da = driveAround(sc);
+  const plan = da.w && da.v > 0 ? { t: da.w, next: { t, layup: true } } : laneBlock(h, t, others).d >= .9 ? { t, layup: true } : null;
+  coach(2, plan ? "ナイス！ とんだ あいては すぐに 動けない。その よこを ぬいて ゴールへ！" : "ナイス！ あいてが おりて くる 前に、おちついて シュート！", 6500);
+  S.wz = { kind: "fake", t: .55, plan };
+}
+function doBackdoor() {
+  const sc = S.fz.sc, me = sc.att[YOU], d = sc.def[YOU], h = sc.att[sc.holder];
+  // あいてが パスの 道に 出て いて、きみと ゴールの あいだに いない時だけ 決まる
+  const over = laneBlock(h, me, [d]).d < 1.1 && laneBlock(me, B, [d]).d > 1.0, room = dist(me, B) > 3.2;
+  const tryS = sx => { const spot = { x: B.x + sx, y: B.y + 1.0 }; return { spot, pe: passEval(h, spot, sc.def.map((p, i) => i === YOU ? lerp(p, spot, .35) : p), YOU), helpD: nearest(spot, sc.def, YOU).d, free: laneBlock(me, spot, [d]).d > .9 }; };
+  const s0 = me.x >= B.x ? 1 : -1, c1 = tryS(s0), c2 = tryS(-s0), okS = c => c.free && c.pe.v >= 0 && c.helpD > 1.5, c = okS(c1) || !okS(c2) ? c1 : c2, { spot, pe, helpD } = c;
+  sfx.pick(); S.firstTip = false; leaveFreeze();
+  if (!(over && room && okS(c))) {
+    judge(0); S.holdT = 1.0;
+    coach(0, !room ? "もう ゴールの 近くに いるから、うしろへ 走る 場所が ないよ" : !over || !c.free ? "あいては きみと ゴールの あいだに 立って いる。うしろは あいて いないよ。あいてが パスの 道まで 前に 出て きた時に 使おう" : pe.v < 0 ? `走っても、パスの 道に 赤${NUM[pe.steal]}が いて ボールが とどかないよ` : "ゴールの 下に べつの あいてが いる。いまは あいて いないよ", 7000);
+    return;
+  }
+  judge(2); S.stars++; stamp("ugoku"); S.run = spot; att[YOU].sp = 5.6; def[YOU].lag = 1.5; S.holdT = 0;
+  big("バックドア！", "あいての うしろへ 走れ！", 1300); coach(2, "ナイス！ あいてが 前に 出た すきに、うしろ（ゴールがわ）を とった！", 6500);
+  S.wz = { kind: "bd", t: .6, from: S.holder };
+}
+function wazaStep(dt) {
+  const w = S.wz; if (!w || S.mode !== "live") return; w.t -= dt; if (w.t > 0) return; S.wz = null;
+  if (w.kind === "fake") { if (S.holder !== YOU) return; if (w.plan) { S.drib = { who: YOU, ...w.plan }; att[YOU].sp = 5.2; } else shoot(YOU, false, .35); }
+  else if (S.holder === w.from && S.holder > 0 && !ball.fly) { S.actions++; passBall(S.holder, { att: YOU }); big("パスが 来た！", "ゴールは 目の前！", 1100); }
+}
+function wazaEarn() {
+  WZ.d.bank += S.stars; WZ.save(); const can = PAID() && Object.keys(WAZA).some(k => !WZ.d.own.includes(k) && WZ.d.bank >= WAZA[k].cost);
+  return `<p style="font-size:13px">ためた ★ は ぜんぶで ${WZ.d.bank}こ</p><button class="go sub" id="towaza">${can ? "あたらしい わざを もらえるよ！" : "わざを 見る"}</button>`;
+}
+
+// --- わざの 画面 ---
+function wazaBack() { $("cover").classList.remove("long"); title(); }
+function wazaMenu(note) {
+  S = { mode: "idle", holder: YOU }; const c = $("cover"); c.hidden = false; c.classList.add("long"); $("hud").hidden = true; c.scrollTop = 0;
+  c.innerHTML = `<div class="wzh">わざ</div><p style="font-size:13px;max-width:none">しあいで ★を ためると わざを もらえる。<br>しあいで 使えるのは、セットした ${WZ_MAX}つまで。<br><b style="font-size:17px;color:#B65E00;font-weight:400">いま ★${WZ.d.bank}</b></p>
+    ${typeof note === "string" ? `<p style="font-size:13px;color:#B8402F">${note}</p>` : ""}
+    ${Object.keys(WAZA).map(k => { const w = WAZA[k], own = WZ.d.own.includes(k), on = WZ.on(k), lack = w.cost - WZ.d.bank;
+      // 無料のとき、まだ もらって いない わざは「かぎ」。★は ためられる（ひらいたら すぐ もらえる）が、ボタンは「おうちの 方へ」（B-1）
+      const lk = !own && !PAID();
+      return `<div class="wzc${lk ? " lk" : ""}"><h3>${w.name}<em>${lk ? "かぎ・" : ""}${w.type}</em></h3><div class="one">${w.one}</div><div class="bt">
+        ${own ? `<button class="${on ? "on" : ""}" data-eq="${k}">${on ? "✓ セット中（はずす）" : "セットする"}</button>` : lk ? `<button data-lock="${k}">かぎ（おうちの 方へ）</button>` : lack <= 0 ? `<button class="get" data-get="${k}">★${w.cost}で もらう</button>` : `<button disabled>あと ★${lack}</button>`}
+        <button data-info="${k}">くわしい 説明</button></div></div>`; }).join("")}
+    <button class="go sub" id="wzback">もどる</button>`;
+  c.querySelectorAll("[data-info]").forEach(b => b.onclick = () => wazaInfo(b.dataset.info));
+  c.querySelectorAll("[data-eq]").forEach(b => b.onclick = () => { const k = b.dataset.eq, i = WZ.d.eq.indexOf(k);
+    if (i >= 0) WZ.d.eq.splice(i, 1); else if (WZ.d.eq.length >= WZ_MAX) return wazaMenu(`セットできるのは ${WZ_MAX}つまで。先に どれかを はずしてね`); else WZ.d.eq.push(k);
+    WZ.save(); wazaMenu(); });
+  c.querySelectorAll("[data-lock]").forEach(b => b.onclick = () => lockScreen("わざ「" + WAZA[b.dataset.lock].name + "」"));
+  c.querySelectorAll("[data-get]").forEach(b => b.onclick = () => { const k = b.dataset.get; if (WZ.d.bank < WAZA[k].cost) return; if (!PAID()) return lockScreen("わざ「" + WAZA[k].name + "」");
+    WZ.d.bank -= WAZA[k].cost; WZ.d.own.push(k); if (WZ.d.eq.length < WZ_MAX) WZ.d.eq.push(k); WZ.save(); sfx.score(); wazaInfo(k, true); });
+  $("wzback").onclick = wazaBack;
+}
+const ARW = (id, col) => `<marker id="${id}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${col}"/></marker>`;
+// 人の 絵（よこ・前から 見た すがた）
+function wzFig(x, y, col, arms, wide = 9) {
+  const a = arms === "up" ? `M${x} ${y - 40}L${x + 7} ${y - 58}M${x} ${y - 40}L${x - 5} ${y - 58}` : arms === "reach" ? `M${x} ${y - 40}L${x - 22} ${y - 36}M${x} ${y - 40}L${x - 14} ${y - 26}` : `M${x} ${y - 40}L${x + 12} ${y - 24}M${x} ${y - 40}L${x - 12} ${y - 24}`;
+  return `<g stroke="#5A463C" stroke-width="3" stroke-linecap="round" fill="none"><path d="M${x} ${y - 44}L${x} ${y - 20}L${x - wide} ${y}M${x} ${y - 20}L${x + wide} ${y}${a}"/><circle cx="${x}" cy="${y - 54}" r="10" fill="${col}"/></g>`;
+}
+const WZ_C = { you: "#F5A21E", foe: "#E2685C", mate: "#6FA3E8", ball: "#E8792B" };
+const WZ_TX = 'font-family="Yusei Magic,sans-serif" fill="#3A2A22"';
+const WZ_SVG = {
+  leg: `<svg viewBox="0 0 300 180" role="img" aria-label="レッグスルーの 図"><defs>${ARW("al", "#B65E00")}</defs>
+    <line x1="10" y1="150" x2="290" y2="150" stroke="#5A463C" stroke-width="1.5" stroke-dasharray="2 5"/>
+    <g stroke="#5A463C" stroke-width="3.5" stroke-linecap="round" fill="none"><path d="M140 66L140 104L112 150M140 104L168 150M140 72L172 98M140 72L108 98"/><circle cx="140" cy="52" r="13" fill="${WZ_C.you}"/></g>
+    ${wzFig(268, 150, WZ_C.foe, "reach")}
+    <circle cx="180" cy="110" r="9" fill="${WZ_C.ball}" stroke="#5A463C" stroke-width="2"/><circle cx="100" cy="110" r="9" fill="none" stroke="#5A463C" stroke-width="2" stroke-dasharray="3 3"/>
+    <path d="M173 118Q156 140 140 144Q124 140 108 119" fill="none" stroke="#B65E00" stroke-width="3" stroke-dasharray="6 5" marker-end="url(#al)"/>
+    <text x="140" y="26" text-anchor="middle" font-size="13" ${WZ_TX}>きみ</text><text x="268" y="74" text-anchor="middle" font-size="13" ${WZ_TX}>あいて</text>
+    <text x="194" y="100" font-size="15" ${WZ_TX}>①</text><text x="86" y="100" text-anchor="end" font-size="15" ${WZ_TX}>②</text>
+    <text x="14" y="170" font-size="11" ${WZ_TX}>足の あいだで 1回 はずませる</text>
+    <text x="186" y="170" font-size="11" fill="#B8402F" font-family="Yusei Magic,sans-serif">この足が かべに なる</text><path d="M196 158L172 142" stroke="#B8402F" stroke-width="1.5" fill="none"/></svg>`,
+  fake: `<svg viewBox="0 0 300 180" role="img" aria-label="シュートフェイクの 図"><defs>${ARW("af", "#B65E00")}${ARW("af2", "#B8402F")}</defs>
+    <line x1="150" y1="8" x2="150" y2="172" stroke="#5A463C" stroke-width="1.5" stroke-dasharray="3 5"/>
+    <line x1="8" y1="150" x2="292" y2="150" stroke="#5A463C" stroke-width="1.5" stroke-dasharray="2 5"/>
+    <text x="12" y="22" font-size="13" ${WZ_TX}>① うつ ふりを する</text><text x="160" y="22" font-size="13" ${WZ_TX}>② とんだ よこを ぬく</text>
+    ${wzFig(52, 150, WZ_C.you, "up")}<circle cx="54" cy="82" r="9" fill="${WZ_C.ball}" stroke="#5A463C" stroke-width="2"/>
+    <path d="M30 112L30 84" stroke="#B65E00" stroke-width="3" fill="none" marker-end="url(#af)"/>
+    ${wzFig(108, 150, WZ_C.foe, "side")}<text x="112" y="76" text-anchor="middle" font-size="12" ${WZ_TX}>「うつ！」</text>
+    <text x="76" y="170" text-anchor="middle" font-size="10.5" ${WZ_TX}>足は ゆかに つけたまま</text>
+    ${wzFig(222, 118, WZ_C.foe, "up")}<path d="M264 146L264 114" stroke="#B8402F" stroke-width="3" fill="none" marker-end="url(#af2)"/><text x="264" y="104" text-anchor="middle" font-size="11" fill="#B8402F" font-family="Yusei Magic,sans-serif">とんだ</text>
+    ${wzFig(176, 150, WZ_C.you, "side")}<circle cx="192" cy="134" r="8" fill="${WZ_C.ball}" stroke="#5A463C" stroke-width="2"/>
+    <path d="M196 160Q236 174 284 160" stroke="#B65E00" stroke-width="3" fill="none" stroke-dasharray="1 0" marker-end="url(#af)"/></svg>`,
+  bd: `<svg viewBox="0 0 300 210" role="img" aria-label="バックドアの 図"><defs>${ARW("ab", "#C97400")}${ARW("ab2", "#3F78C9")}</defs>
+    <rect x="8" y="12" width="284" height="190" fill="none" stroke="#5A463C" stroke-width="2"/><rect x="116" y="12" width="68" height="76" fill="rgba(245,162,30,.12)" stroke="#5A463C" stroke-width="1.5"/>
+    <line x1="134" y1="20" x2="166" y2="20" stroke="#5A463C" stroke-width="3"/><circle cx="150" cy="29" r="7" fill="none" stroke="#D8463A" stroke-width="2.5"/><text x="150" y="52" text-anchor="middle" font-size="11" ${WZ_TX}>ゴール</text>
+    <line x1="150" y1="172" x2="244" y2="112" stroke="#8A776A" stroke-width="2" stroke-dasharray="3 5"/>
+    <path d="M240 100Q214 60 176 40" fill="none" stroke="#C97400" stroke-width="3.5" marker-end="url(#ab)"/>
+    <path d="M152 160Q150 100 166 52" fill="none" stroke="#3F78C9" stroke-width="3" stroke-dasharray="6 5" marker-end="url(#ab2)"/>
+    <circle cx="150" cy="174" r="12" fill="${WZ_C.mate}" stroke="#5A463C" stroke-width="2"/><circle cx="165" cy="166" r="6" fill="${WZ_C.ball}" stroke="#5A463C" stroke-width="1.5"/>
+    <circle cx="248" cy="110" r="12" fill="${WZ_C.you}" stroke="#5A463C" stroke-width="2"/><circle cx="208" cy="135" r="12" fill="${WZ_C.foe}" stroke="#5A463C" stroke-width="2"/>
+    <text x="248" y="114" text-anchor="middle" font-size="11" ${WZ_TX}>4</text><text x="266" y="100" font-size="12" ${WZ_TX}>きみ</text>
+    <text x="150" y="198" text-anchor="middle" font-size="11" ${WZ_TX}>なかま（ボール）</text>
+    <text x="236" y="166" text-anchor="middle" font-size="10.5" fill="#B8402F" font-family="Yusei Magic,sans-serif">あいてが 前に 出て きた</text>
+    <text x="196" y="30" font-size="11" ${WZ_TX}>① うしろへ 走る</text><text x="62" y="110" font-size="11" ${WZ_TX}>② パス</text></svg>`,
+};
+const WZ_LEG = { leg: "① いま ついて いる手（あいてに 近い）から、② あいてから 遠い手へ。<br>オレンジ＝きみ　赤＝あいて　点線の やじるし＝ボールの 動き（前から 見た 図）", fake: "あいては「うつ！」と 思って とぶ。おりて くるまで 動けない。<br>オレンジ＝きみ　赤＝あいて（よこから 見た 図）", bd: "うすい 点線＝あいてが ふさいで いる パスの 道。<br>オレンジ＝きみ　赤＝あいて　青＝なかま　太い線＝走る　点線＝パス（上から 見た 図）" };
+const WZ_DOC = {
+  leg: [
+    ["どんな わざ？", "ドリブル（ボールを ゆかに つきながら すすむ こと）の とちゅうで、ボールを 自分の 足の あいだに 1回 はずませて、つく手を 右手と 左手で 入れかえる わざ。"],
+    ["なぜ 使うの？", "ドリブルは、あいてから 遠い ほうの 手で つくのが きほん。遠い手なら、あいてが 手を のばしても ボールに とどかないから。<br>でも あいてが 動くと、「遠い手」が 右から 左に かわる ことが ある。その時に 体の 前で ボールを うつすと、ボールが あいての 目の前を 通るので、とられやすい。<br>足の あいだを 通せば、自分の 足が かべに なって、ボールを かくしたまま 手を かえられる。"],
+    ["いつ 使う？", "あいてが すぐ 近く（うでを のばせば とどく くらい）に いて、つく手を かえたい時。<br>あいてが 遠い時は、ふつうに 体の 前で かえて だいじょうぶ（フロントチェンジ と 言う）。"],
+    ["このゲームでは", "ドリブルを えらぶと「どっちの 手で つく？」と きかれる。あいてが 近い時に、いまと ぎゃくの 手（あいてから 遠い手）を えらぶと レッグスルーに なる。あいてが いつもより 長く おくれて、★も 1こ 多く もらえる。<br>セットして いない時は フロントチェンジに なり、あいては あまり おくれない。"],
+    ["ほんものの 練習では", "まず 止まったまま、足を 前と うしろに ひらいて、あいだに ボールを 1回 通す ところから。できたら 下を 見ないで。その次に 歩きながら。"],
+  ],
+  fake: [
+    ["どんな わざ？", "シュートを うつ「ふり」だけ して、うたない わざ。ボールを おでこの 前まで すばやく 上げて、ピタッと 止める。"],
+    ["なぜ 使うの？", "まもる人は シュートを 止めたいので、「うつ！」と 思ったら 手を 上げて とびあがる。<br>とんだ人は、ゆかに おりて くるまで 動けない。その あいだに、よこを ドリブルで ぬいたり、じゃまされずに シュートを うったり できる。"],
+    ["いつ 使う？", "ゴールに 近い 場所（シュートが とどく ところ）で、あいてが 目の前に いる時。<br>ゴールから 遠いと、あいては「ここからは うたない」と 分かるので とばない。<br>あいてが はなれて いる時は、フェイクは いらない。そのまま うつ ほうが いい。"],
+    ["このゲームでは", "きみが ボールを もって 時間が 止まった時、左下に「わざ シュートフェイク」の ボタンが 出る。おすと フェイクを する。<br>うまく いくと あいてが とんで、あいている 道が あれば ゴールへ、なければ その場で 入りやすい シュートを うつ。<br>遠すぎる時・あいてが はなれて いる時は、何も おきずに 時間だけ へる。"],
+    ["ほんものの 練習では", "ひざを まげたまま、ボールだけを 上げる。自分の 足は ゆかから はなさない。自分が とんで しまうと、ボールを もったまま おりた時に トラベリング（歩きすぎの はんそく）に なる。<br>もう1つ。ドリブルを 1回 やめた あとは、もう1回 つく ことは できない（ダブルドリブル）。フェイクから ぬきたい時は、ドリブルを はじめる 前に 使おう。"],
+  ],
+  bd: [
+    ["どんな わざ？", "自分が ボールを もって いない時に、自分に ついて いる あいての うしろ（ゴールに 近い ほう）へ 走りこんで、ゴールの 下で パスを もらう わざ。「うらを とる」とも 言う。"],
+    ["なぜ 使うの？", "まもる人は ふつう、きみと ゴールの あいだに 立つ。<br>でも、きみへの パスを とって やろうと して、きみと ボールの あいだ（パスの 道）まで 前に 出て くる ことが ある。<br>その時、あいての うしろ＝ゴールの 近くは、だれも いなく なる。そこへ 走れば、あいては ふり向いて 追いかける ことに なり、まにあわない。"],
+    ["いつ 使う？", "自分の あいてが、きみと ボールの あいだ（パスの 道）まで 出て きて、きみと ゴールの あいだに いない時だけ。<br>あいてが ちゃんと きみと ゴールの あいだに 立って いる時は、走っても そのまま ついて こられる。<br>ゴールの 下に べつの あいてが いる時も、うまく いかない。"],
+    ["このゲームでは", "なかまが ボールを もって 時間が 止まった時、左下に「わざ バックドア」の ボタンが 出る。上からの 図で、黄色い わの あいて（きみの あいて）が、きみと ボールの あいだに 出て いて、きみと ゴールの あいだが あいて いたら チャンス。<br>おすと ゴールの 下へ 走り、なかまから パスが 来る。あとは シュートを えらぶだけ。<br>あいてが きみと ゴールの あいだに いる時に おすと、走らずに △ に なる。"],
+    ["ほんものの 練習では", "1歩だけ ボールの ほうへ 出る ふりを してから、きゅうに ゴールへ 走ると、あいてが ついて これない。パスを 出す なかまと 目を 合わせて おくのも 大事。パスを 出す人は、走る人の 少し 前（ゴールがわ）に 出す。"],
+  ],
+};
+function wazaInfo(k, got) {
+  const w = WAZA[k], c = $("cover"); c.hidden = false; c.classList.add("long");
+  c.innerHTML = `${got ? `<p style="font-size:14px;color:#1E6B49">あたらしい わざを もらった！${WZ.on(k) ? "（セットしたよ）" : `（セットは ${WZ_MAX}つまで。わざの 画面で 入れかえてね）`}</p>` : ""}<div class="wzh">${w.name}</div>
+    <div class="wzd"><p class="box">${w.one}</p>${WZ_SVG[k]}<div class="leg">${WZ_LEG[k]}</div>
+    ${WZ_DOC[k].map(s => `<h4>${s[0]}</h4><p>${s[1]}</p>`).join("")}
+    <h4>ことばの 意味</h4><dl><dt>ドリブル</dt><dd>ボールを ゆかに つきながら すすむ こと</dd><dt>パス</dt><dd>なかまに ボールを 投げて わたす こと</dd><dt>フリー</dt><dd>近くに あいてが いない こと</dd><dt>ゴールがわ</dt><dd>自分より ゴールに 近い ほう</dd><dt>あいて</dt><dd>きみを まもって いる 赤い チームの 人</dd></dl></div>
+    <button class="go sub" id="wzback">わざの 画面へ もどる</button>`;
+  c.scrollTop = 0; $("wzback").onclick = () => wazaMenu();
+}
+
+
+// ===== リーグ：6チームの そうあたり。リーグの 試合は 1日に 1つ =====
+// くせ（trait）は あいての まもり・シュートに 出る。メモを 読んで、どこを 見るか 考える
+const TEAMS = [
+  { name: "きみの チーム", col: "#3F78C9" },
+  { name: "かめさんズ", pow: 1, sp: 2.8, shot: -.05, memo: "足が ゆっくり。あいている よこを ドリブルで ぬきやすい。", look: "あいての よこが あいて いるか" },
+  { name: "ふくろうズ", pow: 2, watch: 2, shot: 0, memo: "ボールばかり 見て、自分の あいてを 見うしなう。", look: "なかまが フリーに なって いないか" },
+  { name: "うさぎーズ", pow: 3, over: 2, shot: .03, memo: "パスを とろうと 前に とび出して くる。うしろが あく。", look: "あいてが パスの 道に 出て きて いないか" },
+  { name: "くまさんズ", pow: 4, shot: .12, memo: "シュートが うまい。フリーで うたせると 入れられる。", look: "まもりで、自分の あいてから はなれすぎて いないか" },
+  { name: "はやぶさズ", pow: 5, sp: 3.7, few: 1, shot: .06, memo: "足が はやくて、まもりの すきが 少ない。", look: "いちばん いい なかまは だれか。あせらず さがそう" },
+];
+const LG_R = 5; let OPP = null;
+const LG = {
+  get d() { return WZ.d.lg; },
+  today() { const t = new Date(Date.now() + ((this.d && this.d.off) || 0) * 864e5); return `${t.getFullYear()}-${t.getMonth() + 1}-${t.getDate()}`; },
+  fresh(season, off) { return { season, round: 0, day: "", off: off || 0, tbl: TEAMS.map(() => [0, 0, 0, 0, 0]), log: [], cups: (this.d && this.d.cups) || 0 }; },
+  init() { const d = WZ.d.lg; if (!d || !Array.isArray(d.tbl) || d.tbl.length !== TEAMS.length) WZ.d.lg = this.fresh(1); else if (d.round >= LG_R && d.day !== this.today()) WZ.d.lg = this.fresh(d.season + 1, d.off); },
+  played() { return this.d.day === this.today(); },
+  over() { return this.d.round >= LG_R; },
+  oppIdx(r) { return 1 + r % 5; },
+  pairs(r) { const a = [1, 2, 3, 4, 5].map((_, i) => 1 + (i + r) % 5); return [[0, a[0]], [a[1], a[4]], [a[2], a[3]]]; },
+  rank() { return TEAMS.map((_, i) => i).sort((p, q) => { const a = this.d.tbl[p], b = this.d.tbl[q]; return (b[0] * 2 + b[1]) - (a[0] * 2 + a[1]) || (b[3] - b[4]) - (a[3] - a[4]) || b[3] - a[3] || p - q; }); },
+  add(i, f, a) { const t = this.d.tbl[i]; t[f > a ? 0 : f === a ? 1 : 2]++; t[3] += f; t[4] += a; },
+  // あいての 強さ：シーズンが すすむと 少しずつ 上がる
+  opp(i) { const t = TEAMS[i], up = Math.min(3, this.d.season - 1); return { ...t, idx: i, sp: (t.sp || 3.3) + up * .1, shot: (t.shot || 0) + up * .02 }; },
+  simScore(i) { const p = TEAMS[i].pow; let n = 0; for (let k = 0; k < 4; k++) if (Math.random() < .15 + p * .05) n++; return n * 2; },
+  record(a, b) {
+    const r = this.d.round, out = [];
+    this.pairs(r).forEach(([x, y]) => { const sx = x === 0 ? a : this.simScore(x), sy = x === 0 ? b : this.simScore(y); this.add(x, sx, sy); this.add(y, sy, sx); out.push([x, y, sx, sy]); });
+    this.d.log.push(out); this.d.round++; this.d.day = this.today();
+    const last = this.over(), pos = this.rank().indexOf(0) + 1; if (last && pos === 1) this.d.cups++;
+    WZ.save(); return { out, last, pos };
+  },
+};
+function leagueEnd(a, b) {
+  const opp = OPP, bonus = a > b ? 5 : a === b ? 2 : 0; S.stars += bonus; const r = LG.record(a, b); OPP = null;
+  return `<div class="lgbox"><b>リーグ戦　第${LG.d.round}せつ</b>　${opp.name}に ${a > b ? "かち" : a < b ? "まけ" : "ひきわけ"}${bonus ? `（ボーナス ★${bonus}）` : ""}<br>
+    ${r.out.slice(1).map(o => `${TEAMS[o[0]].name} ${o[2]}-${o[3]} ${TEAMS[o[1]].name}`).join("<br>")}<br>
+    <b>${r.last ? (r.pos === 1 ? "ゆうしょう！ おめでとう！" : `シーズン おわり。${r.pos}い でした`) : `いま ${r.pos}い`}</b>${r.last ? "　あしたから 次の シーズン" : "　つぎの 試合は あした"}</div>
+    <button class="go sub" id="tolg">リーグの 表を 見る</button>`;
+}
+function leagueMenu() {
+  LG.init(); const d = LG.d, c = $("cover"), rk = LG.rank(), played = LG.played(), fin = LG.over(), oi = LG.oppIdx(d.round), o = TEAMS[oi];
+  S = { mode: "idle", holder: YOU }; c.hidden = false; c.classList.add("long"); $("hud").hidden = true; c.scrollTop = 0;
+  const row = (i, n) => { const t = d.tbl[i]; return `<tr class="${i === 0 ? "me" : ""}"><td>${n + 1}</td><td class="nm">${TEAMS[i].name}</td><td>${t[0]}</td><td>${t[1]}</td><td>${t[2]}</td><td>${t[3] - t[4] > 0 ? "+" : ""}${t[3] - t[4]}</td></tr>`; };
+  const next = fin ? "" : `<div class="wzc"><h3>${played ? "あしたの あいて" : "きょうの あいて"}<em>第${d.round + 1}せつ / ${LG_R}</em></h3>
+      <div class="one"><b style="font-weight:400;font-size:18px">${o.name}</b><br>${o.memo}<br><span style="color:#1E6B49">見る ところ：${o.look}</span></div></div>`;
+  c.innerHTML = `<div class="wzh">リーグ</div><p style="font-size:13px;max-width:none">シーズン${d.season}　6チームの そうあたり（ぜんぶで ${LG_R}試合）${d.cups ? `<br>ゆうしょう ${d.cups}回` : ""}</p>
+    <table class="lgt"><tr><th></th><th class="nm">チーム</th><th>かち</th><th>わけ</th><th>まけ</th><th>とくしつ</th></tr>${rk.map(row).join("")}</table>
+    <p style="font-size:11.5px;color:var(--sub);max-width:none">とくしつ＝入れた 点 − 入れられた 点。かちの 数が 同じ時は これで くらべる</p>
+    ${next}
+    ${fin ? `<p style="font-size:14px;max-width:none">この シーズンは おわり。${rk[0] === 0 ? "ゆうしょう！" : `${rk.indexOf(0) + 1}い でした。`}<br>あしたから シーズン${d.season + 1}が はじまるよ。</p>`
+      : played ? `<p style="font-size:14px;max-width:none">きょうの リーグ戦は おわり。つづきは あした。<br>「いつでも 試合」と「れんしゅう」は 何回でも できるよ。</p>`
+      : lgLocked() ? `<div class="lgbox" style="text-align:center">${LOCK_SVG}<br>おためしの ${FREE_LG}試合が おわったよ。<br>つづきは「ぜんぶ ひらく」で あそべる。<br>おうちの 人に 見せてね。</div><button class="go sub" id="topar">おうちの 方へ</button>`
+      : `<button class="go" id="lgo">リーグ戦 かいし</button>${PAID() ? "" : `<p style="font-size:12px;color:var(--sub);max-width:none">おためし：あと ${Math.max(0, FREE_LG - d.round)}試合</p>`}`}
+    ${d.log.length ? `<div class="wzd"><h4>これまでの けっか</h4>${d.log.map((r, k) => `<p style="font-size:12.5px;line-height:1.5"><span style="color:#B65E00">第${k + 1}せつ</span><br>${r.map(o => `${TEAMS[o[0]].name} ${o[2]}-${o[3]} ${TEAMS[o[1]].name}`).join("<br>")}</p>`).join("")}</div>` : ""}
+    <button class="go sub" id="wzback">もどる</button>`;
+  $("wzback").onclick = wazaBack;
+  if ($("topar")) $("topar").onclick = () => parentGate(parentMenu);
+  if ($("lgo")) $("lgo").onclick = () => { unlockAudio(); c.classList.remove("long"); newMatch(true); };
+}
+
+
+// ===== 買い切りの 線引きと「おうちの方へ」 =====
+// 無料：いつでも試合・れんしゅう2つ・リーグ2試合（おためし）・わざ1つ　／　買い切り：リーグの つづき・わざ・のこりの れんしゅう
+// 子の 画面には 値段を 出さない。値段と 購入は 保護者の 確認の 奥だけ
+const FREE_DRILLS = ["ball", "tsuku"], FREE_LG = 2, PRICE = "¥700";
+const PAID = () => !!WZ.d.full;
+// ===== アプリ（native/）との やりとり =====
+// ブラウザでは NATIVE が false で、購入は 見本（お金は かからない）。アプリの 中では App Store の 買い切り（native/iap.js）
+const NATIVE = !!window.__PITATTO_NATIVE, SKU = "pitattobasket.full";
+let natSeq = 0, storePrice = null; const natWait = {};
+window.__pitattoReply = (id, r) => { const f = natWait[id]; delete natWait[id]; if (f) f(r); };
+const nat = (type, o) => new Promise(res => { if (!NATIVE || !window.ReactNativeWebView) return res(null); const id = ++natSeq; natWait[id] = res;
+  try { window.ReactNativeWebView.postMessage(JSON.stringify({ id, type, ...o })); } catch (e) { delete natWait[id]; res(null); } });
+// 答えを 待たない 頼み（振動・画面を つけたまま・音の オン／オフ）。ブラウザでは 何もしない
+const say = (type, o) => { try { if (NATIVE && window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({ type, ...o })); } catch (e) {} };
+// App Store の「課金の宣伝」を 押して 来た：子に そのまま 買わせず、タイトルに いれば 保護者の 関門を 開く
+window.__pitattoEvent = name => { try { const c = $("cover"); if (name === "promoted" && S && S.mode === "idle" && c && !c.hidden && !c.classList.contains("long")) parentGate(parentMenu); } catch (e) {} };
+// 評価の お願い：おうちの方への 画面を 開いたときだけ・リーグ戦を 5試合 遊んだあと・1回だけ（Apple の 窓。子の 画面には 出さない）
+const REVIEW_KEY = "pitatto.review.v1";
+function maybeReview() { try { if (!NATIVE || localStorage.getItem(REVIEW_KEY)) return; const d = WZ.d.lg; if ((WZ.d.played | 0) + (d ? (d.season - 1) * 5 + d.round : 0) < 5) return;
+  localStorage.setItem(REVIEW_KEY, "1"); setTimeout(() => nat("review"), 1200); } catch (e) {} }
+const ownsFull = r => !!(r && Array.isArray(r.owned) && r.owned.includes(SKU));
+// ほかの端末の 記録（iCloud）を 入れる。試合・れんしゅうの 途中では 入れない（タイトルに いる ときだけ。入れられなければ 次の 機会に）
+window.__pitattoAdopt = raw => { let ok = false; try { const c = $("cover"); if (S && S.mode === "idle" && c && !c.hidden && !c.classList.contains("long")) { localStorage.setItem(WZ_KEY, raw); WZ.load(); LG.init(); WZ.save(); title(); ok = true; } } catch (e) {}
+  try { window.ReactNativeWebView.postMessage(JSON.stringify({ type: "adopted", ok })); } catch (e) {} return ok; };
+// 起動の とき：ストアが「持っている」と 言えば ひらく（機種変更・入れ直しでも 戻る）。「持っていない」では 閉じない（つながらない だけ かも しれない）
+if (NATIVE) {
+  say("mute", { on: !!WZ.d.mute });
+  nat("iap", { op: "owned" }).then(r => { if (ownsFull(r) && !WZ.d.full) { WZ.d.full = true; WZ.save(); const c = $("cover"); if (c && !c.hidden && !c.classList.contains("long")) title(); } });
+  nat("iap", { op: "products", skus: [SKU] }).then(r => { const p = r && r.products && r.products[0]; if (p && p.price) storePrice = p.price; });
+}
+const lgLocked = () => !PAID() && (LG.d.season > 1 || LG.d.round >= FREE_LG) && !LG.over();
+const LOCK_SVG = `<svg viewBox="0 0 60 60" width="64" height="64" aria-hidden="true"><path d="M19 28V20a11 11 0 0 1 22 0v8" fill="none" stroke="#5A463C" stroke-width="4" stroke-linecap="round"/><rect x="12" y="27" width="36" height="26" rx="5" fill="#FFD86B" stroke="#5A463C" stroke-width="3"/><circle cx="30" cy="38" r="4" fill="#5A463C"/><path d="M30 40v6" stroke="#5A463C" stroke-width="4" stroke-linecap="round"/></svg>`;
+function coverLong() { S = { mode: "idle", holder: YOU }; const c = $("cover"); c.hidden = false; c.classList.add("long"); $("hud").hidden = true; c.scrollTop = 0; return c; }
+function lockScreen(what) {
+  const c = coverLong();
+  c.innerHTML = `<div style="margin-top:40px">${LOCK_SVG}</div><div class="wzh">${what}</div>
+    <p style="font-size:15px;max-width:19em">ここから 先は「ぜんぶ ひらく」で あそべるよ。<br>おうちの 人に この 画面を 見せてね。</p>
+    <button class="go sub" id="topar">おうちの 方へ</button><button class="go sub" id="wzback">もどる</button>
+    <p style="font-size:12px;color:var(--sub);max-width:20em">「いつでも 試合」と、れんしゅう 2つは、このまま 何回でも あそべるよ。</p>`;
+  $("topar").onclick = () => parentGate(parentMenu); $("wzback").onclick = wazaBack;
+}
+function goDrill(k) { if (PAID() || FREE_DRILLS.includes(k)) { unlockAudio(); newDrill(k); } else lockScreen("れんしゅう「" + drillName(k) + "」"); }
+// 保護者の 確認：2けた×1けたの かけ算
+function parentGate(next) {
+  // 2けた × 2けた（13〜29 × 11〜19）。2けた×1けたは 小4で 2秒で 通る（C-1）
+  const a = 13 + Math.floor(Math.random() * 17), b = 11 + Math.floor(Math.random() * 9), c = coverLong(); let v = "";
+  c.innerHTML = `<div class="wzh" style="margin-top:24px">保護者の方へ</div>
+    <p style="font-size:14px;max-width:20em">この先は 保護者の方 向けの 画面です。<br>次の 計算の 答えを 入力して ください。</p>
+    <div class="gq">${a} × ${b} ＝ <span id="gv">？</span></div><p id="gmsg" style="font-size:13px;color:#B8402F;min-height:1.4em"></p>
+    <div class="pad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, "けす", 0, "OK"].map(k => `<button data-k="${k}">${k}</button>`).join("")}</div>
+    <button class="go sub" id="wzback">もどる</button>`;
+  c.querySelectorAll(".pad button").forEach(bt => bt.onclick = () => { const k = bt.dataset.k;
+    if (k === "けす") v = v.slice(0, -1); else if (k === "OK") { if (+v === a * b) return next(); v = ""; $("gmsg").textContent = "答えが ちがいます。もう一度 入力して ください。"; } else if (v.length < 4) v += k;
+    $("gv").textContent = v || "？"; });
+  $("wzback").onclick = wazaBack;
+}
+function parentMenu(note) {
+  const c = coverLong(), full = PAID(); let sure = false;
+  c.innerHTML = `<div class="wzh">おうちの方へ</div>
+    ${typeof note === "string" ? `<p style="font-size:13px;color:#1E6B49;max-width:none">${note}</p>` : ""}
+    <div class="wzd adult">
+    <h4>このアプリについて</h4>
+    <p>試合の途中で時間が止まり、上からコートを見て「次の一手」を選ぶゲームです。ミニバスで大切な「まわりを見る」「広がる」「相手とゴールの間に立つ」を、遊びながら覚えることをねらっています。</p>
+    <p>広告は出ません。お子さまの名前・記録などのデータを、開発者が受け取ることはありません。${NATIVE ? "記録はこの端末と、ご自身の iCloud に保存されます（同じ Apple ID の iPhone・iPad で、★・わざ・リーグの記録がそろいます）。" : "記録はこの端末の中だけに保存されます。"}</p>
+    <h4>ぜんぶ ひらく（買い切り）</h4>
+    <div class="box"><b>${storePrice || PRICE}</b>　1回だけのお支払いです。月額ではありません。<ul>
+      <li>リーグ戦を最後まで（1日1試合・シーズンが続きます）</li><li>わざ「シュートフェイク」「バックドア」（今後 追加するわざも）</li><li>れんしゅう 6つ すべて</li></ul>
+      無料のままでも「いつでも 試合」と れんしゅう2つは 何回でも遊べます。リーグ戦は 2試合まで お試しできます。</div>
+    <div class="bt2">${full ? `<button disabled>購入済みです</button>${NATIVE ? "" : `<button id="unbuy">（試作用）未購入に戻す</button>`}` : `<button class="get" id="buy">購入する</button><button id="restore">購入を復元する</button>`}</div>
+    ${NATIVE ? `<p class="leg">※ お支払いは App Store を通して行われます。ファミリー共有に対応しています。承認待ち（承認と購入のリクエスト）の場合は、承認のあとにアプリを開き直すと反映されます。</p>` : `<p class="leg">※ いまは試作です。「購入する」を押しても お金はかからず、開いた状態を試せるだけです。</p>`}
+    <h4>設定</h4>
+    <div class="bt2"><button id="mute">音：${WZ.d.mute ? "オフ" : "オン"}</button><button id="slow">考える時間：${WZ.d.slow ? "ながめ（20秒）" : "ふつう（12秒）"}</button></div>
+    <p style="font-size:12px;color:var(--sub)">「ながめ」は、止まった画面で 考える時間を 長くします。ひらがなを 読むのに 時間がかかる お子さまに。</p>
+    <div class="bt2"><button id="look">まわりを 見る：${WZ.d.nolook ? "なし" : "あり"}</button></div>
+    <p style="font-size:12px;color:var(--sub)">「あり」だと、止まった直後は 自分の目線のまま。指で左右になぞって首をふり、見えた相手・味方だけが 上からの図に出ます（4試合目から。れんしゅうでは出ません）。見ることが まだ難しいときは「なし」に。</p>
+    <h4>記録</h4>
+    <p>ためた★・わざ・リーグの成績を すべて消して、最初からにします。</p>
+    <div class="bt2"><button id="wipe">記録を すべて消す</button></div>
+    ${NATIVE ? "" : `<h4>試作用</h4>
+    <div class="bt2"><button id="skip">リーグを 次の日に する</button><button id="star">★を 30 ふやす</button></div>`}
+    </div><button class="go sub" id="wzback">もどる</button>`;
+  const on = (id, f) => { if ($(id)) $(id).onclick = f; };
+  const busy = t => { ["buy", "restore"].forEach(id => { if ($(id)) $(id).disabled = true; }); if ($("buy")) $("buy").textContent = t; };
+  const open = (r, yes, no) => { if (ownsFull(r)) { WZ.d.full = true; WZ.save(); parentMenu(yes); } else parentMenu(no); };
+  if (NATIVE) {
+    on("buy", () => { busy("処理中…"); nat("iap", { op: "buy", sku: SKU }).then(r => open(r && r.ok ? r : null, "ありがとうございます。すべて ひらきました", r && r.cancelled ? undefined : r && r.deferred ? "おうちの方の承認を待っています（承認と購入のリクエスト）。承認のあと、アプリを開き直すと ひらきます" : "購入は完了しませんでした。時間をおいて もう一度 お試しください")); });
+    on("restore", () => { busy("確認中…"); nat("iap", { op: "restore" }).then(r => open(r, "購入を復元しました", "復元できる購入が見つかりませんでした")); });
+  } else
+  on("buy", () => { WZ.d.full = true; WZ.save(); parentMenu("ひらきました（試作のため、お支払いは発生していません）"); });
+  on("unbuy", () => { WZ.d.full = false; WZ.save(); parentMenu("未購入の状態に戻しました"); });
+  if (!NATIVE) on("restore", () => parentMenu("試作のため、復元できる購入はありません"));
+  on("slow", () => { WZ.d.slow = !WZ.d.slow; WZ.save(); parentMenu(); });
+  on("look", () => { WZ.d.nolook = !WZ.d.nolook; WZ.save(); parentMenu(); });
+  on("mute", () => { WZ.d.mute = !WZ.d.mute; WZ.save(); say("mute", { on: WZ.d.mute }); parentMenu(); });
+  on("wipe", () => { if (!sure) { sure = true; $("wipe").textContent = "本当に消す（もう一度 押す）"; return; } const full = WZ.d.full; WZ.d = { bank: 0, own: ["leg"], eq: ["leg"], full, mute: WZ.d.mute, slow: WZ.d.slow, nolook: WZ.d.nolook, ep: Date.now() }; /* ep：消した時刻。iCloud で ほかの端末にも 届く（native/cloud-rules.js） */ LG.init(); WZ.save(); parentMenu("記録を消しました"); });
+  on("skip", () => { LG.init(); LG.d.off = (LG.d.off || 0) + 1; WZ.save(); parentMenu("リーグを 次の日に しました"); });
+  on("star", () => { WZ.d.bank += 30; WZ.save(); parentMenu("★を 30 ふやしました"); });
+  $("wzback").onclick = wazaBack; maybeReview();
+}
+
+// ===== 試合（画面・時間・カメラ） =====
+const CW = 390, F = 500, NEAR = 0.25; let CH = 600;
+const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+const $ = id => document.getElementById(id);
+const NUM = [4, 5, 6, 7, 8], YOU = 0, POSS_MAX = 4, SLOW = .62; // SLOW: 試合の時間の流れ（1 が ほんとうの速さ）
+const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+// --- ベクトルとカメラ ---
+const V = (x, y, z = 0) => ({ x, y, z });
+const vsub = (a, b) => V(a.x - b.x, a.y - b.y, a.z - b.z), vadd = (a, b) => V(a.x + b.x, a.y + b.y, a.z + b.z);
+const vmul = (a, k) => V(a.x * k, a.y * k, a.z * k), vdot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
+const vcross = (a, b) => V(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
+const vnorm = a => { const l = Math.hypot(a.x, a.y, a.z) || 1; return V(a.x / l, a.y / l, a.z / l); };
+const vmix = (a, b, t) => V(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t);
+const TOP = { pos: V(7.5, 5.9, 20.5), tgt: V(7.5, 5.5, 0), up: V(0, -1, 0) };
+// 縦長の 画面（iPhone 15 など）では 紙を 下まで のばす。上からの コートは 少し 下げて、問いと 吹き出しが コートに かぶらない ように（C-6）
+function fitStage() {
+  const st = cv.parentElement, w = st.clientWidth || 390, h = Math.max(0, (window.innerHeight || 0) - 16);
+  const ratio = w ? Math.max(600 / 390, Math.min(700 / 390, h / w)) : 600 / 390;
+  CH = Math.round(390 * ratio); st.style.aspectRatio = `390/${CH}`; cv.height = CH * 2;
+  // コートの 横幅で 大きさは 決まる（z=20.5 が 下限）。のびた ぶんは コートを 下げて、上の 問いと 下の コーチの 吹き出しに 場所を あける
+  const dy = (CH - 600) * .02; TOP.pos = V(7.5, 5.9 - dy, 20.5); TOP.tgt = V(7.5, 5.5 - dy, 0);
+}
+window.addEventListener("resize", () => { fitStage(); setBasis(); });
+let cam = { pos: V(7.5, 19, 3), tgt: V(7.5, 8, 1), up: V(0, 0, 1) }, fol = { pos: V(7.5, 19, 3), tgt: V(7.5, 8, 1) }, blend = 0, camGoal = 0, basis = null;
+function setBasis() {
+  const fwd = vnorm(vsub(cam.tgt, cam.pos)), right = vnorm(vcross(cam.up, fwd)), upv = vcross(fwd, right);
+  basis = { fwd, right, upv };
+}
+function camSpace(p) { const v = vsub(p, cam.pos); return { a: vdot(v, basis.right), b: vdot(v, basis.upv), c: vdot(v, basis.fwd) }; }
+function toScreen(q) { return { x: CW / 2 + F * q.a / q.c, y: CH * .5 - F * q.b / q.c, s: F / q.c, c: q.c }; }
+function project(p) { const q = camSpace(p); return q.c < NEAR ? null : toScreen(q); }
+function unproject(sx, sy) {
+  const d = vadd(vadd(basis.fwd, vmul(basis.right, (sx - CW / 2) / F)), vmul(basis.upv, -(sy - CH * .5) / F));
+  if (d.z > -1e-3) return null; const t = -cam.pos.z / d.z; return { x: cam.pos.x + d.x * t, y: cam.pos.y + d.y * t };
+}
+function clipNear(pts) {
+  const out = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length], ia = a.c >= NEAR, ib = b.c >= NEAR;
+    if (ia) out.push(a);
+    if (ia !== ib) { const t = (NEAR - a.c) / (b.c - a.c); out.push({ a: a.a + (b.a - a.a) * t, b: a.b + (b.b - a.b) * t, c: NEAR }); }
+  }
+  return out;
+}
+function poly3(pts, fill, stroke, lw = 2) {
+  const c = clipNear(pts.map(camSpace)); if (c.length < 3) return;
+  ctx.beginPath(); c.forEach((q, i) => { const s = toScreen(q); i ? ctx.lineTo(s.x, s.y) : ctx.moveTo(s.x, s.y); }); ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+}
+function line3(p1, p2, stroke, lw = 2) {
+  let a = camSpace(p1), b = camSpace(p2); if (a.c < NEAR && b.c < NEAR) return;
+  if (a.c < NEAR) { const t = (NEAR - a.c) / (b.c - a.c); a = { a: a.a + (b.a - a.a) * t, b: a.b + (b.b - a.b) * t, c: NEAR }; }
+  if (b.c < NEAR) { const t = (NEAR - b.c) / (a.c - b.c); b = { a: b.a + (a.a - b.a) * t, b: b.b + (a.b - b.b) * t, c: NEAR }; }
+  const s1 = toScreen(a), s2 = toScreen(b); ctx.beginPath(); ctx.moveTo(s1.x, s1.y); ctx.lineTo(s2.x, s2.y); ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke();
+}
+function ring3(c, r, z, stroke, lw, a0 = 0, a1 = Math.PI * 2, n = 28) {
+  for (let i = 0; i < n; i++) { const t1 = a0 + (a1 - a0) * i / n, t2 = a0 + (a1 - a0) * (i + 1) / n; line3(V(c.x + Math.cos(t1) * r, c.y + Math.sin(t1) * r, z), V(c.x + Math.cos(t2) * r, c.y + Math.sin(t2) * r, z), stroke, lw); }
+}
+
+// --- 音（小さな合図だけ） ---
+let AC = null;
+function beep(freq, dur = .12, type = "sine", vol = .08, slide = 0) {
+  try {
+    if (!AC || AC.state !== "running" || WZ.d.mute) return; const o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = freq; if (slide) o.frequency.linearRampToValueAtTime(freq + slide, AC.currentTime + dur);
+    g.gain.value = vol; g.gain.exponentialRampToValueAtTime(.001, AC.currentTime + dur); o.connect(g); g.connect(AC.destination); o.start(); o.stop(AC.currentTime + dur);
+  } catch (e) {}
+}
+const sfx = { freeze: () => beep(880, .18, "triangle", .07, -500), pick: () => beep(520, .07, "square", .04), pass: () => beep(300, .08, "sine", .06, 200),
+  good: () => { beep(660, .1, "triangle"); setTimeout(() => beep(990, .16, "triangle"), 90); }, bad: () => beep(180, .25, "sawtooth", .05, -60),
+  score: () => { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, .16, "triangle", .09), i * 90)); }, miss: () => beep(240, .2, "square", .04, -80) };
+
+// --- 状態 ---
+const SLOTS = [P2(7.5, 9.0), P2(12.3, 6.2), P2(2.7, 6.2), P2(13.6, 1.7), P2(1.4, 1.7), P2(9.7, 2.8), P2(5.3, 2.8), P2(7.5, 5.6)];
+function P2(x, y) { return { x, y }; }
+let S = null, att = [], def = [], ball = null, last = 0, runId = 0;
+const JUMP = .6, FX = { flash: 0, col: "255,255,255", shake: 0, parts: [], trail: [] };
+function burst() {
+  FX.flash = .45; FX.col = "255,210,63"; FX.shake = .4; const s = project(V(B.x, B.y, 2.4)) || { x: CW / 2, y: CH / 3 };
+  for (let i = 0; i < 34; i++) { const a = Math.random() * 6.28, v = 90 + Math.random() * 230; FX.parts.push({ x: s.x, y: s.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 120, t: 0, life: .8 + Math.random() * .7, r: 3 + Math.random() * 4, rot: Math.random() * 6, c: ["#FFD23F", "#FFFFFF", "#FF9A1F", "#3DDC97"][i % 4] }); }
+}
+function fxStep(dt) {
+  FX.flash = Math.max(0, FX.flash - dt * 1.4); FX.shake = Math.max(0, FX.shake - dt * 1.2);
+  FX.parts = FX.parts.filter(p => (p.t += dt) < p.life); FX.parts.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 520 * dt; p.rot += dt * 8; });
+}
+function fxDraw() {
+  FX.parts.forEach(p => { ctx.save(); ctx.globalAlpha = Math.min(1, (p.life - p.t) * 2.5); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillStyle = p.c; ctx.fillRect(-p.r, -p.r * .45, p.r * 2, p.r * .9); ctx.fillRect(-p.r * .45, -p.r, p.r * .9, p.r * 2); ctx.restore(); });
+  if (FX.flash > 0) { ctx.fillStyle = `rgba(${FX.col},${FX.flash})`; ctx.fillRect(0, 0, CW, CH); }
+}
+function newMatch(lg) {
+  if (lg === true) { LG.init(); if (lgLocked()) return lockScreen("リーグ戦の つづき"); }
+  say("awake", { on: true });
+  OPP = lg === true ? LG.opp(LG.oppIdx(LG.d.round)) : null;
+  S = { wait: 0, mode: "idle", poss: 0, score: [0, 0], stars: 0, combo: 0, good: 0, total: 0, firstTip: true, done: {}, heyTip: true, miss: {} };
+  $("cover").hidden = true; $("cover").classList.remove("long"); $("hud").hidden = false; $("scorebox").hidden = false; hud(); startPoss();
+}
+const WORDS = [["koe", "声を 出す"], ["ugoku", "動く"], ["tate", "たてを 使う"], ["nakama", "なかまを 使う"], ["reb", "リバウンド"], ["swap", "入れかわる"], ["hiro", "広がる"], ["tsuku", "あいてに つく"], ["cut", "パスを 止める"], ["help", "なかまを 助ける"], ["miru", "まわりを 見る"]];
+function stamp(k) { if (!S.done[k]) { S.done[k] = 1; S.stars++; S.newWord = WORDS.find(w => w[0] === k)[1]; } else S.done[k]++; hud(); }
+function hud() { $("words").textContent = `ことば ${WORDS.filter(w => S.done[w[0]]).length}/${WORDS.length}`; hud0(); }
+function hud0() { $("sa").textContent = S.score[0]; $("sb").textContent = S.score[1]; $("poss").textContent = S.drill ? `れんしゅう ${Math.min(S.rep + 1, 5)}/5` : `${S.side ? "まもり" : "こうげき"} ${Math.min(S.poss + 1, POSS_MAX)}/${POSS_MAX}`; $("stars").textContent = "★" + S.stars; }
+function startPoss() {
+  const mir = Math.random() < .5, mx = p => ({ x: mir ? 15 - p.x : p.x, y: p.y });
+  const pool = [1, 2, 3, 4, 5, 6].sort(() => Math.random() - .5).slice(0, 4);
+  att = [{ x: 7.5, y: 12.8, slot: -1 }];
+  pool.forEach(si => { const p = mx(SLOTS[si]); att.push({ x: p.x + rnd(-.4, .4), y: p.y + rnd(-.3, .3), slot: si, mir }); });
+  att.forEach(a => { a.sp = 3.6; a.tx = a.x; a.ty = a.y; });
+  S.mir = mir;
+  const flaws = [null, null, null, null, null]; const ks = [1, 2, 3, 4].sort(() => Math.random() - .5);
+  const O = OPP || {};
+  if (Math.random() < (O.over ? .6 : WZ.on("bd") ? .4 : .25)) flaws[0] = "over"; flaws[ks[0]] = "watch"; if (!O.few) flaws[ks[1]] = O.over ? "over" : O.watch ? "watch" : Math.random() < .6 ? "over" : "slow";
+  if (O.over) flaws[ks[2]] = "over"; if (O.watch) flaws[ks[2]] = "watch";
+  def = att.map((a, i) => { const p = i === 0 ? { x: 7.5, y: 7.6 } : lerp(a, B, Math.min(.5, 1.0 / dist(a, B))); return { x: p.x, y: p.y, sp: flaws[i] === "slow" ? 2.3 : O.sp || 3.3, flaw: flaws[i] }; });
+  ball = { x: 7.5, y: 12.8, z: .7, fly: null };
+  Object.assign(S, { side: 0, help: null, myFix: null, forceShot: 0, forceBeat: false, review: null, mode: "live", holder: YOU, target: YOU, holdT: 0, asked: false, actions: 0, clock: 24, drib: { who: YOU, t: { x: 7.5 + rnd(-1, 1), y: 9.8 }, auto: true }, run: null, relocT: 1.5, hint: null, swap: null, myPass: 0, rebN: 0, reb: null, heyCd: 0, silent: 0, firstFreeze: true, endT: 0, endStep: 0 });
+  S.hand = 1; S.handK = 1; S.pz = null; S.wz = null; $("hands").hidden = true;
+  fol.pos = V(7.5, 17.8, 2.9); fol.tgt = V(7.5, 8.3, .9); blend = 0;
+  camGoal = 0; S.wait = 1.2; big(`こうげき ${S.poss + 1}`, "ゴールを めざせ！", 1600); hud();
+}
+const snap = () => { const A = att.map(a => ({ x: a.x, y: a.y })), D = def.map(d => ({ x: d.x, y: d.y })), holder = S.holder < 0 ? S.target : S.holder; return S.side ? { att: D, def: A, holder } : { att: A, def: D, holder }; };
+
+// --- 画面の文字 ---
+let bigT = 0, coachT = 0;
+function big(txt, sub = "", ms = 1000) { if (txt === "ピタッ！") say("feel", { name: "stop" }); const e = $("big"); e.innerHTML = txt + (sub ? `<small>${sub}</small>` : ""); e.classList.add("on"); clearTimeout(bigT); bigT = setTimeout(() => e.classList.remove("on"), ms); }
+function coach(g, txt, ms = 6000) { if (S && S.newWord) { txt = `【${S.newWord}】 ${txt}`; S.newWord = null; } const e = $("coach"); $("cmk").className = "mk g" + g; $("cmk").textContent = g === "x" ? "×" : ["△", "○", "◎"][g]; $("ctx").textContent = txt; e.classList.add("on"); clearTimeout(coachT); coachT = setTimeout(() => e.classList.remove("on"), ms); }
+function judge(g) {
+  S.lastG = g; S.total++; if (g === 2) { S.good++; S.combo++; S.stars += S.combo >= 3 ? 2 : 1; sfx.good(); say("feel", { name: "good" }); } else { S.combo = 0; if (g === "x") sfx.bad(); }
+  hud();
+}
+
+// --- 止まる ---
+function enterFreeze(kind) {
+  if (S.drill && S.repDone) { S.wait = .6; endPoss(); return; }
+  $("coach").classList.remove("on"); FX.flash = .4; FX.col = "255,255,255"; S.mode = "freeze"; S.fz = { kind, t: thinkT(), max: thinkT(), sc: snap() }; camGoal = 1; sfx.freeze();
+  if (kind === "def" || kind === "help") {
+    const mine = S.fz.sc.holder === YOU; S.defN = (S.defN || 0) + 1;
+    if (kind === "help") big("ぬかれた！", `赤の ${NUM[S.help.driver]}番が ゴールへ！`, 1500); else big("ピタッ！", mine ? "きみの あいてが ボールを もった！" : `赤の ${NUM[S.fz.sc.holder]}番が ボールを もった`, 1400);
+    $("askq").textContent = kind === "help" ? "助ける？ そのまま？" : "どこに 立つ？";
+    $("asktip").textContent = kind === "help" ? "赤い線（ゴールへの 道）に 入る → 助ける" : mine && S.defN > 2 ? "あいてと ゴールの あいだ。あいての 右手がわを 少し 厚めに" : "ゆかを タップ → そこに 立つ（黄色い わ ＝ きみの あいて）　そのままで いい → 自分を タップ";
+    $("asktip").hidden = S.defN > 6 && kind !== "help"; return;
+  }
+  if (kind === "reb") { S.fz.t = S.fz.max = 7; big("リバウンド！", "ボールは どこに おちる？", 1300); $("askq").textContent = "どこへ とびこむ？"; $("asktip").textContent = "おちそうな 場所を タップ（白い線が シュートの 道）"; $("asktip").hidden = false; S.firstFreeze = false; return; }
+  big("ピタッ！", kind === "ball" ? (S.firstFreeze ? "あいてが 来た！ 上から 見よう" : "上から 見よう") : `${NUM[S.holder]}番が ボールを もった`, 1300);
+  $("askq").textContent = kind === "ball" ? "どうする？" : "どこへ うごく？";
+  $("asktip").textContent = kind === "ball" ? "なかま → パス　ゴール → シュート　ゆか → ドリブル" : "ゆか → そこへ 走る　なかま → 入れかわる";
+  $("asktip").hidden = !S.firstTip && S.total > 3;
+  S.firstFreeze = false;
+}
+function leaveFreeze() { S.mode = "live"; camGoal = 0; $("ask").hidden = true; S.fz = null; }
+
+// ===== まわりを 見る（A-1）=====
+// 止まった 直後は 自分の 目線のまま。ゆびで 左右に なぞって 首を ふり、見えた（前の 左右 35ど）ものだけが 上からの 図に のる。
+// 見なかった なかまは 図に 出ず、パスも できない。採点は 本当の 盤面で する（見て いない ほうに フリーが いたら、そう 言う）。
+// れんしゅう・リバウンドでは やらない。はじめの 3試合は やらない（まず 止まって えらぶ ことに なれる）。おうちの方の 画面で 切れる（nolook）
+const LOOK_FOV = 35 * Math.PI / 180, LOOK_R = 16, LOOK_STEP = Math.PI / 36, LOOK_TURN = Math.PI * 7 / 9; // 画面の はしから はしまで なぞると 140ど
+const lookT = () => WZ.d.slow ? 6 : 4;
+const lookOn = () => !WZ.d.nolook && !S.drill && (WZ.d.played | 0) >= 3;
+const lookKey = (team, i) => team * 10 + i;
+const enterFreeze0 = enterFreeze;
+enterFreeze = function (kind) { enterFreeze0(kind); if (S.mode === "freeze" && kind !== "reb" && lookOn()) { camGoal = 0; lookStart(); } };
+function lookStart() {
+  const me = att[YOU], focus = camFocus(); let u = unit(me, focus); if (dist(me, focus) < .6) u = { x: 0, y: -1 };
+  const l = S.fz.look = { u0: u, yaw: 0, t: lookT(), max: lookT(), seen: new Set([lookKey(0, YOU)]), arcs: new Set(), done: false, ask: { q: $("askq").textContent, tip: $("asktip").textContent, hid: $("asktip").hidden } };
+  if (S.fz.kind !== "ball") l.seen.add(lookKey(S.side ? 1 : 0, S.fz.sc.holder)); // ボールを もつ 人は いつも 分かる（ボールを 見て いるから）
+  if (!S.side) big("ピタッ！", "まわりを 見て から 上へ", 1300);
+  $("askq").textContent = "まわりを 見よう"; $("asktip").textContent = "ゆびで 左右に なぞって 首を ふる。見おわったら タップ"; $("asktip").hidden = (S.lookN | 0) > 2; S.lookN = (S.lookN | 0) + 1;
+  lookScan();
+}
+function lookDir() { const l = S.fz.look, c = Math.cos(l.yaw), s = Math.sin(l.yaw); return { x: l.u0.x * c - l.u0.y * s, y: l.u0.x * s + l.u0.y * c }; }
+function lookScan() {
+  const l = S.fz.look, me = att[YOU], u = lookDir(), a0 = Math.atan2(u.y, u.x);
+  l.arcs.add(((Math.round(a0 / LOOK_STEP) % 72) + 72) % 72);
+  [[att, 0], [def, 1]].forEach(([arr, team]) => arr.forEach((p, i) => { const d = dist(me, p); if (d > LOOK_R || d < .01) return; let da = Math.atan2(p.y - me.y, p.x - me.x) - a0; da = Math.atan2(Math.sin(da), Math.cos(da)); if (Math.abs(da) <= LOOK_FOV) l.seen.add(lookKey(team, i)); }));
+}
+function lookTurn(f) { const l = S && S.fz && S.fz.look; if (!l || l.done) return; const d = f * LOOK_TURN, n = Math.max(1, Math.ceil(Math.abs(d) / LOOK_STEP)); for (let k = 0; k < n; k++) { l.yaw += d / n; lookScan(); } } // 大きく 動いても とちゅうを 見のがさない
+function lookDone() {
+  const l = S && S.fz && S.fz.look; if (!l || l.done) return; lookScan(); l.done = true; camGoal = 1; S.fz.t = S.fz.max = thinkT(); sfx.pick();
+  $("askq").textContent = l.ask.q; $("asktip").textContent = l.ask.tip; $("asktip").hidden = l.ask.hid;
+  if (l.arcs.size >= 24) stamp("miru"); // 120ど ぶん 首を ふった
+}
+// 上からの 図で かくす（見て いない 人）。目線の あいだは みんな 見える
+const lookHide = () => !!(S && S.fz && S.fz.look && S.fz.look.done && blend > .3);
+const lookVis = (team, i) => !lookHide() || S.fz.look.seen.has(lookKey(team, i));
+// その 場所の ほうを 見たか（採点の ことばに 使う）
+function lookSaw(p) { const l = S.fz && S.fz.look; if (!l) return true; const me = att[YOU], a = Math.atan2(p.y - me.y, p.x - me.x); return [...l.arcs].some(b => { let da = a - b * LOOK_STEP; da = Math.atan2(Math.sin(da), Math.cos(da)); return Math.abs(da) <= LOOK_FOV; }); }
+// 見た 方向の 扇（上からの 図）
+function drawLook() {
+  const l = S && S.fz && S.fz.look; if (!l || blend < .3) return; const me = att[YOU], cover = new Set();
+  l.arcs.forEach(b => { for (let k = -7; k <= 7; k++) cover.add((b + k + 72) % 72); });
+  cover.forEach(b => { const a = b * LOOK_STEP; poly3([V(me.x, me.y, .02), V(me.x + Math.cos(a - LOOK_STEP / 2) * LOOK_R, me.y + Math.sin(a - LOOK_STEP / 2) * LOOK_R, .02), V(me.x + Math.cos(a + LOOK_STEP / 2) * LOOK_R, me.y + Math.sin(a + LOOK_STEP / 2) * LOOK_R, .02)], "rgba(255,214,90,.22)"); });
+}
+let lookPt = null;
+cv.addEventListener("pointermove", ev => { if (!lookPt || ev.pointerId !== lookPt.id) return; const dx = ev.clientX - lookPt.x; lookPt.x = ev.clientX; lookPt.moved += Math.abs(dx); lookTurn(dx / cv.getBoundingClientRect().width); });
+const lookUp = ev => { if (!lookPt || ev.pointerId !== lookPt.id) return; const mv = lookPt.moved; lookPt = null; if (mv < 8) lookDone(); };
+cv.addEventListener("pointerup", lookUp); cv.addEventListener("pointercancel", lookUp);
+
+function optText(o) { return o.kind === "shoot" ? "うてる きょりだったよ" : o.kind === "drive" ? (o.w ? "よこが あいてた。ドリブルで ぬけたよ" : "ゴールへの 道が あいてたよ") : (o.open > 2.5 ? `${NUM[o.to]}番が フリーだったよ` : `${NUM[o.to]}番への パスが よかったよ`); }
+function chooseBall(pt, sx, sy) {
+  const sc = S.fz.sc, h = sc.att[YOU], opts = offenseOptions(sc, true), best = opts.reduce((a, b) => b.v > a.v ? b : a);
+  // 何を タップしたか
+  let pick = null, bd = 34;
+  for (let i = 1; i < 5; i++) { if (!lookVis(0, i)) continue; const s = project(V(att[i].x, att[i].y, .9)); if (!s) continue; const d = Math.hypot(s.x - sx, s.y - sy); if (d < bd) { bd = d; pick = { kind: "pass", to: i }; } }
+  const rs = project(V(B.x, B.y, 2.6)); if (!pick && rs && Math.hypot(rs.x - sx, rs.y - sy) < 36) pick = { kind: "shoot" };
+  if (!pick) { if (!pt) return; const ys = project(V(att[YOU].x, att[YOU].y, .9)); if (ys && Math.hypot(ys.x - sx, ys.y - sy) < 22) return; pick = { kind: "dribble", t: pt }; }
+  sfx.pick(); S.firstTip = false; S.actions++; S.lastDrib = null;
+  // いい 手が 少ない 場面（いちばんでも .2 より 下）：「これが 正解」とは 言わない。とられなければ ○
+  const weak = best.v < .2, unseen = !weak && best.kind === "pass" && S.fz.look && !S.fz.look.seen.has(lookKey(0, best.to)), tip = unseen ? `見て いない ほうに フリーの ${NUM[best.to]}番が いた！ 首を ふって 見よう` : weak ? "いまは いい 手が 少ないよ。あいている ほうへ ドリブルして、なかまが 動くのを まとう" : optText(best);
+  const g2 = v => v < 0 ? "x" : v >= best.v - .08 && (v >= .12 || v >= best.v - .02) && !weak ? 2 : weak || v >= best.v * .6 ? 1 : 0;
+  leaveFreeze();
+  if (pick.kind === "pass") {
+    const o = opts.find(o => o.kind === "pass" && o.to === pick.to), g = g2(o.v); judge(g);
+    if (o.v < 0) { coach("x", `パスの 道に 赤${NUM[o.steal]}が いた！`); passBall(YOU, { def: o.steal }); }
+    else { S.myPass++; const tate = h.y - sc.att[pick.to].y > 2.5 && g !== 0; if (tate) stamp("tate");
+      coach(g, g === 2 ? (tate ? `ナイス！ たてに パスが 通った！` : o.open > 2.5 ? `ナイス！ フリーの ${NUM[o.to]}番を 見つけた！` : `ナイスパス！`) : g === 1 ? (tate ? "いいね！ たてに つないだ" : "いいね！ つながった") : `なかまを 使おう！ ${tip}`); passBall(YOU, { att: pick.to }); }
+  } else if (pick.kind === "shoot") {
+    const o = opts.find(o => o.kind === "shoot"), g = weak && o.v < .2 ? 0 : g2(o.v); judge(g);
+    const c = nearest(h, sc.def).d, d = dist(h, B);
+    coach(g, g === 2 ? "ナイス！ フリーなら うつ！" : g === 1 ? "いい シュートだ！" : d > 5 ? `とおいよ！ ${tip}` : c < 2 ? `あいての 手が とどく！ ${tip}` : `おしい！ ${tip}`);
+    if (S.drill) shoot(YOU); else enterPose({ kind: "aim", t: 6, max: 6 });
+  } else {
+    let t = { x: clamp(pick.t.x, .5, 14.5), y: clamp(pick.t.y, .6, 13.5) };
+    const toRim = dist(t, B) < 2.3; if (toRim) t = driveTarget();
+    const d = dist(h, t); if (!toRim && d > 5) t = lerp(h, t, 5 / d);
+    const drv = opts.find(o => o.kind === "drive"), guard = sc.def[YOU], others = sc.def.map((p, k) => k === YOU ? { x: -99, y: -99 } : p);
+    let next = null;
+    // ゴールへの 道に 自分の あいてが いる時：あいている 側が あれば、よこを ぬいてから ゴールへ
+    if (toRim && drv.w && laneBlock(h, t, [guard]).d < 1.0) { next = { t, layup: true }; t = drv.w; }
+    const lbO = laneBlock(h, t, others), gd = next ? 9 : laneBlock(h, t, [guard]).d;
+    if (lbO.d < .8 || gd < .5) {
+      const bi = lbO.d < .8 ? lbO.i : YOU;
+      judge("x"); coach("x", best.kind === "pass" ? `ドリブルの 道に 赤${NUM[bi]}！ なかまを 使おう` : best.kind === "drive" && best.w ? `赤${NUM[bi]}に ぶつかった！ あいている よこを ぬこう` : `ドリブルの 道に 赤${NUM[bi]}が いた！`);
+      if (Math.random() < .65) { passBall(YOU, { def: bi }); } else { S.holdT = -.4; }
+      return;
+    }
+    let v; if (toRim) v = drv.v; else { const sc2 = { ...sc, att: sc.att.map((p, i) => i === YOU ? t : p) }; v = offenseOptions(sc2).reduce((a, b) => b.v > a.v ? b : a).v * .85;
+      // あいている 側へ、ゴールに 向かって すすむ ドリブルは「ぬく」と 同じ
+      [drv, drv.alt].forEach(c => { if (c && c.w && dist(t, B) < dist(h, B) - 1.5 && (t.x - guard.x) * (c.w.x - guard.x) + (t.y - guard.y) * (c.w.y - guard.y) > 0) v = Math.max(v, c.v * .95); }); }
+    S.lastDrib = t;
+    const g = g2(v); if (g !== 0 && h.y - t.y > 2.5) stamp("tate"); judge(g);
+    coach(g, next ? (g === 2 ? "ナイス！ あいている よこを ぬいて ゴールへ！" : "ぬいて つっこめ！") : toRim ? (g === 2 ? "ナイス！ 道が あいてた！ いけー！" : "つっこめ！") : g === 2 ? "ナイス！ いい 場所へ うごいた" : g === 1 ? "いいね！" : `おしい！ ${tip}`);
+    const nd = nearest(h, sc.def), lay = toRim && !next;
+    if (!S.drill && nd.d < 3.2) enterPose({ kind: "hand", t: 5, max: 5, to: t, layup: lay, next, nd: nd.i }); else { S.drib = { who: YOU, t, layup: lay, next }; att[YOU].sp = 5.2; }
+  }
+}
+// なかまと 入れかわる：2人が すれちがうので、ついている あいて2人が 一瞬 おくれる
+function chooseSwap(j) {
+  const sc = S.fz.sc, me = sc.att[YOU], t = sc.att[j], h = sc.att[sc.holder];
+  const defs = sc.def.map((p, i) => i === YOU ? lerp(p, t, Math.min(1, .8 / Math.max(.1, dist(p, t)))) : i === j ? lerp(p, me, Math.min(1, .8 / Math.max(.1, dist(p, me)))) : p);
+  const pe = passEval(h, t, defs, YOU), far = dist(me, t) > 9;
+  const g = pe.v < 0 ? "x" : far ? 0 : pe.open > 2.5 ? 2 : pe.open > 1.5 ? 1 : 0; // あいてが どれだけ はなれたか で きめる
+  if (g === 1 || g === 2) { stamp("swap"); stamp("ugoku"); }
+  sfx.pick(); S.firstTip = false; judge(g); leaveFreeze();
+  coach(g, pe.v < 0 ? `入れかわった先は パスの 道に 赤${NUM[pe.steal]}が いるよ` : far ? `${NUM[j]}番は 遠いよ。近くの なかまと 入れかわろう` : g === 2 ? "ナイス 入れかわり！ あいてが おくれて フリーだ！" : g === 1 ? "いいね！ 入れかわって あいてを ずらした" : "入れかわったけど、あいてが ついて きたよ");
+  S.run = { x: t.x, y: t.y }; att[YOU].sp = 4.8; S.holdT = 1.0;
+  att[j].tx = me.x; att[j].ty = me.y; att[j].sp = 4.6; att[j].slot = -1; S.relocT = Math.max(S.relocT, 3);
+  def[YOU].lag = 1.1; def[j].lag = 1.1; S.swap = { a: { x: me.x, y: me.y }, b: { x: t.x, y: t.y }, t: 1.6 };
+}
+function chooseMove(pt, sx, sy) {
+  let sw = -1, bd = 34;
+  for (let i = 1; i < 5; i++) { if (i === S.holder || !lookVis(0, i)) continue; const s = project(V(att[i].x, att[i].y, .9)); if (!s) continue; const d = Math.hypot(s.x - sx, s.y - sy); if (d < bd) { bd = d; sw = i; } }
+  if (sw > 0) return chooseSwap(sw);
+  if (!pt) return; const sc = S.fz.sc, me = sc.att[YOU];
+  let t = { x: clamp(pt.x, .5, 14.5), y: clamp(pt.y, .6, 13.5) }; const d = dist(me, t); if (d > 6.5) t = lerp(me, t, 6.5 / d);
+  const e = moveEval(sc, YOU, t), mb = moveBest(sc, YOU), top = mb.best.v, stay = moveEval(sc, YOU, me).v;
+  // 「ここ！」と 言えるのは、はっきり いい 場所が ある時だけ（いまの 場所より ずっと よく、パスを もらって うてる）
+  // 広がる：なかまと 近い（2.5m より 近い）時は、はなれるのが 先
+  const packed = nearest(me, sc.att.filter((_, i) => i !== YOU)).d < 2.5, spread = packed && e.crowd >= 3 && e.v >= 0 && !e.spoil;
+  const clear = top >= .3 && top - stay > .15, still = d < 1.2, bad = e.v < 0 ? "x" : e.spoil || e.crowd < 2 ? 0 : null, unseen = clear && !lookSaw(mb.best.t);
+  const g = still ? (clear || packed ? 0 : 1) : bad !== null ? bad : spread ? (clear && e.v < top - .1 ? 1 : 2) : clear ? (e.v >= top - .1 ? 2 : e.v >= top * .5 ? 1 : 0) : 1;
+  if (!still && (g === 1 || g === 2)) { stamp("ugoku"); if (me.y - t.y > 3) stamp("tate"); if (spread) stamp("hiro"); }
+  sfx.pick(); S.firstTip = false; judge(g); leaveFreeze();
+  const why = unseen ? "見て いない ほうが あいてたよ。首を ふって 見よう" : dist(mb.best.t, B) < 3.2 ? "ゴールの 近くが あいてたよ" : "パスが 通って シュートも ねらえる 場所が あったよ";
+  coach(g, !still && e.pe.v < 0 ? `そこは パスの 道に 赤${NUM[e.pe.steal]}が いるよ` : !still && e.spoil ? `そこは ${NUM[sc.holder]}番の ドリブルの 道を ふさいじゃうよ` : !still && e.crowd < 2 ? "なかまと 近いよ。はなれて 広がろう"
+    : still ? (packed ? "なかまと 近いよ。広がって！ はなれると パスの 道が できる" : clear ? `動いて！ ${why}` : "そのままで OK。いまは いい 場所が ないから ボールを 見よう") : spread ? "ナイス！ 広がった！ なかまと はなれて パスの 道が できた" : g === 2 ? "ナイス！ あいている 場所だ！" : clear ? (g === 1 ? "いいね！ もらえるかも" : why) : "いいね！ 動いて あいてを ゆさぶった");
+  S.hint = clear && g !== 2 ? { p: mb.best.t, t: 1.8 } : null;
+  S.run = t; att[YOU].sp = 4.8; S.holdT = 1.0;
+}
+
+// --- ボール ---
+// ===== わざ：時間は 止まったまま、自分の 目線で えらぶ（ドリブルの手・シュートの ねらい）=====
+let POSE_N = { hand: 0, aim: 0 };
+const aimPts = () => [{ k: "L", p: V(7.2, .9, 3.05) }, { k: "R", p: V(7.8, .9, 3.05) }, { k: "rim", p: V(B.x, B.y, 2.62) }];
+function aimBest(h) { const ang = Math.atan2(Math.abs(h.x - B.x), h.y - B.y) * 180 / Math.PI; return ang >= 20 && ang <= 65 && dist(h, B) <= 5 ? (h.x > B.x ? "R" : "L") : "rim"; }
+function enterPose(pz) {
+  S.mode = "pose"; S.pz = pz; camGoal = 0; const me = att[YOU], n = POSE_N[pz.kind]++;
+  if (pz.kind === "hand") { const u = unit(me, pz.to); me.hx = u.x; me.hy = u.y; ball.x = me.x + u.x * .34; ball.y = me.y + u.y * .34; ball.z = .8;
+  }
+  pz.n = n;
+}
+function poseShow() { const pz = S.pz; pz.shown = true; $("ask").hidden = false; $("asktip").hidden = pz.n >= 2;
+  if (pz.kind === "hand") { $("askq").textContent = "どっちの 手で つく？"; $("asktip").textContent = "赤い わの あいてから 遠い ほうの 手で"; $("hands").hidden = false; }
+  else { $("askq").textContent = "どこを ねらう？"; $("asktip").textContent = "ななめ → 四角の 上の かど　正面・よこ → リング"; }
+}
+function handSide(pz) { const me = att[YOU], u = unit(me, pz.to), d = def[pz.nd], lat = (d.x - me.x) * -u.y + (d.y - me.y) * u.x; return Math.abs(lat) < .25 ? 0 : Math.sign(lat); }
+function poseDone(pick) {
+  const pz = S.pz; S.pz = null; S.mode = "live"; $("ask").hidden = true; $("hands").hidden = true; if (pick !== null) sfx.pick();
+  if (pz.kind === "hand") {
+    const prev = S.hand || 1, hand = pick === null ? prev : pick, side = handSide(pz), ok = side === 0 || hand !== side, near = dist(def[pz.nd], att[YOU]) < 2.2, sw = hand !== prev;
+    S.hand = hand; S.trick = sw && near ? "leg" : null;
+    if (!ok && Math.random() < .3) { coach("x", "あいての 側の 手で ついて カットされた！ 遠い手で つこう"); passBall(YOU, { def: pz.nd }); return; }
+    S.drib = { who: YOU, t: pz.to, layup: pz.layup, next: pz.next }; att[YOU].sp = ok ? 5.2 : 3.8;
+    const leg = sw && near && WZ.on("leg"); S.trick = leg ? "leg" : null;
+    if (ok) { def[pz.nd].lag = leg ? 1.2 : sw && near ? .4 : .7; S.stars += leg ? 2 : 1; hud(); big(leg ? "レッグスルー！" : sw ? "フロントチェンジ！" : "ナイス！", leg ? "足の あいだを 通して 手を かえた。あいてが おくれた！" : "ボールを あいてから 遠い手で まもった", 1300); }
+    else big("あぶない！", "あいてに 近い手だ… 遠い手で つこう", 1400);
+  } else {
+    const best = aimBest(att[YOU]); let adj = 0, bank = null;
+    if (pick !== null) { adj = pick === best ? .15 : -.15; if (pick !== "rim") bank = aimPts().find(o => o.k === pick).p;
+      if (pick === best) { S.stars++; hud(); big("ねらい ◎", best === "rim" ? "リングを まっすぐ ねらった" : "四角の かどに 当てる！", 1000); }
+      else big("ねらい △", best === "rim" ? "ここからは リングを まっすぐ" : "ななめからは 四角の 上の かど", 1300); }
+    shoot(YOU, false, adj, bank);
+  }
+}
+function aimTap(sx, sy) { let bk = null, bd = 60; aimPts().forEach(o => { const s = project(o.p); if (!s) return; const d = Math.hypot(s.x - sx, s.y - sy); if (d < bd) { bd = d; bk = o.k; } }); if (bk) poseDone(bk); }
+function passBall(from, to) {
+  att[from].up = .28;
+  const a = att[from], tgt = to.att !== undefined ? att[to.att] : def[to.def];
+  S.holder = -1; S.target = to.att !== undefined ? to.att : from; sfx.pass();
+  ball.fly = { fx: a.x, fy: a.y, fz: 1.0, to: tgt, tz: 1.0, t: 0, dur: clamp(dist(a, tgt) / 8, .4, .95), arc: .6,
+    done: () => { if (to.att !== undefined) { S.holder = to.att; S.holdT = 0; S.asked = false; S.drib = null; } else { S.wait = .5; turnover("とられた！"); } } };
+}
+// 外れる シュートは リングの ふち（まん中から 0.3〜0.45m）に 当てる。まん中に 飛ぶと 入ったように 見える
+function missPt(a) { const u = unit(B, a), ang = Math.atan2(u.y, u.x) + rnd(-1.3, 1.3), r = rnd(.3, .45); return { x: B.x + Math.cos(ang) * r, y: B.y + Math.sin(ang) * r }; }
+function dropBall() { ball.x = B.x; ball.y = B.y; ball.fly = { fx: B.x, fy: B.y, fz: 2.5, to: { x: B.x, y: B.y + .15 }, tz: .2, t: 0, dur: .45, arc: 0, done: () => {} }; }
+function shoot(who, miss, adj = 0, bank = null) {
+  const a = att[who], q = shotQ(a, def), p = clamp(q * 1.35 + .08 + adj, .05, .95), made = !miss && Math.random() < p;
+  S.holder = -1; S.target = who; S.mode = "shot"; a.jumpT = JUMP; a.up = 1.1;
+  const nd = nearest(a, def); if (nd.d < 2.4) { def[nd.i].jumpT = JUMP * .9; def[nd.i].up = 1.0; }
+  ball.fly = { fx: a.x, fy: a.y, fz: 1.4, to: made ? { x: B.x, y: B.y } : missPt(a), tz: made ? 2.6 : 2.72, t: 0, dur: clamp(dist(a, B) / 5.5, .7, 1.4), arc: 1.6 + dist(a, B) * .12,
+    done: () => {
+      if (made) { S.score[0] += 2; const team = S.myPass > 0; if (team) stamp("nakama"); hud(); sfx.score(); big("ナイス シュート！", team ? "なかまを 使った 2てん！" : "+2てん", 2000); S.net = .6; dropBall(); burst(); att.forEach((m, k) => { if (k !== who) { m.jumpT = JUMP * (.6 + Math.random() * .4); m.up = 1.2; } }); }
+      else if (S.rebN < 2) { // 外れた：シュートの はんたいがわに おちやすい
+        sfx.miss(); S.rebN++; const u = unit(a, B), ang = Math.atan2(u.y, u.x) + (Math.random() < .75 ? rnd(-.7, .7) : Math.PI + rnd(-.6, .6)), r = rnd(1.0, 2.1);
+        S.reb = { L: { x: clamp(B.x + Math.cos(ang) * r, .6, 14.4), y: clamp(B.y + Math.sin(ang) * r, .5, 6) }, from: { x: a.x, y: a.y } };
+        ball.x = B.x; ball.y = B.y; ball.z = 2.75; FX.shake = .2; enterFreeze("reb"); return;
+      }
+      else { sfx.miss(); big("はずれた…", "つぎ いこう！", 1800); FX.shake = .2; ball.fly = { fx: ball.x, fy: ball.y, fz: 2.72, to: { x: clamp(ball.x + (ball.x - B.x) * 5 + rnd(-.6, .6), .6, 14.4), y: ball.y + rnd(1.4, 2.6) }, tz: .2, t: 0, dur: .8, arc: 1.1, done: () => {} }; }
+      endPoss();
+    } };
+  if (bank) { // ボードの 四角に 当ててから リングへ
+    const f = ball.fly, fin = f.done, to = f.to; f.to = { x: bank.x, y: bank.y }; f.tz = bank.z; f.arc *= .8;
+    f.done = () => { sfx.pick(); ball.fly = { fx: bank.x, fy: bank.y, fz: bank.z, to, tz: 2.6, t: 0, dur: .26, arc: .04, done: fin }; };
+  }
+}
+function chooseReb(pt) {
+  if (!pt) return; const me = att[YOU]; let t = { x: clamp(pt.x, .5, 14.5), y: clamp(pt.y, .5, 13.5) }; const d = dist(me, t);
+  sfx.pick(); leaveFreeze(); S.run = t; att[YOU].sp = 5.4; dropReb(clamp(d / 5.4 + .25, .95, 2.4));
+}
+function dropReb(dur = .95) {
+  const L = S.reb.L; S.holder = -1;
+  ball.fly = { fx: B.x, fy: B.y, fz: 2.75, to: L, tz: 1.1, t: 0, dur, arc: .9 + (dur - .95) * 1.2, done: () => {
+    const my = dist(att[YOU], L), dd = nearest(L, def).d - .5; let mj = -1, md = 99; for (let i = 1; i < 5; i++) { const q = dist(att[i], L); if (q < md) { md = q; mj = i; } }
+    if (my < 1.4) { stamp("reb"); judge(2); coach(2, "ナイス リバウンド！ もう1回 せめられる！"); big("リバウンド！", "とった！", 1300); S.holder = YOU; S.holdT = 0; S.drib = null; S.run = null; S.clock = 14; S.actions = Math.min(S.actions, 3); att.forEach(m => m.jumpT = 0); att[YOU].jumpT = JUMP; att[YOU].up = .7; }
+    else if (md < dd) { judge(my < 2.5 ? 1 : 0); coach(1, `${NUM[mj]}番が リバウンドを とった！`); S.holder = mj; S.holdT = 0; S.asked = false; S.drib = null; S.clock = 14; S.actions = Math.min(S.actions, 3); att[mj].jumpT = JUMP; att[mj].up = .7; }
+    else { judge(0); coach(0, "リバウンドは シュートの はんたいがわに おちやすいよ"); S.hint = { p: L, t: 2.2 }; big("あかの リバウンド", "まもりに もどれ！", 1700); endPoss(); }
+    S.reb = null; if (S.drill === "reb" && S.mode !== "between") { S.wait = 1.4; endPoss(); }
+  } };
+}
+function turnover(msg) { FX.flash = .32; FX.col = "229,70,58"; FX.shake = .25; sfx.bad(); big(msg, "まもりに もどれ！", 1800); endPoss(); }
+function endPoss() { S.mode = "between"; S.endT = 0; S.endStep = 0; }
+
+
+// ===== まもり（あかの こうげきを 止める）=====
+const FAR9 = { x: -99, y: -99 };
+function startDef(force) {
+  const mir = Math.random() < .5, mx = p => ({ x: mir ? 15 - p.x : p.x, y: p.y }); S.mir = mir;
+  const pool = [0, 1, 2, 3, 4, 5, 6].sort(() => Math.random() - .5).slice(0, 5);
+  def = pool.map(si => { const p = mx(SLOTS[si]); return { x: p.x + rnd(-.3, .3), y: p.y + rnd(-.3, .3), slot: si, sp: 3.6 }; });
+  def.forEach(a => { a.tx = a.x; a.ty = a.y; });
+  let h = 0; def.forEach((a, i) => { if (a.y > def[h].y) h = i; });
+  if (force === "me" && h !== YOU) { const t = def[YOU]; def[YOU] = def[h]; def[h] = t; h = YOU; }
+  if (force === "other" && h === YOU) { const t = def[YOU]; def[YOU] = def[1]; def[1] = t; h = 1; }
+  const sc0 = { att: def, holder: h };
+  att = def.map((a, i) => { const p = i === YOU ? lerp(a, B, Math.min(.5, .9 / dist(a, B))) : idealDef(sc0, i); return { x: p.x, y: p.y, sp: 3.4 }; });
+  const id0 = idealDef(sc0, YOU);
+  ball = { x: def[h].x, y: def[h].y, z: .86, fly: null };
+  Object.assign(S, { side: 1, mode: "live", holder: h, target: h, holdT: 0, asked: false, actions: 0, clock: 24, drib: null, run: null, relocT: 2.5, hint: null, swap: null, reb: null,
+    help: null, myFix: null, myOff: { x: att[YOU].x - id0.x, y: att[YOU].y - id0.y }, beat: false, stopped: false, fzN: 0, fzCap: 2, forceBeat: false, forceShot: 0, review: null, endT: 0, endStep: 0 });
+  S.slip = makeSlip(); if (S.slip) { att[YOU].x = clamp(def[YOU].x + S.slip.x, .4, 14.6); att[YOU].y = clamp(def[YOU].y + S.slip.y, .4, 13.6); }
+  const me = att[YOU], u = unit(me, ball); fol.pos = V(me.x - u.x * 6.2, me.y - u.y * 6.2, 5.0); fol.tgt = V(me.x + u.x * 3.6, me.y + u.y * 3.6, .5); blend = 0;
+  camGoal = 0; S.wait = 1.6; big(`まもり ${S.poss + 1}`, `赤の ${NUM[YOU]}番が きみの あいて`, 2000); hud();
+}
+// きみは ときどき ずれた 場所に いる（ボールを 見すぎ・うしろに いる・はなれすぎ）。それに 気づいて 直すのが まもりの 問題。
+// ずれて いない時は「そのまま」が 正解
+function makeSlip() {
+  if (S.drill === "help" || S.fzN >= S.fzCap || Math.random() > .65) return null;
+  const sc = snap(), mk = sc.att[YOU], bl = sc.att[sc.holder], ug = unit(mk, B), ub = unit(mk, bl), r = Math.random(), sg = Math.random() < .5 ? 1 : -1;
+  if (sc.holder === YOU) return r < .4 ? { x: ug.x * 3.5, y: ug.y * 3.5 } : r < .75 ? { x: ug.x * 1.0 - ug.y * 1.9 * sg, y: ug.y * 1.0 + ug.x * 1.9 * sg } : { x: -ug.x * .9 - ug.y * .5 * sg, y: -ug.y * .9 + ug.x * .5 * sg };
+  const far = dist(mk, bl) >= 6.5 ? 5.0 : 4.0;
+  return r < .5 ? { x: ub.x * far, y: ub.y * far } : r < .8 ? { x: -ug.x * 1.3, y: -ug.y * 1.3 } : { x: -ub.x * 1.7 + ug.x * .3, y: -ub.y * 1.7 + ug.y * .3 };
+}
+function stepD(dt) {
+  S.clock -= dt; S.relocT -= dt;
+  if (S.relocT <= 0 && !S.drib) {
+    S.relocT = rnd(2.4, 3.8); const c = [0, 1, 2, 3, 4].filter(i => i !== S.holder && i !== S.target);
+    if (c.length) {
+      const i = c[Math.floor(Math.random() * c.length)], used = def.map(a => a.slot);
+      const free = [1, 2, 3, 4, 5, 6, 7].filter(s => !used.includes(s)).map(s => ({ s, p: { x: S.mir ? 15 - SLOTS[s].x : SLOTS[s].x, y: SLOTS[s].y } })).filter(o => def.every((a, k) => k === i || dist(a, o.p) > 2.8));
+      if (free.length) { const o = free[Math.floor(Math.random() * free.length)]; def[i].slot = o.s; def[i].tx = o.p.x; def[i].ty = o.p.y; def[i].sp = 3.8; }
+    }
+  }
+  let arrived = -1;
+  def.forEach((a, i) => {
+    const t = S.drib && S.drib.who === i ? S.drib.t : i !== S.holder ? { x: a.tx, y: a.ty } : null;
+    if (!t) return; const d = dist(a, t), mv = a.sp * dt;
+    if (d <= mv) { a.x = t.x; a.y = t.y; if (S.drib && S.drib.who === i) arrived = i; } else { a.x += (t.x - a.x) / d * mv; a.y += (t.y - a.y) / d * mv; }
+  });
+  const sc = snap();
+  att.forEach((d, i) => {
+    let t = idealDef(sc, i), sp = d.sp;
+    if (i === YOU) { if (S.myFix) { t = S.myFix; sp = 5.4; } else if (S.slip) { t = { x: clamp(def[YOU].x + S.slip.x, .4, 14.6), y: clamp(def[YOU].y + S.slip.y, .4, 13.6) }; sp = 5.0; } else { t = { x: clamp(t.x + S.myOff.x, .4, 14.6), y: clamp(t.y + S.myOff.y, .4, 13.6) }; sp = 4.8; } }
+    else if (S.help && S.help.by === i) { t = S.help.spot; sp = 5.0; }
+    if (d.lag > 0) d.lag -= dt; const dd = dist(d, t), mv = sp * dt * (d.lag > 0 ? .3 : 1); if (dd > .05) { const k = Math.min(1, mv / dd); d.x += (t.x - d.x) * k; d.y += (t.y - d.y) * k; }
+  });
+  if (ball.fly) { const f = ball.fly; f.t += dt; const k = Math.min(1, f.t / f.dur); ball.x = f.fx + (f.to.x - f.fx) * k; ball.y = f.fy + (f.to.y - f.fy) * k; ball.z = f.fz + (f.tz - f.fz) * k + Math.sin(k * Math.PI) * f.arc; if (k >= 1) { ball.fly = null; f.done(); } }
+  else if (S.holder >= 0) { const h = def[S.holder], ux = h.hx === undefined ? 0 : h.hx, uy = h.hy === undefined ? -1 : h.hy, moving = S.drib && S.drib.who === S.holder, sd = moving ? .24 : 0; ball.x = h.x + ux * .34 - uy * sd; ball.y = h.y + uy * .34 + ux * sd; ball.z = moving ? .14 + Math.abs(Math.sin((h.ph || 0) * 1.0)) * .62 : .86; }
+  motion(dt);
+  if (S.hint) { S.hint.t -= dt; if (S.hint.t <= 0) S.hint = null; }
+  if (S.net) S.net = Math.max(0, S.net - dt);
+  if (S.mode !== "live") return;
+  if (arrived >= 0) { S.drib = null; def[arrived].sp = 3.6; return shootD(arrived); }
+  if (S.drib) { // ドライブの 道に だれかが 入ったら 止まる
+    const j = S.drib.who, dr = def[j], lb = laneBlock(dr, S.drib.t, att.map(p => p.lag > 0 ? FAR9 : p));
+    if (lb.i >= 0 && lb.d < .9 && dist(att[lb.i], dr) < 1.6 && dist(dr, B) > 1.5) stopDrive(lb.i);
+  } else if (S.holder >= 0) {
+    S.holdT += dt;
+    if (S.forceBeat && S.holdT > .9) { S.forceBeat = false; redDrive(S.holder, true); }
+    else if (!S.asked && S.holdT > .7) { S.asked = true; if (S.fzN < S.fzCap) { S.fzN++; enterFreeze("def"); } }
+    else if (S.holdT > 2.5) redAct(S.holder);
+    else if (S.clock <= 0) defStop("24びょう まもった！", "ナイス ディフェンス！");
+  }
+}
+function defStop(msg, sub) { sfx.good(); big(msg, sub, 2000); endPoss(); }
+function redAct(j) {
+  const sc = snap(), opts = offenseOptions(sc); S.actions++; S.holdT = 0;
+  const shootO = opts.find(o => o.kind === "shoot"), driveO = opts.find(o => o.kind === "drive"), ps = opts.filter(o => o.kind === "pass");
+  const okP = ps.filter(o => o.v >= 0), bestP = okP.length ? okP.reduce((a, b) => b.v > a.v ? b : a) : null;
+  if (S.stopped) { S.stopped = false; if (bestP && Math.random() < .55) return passD(j, bestP.to, -1); return shootD(j); }
+  // きみの まもりが 点に 出るように（A-3）：きみの あいてが あいて いたら、赤は そこへ パスして 打つ。きみが ついて いれば 来ない
+  const myOpen = dist(att[YOU], def[YOU]) >= 2.2 && dist(def[YOU], B) < 7.5, toMe = ps.find(o => o.to === YOU);
+  if (j === YOU && myOpen && Math.random() < .8) return shootD(j);
+  if (j !== YOU && myOpen && toMe && toMe.v >= 0 && Math.random() < .8) return passD(j, YOU, -1);
+  if (driveO.v > .3) return redDrive(j, false);
+  if (shootO.v >= .28) return shootD(j);
+  if (j !== YOU && !S.beat && S.actions >= 2) { const u = unit(B, def[j]), sp = { x: B.x + u.x * 2.2, y: B.y + u.y * 2.2 }, mineD = dist(att[YOU], sp), oth = Math.min(...att.map((a, i) => i === YOU || i === j ? 99 : dist(a, sp))); if (Math.random() < (mineD < Math.min(oth + 1.6, 5.5) ? .75 : .3)) return redDrive(j, true); }
+  if (S.actions >= 3 || S.clock < 4) return shootD(j);
+  if (Math.random() < .35) { const mine = ps.find(o => o.to === YOU), o = mine && Math.random() < .5 ? mine : ps[Math.floor(Math.random() * ps.length)]; return passD(j, o.to, o.steal >= 0 && (o.steal === YOU || Math.random() < .2) ? o.steal : -1); }
+  if (bestP) return passD(j, bestP.to, -1);
+  shootD(j);
+}
+function passD(j, to, steal) {
+  def[j].up = .28; const a = def[j], tgt = steal >= 0 ? att[steal] : def[to]; S.holder = -1; S.target = to; sfx.pass();
+  ball.fly = { fx: a.x, fy: a.y, fz: 1.0, to: tgt, tz: 1.0, t: 0, dur: clamp(dist(a, tgt) / 8, .4, .95), arc: .6, done: () => {
+    if (steal >= 0) {
+      FX.flash = .3; FX.col = "61,220,151"; att[steal].jumpT = JUMP; att[steal].up = .6;
+      if (steal === YOU) { stamp("cut"); judge(2); coach(2, "パスの 道に 立って いたから とれた！"); burst(); }
+      defStop("パスカット！", steal === YOU ? "ナイス ディフェンス！" : `${NUM[steal]}番が とった！`);
+    } else { S.holder = to; S.holdT = 0; S.asked = false; S.slip = makeSlip(); }
+  } };
+}
+function shootD(j) {
+  const a = def[j], q = shotQ(a, att), p = clamp(q * 1.35 + .08 + (OPP ? OPP.shot : 0), .08, .93), made = Math.random() < p;
+  S.holder = -1; S.target = j; S.mode = "shot"; S.drib = null; S.help = null; a.jumpT = JUMP; a.up = 1.1;
+  const nd = nearest(a, att); if (nd.d < 2.4) { att[nd.i].jumpT = JUMP * .9; att[nd.i].up = 1.0; }
+  ball.fly = { fx: a.x, fy: a.y, fz: 1.4, to: made ? { x: B.x, y: B.y } : missPt(a), tz: made ? 2.6 : 2.72, t: 0, dur: clamp(dist(a, B) / 5.5, .7, 1.4), arc: 1.6 + dist(a, B) * .12, done: () => {
+    if (made) { S.score[1] += 2; hud(); sfx.bad(); S.net = .6; FX.flash = .25; FX.col = "229,70,58"; dropBall(); big("やられた…", j === YOU ? "きみの あいてに 決められた" : nd.d > 2.4 ? `赤の ${NUM[j]}番が フリーだった` : "2てん 入れられた", 2200); }
+    else { sfx.good(); big("まもりきった！", nd.d < 2.4 ? "手を あげて じゃました！" : "はずれた！", 2200); FX.shake = .2; ball.fly = { fx: ball.x, fy: ball.y, fz: 2.72, to: { x: clamp(ball.x + (ball.x - B.x) * 5 + rnd(-.6, .6), .6, 14.4), y: ball.y + rnd(1.4, 2.6) }, tz: .2, t: 0, dur: .8, arc: 1.1, done: () => {} }; }
+    endPoss();
+  } };
+}
+function redDrive(j, beaten) {
+  const drv = def[j]; S.drib = { who: j, t: driveTarget(), layup: true }; drv.sp = 4.0; S.beat = true;
+  if (beaten || j === YOU) att[j].lag = j === YOU ? 1.2 : 1.9;
+  const u = unit(B, drv), spot = { x: B.x + u.x * 2.2, y: B.y + u.y * 2.2 };
+  let by = -1, bd = 99; att.forEach((a, i) => { if (i === j) return; const d = dist(a, spot); if (d < bd) { bd = d; by = i; } });
+  if (j !== YOU && by !== YOU && dist(att[YOU], spot) < bd + .4) by = YOU; // ほぼ 同じ きょりなら きみが 行く。それより 遠い時は「きみが いちばん 近い」と 言わない
+  S.help = { spot, by, driver: j }; S.myFix = null;
+  if (j === YOU) { sfx.bad(); big("ぬかれた！", "ゴールへの 道が あいてた", 1400); } else enterFreeze("help");
+}
+function stopDrive(i) {
+  const j = S.drib.who; S.drib = null; def[j].sp = 3.6; S.stopped = true; S.holdT = 1.3; S.asked = true; S.help = null; sfx.good();
+  const mine = i === YOU && S.myFix; if (mine) stamp("help");
+  big("止めた！", mine ? "ナイス ヘルプ！" : i === YOU ? "もどって 止めた！" : `${NUM[i]}番が 助けた！`, 1400);
+}
+// まもりの 採点：1つの 点との 近さでは なく「よい はんい」で 見る（正解は 1つでは ない）
+// おすすめの 場所（こたえあわせ用）：あいてと ゴールの あいだ、1歩 ボールがわ
+function defSpot(sc) {
+  const m = sc.att[YOU], bl = sc.att[sc.holder]; if (sc.holder === YOU) { const q = lerp(m, B, Math.min(.5, 1.1 / dist(m, B))), u = unit(m, B); return { x: q.x - u.y * .3, y: q.y + u.x * .3 }; } // あいての 右手がわへ 半歩
+  const p = lerp(m, B, Math.min(.5, 1.1 / dist(m, B))), ub = unit(m, bl); return { x: p.x + ub.x * .6, y: p.y + ub.y * .6 };
+}
+function gradeDef(sc, kind, t, hp) {
+  const mark = sc.att[YOU], bl = sc.att[sc.holder], ideal0 = idealDef(sc, YOU), dm = dist(t, mark), dMB = dist(mark, B);
+  let g, msg, ideal = defSpot(sc), fix = false, st = null;
+  if (kind === "help") {
+    const drv = sc.att[hp.driver], inLane = dist(t, hp.spot) < 1.5 || (laneBlock(drv, driveTarget(), [t]).d < .9 && dist(t, B) < dist(drv, B) - .5);
+    const onMark = dm < 2.2 && dist(t, B) <= dMB + .3, weak = dist(mark, drv) > 6;
+    if (hp.by === YOU) { ideal = hp.spot;
+      if (inLane) { g = 2; msg = "ナイス ヘルプ！ ゴールへの 道を ふさいだ"; fix = true; }
+      else if (dist(t, hp.spot) < 2.6) { g = 1; msg = "おしい！ もう1歩 ゴールへの 道に 入ろう"; fix = true; }
+      else { g = "x"; msg = "きみが いちばん 近かった！ ゴールへの 道に 入って 助けよう"; } }
+    else if (inLane) { fix = true; if (weak) { g = 1; msg = `${NUM[hp.by]}番も 助けてる。きみの あいては 遠いから 中に よるのも OK`; } else { g = 0; msg = `${NUM[hp.by]}番が 助けに 行ってたよ。きみの あいてが フリーに！`; } }
+    else if (onMark || dist(t, ideal0) < 1.3) { g = 2; msg = `そのまま！ ${NUM[hp.by]}番が 助けて くれる`; }
+    else if (dist(t, B) > dMB + .3) { g = 0; msg = `${NUM[hp.by]}番が 助ける。きみは 自分の あいての ゴールがわに いよう`; }
+    else if (dm > 4) { g = 0; msg = `${NUM[hp.by]}番が 助ける。きみの あいてが フリーに なるよ`; }
+    else { g = 1; msg = `${NUM[hp.by]}番が 助ける。きみは 自分の あいてを 見よう`; }
+  } else if (sc.holder === YOU) {
+    const goalSide = dist(t, B) < dMB - .3, lane = laneBlock(mark, B, [t]).d, far = dMB > 7.5, lim = far ? 3.2 : 2.3;
+    const ug = unit(mark, B), rt = (t.x - mark.x) * -ug.y + (t.y - mark.y) * ug.x; // ＋：あいての 右手がわ（あいては ゴールを 向いて いる）
+    if (!goalSide) { g = "x"; msg = "ゴールがわに 立とう！ うしろに いると ぬかれるよ"; }
+    else if (lane > 1.25) { g = 0; msg = "ゴールへの 道が あいてる！ あいてと ゴールの あいだに 立とう"; }
+    else if (dm > lim) { g = 0; msg = "はなれすぎ！ フリーで うたれるよ"; }
+    else if (lane > .9) { g = 1; msg = rt < 0 ? "いいね！ でも あいての 右手がわが あいてる。そっちは ぬかれたくない ほうだよ" : "いいね！ もう少し ゴールへの 道の 上に 立てると ぬかれにくい"; }
+    else if (rt < -.4) { g = 1; msg = "いいね！ でも あいての 右手がわが 少し あいてる。そっちを 厚めに まもろう"; }
+    else { g = dm < (far ? 2.6 : 1.7) ? 2 : 1; msg = g === 2 ? (rt > .12 ? "ナイス！ あいての 右手がわを 厚めに まもれた" : "ナイス！ あいてと ゴールの あいだに 立てた") : "いいね！ もう1歩 近くても いいよ"; if (g === 2) st = "tsuku"; }
+  } else {
+    const post = dMB < 3.2, nearBall = dist(mark, bl) < 6.5, lim = post ? 1.6 : nearBall ? 2.2 : 3.2;
+    const goalSide = dist(t, B) <= dMB + .3, sees = dist(t, bl) <= dist(mark, bl) + .8, off = dist(t, ideal0);
+    const pe = passEval(bl, mark, sc.def.map((p, i) => i === YOU ? t : p));
+    if (!goalSide && off >= 1.3) { g = 0; msg = "ゴールがわに 立とう！ あいてと ゴールの あいだだよ"; }
+    else if (dm > lim + 1.2 || (pe.v > .3 && pe.open > 3)) { g = 0; msg = nearBall ? `きみの あいて（赤の ${NUM[YOU]}番）が フリーだよ！ ボールに 近い あいてからは はなれない` : "はなれすぎ！ 自分の あいてに もどれる きょりに いよう"; }
+    else if (!sees && off >= 1.3) { g = 0; msg = "そこだと ボールが 見えないよ。あいての ボールがわに 立とう"; }
+    else if (dm <= lim || off < 1.3) { g = 2; msg = off < 1.3 && !post && nearBall ? "ナイス！ パスの 道に 手が とどく" : !nearBall && dm > 1.5 ? "ナイス！ あいてに もどれて、ボールも 見える 場所だ" : "ナイス！ あいてに ついて、ボールも 見えてる"; }
+    else { g = 1; msg = "いいね！ もう1歩 あいてに 近くても いいよ"; }
+  }
+  return { g, msg, ideal, fix, st, ideal0 };
+}
+// 考える 時間（おうちの方への 画面で「ながめ」に できる・D-1）
+const thinkT = () => WZ.d.slow ? 20 : 12;
+// まもりの 時間切れ：いまの 場所は 採点しない（画面を 見て いない子に ◎ を 出さない・B-2）。「そのまま」は 自分を タップして えらぶ
+function defTimeout() {
+  const sc = S.fz.sc, r = gradeDef(sc, S.fz.kind, { x: sc.def[YOU].x, y: sc.def[YOU].y }, S.help);
+  S.myFix = null; S.slip = null; S.myOff = { x: sc.def[YOU].x - r.ideal0.x, y: sc.def[YOU].y - r.ideal0.y };
+  judge(0); leaveFreeze(); coach(0, "じかんぎれ！ 止まって いる あいだに きめよう。そのままで いい時は 自分を タップ");
+  S.hint = r.g === 0 || r.g === "x" ? { p: r.ideal, t: 2.4 } : null;
+}
+function chooseDef(pt) {
+  const sc = S.fz.sc, kind = S.fz.kind, me = sc.def[YOU];
+  let t = pt ? { x: clamp(pt.x, .4, 14.6), y: clamp(pt.y, .4, 13.6) } : { x: me.x, y: me.y };
+  if (pt) { const nr = nearest(t, sc.att); if (nr.d < .8) { const m = sc.att[nr.i]; t = lerp(m, B, Math.min(.5, .9 / dist(m, B))); } } // あいてを タップ → その あいての ゴールがわに 立つ
+  const r = gradeDef(sc, kind, t, S.help), g = r.g; let msg = r.msg; S.myFix = r.fix ? t : null; S.slip = null;
+  if (!pt && g === 2) msg = "そのまま！ いい 場所に いる"; if (r.st) stamp(r.st);
+  if (!pt && (g === 0 || g === "x")) msg = "動いて！ " + msg;
+  if (g !== 2 && S.fz.look && !S.fz.look.seen.has(lookKey(1, YOU))) msg = "自分の あいてを 見て いなかった！ あいてと ボールの 両方を 見よう。" + msg;
+  sfx.pick(); S.firstTip = false; judge(g); leaveFreeze(); coach(g, msg);
+  S.hint = g === 0 || g === "x" ? { p: r.ideal, t: 2.4 } : null;
+  if (!S.myFix) S.myOff = { x: t.x - r.ideal0.x, y: t.y - r.ideal0.y };
+  S.fzIdeal = null;
+}
+
+
+// ===== こたえあわせ・れんしゅう =====
+const DRILLS = [["ball", "ボールを もったら", "こうげき"], ["move", "ボールが ない時", "こうげき"], ["reb", "リバウンド", "こうげき"], ["tsuku", "あいてに つく", "まもり"], ["pos", "となりや 遠くの あいて", "まもり"], ["help", "なかまが ぬかれた", "まもり"]];
+const drillName = k => DRILLS.find(d => d[0] === k)[1];
+function startReview(kind, sc) {
+  let p = null, label = "ここ！", from = kind === "def" || kind === "help" ? sc.def[YOU] : sc.att[YOU];
+  if (kind === "ball") { S.hint = null; const b = offenseOptions(sc, true).reduce((a, c) => c.v > a.v ? c : a); if (b.v < .2) return;
+    // 左右 どちらも あいて いる時は、きみが 行こうと した 側を 見せる
+    if (b.w && b.alt && S.lastDrib) { const gd = sc.def[YOU], ld = S.lastDrib; if ((ld.x - gd.x) * (b.alt.w.x - gd.x) + (ld.y - gd.y) * (b.alt.w.y - gd.y) > (ld.x - gd.x) * (b.w.x - gd.x) + (ld.y - gd.y) * (b.w.y - gd.y)) b.w = b.alt.w; }
+    if (b.kind === "pass") { p = sc.att[b.to]; label = "パス！"; } else if (b.kind === "shoot") { p = { x: B.x, y: B.y }; label = "シュート！"; } else if (b.w) { p = b.w; label = "ドリブルで ぬく！"; } else { p = driveTarget(); label = "ドリブル！"; } }
+  else if (S.hint) p = S.hint.p;
+  if (!p) return;
+  S.review = { p: { x: p.x, y: p.y }, from: { x: from.x, y: from.y }, label, t: 8, age: 0 }; camGoal = 1;
+  $("askq").textContent = "こたえあわせ"; $("asktip").textContent = "みどりが よかった ところ。タップで つづける"; $("asktip").hidden = false; $("ask").hidden = false;
+}
+function endReview() { S.review = null; camGoal = 0; $("ask").hidden = true; }
+function drawReview() {
+  const r = S.review; if (!r || blend < .6) return; const pz = .5 + .5 * Math.sin(performance.now() / 160);
+  dash3(r.from, r.p, "#3DDC97", 4); ring3(r.p, .55 + pz * .2, .03, "#3DDC97", 4); ring3(r.p, .95 + pz * .2, .03, "rgba(61,220,151,.6)", 2.5);
+  const s = project(V(r.p.x, r.p.y, 0)); if (!s) return;
+  ctx.font = `16px ${PFONT}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; const y = s.y < 60 ? s.y + 30 : s.y - 28;
+  ctx.lineWidth = 4; ctx.strokeStyle = "#0F1620"; ctx.strokeText(r.label, s.x, y); ctx.fillStyle = "#3DDC97"; ctx.fillText(r.label, s.x, y);
+}
+function newDrill(k) {
+  say("awake", { on: true });
+  S = { wait: 0, mode: "idle", poss: 0, score: [0, 0], stars: 0, combo: 0, good: 0, total: 0, firstTip: true, done: {}, heyTip: true, miss: {}, drill: k, rep: 0 };
+  $("cover").hidden = true; $("cover").classList.remove("long"); $("hud").hidden = false; $("scorebox").hidden = true; nextRep();
+}
+function nextRep() {
+  const k = S.drill; if (S.rep >= 5) return endDrill(); S.repDone = false;
+  if (k === "ball") startPoss();
+  else if (k === "move" || k === "reb") {
+    startPoss(); const j = 1 + Math.floor(Math.random() * 4); att[YOU].x = 7.5 + rnd(-2, 2); att[YOU].y = 9.2; def[YOU].x = att[YOU].x; def[YOU].y = 8.1;
+    Object.assign(S, { holder: j, target: j, drib: null, holdT: 0, asked: k === "reb", forceShot: k === "reb" ? j : 0 }); ball.x = att[j].x; ball.y = att[j].y;
+  } else { startDef(k === "tsuku" ? "me" : "other"); S.actions = 1; S.fzCap = 1; if (k !== "help") S.beat = true; if (k === "help") { S.asked = true; S.forceBeat = true; } }
+  big(`れんしゅう ${S.rep + 1}/5`, drillName(k), 1700); hud();
+}
+function endDrill() {
+  say("awake", { on: false });
+  S.mode = "end"; $("hud").hidden = true; $("cover").hidden = false;
+  $("cover").innerHTML = `<div style="font-family:var(--font-display);font-size:30px">れんしゅう おわり</div><p>${drillName(S.drill)}</p><div class="res">◎ ${S.good}<span style="font-size:24px"> / ${S.total}</span></div>
+    <button class="go" id="again">もう1回</button><button class="go sub" id="menu">べつの れんしゅう</button><button class="go sub" id="home">タイトルへ</button>`;
+  const k = S.drill; $("again").onclick = () => newDrill(k); $("menu").onclick = drillMenu; $("home").onclick = title;
+}
+function drillMenu() {
+  S = { mode: "idle", holder: YOU }; $("hud").hidden = true; $("cover").hidden = false;
+  $("cover").innerHTML = `<div style="font-family:var(--font-display);font-size:26px">れんしゅう</div><p style="font-size:13px">1つの 場面を 5回 つづけて できるよ</p>
+    <div class="drills">${DRILLS.map(d => `<button class="dr${PAID() || FREE_DRILLS.includes(d[0]) ? "" : " lk"}" data-k="${d[0]}"><small>${d[2]}${PAID() || FREE_DRILLS.includes(d[0]) ? "" : "・かぎ"}</small>${d[1]}</button>`).join("")}</div><button class="go sub" id="home">もどる</button>`;
+  $("cover").querySelectorAll(".dr").forEach(b => b.onclick = () => goDrill(b.dataset.k)); $("home").onclick = title;
+}
+function unlockAudio() { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === "suspended") AC.resume(); } catch (e) {} }
+
+// --- なかまの はんだん ---
+function hey() {
+  if (!heyOK()) return; const sc = snap(), pe = passEval(sc.att[S.holder], sc.att[YOU], sc.def), open = nearest(att[YOU], def).d;
+  big("ヘイ！", "", 600); sfx.pick(); S.heyTip = false;
+  if (pe.v < 0 || open < 1.8) { S.heyCd = 1.6; coach(0, pe.v < 0 ? "パスの 道に あいてが いるよ。動いてから よぼう" : "まだ あいてが 近いよ。フリーに なってから よぼう"); return; }
+  stamp("koe"); judge(2); coach(2, "ナイス！ 声で ボールを よんだ！"); S.actions++; passBall(S.holder, { att: YOU });
+}
+function heyOK() { return S && !S.side && S.mode === "live" && S.holder > 0 && !S.drib && S.asked && !ball.fly && camGoal === 0 && blend < .12 && S.heyCd <= 0 && S.wait <= 0; }
+function mateAct(j) {
+  const sc = snap(), opts = offenseOptions(sc); S.actions++;
+  const toYou = opts.find(o => o.kind === "pass" && o.to === YOU), shootO = opts.find(o => o.kind === "shoot"), driveO = opts.find(o => o.kind === "drive");
+  let best = opts.reduce((a, b) => b.v > a.v ? b : a);
+  // 声を 出さないと、きみが いちばん いい時しか パスは 来ない
+  const quiet = toYou && toYou.v >= .3 && best !== toYou && best.kind !== "shoot";
+  if (quiet) { S.silent++; coach(0, "フリーだったのに！ 「ヘイ！」で ボールを よぼう"); }
+  if (S.actions >= 7 || S.clock < 3) best = shootO.v > .1 ? shootO : best.kind === "pass" && best.v > .25 ? best : shootO;
+  if (best.v < .1 && best.kind !== "pass") { const ps = opts.filter(o => o.kind === "pass" && o.v > 0); if (ps.length) best = ps.reduce((a, b) => b.v > a.v ? b : a); }
+  if (best.kind === "pass") { if (best.v < 0) passBall(j, { def: best.steal }); else { passBall(j, { att: best.to }); if (best.to === YOU) big("パスが 来た！", "", 1100); } }
+  else if (best.kind === "drive" && best.v > 0) { S.drib = { who: j, t: driveTarget(), layup: true }; att[j].sp = 5.0; }
+  else shoot(j);
+}
+
+// --- 1コマ進める ---
+function step(dt) {
+  S.clock -= dt; wazaStep(dt);
+  // なかまの 場所がえ
+  S.relocT -= dt;
+  if (S.relocT > .5 && [1, 2, 3, 4].some(i => i !== S.holder && i !== S.target && dist(att[i], att[YOU]) < 2.2 && dist({ x: att[i].tx, y: att[i].ty }, att[YOU]) < 2.2)) S.relocT = .5;
+  if (S.relocT <= 0) {
+    S.relocT = rnd(1.8, 3); let cands = [1, 2, 3, 4].filter(i => i !== S.holder && i !== S.target && !(S.drib && S.drib.who === i));
+    const tight = cands.filter(i => dist(att[i], att[YOU]) < 2.8); if (tight.length) cands = tight; // きみの すぐ そばの なかまは、先に はなれる（広がる）
+    if (cands.length) {
+      const i = cands[Math.floor(Math.random() * cands.length)], used = att.map(a => a.slot);
+      const free = [1, 2, 3, 4, 5, 6, 7].filter(s => !used.includes(s)).map(s => ({ s, p: { x: S.mir ? 15 - SLOTS[s].x : SLOTS[s].x, y: SLOTS[s].y } })).filter(o => att.every((a, k) => k === i || dist(a, o.p) > 2.8));
+      if (free.length) { const o = free[Math.floor(Math.random() * free.length)]; att[i].slot = o.s; att[i].tx = o.p.x; att[i].ty = o.p.y; att[i].sp = 4.2; }
+    }
+  }
+  // こうげきの 動き
+  att.forEach((a, i) => {
+    let t = null;
+    if (S.drib && S.drib.who === i) t = S.drib.t; else if (i === YOU) t = S.run; else if (i !== S.holder) t = { x: a.tx, y: a.ty };
+    if (!t) return; const d = dist(a, t), mv = a.sp * dt;
+    if (d <= mv) { a.x = t.x; a.y = t.y; if (S.drib && S.drib.who === i) arrive(i); else if (i === YOU) S.run = null; } else { a.x += (t.x - a.x) / d * mv; a.y += (t.y - a.y) / d * mv; }
+  });
+  // まもりの 動き
+  const sc = snap();
+  def.forEach((d, i) => {
+    let t = idealDef(sc, i); const m = sc.att[i], bl = sc.att[sc.holder];
+    if (i !== sc.holder) { if (d.flaw === "watch") t = lerp(t, lerp(bl, B, .6), .55); else if (d.flaw === "over" && dist(m, bl) < (i === YOU ? 12 : 7.5)) t = lerp(m, bl, .42); }
+    if (d.lag > 0) d.lag -= dt; const dd = dist(d, t), mv = d.sp * (i === YOU && d.flaw === "over" && i !== sc.holder ? 1.8 : 1) * dt * (d.lag > 0 ? .35 : 1); if (dd > .05) { const k = Math.min(1, mv / dd); d.x += (t.x - d.x) * k; d.y += (t.y - d.y) * k; }
+  });
+  // ボール
+  if (ball.fly) { const f = ball.fly; f.t += dt; const k = Math.min(1, f.t / f.dur); ball.x = f.fx + (f.to.x - f.fx) * k; ball.y = f.fy + (f.to.y - f.fy) * k; ball.z = f.fz + (f.tz - f.fz) * k + Math.sin(k * Math.PI) * f.arc; if (k >= 1) { ball.fly = null; f.done(); } }
+  else if (S.holder >= 0) { const h = att[S.holder], ux = h.hx === undefined ? 0 : h.hx, uy = h.hy === undefined ? -1 : h.hy, moving = S.drib && S.drib.who === S.holder, mine = S.holder === YOU, hk = mine ? (S.handK = (S.handK === undefined ? 1 : S.handK) + ((S.hand || 1) - (S.handK === undefined ? 1 : S.handK)) * Math.min(1, dt * 9)) : 1, sd = moving ? .24 * hk : 0; ball.x = h.x + ux * .34 - uy * sd; ball.y = h.y + uy * .34 + ux * sd; ball.z = moving ? .14 + Math.abs(Math.sin((h.ph || 0) * 1.0)) * .62 : .86; if (mine && moving && S.trick === "leg" && Math.abs(hk - (S.hand || 1)) > .25) ball.z = .2; }
+  motion(dt);
+  if (S.heyCd > 0) S.heyCd -= dt;
+  if (S.swap) { S.swap.t -= dt; if (S.swap.t <= 0) S.swap = null; }
+  if (S.hint) { S.hint.t -= dt; if (S.hint.t <= 0) S.hint = null; }
+  if (S.net) S.net = Math.max(0, S.net - dt);
+  if (S.mode !== "live") return;
+  // きっかけ
+  if (S.forceShot) { S.holdT += dt; if (S.holdT > 1.1) { const j = S.forceShot; S.forceShot = 0; shoot(j, true); } return; }
+  if (S.holder === YOU && !(S.drib && !S.drib.auto)) {
+    S.holdT += dt; const near = dist(def[YOU], att[YOU]) < 1.9;
+    if (S.drib && S.drib.auto) { if (near) { S.drib = null; S.holdT = 0; enterFreeze("ball"); } }
+    else if (S.holdT > .8) enterFreeze("ball");
+  } else if (S.holder > 0 && !S.drib) {
+    S.holdT += dt;
+    if (!S.asked && S.holdT > .9) { S.asked = true; enterFreeze("move"); }
+    else if (S.holdT > 2.6 && (!S.run || S.holdT > 3.6)) mateAct(S.holder);
+  }
+  if (S.clock <= 0 && S.holder >= 0) { S.holder = -1; turnover("じかんぎれ！"); }
+}
+// 体の向き・歩幅・ジャンプ（絵のための 数。ルールには 使わない）
+function motion(dt) {
+  const upd = (p, face) => {
+    if (p.px === undefined) { p.px = p.x; p.py = p.y; p.hx = 0; p.hy = -1; p.ph = Math.random() * 6; p.spd = 0; p.jumpT = 0; p.up = 0; }
+    const dx = p.x - p.px, dy = p.y - p.py, d = Math.hypot(dx, dy), sp = dt > 0 ? d / dt : 0;
+    p.spd += (sp - p.spd) * Math.min(1, dt * 10); p.ph += d * 4.4;
+    let tx, ty; if (sp > .7) { tx = dx / d; ty = dy / d; } else { const fd = Math.hypot(face.x - p.x, face.y - p.y); if (fd < .5) { tx = p.hx; ty = p.hy; } else { tx = (face.x - p.x) / fd; ty = (face.y - p.y) / fd; } }
+    const k = Math.min(1, dt * 9); p.hx += (tx - p.hx) * k; p.hy += (ty - p.hy) * k; const hl = Math.hypot(p.hx, p.hy) || 1; p.hx /= hl; p.hy /= hl;
+    p.px = p.x; p.py = p.y; if (p.jumpT > 0) p.jumpT = Math.max(0, p.jumpT - dt); if (p.up > 0) p.up = Math.max(0, p.up - dt);
+  };
+  if (S.side) { att.forEach(p => upd(p, ball)); def.forEach((p, i) => upd(p, i === S.holder ? B : ball)); return; }
+  att.forEach((p, i) => upd(p, i === S.holder ? B : ball)); def.forEach((p, i) => upd(p, att[i] && dist(p, ball) > 6 ? lerp(att[i], ball, .5) : ball));
+}
+function arrive(i) {
+  const d = S.drib; if (d.next) { S.drib = { who: i, ...d.next }; return; } S.drib = null; att[i].sp = 3.6;
+  if (d.layup) shoot(i); else if (i === YOU) S.holdT = .1;
+}
+function between(dt) {
+  S.endT += dt;
+  if (S.endStep === 0 && S.endT > 3.0) {
+    S.endStep = 1;
+    if (S.drill) { S.rep++; nextRep(); } else if (!S.side) startDef(); else { S.poss++; if (S.poss >= POSS_MAX) endMatch(); else startPoss(); }
+  }
+}
+function endMatch() {
+  say("awake", { on: false }); if (S.score[0] > S.score[1]) say("feel", { name: "win" });
+  S.mode = "end"; const [a, b] = S.score, r = a > b ? "かち！" : a < b ? "まけ…" : "ひきわけ"; WZ.d.played = (WZ.d.played | 0) + 1;
+  $("hud").hidden = true; $("cover").hidden = false; const lgH = OPP ? leagueEnd(a, b) : "";
+  $("cover").innerHTML = `<div class="res">${r}</div><div style="font-family:var(--font-display);font-size:30px">${a} - ${b}</div>
+    <div class="stars">★${S.stars}</div>${lgH}<p>いい はんだん ${S.good}かい / ${S.total}かい</p>
+    <div class="words">${WORDS.map(w => `<span class="${S.done[w[0]] ? "on" : ""}">${S.done[w[0]] ? "✓ " : ""}${w[1]}</span>`).join("")}</div><p style="font-size:12px;color:var(--sub)">コーチの ことば、ぜんぶ できるかな？</p>${wazaEarn()}<button class="go" id="again">${lgH ? "いつでも 試合を する" : "もう1しあい"}</button>`;
+  const wk = Object.keys(S.miss).sort((p, q) => S.miss[q] - S.miss[p])[0];
+  $("cover").insertAdjacentHTML("beforeend", (wk ? `<button class="go sub" id="fix">にがてを れんしゅう：${drillName(wk)}</button>` : "") + `<button class="go sub" id="home">タイトルへ</button>`);
+  if (wk) $("fix").onclick = () => goDrill(wk); $("home").onclick = title;
+  $("again").onclick = () => { $("cover").classList.remove("long"); newMatch(); }; if ($("towaza")) $("towaza").onclick = wazaMenu; if ($("tolg")) $("tolg").onclick = leagueMenu; $("cover").classList.add("long"); $("cover").scrollTop = 0; if (a > b) sfx.score();
+}
+
+// --- カメラを動かす ---
+function camFocus() { return S && S.mode !== "idle" ? (!S.side && (S.holder === YOU || (S.drib && S.drib.who === YOU) || S.mode === "shot" || S.mode === "between") ? { x: B.x, y: B.y } : { x: ball.x, y: ball.y }) : B; }
+function updateCam(dt) {
+  const me = att[YOU] || { x: 7.5, y: 12 };
+  const pz = S && S.mode === "pose" ? S.pz : null; let focus = camFocus();
+  if (pz && pz.kind === "hand") focus = pz.to;
+  let u = unit(me, focus); if (dist(me, focus) < .6) u = { x: 0, y: -1 };
+  const looking = S && S.fz && S.fz.look && !S.fz.look.done; if (looking) u = lookDir();
+  const dv = S && S.side && S.mode !== "idle"; let gp = dv ? V(me.x - u.x * 6.2, me.y - u.y * 6.2, 5.0) : V(me.x - u.x * 5.0, me.y - u.y * 5.0, 2.9), gt = dv ? V(me.x + u.x * 3.6, me.y + u.y * 3.6, .5) : V(me.x + u.x * 4.5, me.y + u.y * 4.5, .9);
+  if (pz && pz.kind === "aim") { const cd = Math.min(dist(me, B) + 1.1, 3.7); gp = V(B.x - u.x * cd, B.y - u.y * cd, 1.9); gt = V(B.x, 1.0, 2.72); } // ゴールに 近づいて 見る（あいだの 人で かくれないように）
+  if (pz && pz.kind === "hand") { gp = V(me.x - u.x * 3.6, me.y - u.y * 3.6, 2.5); gt = V(me.x + u.x * 3, me.y + u.y * 3, .8); }
+  const k = 1 - Math.exp(-dt * (looking ? 9 : 4.5)); fol.pos = vmix(fol.pos, gp, k); fol.tgt = vmix(fol.tgt, gt, k);
+  blend += (camGoal - blend) * (1 - Math.exp(-dt * (camGoal ? 5 : 3.2))); if (Math.abs(camGoal - blend) < .01) blend = camGoal;
+  const e = ease(blend);
+  cam.pos = vmix(fol.pos, TOP.pos, e); cam.tgt = vmix(fol.tgt, TOP.tgt, e);
+  if (FX.shake > 0) { cam.tgt = vadd(cam.tgt, V((Math.random() - .5) * FX.shake, (Math.random() - .5) * FX.shake, (Math.random() - .5) * FX.shake * .6)); } cam.up = vnorm(vmix(V(0, 0, 1), TOP.up, e)); setBasis();
+}
+
+// --- 描く ---
+function draw() {
+  ctx.setTransform(2, 0, 0, 2, 0, 0); const e = ease(blend);
+  const g = ctx.createLinearGradient(0, 0, 0, CH); g.addColorStop(0, "#141C28"); g.addColorStop(1, "#1E2A38"); ctx.fillStyle = g; ctx.fillRect(0, 0, CW, CH);
+  poly3([V(-9, -5), V(24, -5), V(24, 24), V(-9, 24)], "#3A2C1F");
+  // かべ（目線の時だけ見える）
+  poly3([V(-9, -5, 0), V(24, -5, 0), V(24, -5, 7), V(-9, -5, 7)], "#26323F");
+  for (let x = -6; x <= 21; x += 3) line3(V(x, -5, 0), V(x, -5, 7), "rgba(255,255,255,.05)", 1);
+  poly3([V(-9, -5, 3.2), V(24, -5, 3.2), V(24, -5, 3.6), V(-9, -5, 3.6)], "#2F6BFF33");
+  poly3([V(0, 0), V(15, 0), V(15, 14), V(0, 14)], "#E3B87C");
+  for (let x = 1.5; x < 15; x += 1.5) line3(V(x, 0), V(x, 14), "rgba(120,80,30,.18)", 1);
+  poly3([V(5.05, 0), V(9.95, 0), V(9.95, 5.8), V(5.05, 5.8)], "#2C5A8C", "#fff", 2);
+  poly3([V(0, 0), V(15, 0), V(15, 14), V(0, 14)], null, "#fff", 2.5);
+  ring3(V(7.5, 5.8), 1.8, 0, "#fff", 2); ring3(V(7.5, 14), 1.8, 0, "#fff", 2, Math.PI, Math.PI * 2, 14);
+  // ヒント（あいていた場所）
+  if (S && S.swap) { const q = S.swap, m = { x: (q.a.x + q.b.x) / 2, y: (q.a.y + q.b.y) / 2 }, n = unit(q.a, q.b), o = { x: -n.y * .5, y: n.x * .5 }; line3(V(q.a.x + o.x, q.a.y + o.y, .03), V(q.b.x + o.x, q.b.y + o.y, .03), "#FFD23F", 3); line3(V(q.b.x - o.x, q.b.y - o.y, .03), V(q.a.x - o.x, q.a.y - o.y, .03), "#FFD23F", 3); ring3(q.a, .45, .03, "#FFD23F", 2); ring3(q.b, .45, .03, "#FFD23F", 2); }
+  if (S && S.mode === "freeze" && S.fz && S.fz.kind === "reb" && S.reb) { const q = S.reb.from, n = 9; for (let k = 0; k < n; k += 2) line3(V(q.x + (B.x - q.x) * k / n, q.y + (B.y - q.y) * k / n, .03), V(q.x + (B.x - q.x) * (k + 1) / n, q.y + (B.y - q.y) * (k + 1) / n, .03), "#fff", 3); ring3(q, .4, .03, "#fff", 2); }
+  if (S && S.side && def[YOU] && S.mode !== "end") { // まもり：きみの あいて・パスの 道・ゴールへの 道
+    const pz = .5 + .5 * Math.sin(performance.now() / 160), fzD = S.mode === "freeze" && S.fz && lookVis(1, YOU), mk = def[YOU];
+    if (lookVis(1, YOU)) ring3(mk, .62 + (fzD ? pz * .14 : 0), .03, "#FFD23F", fzD ? 3.5 : 2.5, 0, Math.PI * 2, 18);
+    if (fzD && S.fz.kind === "help" && S.help) dash3(def[S.help.driver], driveTarget(), "#FF5A4D", 4);
+    else if (fzD && S.fz.sc.holder !== YOU) dash3(def[S.fz.sc.holder], mk, "rgba(255,255,255,.75)", 2.5);
+    else if (fzD) dash3(mk, B, "rgba(255,255,255,.75)", 2.5);
+  }
+  drawLook();
+  if (S && S.review) drawReview();
+  if (S && S.hint) { ring3(S.hint.p, .7, .02, "#3DDC97", 3); ring3(S.hint.p, .35, .02, "#3DDC97", 2); }
+  // ならべて 奥から
+  const items = [];
+  att.forEach((a, i) => items.push({ t: "p", a, team: 0, i })); def.forEach((a, i) => items.push({ t: "p", a, team: 1, i }));
+  items.push({ t: "hoop", a: { x: B.x, y: B.y } }); if (ball) items.push({ t: "ball", a: ball });
+  items.forEach(o => { const q = camSpace(V(o.a.x, o.a.y, o.t === "ball" ? o.a.z : 0)); o.c = q.c; });
+  items.sort((p, q) => q.c - p.c);
+  const pulse = .5 + .5 * Math.sin(performance.now() / 160), fz = S && S.mode === "freeze" && blend > .6 ? S.fz : null;
+  items.forEach(o => {
+    if (o.t === "hoop") return drawHoop(fz && fz.kind === "ball", pulse);
+    if (o.t === "ball") return drawBall();
+    drawPlayer(o.a, o.team, o.i, e, fz, pulse);
+  });
+  // 止まっている時の うすい まく
+  if (S && S.mode === "freeze") { ctx.fillStyle = `rgba(20,40,80,${.10 * e})`; ctx.fillRect(0, 0, CW, CH); }
+}
+function dash3(a, b, col, lw) { const n = Math.max(5, Math.round(dist(a, b) / .45) | 1); for (let k = 0; k < n; k += 2) line3(V(a.x + (b.x - a.x) * k / n, a.y + (b.y - a.y) * k / n, .03), V(a.x + (b.x - a.x) * (k + 1) / n, a.y + (b.y - a.y) * (k + 1) / n, .03), col, lw); }
+function drawHoop(glow, pulse) {
+  const behind = cam.pos.y < 1.6 && blend < .5; if (behind) ctx.globalAlpha = .22;
+  line3(V(B.x, .3, 0), V(B.x, .3, 2.9), "#8a95a3", 4); line3(V(B.x, .3, 2.9), V(B.x, .9, 2.9), "#8a95a3", 4);
+  poly3([V(6.7, .9, 2.45), V(8.3, .9, 2.45), V(8.3, .9, 3.45), V(6.7, .9, 3.45)], "rgba(255,255,255,.85)", "#d7dde5", 2);
+  poly3([V(7.2, .9, 2.6), V(7.8, .9, 2.6), V(7.8, .9, 3.05), V(7.2, .9, 3.05)], null, "#E5463A", 2);
+  const sway = S && S.net ? Math.sin(S.net * 40) * .05 : 0;
+  for (let k = 0; k < 8; k++) { const t = k / 8 * Math.PI * 2; line3(V(B.x + Math.cos(t) * .23, B.y + Math.sin(t) * .23, 2.6), V(B.x + Math.cos(t) * .13 + sway, B.y + Math.sin(t) * .13, 2.15), "rgba(255,255,255,.8)", 1); }
+  ring3(B, .23, 2.6, "#FF6A1F", 3.5, 0, Math.PI * 2, 14);
+  ctx.globalAlpha = 1;
+  if (glow) { const s = project(V(B.x, B.y, 2.6)); if (s) { ctx.beginPath(); ctx.arc(s.x, s.y, 20 + pulse * 6, 0, 7); ctx.strokeStyle = `rgba(255,210,63,${.5 + pulse * .5})`; ctx.lineWidth = 3; ctx.stroke(); } }
+}
+const SKIN = ["#F2C9A0", "#E9B98C", "#F6D5B3", "#DDAA7C", "#F0C39A"], HAIR = ["#2B1D14", "#1A1A1A", "#4A2F1B", "#241812", "#3A2A20"];
+function limb(p1, p2, p3, col, w) {
+  if (!p1 || !p2 || !p3) return; ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y); ctx.stroke();
+}
+function drawPlayer(a, team, i, e, fz, pulse) {
+  if (!lookVis(team, i)) return;
+  const foot = project(V(a.x, a.y, 0)); if (!foot || foot.c < 1.6 || foot.s > 260) return;
+  const s = foot.s, you = team === 0 && i === YOU, col = team === 0 ? (you ? "#FF9A1F" : "#2F6BFF") : "#E5463A", dark = team === 0 ? (you ? "#B85F00" : "#1B3FA8") : "#9E2A20";
+  const hx = a.hx === undefined ? 0 : a.hx, hy = a.hy === undefined ? -1 : a.hy, rx = -hy, ry = hx, run = Math.min(1, (a.spd || 0) / 3), ph = a.ph || 0;
+  const jz = a.jumpT > 0 ? Math.sin(Math.PI * (1 - a.jumpT / JUMP)) * .45 : 0, bob = Math.abs(Math.sin(ph)) * .05 * run + jz, lean = .16 * run;
+  const skin = SKIN[(i + team * 2) % 5], hair = HAIR[(i * 2 + team) % 5], lm = 1 - Math.min(1, e * 1.4);
+  const P = (f, r, z) => project(V(a.x + hx * f + rx * r, a.y + hy * f + ry * r, z));
+  const hip = P(0, 0, .52 + bob), sh = P(lean, 0, 1.02 + bob), hd = P(lean * 1.2, 0, 1.3 + bob); if (!hip || !sh) return;
+  const w = Math.max(5, (.4 + .52 * e) * s), sr = .38 * s * (1 - jz * .6);
+  ctx.beginPath(); ctx.ellipse(foot.x, foot.y, sr, sr * (.3 + .7 * e), 0, 0, 7); ctx.fillStyle = "rgba(0,0,0,.28)"; ctx.fill();
+  if (you) ring3(a, .7, .02, "#FFD23F", 2.5, 0, Math.PI * 2, 18);
+  if (fz && team === 0 && !you && (fz.kind === "ball" || (fz.kind === "move" && i !== S.holder))) { ctx.beginPath(); ctx.arc(sh.x, sh.y, w * .5 + 6 + pulse * 5, 0, 7); ctx.strokeStyle = `rgba(255,255,255,${.45 + pulse * .5})`; ctx.lineWidth = 2.5; ctx.stroke(); }
+  if (lm > .03) {
+    ctx.globalAlpha = lm;
+    for (const sd of [-1, 1]) { // 足：ひざを まげて 走る
+      const t = ph + (sd > 0 ? 0 : Math.PI), sw = Math.sin(t) * run, lift = Math.max(0, Math.cos(t)) * .16 * run + jz;
+      const h = P(0, .1 * sd, .5 + bob), k = P(.16 * sw + .1 * run + (jz > 0 ? .05 : 0), .1 * sd, .27 + bob * .6 + lift * .5), f = P(.34 * sw - .04 * run, .11 * sd, lift);
+      limb(h, k, f, skin, Math.max(2, .115 * s));
+      if (f) { ctx.beginPath(); ctx.arc(f.x, f.y, Math.max(1.5, .075 * s), 0, 7); ctx.fillStyle = "#fff"; ctx.fill(); ctx.strokeStyle = "#1b2430"; ctx.lineWidth = 1; ctx.stroke(); }
+    }
+    const side = S && S.side ? 1 : 0, holder = S && team === side && S.holder === i && ball && !ball.fly, drib = holder && S.drib && S.drib.who === i;
+    const sway = Math.sin(performance.now() / 260 + i * 1.7) * .05;
+    for (const sd of [-1, 1]) { // うで
+      const t = ph + (sd > 0 ? Math.PI : 0), sw = Math.sin(t) * run, s0 = P(lean, .2 * sd, .98 + bob); let el, hn;
+      if (a.up > 0) { el = P(lean + .12, .22 * sd, 1.25 + bob); hn = P(lean + .16, .14 * sd, 1.62 + bob); }
+      else if (team !== side) { const near = ball && dist(a, ball) < 2.6 ? 1 : .7; el = P(lean + .08, .4 * sd * near, .9 + bob); hn = P(lean + .2, .66 * sd * near, 1.0 + bob + sway * sd); }
+      else if (holder && (!drib || sd > 0)) { el = P(lean + .16, .22 * sd, .78 + bob); hn = project(V(ball.x + rx * .09 * sd, ball.y + ry * .09 * sd, Math.max(.35, ball.z + (drib ? .1 : 0)))); }
+      else { el = P(lean - .1 * sw, .26 * sd, .78 + bob); hn = P(lean + .26 * sw + .06, .27 * sd, .66 + bob + Math.abs(sw) * .1); }
+      limb(s0, el, hn, skin, Math.max(2, .095 * s));
+    }
+    ctx.globalAlpha = 1;
+  }
+  const sho = P(0, 0, .4 + bob); // からだ（ユニフォーム）と パンツ
+  ctx.lineCap = "round"; ctx.strokeStyle = "#fff"; ctx.lineWidth = w + 3; ctx.beginPath(); ctx.moveTo(hip.x, hip.y); ctx.lineTo(sh.x, sh.y); ctx.stroke();
+  if (sho && lm > .03) { ctx.globalAlpha = lm; ctx.strokeStyle = dark; ctx.lineWidth = w * .96; ctx.beginPath(); ctx.moveTo(hip.x, hip.y); ctx.lineTo(sho.x, sho.y); ctx.stroke(); ctx.globalAlpha = 1; }
+  ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(hip.x, hip.y); ctx.lineTo(sh.x, sh.y); ctx.stroke();
+  if (hd && e < .75) { // あたま
+    const r = Math.max(3, .2 * s); ctx.globalAlpha = 1 - e / .75;
+    ctx.beginPath(); ctx.arc(hd.x, hd.y, r, 0, 7); ctx.fillStyle = skin; ctx.fill();
+    ctx.beginPath(); ctx.arc(hd.x, hd.y, r, Math.PI * 1.05, Math.PI * 1.95); ctx.closePath(); ctx.fillStyle = hair; ctx.fill();
+    ctx.beginPath(); ctx.arc(hd.x, hd.y, r, 0, 7); ctx.strokeStyle = "#1b2430"; ctx.lineWidth = 1; ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  const fs = Math.min(64, Math.round(w * .31) * 2); if (fs >= 8) { const my = (hip.y + sh.y) / 2 * (1 - e) + sh.y * e; ctx.fillStyle = "#fff"; ctx.font = `${fs}px ${PFONT}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(NUM[i], sh.x * e + (hip.x + sh.x) / 2 * (1 - e), my); }
+  if (you && e < .5 && hd) { ctx.fillStyle = "#FFD23F"; ctx.beginPath(); const y = hd.y - .3 * s - 6; ctx.moveTo(hd.x - 7, y - 9); ctx.lineTo(hd.x + 7, y - 9); ctx.lineTo(hd.x, y); ctx.closePath(); ctx.fill(); }
+}
+function drawBall() {
+  const s = project(V(ball.x, ball.y, ball.z)), f = project(V(ball.x, ball.y, 0)); if (!s || s.c < 1 || !isFinite(s.x)) return;
+  if (f) { ctx.beginPath(); ctx.ellipse(f.x, f.y, .13 * f.s, .07 * f.s + .06 * f.s * ease(blend), 0, 0, 7); ctx.fillStyle = "rgba(0,0,0,.3)"; ctx.fill(); }
+  const r = Math.max(4, .14 * s.s);
+  if (ball.fly && S && S.mode !== "freeze") { FX.trail.push({ x: s.x, y: s.y, r }); if (FX.trail.length > 7) FX.trail.shift(); } else if (!ball.fly) FX.trail.length = 0;
+  FX.trail.forEach((t, k) => { ctx.beginPath(); ctx.arc(t.x, t.y, t.r * (.4 + k * .08), 0, 7); ctx.fillStyle = `rgba(255,170,60,${.06 + k * .05})`; ctx.fill(); });
+  ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, 7); ctx.fillStyle = "#FF8A1F"; ctx.fill(); ctx.strokeStyle = "#5A2A00"; ctx.lineWidth = 1.2; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(s.x - r, s.y); ctx.lineTo(s.x + r, s.y); ctx.stroke();
+}
+
+// --- まわす ---
+function frame(now) {
+  try { frame2(now); } catch (err) { showErr(err); }
+  requestAnimationFrame(frame);
+}
+let errN = 0;
+function showErr(err) { if (errN++ > 3) return; const e = $("err"); e.hidden = false; e.textContent = "エラー: " + (err && err.message || err) + (err && err.stack ? " @" + String(err.stack).split("\n")[1] : ""); }
+window.addEventListener("error", ev => showErr(ev.error || ev.message));
+function frame2(now) {
+  const dt = Math.min(.05, (now - last) / 1000 || 0); last = now;
+  if (S) {
+    const sdt = dt * SLOW, camDown = camGoal === 0 && blend < .12;
+    if (S.review) { S.review.t -= dt; S.review.age += dt; $("askbar").style.width = Math.max(0, S.review.t / 8 * 100) + "%"; if (S.review.t <= 0) endReview(); }
+    if (S.wait > 0) S.wait -= dt;
+    else if (S.mode === "live" || S.mode === "shot") { if (camDown) (S.side ? stepD : step)(sdt); }
+    else if (S.mode === "between") { (S.side ? stepD : step)(sdt); between(dt); }
+    else if (S.mode === "pose") { if (blend < .2 && !S.review) { if (!S.pz.shown) poseShow(); S.pz.t -= dt; $("askbar").style.width = Math.max(0, S.pz.t / S.pz.max * 100) + "%"; if (S.pz.t <= 0) poseDone(null); } }
+    else if (S.mode === "freeze" && S.fz.look && !S.fz.look.done) { $("ask").hidden = false; const l = S.fz.look; l.t -= dt; $("askbar").style.width = Math.max(0, l.t / l.max * 100) + "%"; lookScan(); if (l.t <= 0) lookDone(); }
+    else if (S.mode === "freeze" && blend > .9) {
+      $("ask").hidden = false; S.fz.t -= dt; $("askbar").style.width = Math.max(0, S.fz.t / S.fz.max * 100) + "%";
+      if (S.fz.t <= 0 && (S.fz.kind === "def" || S.fz.kind === "help")) defTimeout();
+      else if (S.fz.t <= 0) { const k = S.fz.kind; leaveFreeze(); if (k === "ball") { judge("x"); coach("x", "まよって いる うちに とられた！"); passBall(YOU, { def: YOU }); } else if (k === "reb") dropReb(); else coach(0, "動いて！ 止まっていると もらえないよ"); }
+    }
+  }
+  const hb = $("hey"), ok = heyOK(); if (hb.hidden === ok) hb.hidden = !ok;
+  const wb = $("waza"), wk = wazaNow(); if (wb.hidden === !!wk) { wb.hidden = !wk; if (wk) wb.innerHTML = `<small>わざ</small>${WAZA[wk].name}`; }
+  fxStep(dt); updateCam(dt); draw(); fxDraw();
+}
+cv.addEventListener("pointerdown", ev => {
+  if (S && S.review) { if (S.review.age > .6) endReview(); return; }
+  const r = cv.getBoundingClientRect(), sx = (ev.clientX - r.left) / r.width * CW, sy = (ev.clientY - r.top) / r.height * CH;
+  if (S && S.mode === "pose") { if (S.pz.kind === "aim" && S.pz.shown) aimTap(sx, sy); return; }
+  if (S && S.mode === "freeze" && S.fz && S.fz.look && !S.fz.look.done) { lookPt = { id: ev.pointerId, x: ev.clientX, moved: 0 }; try { cv.setPointerCapture(ev.pointerId); } catch (e) {} return; }
+  if (!S || S.mode !== "freeze" || blend < .9) return;
+  const pt = unproject(sx, sy);
+  const kind = S.fz.kind, sc = S.fz.sc; S.lastG = null;
+  if (kind === "def" || kind === "help") { if (pt) chooseDef(pt); } else if (kind === "ball") chooseBall(pt, sx, sy); else if (kind === "reb") chooseReb(pt); else chooseMove(pt, sx, sy);
+  if (S.lastG !== null) S.repDone = true;
+  if (S.lastG === 0 || S.lastG === "x") { const key = kind === "def" ? (sc.holder === YOU ? "tsuku" : "pos") : kind; S.miss[key] = (S.miss[key] || 0) + 1; if (S.mode !== "between") startReview(kind, sc); }
+});
+function title() {
+  say("awake", { on: false });
+  att = [{ x: 7.5, y: 11.5 }, { x: 12.3, y: 6.2 }, { x: 2.7, y: 6.2 }, { x: 9.7, y: 2.8 }, { x: 1.4, y: 1.7 }];
+  def = att.map((a, i) => lerp(a, B, Math.min(.5, 1 / dist(a, B)))); ball = { x: 7.5, y: 11.2, z: .8 };
+  S = { mode: "idle", holder: YOU }; $("hud").hidden = true; $("cover").hidden = false; $("cover").classList.remove("long"); camGoal = 0; LG.init();
+  $("cover").innerHTML = `<h1>ピタッと<span>バスケ</span></h1><p>しあいの とちゅうで 時間が 止まる。上から コートを 見て、つぎの 一手を えらぼう。</p>
+    <ol><li><b>1</b>　きみは オレンジの 4番</li><li><b>2</b>　ピタッ！と 止まったら 上から 見る</li><li><b>3</b>　パス・シュート・ドリブルを タップ</li><li><b>4</b>　まもりでは 立つ 場所を タップ</li></ol>
+    <div class="row2 main">${[`<button class="go${LG.over() || LG.played() ? " off" : ""}" id="lg" ${LG.over() || LG.played() ? "disabled" : ""}>リーグ戦<small>${LG.over() ? "シーズン おわり<br>つぎは あした" : LG.played() ? "きょうは おわり<br>つづきは あした" : lgLocked() ? "つづきは<br>かぎ つき" : `きょうの あいて<br>${TEAMS[LG.oppIdx(LG.d.round)].name}`}</small></button>`, `<button class="go" id="start">いつでも 試合<small>何回でも<br>できる</small></button>`][lgLocked() ? "reverse" : "slice"]().join("")}</div>
+    <div class="row2"><button class="go sub" id="prac">れんしゅう</button><button class="go sub" id="towaza">わざ ★${WZ.d.bank}</button><button class="go sub" id="lgt">リーグの 表</button></div>
+    <button class="plink" id="par">おうちの 方へ</button>`;
+  $("lg").onclick = leagueMenu; $("lgt").onclick = leagueMenu; $("par").onclick = () => parentGate(parentMenu);
+  $("towaza").onclick = wazaMenu; $("waza").onclick = wazaUse;
+  $("prac").onclick = drillMenu;
+  $("hey").onclick = hey; $("hl").onclick = () => { if (S && S.mode === "pose" && S.pz.kind === "hand" && S.pz.shown) poseDone(-1); }; $("hr").onclick = () => { if (S && S.mode === "pose" && S.pz.kind === "hand" && S.pz.shown) poseDone(1); };
+  $("start").onclick = () => { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === "suspended") AC.resume(); } catch (e) {} newMatch(); };
+}
+fitStage(); title(); setBasis(); requestAnimationFrame(frame);
+window.__dbg = () => ({ S, att, def, ball, blend, project, V });
+
+
+// ===== 色えんぴつの 皮（ルールは さわらない。描くところだけ 上書き） =====
+const INK = "#5A463C", PAPER = "#FBF7EC", PFONT = '"Yusei Magic","Zen Kaku Gothic New",sans-serif';
+let BT = 0, PN = 0; // BT: 線が ゆれる コマ（0.17秒ごと）　PN: 線の 番号
+const hsh = n => { const x = Math.sin(n * 127.1 + BT * 311.7) * 43758.5453; return (x - Math.floor(x)) * 2 - 1; };
+const fix = n => { const x = Math.sin(n * 91.7) * 15731.743; return x - Math.floor(x); };
+function mkHatch(base, line, gap, lw) {
+  const n = gap * 8, c = document.createElement("canvas"); c.width = c.height = n * 2; const g = c.getContext("2d"); g.scale(2, 2);
+  if (base) { g.fillStyle = base; g.fillRect(0, 0, n, n); }
+  g.strokeStyle = line; g.lineCap = "round";
+  for (let k = -n; k < n * 2; k += gap) { const m = ((k / gap) % 8 + 8) % 8; g.lineWidth = lw * (.7 + .6 * fix(m + 1)); g.globalAlpha = .6 + .4 * fix(m + 9); g.beginPath(); g.moveTo(k + n, 0); g.lineTo(k, n); g.stroke(); }
+  const p = ctx.createPattern(c, "repeat"); p.n = n; return p;
+}
+function mkGrain() {
+  const c = document.createElement("canvas"); c.width = c.height = 256; const g = c.getContext("2d");
+  for (let i = 0; i < 5200; i++) { g.fillStyle = `rgba(251,247,236,${.12 + Math.random() * .4})`; g.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 1.6, 1 + Math.random() * 1.6); }
+  for (let i = 0; i < 700; i++) { g.fillStyle = `rgba(90,70,60,${.03 + Math.random() * .06})`; g.fillRect(Math.random() * 256, Math.random() * 256, 1.5, 1.5); }
+  return ctx.createPattern(c, "repeat");
+}
+const PAT = {
+  you: mkHatch("#FFDDA6", "#F0921E", 4, 2.3), mate: mkHatch("#CFE0FF", "#3F78EC", 4, 2.3), foe: mkHatch("#FFD3CB", "#E24A3C", 4, 2.3),
+  youD: mkHatch("#E9A859", "#B5600A", 4, 2.2), mateD: mkHatch("#7FA2EE", "#2148B4", 4, 2.2), foeD: mkHatch("#EE8F85", "#A82C22", 4, 2.2),
+  ball: mkHatch("#FBB667", "#E8741C", 3, 1.6), shadow: mkHatch(null, "rgba(90,70,60,.42)", 3, 1.5), band: mkHatch("#DCE8FA", "#7FA5E6", 5, 2), grain: mkGrain()
+};
+const hasPT = typeof DOMMatrix !== "undefined" && PAT.you.setTransform;
+function pat(p, x = 0, y = 0) { if (hasPT) p.setTransform(new DOMMatrix([.5, 0, 0, .5, x + hsh(7) * 1.2, y + hsh(8) * 1.2])); return p; }
+// 手で ひいた線：まん中が すこし ふくらむ。コマごとに すこし ゆれる
+function pline(x1, y1, x2, y2, col, lw) {
+  const k = ++PN, L = Math.hypot(x2 - x1, y2 - y1); if (L < .01) return; const nx = -(y2 - y1) / L, ny = (x2 - x1) / L, w = Math.min(1.5, L * .035);
+  const j1 = hsh(k) * w, j2 = hsh(k + .5) * .35, j3 = hsh(k + .25) * .35;
+  ctx.beginPath(); ctx.moveTo(x1 + nx * j2, y1 + ny * j2); ctx.quadraticCurveTo((x1 + x2) / 2 + nx * j1 * 2, (y1 + y2) / 2 + ny * j1 * 2, x2 + nx * j3, y2 + ny * j3);
+  ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.lineCap = "round"; ctx.stroke();
+}
+function poly3(pts, fill, stroke, lw = 2) {
+  const c = clipNear(pts.map(camSpace)); if (c.length < 3) return; const sp = c.map(toScreen);
+  if (fill) { ctx.beginPath(); sp.forEach((s, i) => i ? ctx.lineTo(s.x, s.y) : ctx.moveTo(s.x, s.y)); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) sp.forEach((s, i) => { const t = sp[(i + 1) % sp.length]; pline(s.x, s.y, t.x, t.y, stroke, lw); });
+}
+function line3(p1, p2, stroke, lw = 2) {
+  let a = camSpace(p1), b = camSpace(p2); if (a.c < NEAR && b.c < NEAR) { PN++; return; }
+  if (a.c < NEAR) { const t = (NEAR - a.c) / (b.c - a.c); a = { a: a.a + (b.a - a.a) * t, b: a.b + (b.b - a.b) * t, c: NEAR }; }
+  if (b.c < NEAR) { const t = (NEAR - b.c) / (a.c - b.c); b = { a: b.a + (a.a - b.a) * t, b: b.b + (a.b - b.b) * t, c: NEAR }; }
+  const s1 = toScreen(a), s2 = toScreen(b); pline(s1.x, s1.y, s2.x, s2.y, stroke, lw);
+}
+// ゆかに ななめの 色えんぴつ（コートに かいた線なので 遠くは つまって見える）
+function hatch3(x0, y0, x1, y1, step, col, lw) {
+  for (let c = x0 - y1; c < x1 - y0; c += step) { const lo = Math.max(y0, x0 - c), hi = Math.min(y1, x1 - c); if (hi - lo > .15) line3(V(lo + c, lo, 0), V(hi + c, hi, 0), col, lw); else PN++; }
+}
+function drawReview() {
+  const r = S.review; if (!r || blend < .6) return; const pz = .5 + .5 * Math.sin(performance.now() / 160);
+  dash3(r.from, r.p, "#12996A", 4); ring3(r.p, .55 + pz * .2, .03, "#12996A", 4); ring3(r.p, .95 + pz * .2, .03, "rgba(18,153,106,.6)", 2.5);
+  const s = project(V(r.p.x, r.p.y, 0)); if (!s) return;
+  ctx.font = `400 17px ${PFONT}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; const y = s.y < 60 ? s.y + 30 : s.y - 28;
+  ctx.lineWidth = 5; ctx.lineJoin = "round"; ctx.strokeStyle = PAPER; ctx.strokeText(r.label, s.x, y); ctx.fillStyle = "#0E7A54"; ctx.fillText(r.label, s.x, y);
+}
+function draw() {
+  ctx.setTransform(2, 0, 0, 2, 0, 0); const e = ease(blend), now = performance.now(); BT = Math.floor(now / 170); PN = 0;
+  ctx.fillStyle = PAPER; ctx.fillRect(0, 0, CW, CH);
+  poly3([V(-9, -5), V(24, -5), V(24, 24), V(-9, 24)], "#F0E4CB");
+  if (e < .98) { // かべ・まど（目線の時だけ）
+    poly3([V(-9, -5, 0), V(24, -5, 0), V(24, -5, 7), V(-9, -5, 7)], "#E8EEF0");
+    for (let x = -8; x <= 23; x += 1) line3(V(x, -5, 0), V(x + .3, -5, 7), "rgba(120,150,175,.28)", 1.2);
+    poly3([V(-9, -5, 2.9), V(24, -5, 2.9), V(24, -5, 3.4), V(-9, -5, 3.4)], pat(PAT.band), INK, 1.4);
+    for (let x = -5.5; x <= 19; x += 6.5) { poly3([V(x, -5, 4.2), V(x + 3.4, -5, 4.2), V(x + 3.4, -5, 6.2), V(x, -5, 6.2)], "#FDFEFF", INK, 1.6); line3(V(x + 1.7, -5, 4.2), V(x + 1.7, -5, 6.2), INK, 1.2); line3(V(x, -5, 5.2), V(x + 3.4, -5, 5.2), INK, 1.2); }
+    line3(V(-9, -5, 0), V(24, -5, 0), INK, 1.8);
+    if (cam.pos.y < 12) { // まもりの時に 見える 向こうの かべ
+      poly3([V(-9, 24, 0), V(24, 24, 0), V(24, 24, 7), V(-9, 24, 7)], "#E8EEF0");
+      for (let x = -8; x <= 23; x += 1.5) line3(V(x, 24, 0), V(x + .3, 24, 7), "rgba(120,150,175,.28)", 1.2);
+      poly3([V(-9, 24, 2.9), V(24, 24, 2.9), V(24, 24, 3.4), V(-9, 24, 3.4)], pat(PAT.band), INK, 1.4);
+      for (let x = -5.5; x <= 19; x += 6.5) { poly3([V(x, 24, 4.2), V(x + 3.4, 24, 4.2), V(x + 3.4, 24, 6.2), V(x, 24, 6.2)], "#FDFEFF", INK, 1.6); line3(V(x + 1.7, 24, 4.2), V(x + 1.7, 24, 6.2), INK, 1.2); line3(V(x, 24, 5.2), V(x + 3.4, 24, 5.2), INK, 1.2); }
+      line3(V(-9, 24, 0), V(24, 24, 0), INK, 1.8);
+    }
+  } else PN += 60;
+  PN = 200;
+  if (e > .02) { // 上から見ると 作戦ノートの 紙になる
+    ctx.globalAlpha = e; ctx.fillStyle = PAPER; ctx.fillRect(0, 0, CW, CH); ctx.strokeStyle = "rgba(110,165,220,.38)"; ctx.lineWidth = 1;
+    ctx.beginPath(); for (let y = 22; y < CH; y += 22) { ctx.moveTo(0, y + .5); ctx.lineTo(CW, y + .5); } ctx.stroke();
+    ctx.strokeStyle = "rgba(230,110,100,.4)"; ctx.beginPath(); ctx.moveTo(9.5, 0); ctx.lineTo(9.5, CH); ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  poly3([V(0, 0), V(15, 0), V(15, 14), V(0, 14)], "#F9E9C6");
+  hatch3(0, 0, 15, 14, .62, "rgba(228,168,84,.5)", 2);
+  PN = 300; poly3([V(5.05, 0), V(9.95, 0), V(9.95, 5.8), V(5.05, 5.8)], "#DCEAFA");
+  hatch3(5.05, 0, 9.95, 5.8, .36, "rgba(80,140,225,.5)", 1.8);
+  PN = 360; poly3([V(5.05, 0), V(9.95, 0), V(9.95, 5.8), V(5.05, 5.8)], null, INK, 2.2);
+  poly3([V(0, 0), V(15, 0), V(15, 14), V(0, 14)], null, INK, 2.8);
+  ring3(V(7.5, 5.8), 1.8, 0, INK, 2.2); ring3(V(7.5, 14), 1.8, 0, INK, 2.2, Math.PI, Math.PI * 2, 14);
+  PN = 500;
+  if (S && S.swap) { const q = S.swap, n = unit(q.a, q.b), o = { x: -n.y * .5, y: n.x * .5 }; line3(V(q.a.x + o.x, q.a.y + o.y, .03), V(q.b.x + o.x, q.b.y + o.y, .03), "#E89500", 3.5); line3(V(q.b.x - o.x, q.b.y - o.y, .03), V(q.a.x - o.x, q.a.y - o.y, .03), "#E89500", 3.5); ring3(q.a, .45, .03, "#E89500", 2.5); ring3(q.b, .45, .03, "#E89500", 2.5); }
+  if (S && S.mode === "freeze" && S.fz && S.fz.kind === "reb" && S.reb) { const q = S.reb.from; dash3(q, B, INK, 3); ring3(q, .4, .03, INK, 2); }
+  if (S && S.side && def[YOU] && S.mode !== "end") {
+    const pz = .5 + .5 * Math.sin(now / 160), fzD = S.mode === "freeze" && S.fz && lookVis(1, YOU), mk = def[YOU];
+    if (lookVis(1, YOU)) ring3(mk, .62 + (fzD ? pz * .14 : 0), .03, "#E89500", fzD ? 4 : 3, 0, Math.PI * 2, 18);
+    if (fzD && S.fz.kind === "help" && S.help) dash3(def[S.help.driver], driveTarget(), "#E24A3C", 4);
+    else if (fzD && S.fz.sc.holder !== YOU) dash3(def[S.fz.sc.holder], mk, "rgba(90,70,60,.75)", 2.5);
+    else if (fzD) dash3(mk, B, "rgba(90,70,60,.75)", 2.5);
+  }
+  PN = 520; drawLook();
+  if (S && S.mode === "pose" && S.pz.kind === "hand") { const d = def[S.pz.nd]; ring3(d, .6 + .12 * (.5 + .5 * Math.sin(now / 160)), .03, "#E24A3C", 3.5, 0, Math.PI * 2, 18); dash3(att[YOU], S.pz.to, "#E89500", 3); }
+  if (S && S.review) drawReview();
+  if (S && S.hint) { ring3(S.hint.p, .7, .02, "#12996A", 3); ring3(S.hint.p, .35, .02, "#12996A", 2); }
+  const items = [];
+  att.forEach((a, i) => items.push({ t: "p", a, team: 0, i })); def.forEach((a, i) => items.push({ t: "p", a, team: 1, i }));
+  items.push({ t: "hoop", a: { x: B.x, y: B.y } }); if (ball) items.push({ t: "ball", a: ball });
+  items.forEach(o => { const q = camSpace(V(o.a.x, o.a.y, o.t === "ball" ? o.a.z : 0)); o.c = q.c; });
+  items.sort((p, q) => q.c - p.c);
+  const pulse = .5 + .5 * Math.sin(now / 160), fz = S && S.mode === "freeze" && blend > .6 ? S.fz : null;
+  items.forEach(o => {
+    if (o.t === "hoop") { PN = 900; return drawHoop(fz && fz.kind === "ball", pulse); }
+    if (o.t === "ball") return drawBall();
+    PN = 1000 + o.team * 500 + o.i * 60; drawPlayer(o.a, o.team, o.i, e, fz, pulse);
+  });
+  if (S && S.mode === "pose" && S.pz.shown && blend < .35) { // わざを えらぶ時の しるし
+    ctx.globalAlpha = 1 - blend / .35;
+    if (S.pz.kind === "aim") aimPts().forEach(o => { const s = project(o.p); if (!s) return; const r = (o.k === "rim" ? 15 : 12) + pulse * 3;
+      ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, 7); ctx.fillStyle = "rgba(255,216,107,.45)"; ctx.fill(); ctx.strokeStyle = PAPER; ctx.lineWidth = 5.5; ctx.stroke(); ctx.strokeStyle = "#E06A00"; ctx.lineWidth = 3; ctx.stroke();
+      ctx.beginPath(); ctx.arc(s.x, s.y, 2.6, 0, 7); ctx.fillStyle = "#E06A00"; ctx.fill(); });
+    else { const d = def[S.pz.nd], s = project(V(d.x, d.y, 1.75)); if (s) { ctx.font = `400 16px ${PFONT}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineJoin = "round"; ctx.lineWidth = 5; ctx.strokeStyle = PAPER; ctx.strokeText("あいて", s.x, s.y); ctx.fillStyle = "#C8372B"; ctx.fillText("あいて", s.x, s.y); } }
+    ctx.globalAlpha = 1;
+  }
+  // 紙の ざらざら（色えんぴつの 白い ぬけ）
+  if (hasPT) PAT.grain.setTransform(new DOMMatrix([.5, 0, 0, .5, (hsh(3) + 1) * 60, (hsh(4) + 1) * 60]));
+  ctx.fillStyle = PAT.grain; ctx.fillRect(0, 0, CW, CH);
+}
+function drawHoop(glow, pulse) {
+  const behind = cam.pos.y < 1.6 && blend < .5; if (behind) ctx.globalAlpha = .22;
+  line3(V(B.x, .3, 0), V(B.x, .3, 2.9), INK, 5.5); PN--; line3(V(B.x, .3, 0), V(B.x, .3, 2.9), "#C3CCD3", 3);
+  line3(V(B.x, .3, 2.9), V(B.x, .9, 2.9), INK, 5.5); PN--; line3(V(B.x, .3, 2.9), V(B.x, .9, 2.9), "#C3CCD3", 3);
+  poly3([V(6.7, .9, 2.45), V(8.3, .9, 2.45), V(8.3, .9, 3.45), V(6.7, .9, 3.45)], "#FFFFFF", INK, 2);
+  poly3([V(7.2, .9, 2.6), V(7.8, .9, 2.6), V(7.8, .9, 3.05), V(7.2, .9, 3.05)], null, "#E24A3C", 2);
+  const sway = S && S.net ? Math.sin(S.net * 40) * .05 : 0;
+  for (let k = 0; k < 8; k++) { const t = k / 8 * Math.PI * 2; line3(V(B.x + Math.cos(t) * .23, B.y + Math.sin(t) * .23, 2.6), V(B.x + Math.cos(t) * .13 + sway, B.y + Math.sin(t) * .13, 2.15), "rgba(90,70,60,.7)", 1); }
+  ring3(B, .23, 2.6, "#EE6A1E", 3.5, 0, Math.PI * 2, 14);
+  ctx.globalAlpha = 1;
+  if (glow) { const s = project(V(B.x, B.y, 2.6)); if (s) { ctx.beginPath(); ctx.arc(s.x, s.y, 20 + pulse * 6, 0, 7); ctx.strokeStyle = `rgba(232,149,0,${.5 + pulse * .5})`; ctx.lineWidth = 3.5; ctx.stroke(); } }
+}
+function limb(p1, p2, p3, col, w) {
+  if (!p1 || !p2 || !p3) return; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  for (const [c, lw] of [[INK, w + 2.2], [col, w]]) { ctx.strokeStyle = c; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y); ctx.stroke(); }
+}
+function drawPlayer(a, team, i, e, fz, pulse) {
+  if (!lookVis(team, i)) return;
+  const foot = project(V(a.x, a.y, 0)); if (!foot || foot.c < 1.6 || foot.s > 260) return;
+  const s = foot.s, you = team === 0 && i === YOU, key = team === 0 ? (you ? "you" : "mate") : "foe";
+  const hx = a.hx === undefined ? 0 : a.hx, hy = a.hy === undefined ? -1 : a.hy, rx = -hy, ry = hx, run = Math.min(1, (a.spd || 0) / 3), ph = a.ph || 0;
+  const jz = a.jumpT > 0 ? Math.sin(Math.PI * (1 - a.jumpT / JUMP)) * .45 : 0, bob = Math.abs(Math.sin(ph)) * .07 * run + jz, lean = .2 * run;
+  const skin = SKIN[(i + team * 2) % 5], hair = HAIR[(i * 2 + team) % 5], lm = 1 - Math.min(1, e * 1.4);
+  const P = (f, r, z) => project(V(a.x + hx * f + rx * r, a.y + hy * f + ry * r, z));
+  const hip = P(0, 0, .52 + bob), sh = P(lean, 0, 1.02 + bob), hd = P(lean * 1.2, 0, 1.32 + bob); if (!hip || !sh) return;
+  const w = Math.max(5, (.4 + .52 * e) * s), sr = .4 * s * (1 - jz * .6);
+  ctx.beginPath(); ctx.ellipse(foot.x, foot.y, sr, sr * (.3 + .7 * e), 0, 0, 7); ctx.fillStyle = pat(PAT.shadow, foot.x, foot.y); ctx.fill();
+  if (you) ring3(a, .7, .02, "#E89500", 3, 0, Math.PI * 2, 18);
+  if (fz && team === 0 && !you && (fz.kind === "ball" || (fz.kind === "move" && i !== S.holder))) { ctx.beginPath(); ctx.arc(sh.x, sh.y, w * .5 + 7 + pulse * 5, 0, 7); ctx.strokeStyle = `rgba(232,149,0,${.5 + pulse * .5})`; ctx.lineWidth = 3; ctx.stroke(); }
+  if (lm > .03) {
+    ctx.globalAlpha = lm;
+    if (run > .55) { // 走っている時の スピード線と 砂けむり
+      ctx.globalAlpha = lm * (run - .55) * 1.8;
+      for (let k = 0; k < 3; k++) { const z = .35 + k * .38, l = .28 + .22 * (.5 + .5 * hsh(PN + 40 + k)), p1 = P(-.32, (k - 1) * .08, z + bob), p2 = P(-.32 - l, (k - 1) * .08, z + bob); if (p1 && p2) pline(p1.x, p1.y, p2.x, p2.y, INK, 1.5); }
+      const d = P(-.35, 0, .05); if (d) { ctx.beginPath(); ctx.arc(d.x, d.y, .09 * s * (1 + .3 * hsh(PN + 50)), 0, 7); ctx.strokeStyle = "rgba(90,70,60,.55)"; ctx.lineWidth = 1.3; ctx.stroke(); }
+      ctx.globalAlpha = lm;
+    }
+    for (const sd of [-1, 1]) {
+      const t = ph + (sd > 0 ? 0 : Math.PI), sw = Math.sin(t) * run, lift = Math.max(0, Math.cos(t)) * .2 * run + jz;
+      const h = P(0, .1 * sd, .5 + bob), k = P(.19 * sw + .1 * run + (jz > 0 ? .05 : 0), .1 * sd, .27 + bob * .6 + lift * .5), f = P(.4 * sw - .04 * run, .11 * sd, lift);
+      limb(h, k, f, skin, Math.max(2, .115 * s));
+      if (f) { ctx.beginPath(); ctx.arc(f.x, f.y, Math.max(1.8, .085 * s), 0, 7); ctx.fillStyle = "#fff"; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.4; ctx.stroke(); }
+    }
+    const side = S && S.side ? 1 : 0, holder = S && team === side && S.holder === i && ball && !ball.fly, drib = holder && S.drib && S.drib.who === i;
+    const sway = Math.sin(performance.now() / 260 + i * 1.7) * .05;
+    for (const sd of [-1, 1]) {
+      const t = ph + (sd > 0 ? Math.PI : 0), sw = Math.sin(t) * run, s0 = P(lean, .2 * sd, .98 + bob); let el, hn;
+      if (a.up > 0) { el = P(lean + .12, .22 * sd, 1.25 + bob); hn = P(lean + .16, .14 * sd, 1.62 + bob); }
+      else if (team !== side) { const near = ball && dist(a, ball) < 2.6 ? 1 : .7; el = P(lean + .08, .4 * sd * near, .9 + bob); hn = P(lean + .2, .66 * sd * near, 1.0 + bob + sway * sd); }
+      else if (holder && (!drib || sd === (you ? (S.hand || 1) : 1))) { el = P(lean + .16, .22 * sd, .78 + bob); hn = project(V(ball.x + rx * .09 * sd, ball.y + ry * .09 * sd, Math.max(.35, ball.z + (drib ? .1 : 0)))); }
+      else { el = P(lean - .12 * sw, .26 * sd, .78 + bob); hn = P(lean + .3 * sw + .06, .27 * sd, .66 + bob + Math.abs(sw) * .12); }
+      limb(s0, el, hn, skin, Math.max(2, .095 * s));
+    }
+    ctx.globalAlpha = 1;
+  }
+  const sho = P(0, 0, .4 + bob); ctx.lineCap = "round";
+  const seg = (p, q, st, lw) => { ctx.strokeStyle = st; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y + .01); ctx.stroke(); };
+  if (sho && lm > .03) { ctx.globalAlpha = lm; seg(hip, sho, INK, w * .96 + 2.6); seg(hip, sho, pat(PAT[key + "D"], hip.x, hip.y), w * .96); ctx.globalAlpha = 1; }
+  seg(hip, sh, INK, w + 2.8); seg(hip, sh, pat(PAT[key], hip.x, hip.y), w);
+  if (hd && e < .75) { // あたま：カメラの ほうを 向いていれば 顔、うしろなら かみ
+    const r = Math.max(3, .23 * s) * (1 + hsh(PN + 30) * .015), fp = P(lean * 1.2 + .2, 0, 1.32 + bob); ctx.globalAlpha = 1 - e / .75;
+    const cx = cam.pos.x - a.x, cy = cam.pos.y - a.y, cl = Math.hypot(cx, cy) || 1, d = (hx * cx + hy * cy) / cl;
+    ctx.beginPath(); ctx.arc(hd.x, hd.y, r, 0, 7); ctx.fillStyle = d > .1 ? skin : hair; ctx.fill();
+    if (d > .1 && fp) {
+      const fx = (fp.x - hd.x) * .5, fy = Math.max(0, (fp.y - hd.y)) * .35 + r * .12;
+      ctx.save(); ctx.beginPath(); ctx.arc(hd.x, hd.y, r, 0, 7); ctx.clip();
+      ctx.beginPath(); ctx.ellipse(hd.x - fx * .9, hd.y - r * (.5 + .45 * d), r * 1.25, r * .82, 0, 0, 7); ctx.fillStyle = hair; ctx.fill();
+      ctx.fillStyle = "rgba(240,120,110,.5)"; for (const sd of [-1, 1]) { ctx.beginPath(); ctx.arc(hd.x + fx + sd * r * .56, hd.y + fy + r * .3, r * .17, 0, 7); ctx.fill(); }
+      ctx.fillStyle = INK; for (const sd of [-1, 1]) { ctx.beginPath(); ctx.ellipse(hd.x + fx + sd * r * .36, hd.y + fy + r * .06, r * .09, r * .13, 0, 0, 7); ctx.fill(); }
+      ctx.restore();
+    } else if (d > -.45) { // よこ顔：かおが すこし 見える
+      ctx.save(); ctx.beginPath(); ctx.arc(hd.x, hd.y, r, 0, 7); ctx.clip(); const sx = fp ? Math.sign(fp.x - hd.x) : 1;
+      ctx.beginPath(); ctx.arc(hd.x + sx * r * 1.05, hd.y + r * .25, r * .8, 0, 7); ctx.fillStyle = skin; ctx.fill(); ctx.restore();
+    }
+    ctx.beginPath(); ctx.arc(hd.x, hd.y, r, 0, 7); ctx.strokeStyle = INK; ctx.lineWidth = 1.7; ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  const fs = Math.min(64, Math.round(w * .33) * 2); if (fs >= 8) { const my = (hip.y + sh.y) / 2 * (1 - e) + sh.y * e, mx = sh.x * e + (hip.x + sh.x) / 2 * (1 - e); ctx.font = `400 ${fs}px ${PFONT}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineJoin = "round"; ctx.lineWidth = Math.max(2, fs * .22); ctx.strokeStyle = PAPER; ctx.strokeText(NUM[i], mx, my); ctx.fillStyle = "#3A2A22"; ctx.fillText(NUM[i], mx, my); }
+  if (you && e < .5 && hd) { const y = hd.y - .3 * s - 6; ctx.beginPath(); ctx.moveTo(hd.x - 8, y - 10); ctx.lineTo(hd.x + 8, y - 10); ctx.lineTo(hd.x, y); ctx.closePath(); ctx.fillStyle = "#F5A21E"; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.6; ctx.lineJoin = "round"; ctx.stroke(); }
+}
+function drawBall() {
+  const s = project(V(ball.x, ball.y, ball.z)), f = project(V(ball.x, ball.y, 0)); if (!s || s.c < 1 || !isFinite(s.x)) return;
+  if (f) { ctx.beginPath(); ctx.ellipse(f.x, f.y, .14 * f.s, .08 * f.s + .06 * f.s * ease(blend), 0, 0, 7); ctx.fillStyle = pat(PAT.shadow, f.x, f.y); ctx.fill(); }
+  const r = Math.max(4, .14 * s.s);
+  if (ball.fly && S && S.mode !== "freeze") { FX.trail.push({ x: s.x, y: s.y, r }); if (FX.trail.length > 8) FX.trail.shift(); } else if (!ball.fly) FX.trail.length = 0;
+  PN = 800; for (let k = 1; k < FX.trail.length; k++) { const p = FX.trail[k - 1], q = FX.trail[k]; ctx.globalAlpha = .12 + k * .07; pline(p.x, p.y - p.r * .5, q.x, q.y - q.r * .5, "#E8741C", 1.6); pline(p.x, p.y + p.r * .5, q.x, q.y + q.r * .5, INK, 1.2); } ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, 7); ctx.fillStyle = pat(PAT.ball, s.x, s.y); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 1.6; ctx.stroke();
+  const rot = (ball.x + ball.y) * 2.2; ctx.lineWidth = 1.1; ctx.beginPath(); ctx.moveTo(s.x - Math.cos(rot) * r, s.y - Math.sin(rot) * r); ctx.lineTo(s.x + Math.cos(rot) * r, s.y + Math.sin(rot) * r); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(s.x, s.y, r, r * .45, rot + 1.57, 0, 7); ctx.stroke();
+}
+</script>
