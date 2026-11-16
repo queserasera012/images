@@ -126,6 +126,22 @@ body{-webkit-text-stroke:.45px currentColor}
 .pbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .pbtn{border:2px solid var(--line);border-radius:10px;background:transparent;color:var(--fg);font:600 14px var(--read);padding:11px 4px;touch-action:manipulation}.pbtn.get{border-color:var(--yellow);color:var(--yellow)}.pbtn:disabled{opacity:.55}
 .leg{font:600 12px/1.7 var(--read);color:var(--mute);margin-top:8px}.msg{color:var(--green)}
+/* iPad (class "ipad" is set by the viewport script; "land" = landscape). Phones never get these. */
+.ipad.land .chips{grid-template-columns:repeat(4,1fr)}
+.ipad.land #app{max-width:880px}
+.ipad.land #scrPlay,.ipad.land #scrDuel,.ipad.land #scrEnd,.ipad.land #scrGate,.ipad.land #scrVs,.ipad.land #scrKids{width:100%;max-width:480px;align-self:center}
+.ipad.land #scrParent{width:100%;max-width:640px;align-self:center}
+.ipad.land #scrPrac{width:100%;max-width:720px;align-self:center}
+.ipad.land #scrBook{width:100%;max-width:600px;align-self:center}
+.ipad.land .title{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:repeat(4,auto);column-gap:40px;row-gap:12px;align-content:center;align-items:center;padding:0 20px}
+.ipad.land .title>*{grid-column:2}
+.ipad.land .title #btnKid{grid-column:1;grid-row:1;justify-self:start;align-self:end}
+.ipad.land .title h1{grid-column:1;grid-row:2;font-size:46px;white-space:nowrap}
+.ipad.land .title .shelf{grid-column:1;grid-row:3;flex-wrap:wrap;align-self:start;font-size:15px}
+.ipad.land .title .shelf svg{width:40px;height:40px}
+.ipad.land .title #btnParent{grid-column:1;grid-row:4;justify-self:start;padding-left:0}
+.ipad.land .title #btnDay{grid-row:1}.ipad.land .title #btnStart{grid-row:2}
+.ipad.land .title .day{position:static;writing-mode:horizontal-tb;grid-column:1;grid-row:4;justify-self:end;font-size:16px}
 </style>
 
 <div id="app">
@@ -213,6 +229,7 @@ body{-webkit-text-stroke:.45px currentColor}
 (function(){var m=document.querySelector('meta[name=viewport]');if(!m)return;var base=m.content,cur=base;
   function vfit(){var vv=window.visualViewport,sc=vv?vv.scale:1,w=innerWidth*sc,h=innerHeight*sc,c=base;
     if(w>=700&&h>=600)c = 'width=' + Math.max(480, Math.round(w*(w>h?640:760)/h))+',viewport-fit=cover,user-scalable=no';
+    var pad=c!==base,cl=document.documentElement.classList;cl.toggle('ipad',pad);cl.toggle('land',pad&&w>h);
     if(c!==cur){cur=c;m.content=c;}}
   vfit();addEventListener('resize',vfit);})();
 (function(){
