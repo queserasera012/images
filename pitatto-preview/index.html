@@ -545,24 +545,335 @@ est:{name:'だいたい',cmd(){return 'だいたい いくつ？';},
     const ra=(this.sub?rnd(5,9):rnd(1,4))*u,rb=rnd(1,4)*u;this.a=ra+dv();this.b=rb+dv();this.ra=ra;this.rb=rb;this.ans=this.sub?ra-rb:ra+rb;this.opts=mkOpts(this.ans,[u,-u,2*u,-2*u]);},
   tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
   draw(rev){const op=this.sub?' − ':' + ';num(this.a+op+this.b,W/2,H*.32,Math.min(W*.13,H*.12),INK);
-    if(rev)pill('だいたい '+this.ra+op+this.rb+' = '+this.ans,W/2,H*.5,17,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}}
+    if(rev)pill('だいたい '+this.ra+op+this.rb+' = '+this.ans,W/2,H*.5,17,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+// ===== 2026-11-16：各分野に 5本ずつ 足した 50本 =====
+// --- かずの かん ---
+dots:{name:'ぱっと いくつ',cmd(){return 'ぱっと みて いくつ？';},
+  setup(lv){this.r=Math.min(16,H*.035);this.pts=scatter([rnd(3,6),rnd(5,9),rnd(8,13)][lv],W*.1,54,W*.8,H*.6-64,this.r);this.ans=this.pts.length;this.opts=mkOpts(this.ans,[1,-1,2,-2]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){this.pts.forEach((p,i)=>{ball(p.x,p.y,this.r,PAL[0]);if(rev)num(i+1,p.x,p.y,this.r);});optDraw(this.opts,this.ans,rev);}},
+tens:{name:'10の まとまり',cmd(){return 'ぜんぶで いくつ？';},
+  setup(lv){this.t=[rnd(1,2),rnd(2,4),rnd(3,6)][lv];this.o=rnd(1,9);this.ans=this.t*10+this.o;this.opts=mkOpts(this.ans,lv?[10,-10,1,-1,9,-9]:[10,1,-1,2,-2]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){const n=this.t+1,top=56,ah=H*.6-top-(rev?32:4),s=Math.min(W*.86/10,ah/n),x0=W/2-s*5;
+    for(let r=0;r<n;r++){const k=r<this.t?10:this.o,y=top+s*(r+.5);if(r<this.t){ctx.strokeStyle=MUTE;ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(x0-3,y-s/2+2,s*10+6,s-4,s*.4);ctx.stroke();}
+      for(let i=0;i<k;i++)ball(x0+s*(i+.5),y,s*.34,r<this.t?PAL[3]:PAL[1]);}
+    if(rev)pill('10が '+this.t+'こ と '+this.o+'こ で '+this.ans,W/2,H*.6-14,16,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+oddn:{name:'なかまはずれ',cmd(){return 'かずが ちがうのは？';},
+  setup(lv){const a=[rnd(3,5),rnd(5,8),rnd(7,11)][lv],b=a+(Math.random()<.5?1:-1)*(lv===0?2:1);this.k=rnd(0,2);this.rr=Math.min(13,RH()*.11);let t=0;
+    do{t++;this.g=[0,1,2].map(i=>scatter(i===this.k?b:a,W*.06,50+RH()*i+8,W*.72,RH()-16,this.rr));}while(t<20&&this.g.some((q,i)=>q.length!==(i===this.k?b:a)));},
+  tap(x,y){finish(rowHit(y)===this.k);},
+  draw(rev){this.g.forEach((q,i)=>{if(i){ctx.strokeStyle=MUTE;ctx.lineWidth=2;ctx.setLineDash([6,8]);ctx.beginPath();ctx.moveTo(10,50+RH()*i);ctx.lineTo(W-10,50+RH()*i);ctx.stroke();ctx.setLineDash([]);}
+      q.forEach(p=>ball(p.x,p.y,this.rr,PAL[2]));if(rev)pill(q.length+'こ',W*.88,rowY(i),18,NAVY,'#F4F1E6');});if(rev)rowF(this.k);}},
+hue:{name:'おおい いろ',cmd(){return 'いちばん おおい いろは？';},
+  setup(lv){const d=[3,2,1][lv],b=rnd(3,5)+lv;this.r=Math.min(13,H*.03);this.nm=['あか','きいろ','あお'];this.cl=[PAL[0],PAL[1],PAL[3]];let t=0,c;
+    do{t++;c=shuf([b+d,b,b-rnd(0,1)]);const pts=scatter(sum(c),W*.05,54,W*.9,H*.6-62,this.r),col=shuf(c.flatMap((n,i)=>Array(n).fill(i)));
+      this.pts=pts.map((p,i)=>({x:p.x,y:p.y,c:col[i]}));this.cnt=[0,1,2].map(i=>this.pts.filter(p=>p.c===i).length);}
+    while(t<20&&this.cnt.filter(n=>n===Math.max(...this.cnt)).length>1);this.k=this.cnt.indexOf(Math.max(...this.cnt));},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(i===this.k);},
+  draw(rev){this.pts.forEach(p=>ball(p.x,p.y,this.r,this.cl[p.c]));const cw=W/3;
+    this.nm.forEach((t,i)=>{box(i*cw+cw/2,H*.78,cw-16,H*.28,this.cl[i]);fitT(rev?t+' '+this.cnt[i]:t,i*cw+cw/2,H*.78,cw-30,H*.09);if(rev&&i===this.k)frame(i*cw+4,H*.64-4,cw-8,H*.28+8);});}},
+many:{name:'どのくらい',cmd(){return 'だいたい なんこ？';},
+  setup(lv){this.opts=[[10,20,40],[20,40,80],[30,50,80]][lv];this.ans=this.opts[rnd(0,2)];this.r=Math.min(lv?6:8,H*.016);
+    this.pts=scatter(this.ans+rnd(-2,2)*(lv?2:1),W*.04,52,W*.92,H*.6-58,this.r);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){this.pts.forEach(p=>ball(p.x,p.y,this.r,PAL[1]));if(rev)pill('ほんとうは '+this.pts.length+'こ',W/2,H*.6-14,17,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+// --- かぞえる・ならべる ---
+small:{name:'ちいさいかず',cmd(){return 'いちばん ちいさい かず！';},
+  setup(lv){GAMES.big.setup.call(this,lv);this.max=Math.min(...this.cards.map(c=>c.v));},
+  tap(x,y){GAMES.big.tap.call(this,x,y);},draw(rev){GAMES.big.draw.call(this,rev);}},
+order:{name:'じゅんばん',cmd(){return 'ちいさい じゅんは どれ？';},
+  setup(lv){const n=lv?4:3,rg=[[1,20],[10,99],[100,999]][lv],mk=()=>{const s=new Set();while(s.size<n)s.add(rnd(rg[0],rg[1]));return [...s].sort((a,b)=>a-b);},
+      sw=a=>{const i=rnd(0,n-2);[a[i],a[i+1]]=[a[i+1],a[i]];return a;};
+    const good=mk();this.rows=shuf([{v:good,ok:true},{v:sw(good.slice())},{v:sw(mk())}]);this.k=this.rows.findIndex(r=>r.ok);},
+  tap(x,y){finish(rowHit(y)===this.k);},
+  draw(rev){this.rows.forEach((r,i)=>{const n=r.v.length,bw=W*.9/n,bh=Math.min(RH()*.64,84);
+      r.v.forEach((v,j)=>{box(W*.05+bw*(j+.5),rowY(i),bw-8,bh,PAL[(i+1)%6]);fitT(String(v),W*.05+bw*(j+.5),rowY(i),bw-20,bh*.6);});});if(rev)rowF(this.k);}},
+betw:{name:'あいだの かず',cmd(){return 'あいだの かずは？';},
+  setup(lv){this.lo=[rnd(1,8),rnd(10,97),rnd(100,997)][lv];this.hi=this.lo+2;this.ans=this.lo+1;this.opts=shuf(lv===2?[this.ans,this.ans+10,this.ans-10]:[this.ans,this.hi+1,this.lo-1]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){const bw=W*.27,y=H*.34;[this.lo,rev?this.ans:'？',this.hi].forEach((v,i)=>{box(W*.5+(i-1)*W*.3,y,bw,bw*.8,i===1?'#FFE08A':'#A9BDB355');fitT(String(v),W*.5+(i-1)*W*.3,y,bw-18,bw*.52,i===1?NAVY:INK);});optDraw(this.opts,this.ans,rev);}},
+hole:{name:'ぬけた かず',cmd(){return 'ぬけている かずは？';},
+  setup(lv){const st=[[1,2],[2,5,10],[3,4,-2,-5,25]][lv];this.d=st[rnd(0,st.length-1)];const s0=this.d<0?rnd(30,50):rnd(1,lv?20:9);this.i=rnd(1,3);
+    this.v=[0,1,2,3,4].map(i=>s0+i*this.d);this.ans=this.v[this.i];this.opts=mkOpts(this.ans,[1,-1,2,-2,this.d,-this.d]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){const bw=W/5.5,y=H*.2+8;this.v.forEach((v,i)=>{const x=W*.035+i*(bw+W*.012),h=i===this.i;ctx.fillStyle=h?'#FFE08A':MUTE+'33';ctx.beginPath();ctx.roundRect(x,y,bw,bw,12);ctx.fill();
+      fitT(String(h&&!rev?'？':v),x+bw/2,y+bw/2,bw-10,bw*.52,h?NAVY:INK);});
+    if(rev)pill(this.d>0?this.d+'ずつ ふえる':(-this.d)+'ずつ へる',W/2,y+bw+38,20,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+place:{name:'くらい',cmd(){return this.pn+'の くらいは？';},
+  setup(lv){const n=lv+2,ds=shuf([1,2,3,4,5,6,7,8,9]).slice(0,n),p=rnd(0,n-1);this.ds=ds;this.p=n-1-p;this.pn=['いち','じゅう','ひゃく','せん'][p];this.ans=ds[this.p];
+    this.opts=shuf([this.ans,...shuf([1,2,3,4,5,6,7,8,9].filter(d=>d!==this.ans).sort((a,b)=>ds.includes(b)-ds.includes(a)).slice(0,Math.max(2,n-1))).slice(0,2)]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){const n=this.ds.length,cw=Math.min(W*.2,H*.16),x0=W/2-cw*n/2,y=H*.32;
+    this.ds.forEach((d,i)=>{if(rev&&i===this.p)box(x0+cw*(i+.5),y,cw-6,cw*1.25,'#FFE08A');num(d,x0+cw*(i+.5),y,cw*.95,rev&&i===this.p?NAVY:INK);});
+    if(rev)pill(this.pn+'の くらい',W/2,y+cw*.95,17,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+// --- たす・ひく ---
+add:{name:'たしざん',cmd(){return 'こたえは？';},
+  setup(lv){this.a=[rnd(1,5),rnd(6,9),rnd(12,48)][lv];this.b=[rnd(1,5),rnd(4,9),rnd(3,9)][lv];this.ans=this.a+this.b;this.opts=mkOpts(this.ans,lv===2?[1,-1,10,-10]:[1,-1,2,-2]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){fitT(this.a+' + '+this.b+(rev?' = '+this.ans:''),W/2,H*.34,W*.86,W*.15,rev?'#FFE08A':INK);optDraw(this.opts,this.ans,rev);}},
+make:{name:'いくつと いくつ',cmd(){return '□に はいる かずは？';},
+  setup(lv){this.t=[rnd(5,10),rnd(11,18),rnd(20,50)][lv];this.a=lv===1?rnd(this.t-9,9):rnd(1,this.t-1);this.ans=this.t-this.a;this.opts=mkOpts(this.ans,lv===2?[1,-1,10,-10]:[1,-1,2,-2]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){fitT(this.t+' = '+this.a+' + '+(rev?this.ans:'□'),W/2,H*.34,W*.86,W*.14,rev?'#FFE08A':INK);optDraw(this.opts,this.ans,rev);}},
+cmp:{name:'しき くらべ',cmd(){return 'おおきいほうを タップ！';},
+  setup(lv){const ex=()=>{const m=lv&&Math.random()<.5,a=[rnd(2,9),rnd(6,15),rnd(20,60)][lv],b=m?rnd(1,Math.min(9,a-1)):[rnd(1,6),rnd(3,9),rnd(5,29)][lv];return {t:a+(m?' − ':' + ')+b,v:m?a-b:a+b};};
+    do{this.L=ex();this.R=ex();}while(this.L.v===this.R.v||Math.abs(this.L.v-this.R.v)>[4,3,6][lv]);this.ans=this.L.v>this.R.v?'L':'R';},
+  tap(x){finish(side(x)===this.ans);},
+  draw(rev){lr();[this.L,this.R].forEach((q,i)=>{const cx=W*(.25+.5*i);box(cx,H*.47,W*.45,H*.3,PAL[i?3:1]);fitT(q.t,cx,H*.47,W*.37,W*.12);if(rev)pill('= '+q.v,cx,H*.72,22,NAVY,'#F4F1E6');});if(rev)lrf(this.ans);}},
+tf:{name:'あってる？',buttons:['あってる','ちがう'],cmd(){return 'この しき あってる？';},
+  setup(lv){const m=Math.random()<.5,a=[rnd(3,9),rnd(7,15),rnd(21,70)][lv],b=m?rnd(1,Math.min(a-1,[5,9,19][lv])):[rnd(1,6),rnd(4,9),rnd(6,29)][lv];this.v=m?a-b:a+b;this.t=a+(m?' − ':' + ')+b;
+    this.ok=Math.random()<.5;this.sh=this.ok?this.v:Math.max(0,this.v+[1,-1,2,-2,lv===2?10:1,lv===2?-10:-1][rnd(0,5)]);if(this.sh===this.v)this.ok=true;},
+  btn(i){finish((i===0)===this.ok);},
+  draw(rev){fitT(this.t+' = '+this.sh,W/2,H*.4,W*.88,W*.15,INK);if(rev)pill(this.ok?'あってる':'ただしくは '+this.t+' = '+this.v,W/2,H*.62,19,NAVY,'#F4F1E6');}},
+hund:{name:'あわせて100',cmd(){return 'あわせて 100に なるのは？';},
+  setup(lv){this.a=lv===0?rnd(1,9)*10:lv===1?rnd(1,19)*5:rnd(11,89);this.ans=100-this.a;this.opts=mkOpts(this.ans,lv===0?[10,-10,20,-20]:lv===1?[5,-5,10,-10]:[1,-1,10,-10]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){const x0=W*.08,bw=W*.84,y=H*.2,bh=Math.min(40,H*.08);ctx.fillStyle=PAL[0];ctx.fillRect(x0,y,bw*this.a/100,bh);if(rev){ctx.fillStyle=PAL[2];ctx.fillRect(x0+bw*this.a/100,y,bw*(1-this.a/100),bh);}
+    ctx.strokeStyle=INK;ctx.lineWidth=3;ctx.strokeRect(x0,y,bw,bh);num(rev?this.a+' と '+this.ans+' で 100':this.a+' と ？ で 100',W/2,y+bh+H*.1,Math.min(36,W*.09),INK);optDraw(this.opts,this.ans,rev);}},
+// --- ながさ・かさ ---
+ruler:{name:'じょうぎ',cmd(){return 'なんセンチ？';},
+  setup(lv){this.s=lv?rnd(1,[0,3,5][lv]):0;this.ans=rnd(2,lv===2?7:8);this.e=this.s+this.ans;this.opts=mkOpts(this.ans,lv?[1,-1,this.s,2]:[1,-1,2,-2]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){const u=W*.84/12,x0=W*.08,y=H*.36,rh=Math.min(66,H*.15);ctx.fillStyle='#FFE08A';ctx.fillRect(x0-u*.4,y,u*12.8,rh);ctx.strokeStyle=NAVY;ctx.lineWidth=2;
+    for(let i=0;i<=12;i++){ctx.beginPath();ctx.moveTo(x0+u*i,y);ctx.lineTo(x0+u*i,y+rh*(i%5?.3:.45));ctx.stroke();num(i,x0+u*i,y+rh*.72,Math.min(17,u*.58));}
+    ctx.strokeStyle=PAL[0];ctx.lineWidth=Math.min(22,H*.05);ctx.beginPath();ctx.moveTo(x0+u*this.s,y-ctx.lineWidth/2-4);ctx.lineTo(x0+u*this.e,y-ctx.lineWidth/2-4);ctx.stroke();
+    if(rev)pill(this.s?this.e+' − '+this.s+' = '+this.ans+'cm':this.ans+'cm',W/2,y-H*.14,19,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+water:{name:'みずの かさ',cmd(){return 'みずが おおいほう！';},
+  setup(lv){let a,b,t=0;const mk=()=>({w:rnd(2,4),h:rnd(1,6)});do{t++;a=mk();b=mk();}while(a.w*a.h===b.w*b.h||a.w===b.w||Math.abs(a.w*a.h-b.w*b.h)>[9,5,3][lv]||(lv&&t<60&&(a.h>b.h)===(a.w*a.h>b.w*b.h)));
+    this.L=a;this.R=b;this.ans=a.w*a.h>b.w*b.h?'L':'R';},
+  tap(x){finish(side(x)===this.ans);},
+  draw(rev){lr();const u=Math.min(W*.1,(H-110)/7.4),by=H-64;[this.L,this.R].forEach((c,i)=>{const cx=W*(.25+.5*i),x=cx-c.w*u/2;ctx.fillStyle=PAL[3];ctx.fillRect(x,by-c.h*u,c.w*u,c.h*u);
+      if(rev){ctx.strokeStyle=NAVY;ctx.lineWidth=1.5;for(let k=1;k<c.w;k++){ctx.beginPath();ctx.moveTo(x+k*u,by);ctx.lineTo(x+k*u,by-c.h*u);ctx.stroke();}for(let k=1;k<c.h;k++){ctx.beginPath();ctx.moveTo(x,by-k*u);ctx.lineTo(x+c.w*u,by-k*u);ctx.stroke();}}
+      ctx.strokeStyle=INK;ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(x,by-7*u);ctx.lineTo(x,by);ctx.lineTo(x+c.w*u,by);ctx.lineTo(x+c.w*u,by-7*u);ctx.stroke();
+      if(rev)pill(c.w+'×'+c.h+' = '+c.w*c.h+'ます',cx,H-28,17,NAVY,'#F4F1E6');});if(rev)lrf(this.ans);}},
+path:{name:'まがった みち',cmd(){return 'いちばん ながい みちは？';},
+  setup(lv){const b=rnd(5,7),ns=shuf(lv?[b+1,b,b-1]:[b+2,b,b-2]);let t=0;const mk=n=>{const h=rnd(Math.ceil((n+1)/2),Math.min(n,8)),v=n-h,at=new Set(shuf([...Array(h-1).keys()]).slice(0,v)),m=[];let y=0;
+        for(let i=0;i<h;i++){m.push([1,0]);if(at.has(i)){y=y?0:1;m.push([0,y?-1:1]);}}return {n,h,m};};
+    do{t++;this.p=ns.map(mk);}while(lv&&t<40&&this.p.reduce((a,q)=>q.h>a.h?q:a).n===Math.max(...ns));this.k=ns.indexOf(Math.max(...ns));},
+  tap(x,y){finish(rowHit(y)===this.k);},
+  draw(rev){const u=Math.min(W*.8/8,RH()*.42);this.p.forEach((q,i)=>{let x=W*.08,y=rowY(i)+u/2;ctx.strokeStyle=PAL[i+1];ctx.lineWidth=7;ctx.lineJoin='round';ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x,y);const pts=[[x,y]];
+      q.m.forEach(d=>{x+=d[0]*u;y+=d[1]*u;ctx.lineTo(x,y);pts.push([x,y]);});ctx.stroke();ctx.lineCap='butt';
+      if(rev){pts.forEach(p=>ball(p[0],p[1],5,INK));pill(q.n+'ます',W*.88,rowY(i),17,NAVY,'#F4F1E6');}});if(rev)rowF(this.k);}},
+unit:{name:'たんい',cmd(){return 'どのくらいの ながさ？';},
+  setup(lv){const L=[['えんぴつの ながさ',15,'cm'],['つくえの たかさ',70,'cm'],['けしゴムの ながさ',4,'cm'],['はがきの よこ',10,'cm'],['きょうしつの よこ',8,'m'],['ドアの たかさ',2,'m'],['プールの ながさ',25,'m'],['バスの ながさ',10,'m'],['ノートの あつさ',5,'mm'],['ありの おおきさ',5,'mm'],['1えんだまの あつさ',1,'mm']];
+    const q=L[rnd(0,lv?10:7)];this.it=q[0];this.ans=q[1]+q[2];this.opts=shuf(['mm','cm','m'].map(u=>q[1]+u));},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){fitT(this.it,W/2,H*.3,W*.88,W*.1,INK);if(rev)pill(this.ans+' くらい',W/2,H*.48,20,NAVY,'#F4F1E6');sDraw(this.opts,this.ans,rev);}},
+cmm:{name:'たんい がえ',cmd(){return 'おなじ ながさは？';},
+  setup(lv){const n=rnd(1,9),k=rnd(1,19)*5;if(lv===0){this.t=n+'cm';this.o=[n*10+'mm',n*100+'mm',n+'mm'];}else if(lv===1){this.t=n+'m';this.o=[n*100+'cm',n*10+'cm',n*1000+'cm'];}else{this.t=n+'m '+k+'cm';this.o=[n*100+k+'cm',n*1000+k+'cm',n*10+k+'cm'];}
+    this.ans=this.o[0];this.opts=shuf(this.o.slice());this.why=['1cm = 10mm','1m = 100cm','1m = 100cm'][lv];},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){fitT(this.t+(rev?' = '+this.ans:''),W/2,H*.32,W*.86,W*.14,rev?'#FFE08A':INK);if(rev)pill(this.why,W/2,H*.5,18,NAVY,'#F4F1E6');sDraw(this.opts,this.ans,rev);}},
+// --- じかん ---
+read:{name:'なんじ なんぷん',cmd(){return 'なんじ なんぷん？';},
+  setup(lv){const ms=[[0,30],[0,15,30,45],[5,10,20,25,35,40,50,55]][lv];let h,m,o;do{h=rnd(1,12);m=ms[rnd(0,ms.length-1)];o=[tm(h,m),tm((m/5)||12,(h%12)*5),tm(h%12+1,m)];}while(new Set(o).size<3);
+    this.h=h;this.m=m;this.ans=o[0];this.opts=shuf(o);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){clk(W/2,H*.32,Math.min(W*.3,H*.25),this.h,this.m);sDraw(this.opts,this.ans,rev);}},
+after:{name:'なんぷんご',cmd(){return this.dl+'は？';},
+  setup(lv){const d=[60,30,[20,40,50][rnd(0,2)]][lv],ms=[[0,30],[0,15,30,45],[10,20,25,35,40,50]][lv];this.h=rnd(1,12);this.m=ms[rnd(0,ms.length-1)];this.dl=d===60?'1じかんご':d+'ぷんご';
+    const t=this.h*60+this.m,f=v=>tm((Math.floor(v/60)+11)%12+1,v%60),nc=tm(this.h,(this.m+d)%60);this.ans=f(t+d);
+    const set=new Set([this.ans]);[d===60?f(t+30):nc,f(t+d+60),f(t),f(t+d+10)].forEach(v=>{if(set.size<3)set.add(v);});this.opts=shuf([...set]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){clk(W/2,H*.32,Math.min(W*.3,H*.25),this.h,this.m);if(rev)pill(tm(this.h,this.m)+' の '+this.dl,W/2,H*.6-12,16,NAVY,'#F4F1E6');sDraw(this.opts,this.ans,rev);}},
+longt:{name:'ながい じかん',cmd(){return 'ながいほうを タップ！';},
+  setup(lv){const P=[[['1じかん',3600,'30ぷん',1800],['1ぷん',60,'30びょう',30],['2じかん',7200,'60ぷん',3600],['1にち',86400,'12じかん',43200]],
+      [['1じかん',3600,'50ぷん',3000],['1ぷん',60,'70びょう',70],['90ぷん',5400,'1じかん',3600],['100びょう',100,'1ぷん',60],['1にち',86400,'20じかん',72000]],
+      [['1じかん30ぷん',5400,'100ぷん',6000],['2ふん',120,'100びょう',100],['3じかん',10800,'200ぷん',12000],['1ぷん30びょう',90,'80びょう',80],['2じかん',7200,'110ぷん',6600]]][lv],q=P[rnd(0,P.length-1)],s=Math.random()<.5;
+    this.L=s?{t:q[0],v:q[1]}:{t:q[2],v:q[3]};this.R=s?{t:q[2],v:q[3]}:{t:q[0],v:q[1]};this.ans=this.L.v>this.R.v?'L':'R';const mn=Math.min(q[1],q[3]);this.u=mn>=3600?[3600,'じかん']:mn>=600?[60,'ぷん']:[1,'びょう'];},
+  tap(x){finish(side(x)===this.ans);},
+  draw(rev){lr();[this.L,this.R].forEach((q,i)=>{const cx=W*(.25+.5*i);box(cx,H*.47,W*.45,H*.3,PAL[i?3:1]);fitT(q.t,cx,H*.47,W*.37,W*.1);if(rev)pill('= '+q.v/this.u[0]+this.u[1],cx,H*.72,19,NAVY,'#F4F1E6');});if(rev)lrf(this.ans);}},
+mins:{name:'なんぷん',cmd(){return 'ぜんぶで なんぷん？';},
+  setup(lv){this.h=rnd(1,lv+1);this.m=lv===2?rnd(1,11)*5:rnd(0,lv?5:3)*10;this.ans=this.h*60+this.m;const set=new Set([this.ans,this.h*100+this.m]);[this.ans+10,this.ans-10,this.ans+60].forEach(v=>{if(set.size<3)set.add(v);});this.opts=shuf([...set]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){fitT(this.h+'じかん'+(this.m?' '+this.m+'ぷん':''),W/2,H*.3,W*.86,W*.12,INK);if(rev)pill('1じかん = 60ぷん　'+this.h*60+(this.m?' + '+this.m:'')+' = '+this.ans,W/2,H*.5,16,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+span:{name:'なんじかん',cmd(){return 'なんじかん たった？';},
+  setup(lv){this.s=rnd(1,12);this.ans=[rnd(1,3),rnd(2,5),rnd(3,8)][lv];this.e=(this.s+this.ans-1)%12+1;this.m=lv===2?30:0;this.opts=mkOpts(this.ans,[1,-1,2,-2]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){const r=Math.min(W*.19,H*.2),y=H*.33;clk(W*.25,y,r,this.s,this.m);clk(W*.75,y,r,this.e,this.m);ctx.fillStyle='#FFE08A';ctx.beginPath();ctx.moveTo(W*.56,y);ctx.lineTo(W*.47,y-14);ctx.lineTo(W*.47,y+14);ctx.closePath();ctx.fill();
+    if(rev)pill(tm(this.s,this.m)+' から '+tm(this.e,this.m)+' まで '+this.ans+'じかん',W/2,H*.6-12,15,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+// --- おかね ---
+pay:{name:'いくら？',cmd(){return 'ぜんぶで いくら？';},
+  setup(lv){const set=[[10,50],[5,10,50,100],[1,5,10,50,100,500]][lv];this.c=Array.from({length:rnd(2,4)+lv},()=>set[rnd(0,set.length-1)]).sort((a,b)=>b-a);this.ans=sum(this.c);this.opts=mkOpts(this.ans,lv===0?[10,-10,20,-20]:lv===1?[5,-5,10,-10,50]:[1,-1,10,-10,50,-50]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){coins(this.c,W/2,H*.34,W*.86);if(rev)pill('ぜんぶで '+this.ans+'えん',W/2,H*.6-14,18,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+few:{name:'まいすう',cmd(){return 'なんまいで はらえる？';},
+  setup(lv){const den=[[50,10],[50,10,5],[100,50,10,5]][lv];this.a=lv===0?rnd(2,9)*10:lv===1?rnd(3,19)*5:rnd(11,59)*5;let r=this.a;this.c=[];den.forEach(d=>{while(r>=d){this.c.push(d);r-=d;}});this.ans=this.c.length;this.opts=mkOpts(this.ans,[1,-1,2,-2]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){if(!rev){fitT(this.a+'えん',W/2,H*.28,W*.8,W*.15,INK);num('いちばん すくない まいすうで',W/2,H*.46,Math.min(22,W*.055),MUTE);}else{coins(this.c,W/2,H*.3,W*.86);pill(this.a+'えん は '+this.ans+'まい',W/2,H*.6-14,18,NAVY,'#F4F1E6');}optDraw(this.opts,this.ans,rev);}},
+enough:{name:'たりる？',buttons:['たりる','たりない'],cmd(){return 'この おかねで かえる？';},
+  setup(lv){const set=[[10,50],[5,10,50,100],[1,5,10,50,100]][lv];this.c=Array.from({length:rnd(3,5)},()=>set[rnd(0,set.length-1)]).sort((a,b)=>b-a);this.s=sum(this.c);
+    const d=[rnd(1,3)*10,rnd(1,2)*5,rnd(1,9)][lv];this.can=Math.random()<.5;this.p=this.can?Math.max(1,this.s-(Math.random()<.3?0:d)):this.s+d;this.can=this.s>=this.p;},
+  btn(i){finish((i===0)===this.can);},
+  draw(rev){coins(this.c,W/2,H*.3,W*.86);box(W/2,H*.7,W*.74,H*.2,'#F4F1E6');fitT('ねだん '+this.p+'えん',W/2,H*.7,W*.64,H*.1);if(rev)pill('もっているのは '+this.s+'えん',W/2,H*.5,18,NAVY,'#F4F1E6');}},
+cheap:{name:'やすいのは',cmd(){return 'いちばん やすいのは？';},
+  setup(lv){const nm=shuf(['ノート','えんぴつ','けしゴム','ふでばこ','じょうぎ','のり']);let v;if(lv===0)v=shuf([2,3,4,5,6,7,8,9]).slice(0,3).map(n=>n*10);else if(lv===1){const b=rnd(1,8)*100;v=shuf([1,2,3,4,5,6,7,8,9]).slice(0,3).map(n=>b+n*10);}
+    else{const h=rnd(1,8),a=rnd(1,8),b=rnd(a+1,9);v=shuf([h*100+a*10+b,h*100+b*10+a,(h+1)*100+rnd(0,a)*10+rnd(0,9)]);}
+    this.it=v.map((p,i)=>({p,n:nm[i]}));this.k=v.indexOf(Math.min(...v));},
+  tap(x,y){finish(rowHit(y)===this.k);},
+  draw(rev){this.it.forEach((o,i)=>{const bh=Math.min(RH()*.66,84);box(W/2,rowY(i),W*.84,bh,PAL[(i+2)%6]);ctx.fillStyle=NAVY;font(Math.min(22,bh*.3),700);ctx.textAlign='left';ctx.textBaseline='middle';ft(o.n,W*.13,rowY(i));
+      font(Math.min(34,bh*.44));ctx.textAlign='right';ft(o.p+'えん',W*.87,rowY(i));});if(rev)rowF(this.k);}},
+swap:{name:'りょうがえ',cmd(){return 'なんまいと おなじ？';},
+  setup(lv){const P=[[[10,1],[10,5],[100,50],[100,10]],[[50,10],[50,5],[500,100],[500,50],[100,10]],[[50,10],[100,10],[100,50],[10,5],[500,100]]][lv],q=P[rnd(0,P.length-1)];this.A=q[0];this.B=q[1];this.k=lv===2?rnd(2,4):1;this.ans=this.k*this.A/this.B;this.opts=mkOpts(this.ans,[1,-1,2,-2,5,-5]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){const y1=H*.2,y2=H*.44;coinD(W*.16,y1,this.A,1.2);coinD(W*.16,y2,this.B,1.2);ctx.fillStyle=INK;ctx.textAlign='left';ctx.textBaseline='middle';font(Math.min(27,W*.068),700);
+    ft(this.A+'えんだま '+this.k+'まい',W*.16+42,y1);ft(this.B+'えんだま '+(rev?this.ans:'？')+'まい',W*.16+42,y2);num('＝',W*.16,(y1+y2)/2,22,MUTE);
+    if(rev)pill('どちらも '+this.A*this.k+'えん',W/2,H*.6-12,17,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+// --- かたち・はんぶん ---
+sym:{name:'おりがみ',buttons:['ぴったり','ずれる'],cmd(){return 'おると ぴったり かさなる？';},
+  setup(lv){const n=rnd(2,4);this.R=Array.from({length:n},(_,i)=>[.35+Math.random()*.6,-1+2*(i+1)/(n+1)+(Math.random()-.5)*.2]);this.ok=Math.random()<.5;const f=[.45,.62,.74][lv];
+    this.Lp=this.R.map(p=>[p[0],p[1]]);if(!this.ok){const i=rnd(0,n-1);this.Lp[i]=[this.R[i][0]*(this.R[i][0]>.6?f:1/f>1.6?1.5:1/f),this.R[i][1]];if(n>2&&lv<2){const j=(i+1)%n;this.Lp[j]=[this.R[j][0]*(this.R[j][0]>.6?f:1.4),this.R[j][1]];}}this.c=PAL[rnd(0,5)];},
+  btn(i){finish((i===0)===this.ok);},
+  out(s,R,Lp){const cx=W/2,cy=H*.48;ctx.beginPath();ctx.moveTo(cx,cy-s);R.forEach(p=>ctx.lineTo(cx+p[0]*s,cy+p[1]*s));ctx.lineTo(cx,cy+s);Lp.slice().reverse().forEach(p=>ctx.lineTo(cx-p[0]*s,cy+p[1]*s));ctx.closePath();},
+  draw(rev){const s=Math.min(W*.4,H*.4);ctx.fillStyle=this.c;this.out(s,this.R,this.Lp);ctx.fill();
+    if(rev&&!this.ok){ctx.strokeStyle=INK;ctx.lineWidth=3;ctx.setLineDash([5,6]);this.out(s,[],this.R);ctx.stroke();ctx.setLineDash([]);}
+    ctx.strokeStyle=INK;ctx.lineWidth=3;ctx.setLineDash([10,8]);ctx.beginPath();ctx.moveTo(W/2,H*.48-s-16);ctx.lineTo(W/2,H*.48+s+16);ctx.stroke();ctx.setLineDash([]);
+    if(rev)pill(this.ok?'みぎと ひだりが おなじ かたち':'みぎと ひだりが ちがう',W/2,H-26,17,NAVY,'#F4F1E6');}},
+frac:{name:'ぶんすう',cmd(){return this.d+'ぶんの1は どれ？';},
+  setup(lv){this.d=[3,4][rnd(0,1)];const eq=lv===2,good=eq?[this.d*2,2]:[this.d,1],pool=(eq?[[8,3],[6,3],[8,4],[6,1],[8,1],[6,2],[8,2]]:[[2,1],[4,2],[3,2],[4,3],[3,1],[4,1]]).filter(q=>q[1]*this.d!==q[0]);
+    this.o=shuf([good,...shuf(pool).slice(0,2)].map((q,i)=>{const ix=[...Array(q[0]).keys()];if(lv)shuf(ix);return {n:q[0],k:q[1],on:new Set(ix.slice(0,q[1])),ok:i===0,c:PAL[rnd(0,5)]};}));this.k=this.o.findIndex(o=>o.ok);},
+  tap(x,y){finish(rowHit(y)===this.k);},
+  draw(rev){this.o.forEach((o,i)=>{const bw=W*.76,bh=Math.min(RH()*.46,60),x=W*.12,y=rowY(i)-bh/2-(rev?8:0);for(let j=0;j<o.n;j++){ctx.fillStyle=o.on.has(j)?o.c:'#F4F1E6';ctx.fillRect(x+bw*j/o.n,y,bw/o.n,bh);ctx.strokeStyle=NAVY;ctx.lineWidth=3;ctx.strokeRect(x+bw*j/o.n,y,bw/o.n,bh);}
+      if(rev)pill(o.n+'こに わけた '+o.k+'こ',W/2,y+bh+16,15,NAVY,'#F4F1E6');});if(rev)rowF(this.k);}},
+shp:{name:'かたち かぞえ',cmd(){return this.tn+'は いくつ？';},
+  setup(lv){const tot=[6,9,12][lv];this.r=Math.min(20,H*.045);this.t=rnd(0,2);this.tn=['さんかく','しかく','まる'][this.t];
+    this.s=scatter(tot,W*.05,54,W*.9,H*.6-62,this.r).map(p=>({x:p.x,y:p.y,t:rnd(0,2),a:lv?Math.random()*6.28:0,c:PAL[rnd(0,5)]}));if(!this.s.some(o=>o.t===this.t))this.s[0].t=this.t;
+    this.ans=this.s.filter(o=>o.t===this.t).length;this.opts=mkOpts(this.ans,[1,-1,2,-2]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){let k=0;this.s.forEach(o=>{const hit=o.t===this.t;ctx.globalAlpha=rev&&!hit?.3:1;ctx.fillStyle=o.c;ctx.beginPath();if(o.t===2)ctx.arc(o.x,o.y,this.r*.9,0,7);else{const n=o.t?4:3;for(let j=0;j<n;j++){const a=o.a+j/n*6.283+(o.t?.785:-1.571);j?ctx.lineTo(o.x+Math.cos(a)*this.r,o.y+Math.sin(a)*this.r):ctx.moveTo(o.x+Math.cos(a)*this.r,o.y+Math.sin(a)*this.r);}ctx.closePath();}ctx.fill();ctx.globalAlpha=1;
+      if(rev&&hit)num(++k,o.x,o.y,this.r*.8);});optDraw(this.opts,this.ans,rev);}},
+blocks:{name:'つみき',cmd(){return 'つみきは なんこ？';},
+  setup(lv){const c=[3,2,3][lv],r=lv?2:1;this.h=Array.from({length:r},(_,j)=>Array.from({length:c},()=>rnd(1,3)));if(r>1)this.h[1]=this.h[1].map((v,i)=>Math.min(v,this.h[0][i]));
+    this.ans=sum(this.h.flat());this.opts=mkOpts(this.ans,[1,-1,2,-2]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){const R=this.h.length,C=this.h[0].length,s=Math.min(W*.8/((C+R)*.87),(H*.6-88)/(3+(C+R)*.5)),cx=W/2-(C-R)*s*.435,by=H*.6-12-(C+R)*s*.5;
+    const P=(i,j,k)=>[cx+(i-j)*s*.87,by+(i+j)*s*.5-k*s],poly=(a,c)=>{ctx.fillStyle=c;ctx.beginPath();a.forEach((p,n)=>n?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fill();ctx.strokeStyle=NAVY;ctx.lineWidth=2;ctx.lineJoin='round';ctx.stroke();};
+    for(let j=0;j<R;j++)for(let i=0;i<C;i++)for(let k=0;k<this.h[j][i];k++){const t=P(i,j,k+1),r=P(i+1,j,k+1),f=P(i+1,j+1,k+1),l=P(i,j+1,k+1),lb=P(i,j+1,k),fb=P(i+1,j+1,k),rb=P(i+1,j,k);
+      poly([l,f,fb,lb],'#E8B86A');poly([f,r,rb,fb],'#C99548');poly([t,r,f,l],'#FFE08A');if(rev&&k===this.h[j][i]-1)num(k+1,(t[0]+f[0])/2,(t[1]+f[1])/2,s*.42);}
+    if(rev)pill('うしろに かくれた ぶんも かぞえる',W/2,62,15,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+area:{name:'ひろいほう',cmd(){return 'ひろいほうを タップ！';},
+  setup(lv){const g=lv?4:3,d=[3,2,1][lv],a=rnd(3,g*g-d-1),b=a+d,s=Math.random()<.5,mk=n=>new Set(shuf([...Array(g*g).keys()]).slice(0,n));this.g=g;this.L=mk(s?a:b);this.R=mk(s?b:a);this.ans=s?'R':'L';},
+  tap(x){finish(side(x)===this.ans);},
+  draw(rev){lr();const g=this.g,s=Math.min(W*.44/g,(H-130)/g);[this.L,this.R].forEach((q,i)=>{const x0=W*(.25+.5*i)-s*g/2,y0=(H-50)/2-s*g/2+10;let k=0;
+      for(let c=0;c<g*g;c++){const x=x0+(c%g)*s,y=y0+Math.floor(c/g)*s;if(q.has(c)){ctx.fillStyle=PAL[i?3:0];ctx.fillRect(x,y,s,s);if(rev)num(++k,x+s/2,y+s/2,s*.4);}ctx.strokeStyle=MUTE;ctx.lineWidth=1.5;ctx.strokeRect(x,y,s,s);}
+      if(rev)pill(q.size+'ます',W*(.25+.5*i),H-28,20,NAVY,'#F4F1E6');});if(rev)lrf(this.ans);}},
+// --- かけざん ---
+mul:{name:'くく',cmd(){return 'こたえは？';},
+  setup(lv){this.a=lv===0?[2,5,3][rnd(0,2)]:lv===1?rnd(2,9):rnd(6,9);this.b=lv===2?rnd(6,9):rnd(1,9);this.ans=this.a*this.b;this.opts=mkOpts(this.ans,[this.a,-this.a,this.b,-this.b,1,-1]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){fitT(this.a+' × '+this.b+(rev?' = '+this.ans:''),W/2,H*.34,W*.86,W*.15,rev?'#FFE08A':INK);optDraw(this.opts,this.ans,rev);}},
+mtf:{name:'くく あってる？',buttons:['あってる','ちがう'],cmd(){return 'この くく あってる？';},
+  setup(lv){this.a=lv===0?[2,5,3][rnd(0,2)]:lv===1?rnd(2,9):rnd(6,9);this.b=lv===2?rnd(6,9):rnd(2,9);this.v=this.a*this.b;this.ok=Math.random()<.5;this.sh=this.ok?this.v:this.v+[this.a,-this.a,this.b,-this.b,lv?1:this.a,lv?-1:this.b][rnd(0,5)];},
+  btn(i){finish((i===0)===this.ok);},
+  draw(rev){fitT(this.a+' × '+this.b+' = '+this.sh,W/2,H*.4,W*.88,W*.15,INK);if(rev)pill(this.ok?'あってる':'ただしくは '+this.a+' × '+this.b+' = '+this.v,W/2,H*.62,19,NAVY,'#F4F1E6');}},
+grp:{name:'しきは どれ',cmd(){return 'しきは どれ？';},
+  setup(lv){do{this.k=rnd(2,[3,4,5][lv]);this.n=rnd(2,[4,5,6][lv]);}while(this.k===this.n);this.ans=this.n+'×'+this.k;this.opts=shuf([this.ans,(this.n+1)+'×'+this.k,this.n+'×'+(this.k+1)]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){const pw=W*.94/this.k,top=58,ah=H*.6-top-(rev?34:6),c=Math.ceil(Math.sqrt(this.n)),rw=Math.ceil(this.n/c),s=Math.min((pw-18)/c,(ah-16)/rw,30);
+    for(let p=0;p<this.k;p++){const px=W*.03+pw*(p+.5),py=top+ah/2;ctx.fillStyle='#F4F1E6';ctx.beginPath();ctx.ellipse(px,py,pw/2-5,Math.min(ah/2,pw*.55),0,0,7);ctx.fill();
+      for(let i=0;i<this.n;i++)ball(px-s*c/2+s*(i%c+.5),py-s*rw/2+s*(Math.floor(i/c)+.5),s*.38,PAL[0]);}
+    if(rev)pill('1さらに '+this.n+'こ　'+this.k+'さらぶん',W/2,H*.6-14,16,NAVY,'#F4F1E6');sDraw(this.opts,this.ans,rev);}},
+dan:{name:'だんの かず',cmd(){return this.d+'の だんの こたえは？';},
+  setup(lv){this.d=[[2,5],[3,4,6],[7,8,9]][lv][rnd(0,lv?2:1)];this.m=rnd(2,9);this.ans=this.d*this.m;const set=new Set([this.ans]);let t=0;while(set.size<3&&t<200){t++;const v=this.ans+rnd(-4,4);if(v>1&&v%this.d)set.add(v);}this.opts=shuf([...set]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){fitT(this.d+'の だん',W/2,H*.3,W*.8,W*.13,INK);if(rev)pill(this.d+' × '+this.m+' = '+this.ans,W/2,H*.5,20,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+mbar:{name:'なんばい',cmd(){return 'あかは あおの なんばい？';},
+  setup(lv){this.ans=rnd(2,[3,5,6][lv]);this.tick=lv===0;this.off=lv===2?Math.random()*.3:0;this.opts=mkOpts(this.ans,[1,-1,2]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){const u=W*.84/Math.max(this.ans,3.4),x0=W*.08,bh=Math.min(34,H*.07),y1=H*.2,y2=H*.38;ctx.fillStyle=PAL[3];ctx.fillRect(x0+this.off*W,y1,u,bh);ctx.fillStyle=PAL[0];ctx.fillRect(x0,y2,u*this.ans,bh);
+    if(this.tick||rev){ctx.strokeStyle=NAVY;ctx.lineWidth=2.5;for(let i=1;i<this.ans;i++){ctx.beginPath();ctx.moveTo(x0+u*i,y2);ctx.lineTo(x0+u*i,y2+bh);ctx.stroke();}}
+    if(rev)pill('あおの '+this.ans+'つぶん',W/2,H*.6-14,18,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+// --- わける ---
+div:{name:'わりざん',cmd(){return 'こたえは？';},
+  setup(lv){this.n=lv===0?[2,5][rnd(0,1)]:lv===1?rnd(2,9):rnd(6,9);this.ans=[rnd(1,5),rnd(2,9),rnd(6,9)][lv];this.t=this.n*this.ans;this.opts=mkOpts(this.ans,[1,-1,2,-2]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){fitT(this.t+' ÷ '+this.n+(rev?' = '+this.ans:''),W/2,H*.34,W*.86,W*.15,rev?'#FFE08A':INK);if(rev)pill(this.n+' × '+this.ans+' = '+this.t,W/2,H*.52,18,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+rem:{name:'あまり',cmd(){return 'あまりは いくつ？';},
+  setup(lv){this.n=lv===0?[2,3,5][rnd(0,2)]:lv===1?rnd(3,6):rnd(6,9);this.q=rnd(2,[5,7,9][lv]);this.ans=rnd(lv?0:1,this.n-1);this.t=this.n*this.q+this.ans;this.opts=opts3(this.ans,[this.ans+1,this.ans-1,this.ans+2,0,this.n]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){fitT(this.t+' ÷ '+this.n,W/2,H*.3,W*.86,W*.15,INK);if(rev)pill(this.t+' ÷ '+this.n+' = '+this.q+' あまり '+this.ans,W/2,H*.5,19,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+halfof:{name:'はんぶんの かず',cmd(){return 'はんぶんは いくつ？';},
+  setup(lv){this.v=lv===0?rnd(2,10)*2:lv===1?rnd(11,30)*2:Math.random()<.5?[30,50,70,90][rnd(0,3)]:rnd(31,49)*2;this.ans=this.v/2;this.opts=mkOpts(this.ans,lv?[1,-1,5,-5,10,-10]:[1,-1,2,-2]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){fitT(this.v+' の はんぶん',W/2,H*.3,W*.86,W*.12,INK);if(rev)pill(this.ans+' + '+this.ans+' = '+this.v,W/2,H*.5,20,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+dbig:{name:'わりざん くらべ',cmd(){return 'おおきいほうを タップ！';},
+  setup(lv){const ex=()=>{const n=lv===0?[2,5][rnd(0,1)]:lv===1?rnd(2,9):rnd(6,9),q=[rnd(1,5),rnd(2,9),rnd(4,9)][lv];return {t:n*q+' ÷ '+n,v:q};};do{this.L=ex();this.R=ex();}while(this.L.v===this.R.v||this.L.t===this.R.t||Math.abs(this.L.v-this.R.v)>[3,3,2][lv]);this.ans=this.L.v>this.R.v?'L':'R';},
+  tap(x){finish(side(x)===this.ans);},
+  draw(rev){lr();[this.L,this.R].forEach((q,i)=>{const cx=W*(.25+.5*i);box(cx,H*.47,W*.45,H*.3,PAL[i?3:1]);fitT(q.t,cx,H*.47,W*.37,W*.12);if(rev)pill('= '+q.v,cx,H*.72,22,NAVY,'#F4F1E6');});if(rev)lrf(this.ans);}},
+splitn:{name:'なんにんで',cmd(){return 'なんにんで わけられる？';},
+  setup(lv){let no;do{this.n=rnd(2,[5,7,9][lv]);this.q=rnd(2,[4,6,9][lv]);this.t=this.n*this.q;no=[2,3,4,5,6,7,8,9].filter(v=>this.t%v);}while(no.length<2);this.ans=this.n;this.opts=shuf([this.n,...shuf(no).slice(0,2)]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.t%this.opts[i]===0);},
+  draw(rev){fitT(this.t+'こ',W/2,H*.26,W*.6,W*.16,INK);num('おなじ かずずつ・あまりなし',W/2,H*.43,Math.min(24,W*.06),MUTE);if(rev)pill(this.t+' ÷ '+this.n+' = '+this.q,W/2,H*.54,19,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+// --- おおきな かず・だいたい ---
+kanji:{name:'かんじの かず',cmd(){return 'すうじで かくと？';},
+  setup(lv){const L=lv+3;let d,o;do{d=Array.from({length:L},(_,i)=>i===0?rnd(1,9):Math.random()<.45?0:rnd(1,9));const z=d.findIndex((v,i)=>i>0&&v===0);if(z<0||d.slice(1).every(v=>v===0))continue;
+      const w1=d.slice();const j=z+1<L?z+1:z-1;[w1[z],w1[j]]=[w1[j],w1[z]];const w2=d.slice();w2.splice(z,0,0);o=[d.join(''),w1.join(''),w2.join('')].map(Number);}while(!o||new Set(o).size<3||String(o[1]).length!==L);
+    this.ans=o[0];this.opts=shuf(o);this.k=kanji(this.ans);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){fitT(this.k,W/2,H*.3,W*.86,W*.15,INK);if(rev)pill(String(this.ans),W/2,H*.5,22,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+round:{name:'まるめる',cmd(){return 'いちばん ちかいのは？';},
+  setup(lv){const u=[10,100,1000][lv],off=[1,2,3,4,6,7,8,9][rnd(0,7)],lo=rnd(1,8)*u;this.v=lo+off*u/10+(lv===2?rnd(0,9)*10:0)+(lv===1?rnd(0,9):0);this.ans=off<5?lo:lo+u;this.opts=[lo-u>0&&Math.random()<.5?lo-u:lo+2*u,lo,lo+u].sort((a,b)=>a-b);this.lo=lo;this.u=u;},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){fitT(String(this.v),W/2,H*.28,W*.7,W*.16,INK);if(rev){const x0=W*.12,x1=W*.88,y=H*.48;ctx.strokeStyle=INK;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(x1,y);ctx.stroke();[0,.5,1].forEach(f=>{ctx.beginPath();ctx.moveTo(x0+(x1-x0)*f,y-9);ctx.lineTo(x0+(x1-x0)*f,y+9);ctx.stroke();});
+      num(this.lo,x0,y+26,18,INK);num(this.lo+this.u,x1,y+26,18,INK);ball(x0+(x1-x0)*(this.v-this.lo)/this.u,y,8,'#FFE08A');}optDraw(this.opts,this.ans,rev);}},
+big10:{name:'10ばい',cmd(){return this.q;},
+  setup(lv){const v=lv===2?rnd(2,99)*100:lv?rnd(2,90):rnd(2,99);this.v=v;this.q=['10ばいは？','100ばいは？','10で わると？'][lv];this.ans=[v*10,v*100,v/10][lv];this.opts=shuf(lv===0?[v*10,v*100,v+10]:lv===1?[v*100,v*10,v*1000]:[v/10,v/100,v*10]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){fitT(String(this.v),W/2,H*.28,W*.7,W*.16,INK);if(rev)pill(['0を 1こ つける','0を 2こ つける','0を 1こ とる'][[10,100,.1].indexOf(this.ans/this.v)],W/2,H*.5,19,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+sen:{name:'いくつぶん',cmd(){return 'ぜんぶで いくつ？';},
+  setup(lv){this.u=[10,100,1000][lv];this.n=rnd(11,[30,40,60][lv]);this.ans=this.u*this.n;this.opts=shuf([this.ans,this.ans*10,this.ans/10]);},
+  tap(x,y){const i=optHit(x,y);if(i>=0)finish(this.opts[i]===this.ans);},
+  draw(rev){fitT(this.u+'が '+this.n+'こ',W/2,H*.3,W*.86,W*.13,INK);if(rev)pill(this.u+' × '+this.n+' = '+this.ans,W/2,H*.5,19,NAVY,'#F4F1E6');optDraw(this.opts,this.ans,rev);}},
+cbig:{name:'おおきい かず',cmd(){return 'おおきいほうを タップ！';},
+  setup(lv){const L=lv+3;let a,b;do{const d=Array.from({length:L},(_,i)=>i===0?rnd(1,9):rnd(0,9));a=+d.join('');if(lv&&Math.random()<.4){b=Math.pow(10,L-1)-rnd(1,[9,99,999][lv]);a=Math.pow(10,L-1)+rnd(0,[9,99,999][lv]);}
+      else{const i=rnd(lv?1:0,L-2),e=d.slice();[e[i],e[i+1]]=[e[i+1],e[i]];b=+e.join('');}}while(a===b||String(b).length<L-1);
+    const s=Math.random()<.5;this.L=s?a:b;this.R=s?b:a;this.ans=this.L>this.R?'L':'R';},
+  tap(x){finish(side(x)===this.ans);},
+  draw(rev){lr();[this.L,this.R].forEach((v,i)=>{const cx=W*(.25+.5*i);box(cx,H*.47,W*.45,H*.3,PAL[i?3:1]);fitT(String(v),cx,H*.47,W*.37,W*.13);});if(rev)lrf(this.ans);}}
 };
 const sum=a=>a.reduce((x,y)=>x+y,0);
+// ---------- 足した 50本が つかう 部品 ----------
+const shuf=a=>a.sort(()=>Math.random()-.5);
+function lr(){ctx.strokeStyle=MUTE;ctx.lineWidth=3;ctx.setLineDash([8,8]);ctx.beginPath();ctx.moveTo(W/2,8);ctx.lineTo(W/2,H-8);ctx.stroke();ctx.setLineDash([]);}
+function lrf(ans){frame(ans==='L'?4:W/2+4,4,W/2-8,H-8);}
+const side=x=>x<W/2?'L':'R';
+function box(cx,cy,w,h,c){ctx.fillStyle=c;ctx.beginPath();ctx.roundRect(cx-w/2,cy-h/2,w,h,16);ctx.fill();}
+function fitT(t,x,y,maxW,maxPx,c){font(40);const w=ctx.measureText(t).width||1;num(t,x,y,Math.min(maxPx,40*maxW/w),c);}
+function sDraw(o,ans,rev){const cw=W/3;o.forEach((v,i)=>{ctx.fillStyle=PAL[i+1];ctx.beginPath();ctx.roundRect(i*cw+8,H*.64,cw-16,H*.28,18);ctx.fill();fitT(String(v),i*cw+cw/2,H*.78,cw-30,H*.11);
+  if(rev&&v===ans)frame(i*cw+4,H*.64-4,cw-8,H*.28+8);});}
+const RH=()=>(H-50)/3,rowY=i=>50+RH()*(i+.5),rowHit=y=>Math.max(0,Math.min(2,Math.floor((y-50)/RH())));
+function rowF(i){frame(4,50+RH()*i+4,W-8,RH()-8);}
+function clk(cx,cy,r,h,m){ctx.fillStyle='#F4F1E6';ctx.beginPath();ctx.arc(cx,cy,r,0,7);ctx.fill();ctx.lineWidth=4;ctx.strokeStyle=NAVY;ctx.stroke();
+  for(let j=0;j<12;j++){const a=j/12*6.283;ctx.lineWidth=j%3?2:4;ctx.beginPath();ctx.moveTo(cx+Math.sin(a)*r*.86,cy-Math.cos(a)*r*.86);ctx.lineTo(cx+Math.sin(a)*r*.96,cy-Math.cos(a)*r*.96);ctx.stroke();}
+  for(let n=1;n<=12;n++){const a=n/12*6.283;num(n,cx+Math.sin(a)*r*.7,cy-Math.cos(a)*r*.7,r*(n%3?.17:.24));}
+  const ha=(h+m/60)/12*6.283,ma=m/60*6.283;ctx.lineCap='round';
+  ctx.strokeStyle=NAVY;ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.sin(ha)*r*.46,cy-Math.cos(ha)*r*.46);ctx.stroke();
+  ctx.strokeStyle='#D9433F';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.sin(ma)*r*.78,cy-Math.cos(ma)*r*.78);ctx.stroke();ctx.lineCap='butt';ball(cx,cy,4,NAVY);}
+const tm=(h,m)=>h+':'+String(m).padStart(2,'0');
+const COINR={1:17,5:19,10:21,50:20,100:23,500:25},COINC={1:'#DDE2E8',5:'#E6BE45',10:'#CC8D50',50:'#C5CFDA',100:'#AEBBC9',500:'#D9C27A'};
+function coinD(cx,cy,v,k){k=k||1;ctx.fillStyle=COINC[v];ctx.beginPath();ctx.arc(cx,cy,COINR[v]*k,0,7);ctx.fill();ctx.strokeStyle=NAVY;ctx.lineWidth=2.5;ctx.stroke();num(v,cx,cy,(v>=100?15:17)*k);}
+function coins(list,cx,cy,maxW){const k=Math.min(1.4,maxW/220),g=54*k,per=Math.max(1,Math.min(list.length,Math.floor(maxW/g))),rows=Math.ceil(list.length/per);
+  list.forEach((v,i)=>{const r=Math.floor(i/per),n=r===rows-1?list.length-per*r:per;coinD(cx+(i%per-(n-1)/2)*g,cy+(r-(rows-1)/2)*g*1.04,v,k);});}
+function opts3(ans,cands){const set=new Set([ans]);cands.forEach(v=>{if(set.size<3&&v>=0)set.add(v);});let k=1;while(set.size<3)set.add(ans+2+k++);return shuf([...set]);}
+function kanji(n){const D='〇一二三四五六七八九',U=['','十','百','千'];let o='';const man=Math.floor(n/10000),r=n%10000;if(man)o+=D[man]+'万';
+  String(r).padStart(4,'0').split('').forEach((d,i)=>{d=+d;if(!d)return;const u=U[3-i];o+=(d===1&&u?'':D[d])+u;});return o;}
+
 function mkOpts(ans,ds){const set=new Set([ans]);let t=0;while(set.size<3&&t<60){t++;const v=ans+ds[rnd(0,ds.length-1)];if(v>0)set.add(v);}let k=1;while(set.size<3)set.add(ans+10*k++);return [...set].sort(()=>Math.random()-.5);}
 function optDraw(o,ans,rev){const cw=W/3;o.forEach((v,i)=>{ctx.fillStyle=PAL[i+1];ctx.beginPath();ctx.roundRect(i*cw+8,H*.64,cw-16,H*.28,18);ctx.fill();num(v,i*cw+cw/2,H*.78,Math.min(String(v).length>2?H*.085:H*.13,(cw-22)/(String(v).length*.6)));
   if(rev&&v===ans)frame(i*cw+4,H*.64-4,cw-8,H*.28+8);});}
 function optHit(x,y){return y<H*.6?-1:Math.max(0,Math.min(2,Math.floor(x/(W/3))));}
 const FIELDS=[
- {name:'かずの かん',kid:'ぱっと みて わかる',desc:'数えなくても「だいたいいくつ」が分かる力。かさや動きにだまされずに量をつかみます。',g:['more','bugs','find']},
- {name:'かぞえる・ならべる',kid:'かぞえる・くらべる',desc:'動くものを数える、数の大小と位、きまりのある並びをつかみます。',g:['stop','big','seq']},
- {name:'たす・ひく',kid:'あわせる・のこり',desc:'合わせる・残りを出す・10をつくる。筆算の前の「数の合成と分解」です。',g:['dice','ten','sub']},
- {name:'ながさ・かさ',kid:'ながさと めもり',desc:'向きが違っても長さを比べる、同じ長さを写す、目盛りを読む。',g:['longer','mlen','cup']},
- {name:'じかん',kid:'とけいと びょう',desc:'時計を読む、「ちょうど」をつかむ、秒の長さを体で覚える。',g:['clock','wclock','sec']},
- {name:'おかね',kid:'かいもの',desc:'値段を足して比べる、硬貨の枚数と値打ちの違い、おつり。',g:['buy','coin','chg']},
- {name:'かたち・はんぶん',kid:'かたちと はんぶん',desc:'角の数で形を見分ける、まん中を見つける、半分（分数のはじまり）。',g:['corner','half','pie']},
- {name:'かけざんの かん',kid:'かけざん',desc:'並びを「いくつ分」で見る、九九の大きさを比べる、□に入る数を探す。',g:['arr','mulbig','kuku']},
- {name:'わける',kid:'わける',desc:'同じ数ずつ分ける、いくつ分とれるか、あまりが出るかを見ぬく。わり算の入口です。',g:['share','pack','fair']},
- {name:'おおきな かず・だいたい',kid:'おおきな かず',desc:'数直線を読む、どちらに近いかで丸める、だいたいの答えを先につかむ（概数・見積もり）。',g:['line','near','est']}];
+ {name:'かずの かん',kid:'ぱっと みて わかる',desc:'数えなくても「だいたいいくつ」が分かる力。かさや動きにだまされずに量をつかみます。',g:['more','bugs','find','dots','tens','oddn','hue','many']},
+ {name:'かぞえる・ならべる',kid:'かぞえる・くらべる',desc:'動くものを数える、数の大小と位、きまりのある並びをつかみます。',g:['stop','big','seq','small','order','betw','hole','place']},
+ {name:'たす・ひく',kid:'あわせる・のこり',desc:'合わせる・残りを出す・10をつくる。筆算の前の「数の合成と分解」です。',g:['dice','ten','sub','add','make','cmp','tf','hund']},
+ {name:'ながさ・かさ',kid:'ながさと めもり',desc:'向きが違っても長さを比べる、同じ長さを写す、目盛りを読む。',g:['longer','mlen','cup','ruler','water','path','unit','cmm']},
+ {name:'じかん',kid:'とけいと びょう',desc:'時計を読む、「ちょうど」をつかむ、秒の長さを体で覚える。',g:['clock','wclock','sec','read','after','longt','mins','span']},
+ {name:'おかね',kid:'かいもの',desc:'値段を足して比べる、硬貨の枚数と値打ちの違い、おつり。',g:['buy','coin','chg','pay','few','enough','cheap','swap']},
+ {name:'かたち・はんぶん',kid:'かたちと はんぶん',desc:'角の数で形を見分ける、まん中を見つける、半分（分数のはじまり）。',g:['corner','half','pie','sym','frac','shp','blocks','area']},
+ {name:'かけざんの かん',kid:'かけざん',desc:'並びを「いくつ分」で見る、九九の大きさを比べる、□に入る数を探す。',g:['arr','mulbig','kuku','mul','mtf','grp','dan','mbar']},
+ {name:'わける',kid:'わける',desc:'同じ数ずつ分ける、いくつ分とれるか、あまりが出るかを見ぬく。わり算の入口です。',g:['share','pack','fair','div','rem','halfof','dbig','splitn']},
+ {name:'おおきな かず・だいたい',kid:'おおきな かず',desc:'数直線を読む、どちらに近いかで丸める、だいたいの答えを先につかむ（概数・見積もり）。',g:['line','near','est','kanji','round','big10','sen','cbig']}];
 const FOF={};FIELDS.forEach((f,i)=>f.g.forEach(k=>FOF[k]=i));
 const ADV=new Set(FIELDS.slice(7).flatMap(f=>f.g));
 const FREE=new Set(FIELDS.map(f=>f.g[0]));
@@ -577,7 +888,7 @@ function norm(){if(!root.kids||!root.kids.length)root.kids=[newKid('','k0')];roo
 norm();
 // ---------- アプリ（native/）との やりとり・買い切りの 線 ----------
 // ブラウザでは NATIVE が false で、ぜんぶ 遊べる（おうちのかたへ の「買い切り前を ためす」で 線を 試せる。購入は 見本）。アプリの 中では App Store の 買い切り（native/iap.js）
-// 無料：「あそぶ」・ふたりで たいせん（25本 ぜんぶ）と 各分野の 1本め（FREE・10本）。買い切り：30本・きょうの 5もん・にがて とっくん・はなまるちょう・ふたりめからの 記録
+// 無料：「あそぶ」・ふたりで たいせん（DPOOL ぜんぶ）と 各分野の 1本め（FREE・10本）。買い切り：80本 ぜんぶ・きょうの 5もん・にがて とっくん・はなまるちょう・ふたりめからの 記録
 const NATIVE=!!window.__SANSU_NATIVE,SKU='sansu3.full',PRICE='¥500';if(/[?&]lock\b/.test(location.search))root.sim=true;
 let natSeq=0,storePrice=null;const natWait={};
 window.__sansuReply=(id,r)=>{const f=natWait[id];delete natWait[id];if(f)f(r);};
@@ -644,14 +955,14 @@ function kan(n){const k='〇一二三四五六七八九';return n<10?k[n]:n<20?'
 const starN=(k,kid)=>stars(k,kid).length,starAll=kid=>ORDER.reduce((a,k)=>a+starN(k,kid),0);
 const DOOD=[[3,'#FFE08A','<path d="M20 4L24.5 15 36 15.5 27 23 30 35 20 28.5 10 35 13 23 4 15.5 15.5 15Z"/>'],
  [8,'#FFB3C1','<circle cx="20" cy="20" r="4"/><circle cx="20" cy="10" r="5"/><circle cx="29.5" cy="17" r="5"/><circle cx="26" cy="28" r="5"/><circle cx="14" cy="28" r="5"/><circle cx="10.5" cy="17" r="5"/>'],
- [14,'#FFC89A','<circle cx="20" cy="20" r="8"/><path d="M20 4v5M20 31v5M4 20h5M31 20h5M8.5 8.5l3.5 3.5M28 28l3.5 3.5M31.500 8.5L28 12M12 28l-3.5 3.5"/>'],
- [21,'#A9DDF5','<path d="M5 20Q15 8 28 20 15 32 5 20ZM28 20l8-7v14Z"/><circle cx="12" cy="18" r="1.2"/>'],
- [29,'#B8E6B0','<path d="M5 20L20 7 35 20M9 17v17h22V17M17 34v-9h6v9"/>'],
- [38,'#F4F1E6','<path d="M9 14l2-9 6 6q3-1 6 0l6-6 2 9q4 8 0 15-11 8-22 0-4-7 0-15Z"/><circle cx="15" cy="20" r="1.2"/><circle cx="25" cy="20" r="1.2"/><path d="M18 25q2 2 4 0"/>'],
- [48,'#D5C3F7','<path d="M20 4q8 8 6 22H14Q12 12 20 4ZM14 22l-6 8 6-2M26 22l6 8-6-2M17 30l3 7 3-7"/><circle cx="20" cy="15" r="3"/>'],
- [59,'#FFB3C1','<path d="M5 30a15 15 0 0 1 30 0"/><path stroke="#FFE08A" d="M9 30a11 11 0 0 1 22 0"/><path stroke="#A9DDF5" d="M13 30a7 7 0 0 1 14 0"/>'],
- [72,'#FFE08A','<path d="M6 30L5 13l8 8 7-12 7 12 8-8-1 17Z"/><path d="M6 34h28"/>'],
- [90,'#FFB3C1','']];
+ [15,'#FFC89A','<circle cx="20" cy="20" r="8"/><path d="M20 4v5M20 31v5M4 20h5M31 20h5M8.5 8.5l3.5 3.5M28 28l3.5 3.5M31.500 8.5L28 12M12 28l-3.5 3.5"/>'],
+ [25,'#A9DDF5','<path d="M5 20Q15 8 28 20 15 32 5 20ZM28 20l8-7v14Z"/><circle cx="12" cy="18" r="1.2"/>'],
+ [40,'#B8E6B0','<path d="M5 20L20 7 35 20M9 17v17h22V17M17 34v-9h6v9"/>'],
+ [60,'#F4F1E6','<path d="M9 14l2-9 6 6q3-1 6 0l6-6 2 9q4 8 0 15-11 8-22 0-4-7 0-15Z"/><circle cx="15" cy="20" r="1.2"/><circle cx="25" cy="20" r="1.2"/><path d="M18 25q2 2 4 0"/>'],
+ [85,'#D5C3F7','<path d="M20 4q8 8 6 22H14Q12 12 20 4ZM14 22l-6 8 6-2M26 22l6 8-6-2M17 30l3 7 3-7"/><circle cx="20" cy="15" r="3"/>'],
+ [115,'#FFB3C1','<path d="M5 30a15 15 0 0 1 30 0"/><path stroke="#FFE08A" d="M9 30a11 11 0 0 1 22 0"/><path stroke="#A9DDF5" d="M13 30a7 7 0 0 1 14 0"/>'],
+ [150,'#FFE08A','<path d="M6 30L5 13l8 8 7-12 7 12 8-8-1 17Z"/><path d="M6 34h28"/>'],
+ [200,'#FFB3C1','']];
 const dood=i=>i===9?HANA:'<svg viewBox="0 0 40 40" aria-hidden="true"><g class="dd" stroke="'+DOOD[i][1]+'">'+DOOD[i][2]+'</g></svg>';
 function cal(){const d=new Date(),y=d.getFullYear(),m=d.getMonth(),n=new Date(y,m+1,0).getDate(),f=new Date(y,m,1).getDay();let h='<div style="color:var(--mute);font-size:14px;margin-top:8px">'+(m+1)+'がつ</div><div class="cal">'+'にげかすもきど'.split('').map(c=>'<span class="h">'+c+'</span>').join('')+'<span></span>'.repeat(f);
   for(let i=1;i<=n;i++){const k=dkey(new Date(y,m,i));h+='<span class="'+(i===d.getDate()?'t':'')+'">'+(save.days[k]?HANA:i)+'</span>';}return h+'</div>';}
@@ -709,7 +1020,7 @@ function parentPage(note){show('scrParent');const sim=NATIVE||root.sim,own=!!roo
      return '<tr><td>'+GAMES[k].name+(FREE.has(k)?'（無料）':'')+'</td><td class="n">○ '+r[0]+'</td><td class="n">× '+r[1]+'</td><td class="n">'+(n?Math.round(r[0]/n*100)+'%':'—')+'</td></tr>';}).join('')+'</table></div>').join('')
    +'<div class="note"><b>これまでの記録</b>：'+(tot[0]+tot[1])+'回あそんで ○ '+tot[0]+'・× '+tot[1]+'。'+(NATIVE?'記録はこの端末と、ご自身の iCloud に残ります（同じ Apple ID の iPhone で記録がそろいます）。':'記録はこの端末の中だけに残ります。')+'広告は出ません。お子さまの名前や記録を、開発者が受け取ることはありません。</div>'
    +'<div class="note"><b>かけ算・わり算・大きな数</b>：小2〜小4の内容です。まだ早い場合は外せます。<br><button class="link" id="btnAdv" style="padding:6px 0">'+(save.adv!==false?'いまは 出す（おすと 出さない）':'いまは 出さない（おすと 出す）')+'</button></div>'
-   +'<div class="note" id="buyBox"><b>ぜんぶ ひらく（買い切り）</b>　'+(storePrice||PRICE)+'<br>1回だけのお支払いです。月額ではありません。広告はありません。<br>30本すべて・きょうの 5もん・にがて とっくん・はなまるちょう・4人ぶんの記録が開きます。<br>無料のままでも「あそぶ」「ふたりで たいせん」と、各分野1本ずつの10本は、何回でも遊べます。'
+   +'<div class="note" id="buyBox"><b>ぜんぶ ひらく（買い切り）</b>　'+(storePrice||PRICE)+'<br>1回だけのお支払いです。月額ではありません。広告はありません。<br>'+ORDER.length+'本すべて・きょうの 5もん・にがて とっくん・はなまるちょう・4人ぶんの記録が開きます。<br>無料のままでも「あそぶ」「ふたりで たいせん」と、各分野1本ずつの10本は、何回でも遊べます。'
      +(sim?'<div class="pbtns">'+(own?'<button class="pbtn" disabled>購入済みです</button>'+(NATIVE?'':'<button class="pbtn" id="unbuy">（試作用）未購入に戻す</button>'):'<button class="pbtn get" id="buy">購入する</button><button class="pbtn" id="restore">購入を復元する</button>')+'</div>':'')
      +'<div class="leg">'+(NATIVE?'※ お支払いは App Store を通して行われます。ファミリー共有に対応しています。承認待ち（承認と購入のリクエスト）の場合は、承認のあとにアプリを開き直すと反映されます。':sim?'※ いまは試作です。「購入する」を押してもお金はかからず、開いた状態を試せるだけです。<br><button class="link" id="simOff" style="padding:4px 0;font-size:13px">（試作用）ためすのを やめて、ぜんぶ遊べる状態に戻す</button>':'※ この試作では、すべて遊べます。<br><button class="link" id="simOn" style="padding:4px 0;font-size:13px">（試作用）買い切り前の状態を ためす</button>')+'</div></div>'
    +'<div class="note"><b>設定</b><div class="pbtns"><button class="pbtn" id="btnMute">音：'+(root.mute?'オフ':'オン')+'</button></div></div>'
@@ -728,7 +1039,7 @@ function parentPage(note){show('scrParent');const sim=NATIVE||root.sim,own=!!roo
   let armed=false;$('btnReset').onclick=e=>{if(!armed){armed=true;e.target.textContent='ほんとうに けす（もういちど おす）';return;}root.kids[root.cur]=save=Object.assign(newKid(save.name,save.id),{adv:save.adv,ep:Date.now()});/* ep：消した時刻。iCloud で ほかの端末にも 届く（native/cloud-rules.js） */persist();parentPage('記録を消しました。');};}
 
 // ---------- ふたりで たいせん（むかいあわせ・どうじ） ----------
-const DPOOL=['more','buy','longer','clock','bugs','half','find','dice','big','ten','cup','seq','sub','mlen','coin','chg','arr','mulbig','kuku','share','pack','fair','line','near','est'];
+const DPOOL=['more','buy','longer','clock','bugs','half','find','dice','big','ten','cup','seq','sub','mlen','coin','chg','arr','mulbig','kuku','share','pack','fair','line','near','est','small','betw','hole','place','add','make','cmp','tf','hund','unit','cmm','longt','mins','mul','mtf','dan','div','rem','halfof','dbig','splitn','kanji','round','big10','sen','cbig'];
 let duelOn=false,cur=null;const P=[],D={sc:[0,0],bag:[],n:0,st:'',t:0,tl:0,tm:1,key:'',lv:0};
 function dBuild(){if(P.length)return;['hA','hB'].forEach((id,i)=>{const el=$(id);
   el.innerHTML='<div class="q"></div><div class="stage"><canvas></canvas><div class="timer"></div><div class="flash hid"></div><div class="cover"><div class="cmd"></div><div class="sub"></div></div></div><div class="btns"></div>';
@@ -790,7 +1101,7 @@ $('btnAgain').onclick=()=>mode==='vs'?dStart():start();$('btnHome').onclick=()=>
 $('btnDQuit').onclick=()=>{duelOn=false;ctx=cv.getContext('2d');home();};
 $('btnQuit').onclick=()=>{state='idle';setButtons([]);mode==='prac'?pracPage():home();};
 home();
-window.__pitatto={get state(){return state;},get pool(){return pool();},get key(){return gkey;},get mode(){return mode;},get vs(){return vs;},get duel(){return {st:D.st,key:D.key,sc:D.sc,on:duelOn};}};
+window.__pitatto={get games(){return GAMES;},get state(){return state;},get pool(){return pool();},get key(){return gkey;},get mode(){return mode;},get vs(){return vs;},get duel(){return {st:D.st,key:D.key,sc:D.sc,on:duelOn};}};
 })();
 </script>
 </body></html>
