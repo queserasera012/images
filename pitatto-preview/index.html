@@ -14,7 +14,7 @@ html,body{height:100%}
 body{margin:0;background-color:var(--bg);color:var(--fg);font-family:var(--font);font-weight:400;
   background-image:linear-gradient(104deg,transparent 0 22%,#ffffff0a 31%,transparent 43%),linear-gradient(96deg,transparent 0 58%,#ffffff08 66%,transparent 78%),
     radial-gradient(ellipse at 28% 18%,#ffffff14,transparent 55%),radial-gradient(ellipse at 78% 72%,#ffffff0d,transparent 50%),radial-gradient(ellipse at 50% 105%,#00000040,transparent 60%);
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-top:max(16px,calc(env(safe-area-inset-top,0px) + 4px));padding-bottom:max(16px,env(safe-area-inset-bottom,0px));
   display:flex;flex-direction:column;box-sizing:border-box;-webkit-user-select:none;user-select:none;overflow:hidden;-webkit-touch-callout:none}
 body::after{content:"";position:fixed;inset:0;border:9px solid var(--wood);box-shadow:inset 0 0 0 2px var(--wood-d),inset 0 0 34px #0008;pointer-events:none;z-index:50}
 #app{flex:1;display:flex;flex-direction:column;max-width:480px;width:100%;margin:0 auto;min-height:0;padding:0 6px;box-sizing:border-box}
@@ -116,6 +116,15 @@ body{-webkit-text-stroke:.45px currentColor}
 .vsc{display:inline-flex;align-items:center;gap:6px;color:var(--fg);font-size:22px}
 .result .big.txt{font-size:46px;line-height:1.2}
 .rec td.n{text-align:right;font-variant-numeric:tabular-nums}
+.lk{position:relative}.lk::after{content:"";position:absolute;top:5px;right:7px;width:17px;height:17px;background:center/contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23FFE08A' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 11V8a5 5 0 0 1 10 0v3'/%3E%3Crect x='4.5' y='11' width='15' height='10' rx='2'/%3E%3Cpath d='M12 15v2.5'/%3E%3C/svg%3E")}
+.chip.lk{border-style:dashed}.chip.lk::after{top:auto;bottom:5px;right:6px;width:14px;height:14px}.chip.lk>span:first-child{opacity:.8}
+.gate{text-align:center}.gate p{font:600 14px/1.75 var(--read);margin:10px auto;max-width:21em}.gate .kid-p{font:400 17px/1.7 var(--font)}
+.gq{font:400 36px var(--font);margin:14px 0 2px;-webkit-text-stroke:.8px currentColor}.gmsg{font:600 13px var(--read);color:var(--pink);min-height:1.5em}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:280px;margin:8px auto 0}
+.pad button{border:2px solid var(--line);border-radius:10px;background:transparent;color:var(--fg);font:400 24px var(--font);padding:9px 0;touch-action:manipulation}.pad button:active{background:#ffffff1f}
+.pbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.pbtn{border:2px solid var(--line);border-radius:10px;background:transparent;color:var(--fg);font:600 14px var(--read);padding:11px 4px;touch-action:manipulation}.pbtn.get{border-color:var(--yellow);color:var(--yellow)}.pbtn:disabled{opacity:.55}
+.leg{font:600 12px/1.7 var(--read);color:var(--mute);margin-top:8px}.msg{color:var(--green)}
 </style>
 
 <div id="app">
@@ -156,6 +165,11 @@ body{-webkit-text-stroke:.45px currentColor}
   <div id="scrKids" class="page hid">
     <div class="bar"><button class="back" data-home aria-label="もどる">←</button>だれが あそぶ？</div>
     <div class="scroll" id="kidsBody"></div>
+  </div>
+
+  <div id="scrGate" class="page hid">
+    <div class="bar"><button class="back" data-home aria-label="もどる">←</button><span id="gateT"></span></div>
+    <div class="scroll gate" id="gateBody"></div>
   </div>
 
   <div id="scrParent" class="page hid">
@@ -556,15 +570,36 @@ const ORDER=Object.keys(GAMES);
 
 // ---------- すすめかた ----------
 let state='idle',g=null,gkey='',lastKey='',lv=0,score=0,lives=3,tLeft=0,tMax=1,cmdT=0,resT=0,tally={},bag=[],mode='mix',pracKey='',round=0,plan=[],wl={},vs={lv:[0,0],sc:[0,0],i:0,keys:[],log:[],p:0};const PN=['あか','あお'],PC=['var(--pink)','var(--blue)'];
-const SAVE='sansu.v2';let root={cur:0,kids:[]},save;const newKid=n=>({name:n||'',best:0,stats:{},days:{},adv:true});
-try{const j=JSON.parse(localStorage.getItem(SAVE)||'null');if(j&&j.kids&&j.kids.length)root=j;else{const o=JSON.parse(localStorage.getItem('pitatto.mg.v1')||'null'),k=newKid('');if(o&&o.stats){k.best=o.best||0;k.stats=o.stats;}root.kids=[k];}}catch(e){}
-if(!root.kids.length)root.kids=[newKid('')];root.cur=Math.max(0,Math.min(root.cur||0,root.kids.length-1));save=root.kids[root.cur];root.kids.forEach(k=>{if(!k.days)k.days={};if(!k.stats)k.stats={};if(k.hist){const ks=Object.keys(k.hist).sort();ks.slice(0,Math.max(0,ks.length-60)).forEach(d=>delete k.hist[d]);}});
-function persist(){try{localStorage.setItem(SAVE,JSON.stringify(root));}catch(e){}}
-const pool=()=>ORDER.filter(k=>save.adv!==false||!ADV.has(k));
+const SAVE='sansu.v2';let root={cur:0,kids:[]},save;const rid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6),newKid=(n,id)=>({id:id||rid(),name:n||'',best:0,stats:{},days:{},adv:true});
+try{const j=JSON.parse(localStorage.getItem(SAVE)||'null');if(j&&j.kids&&j.kids.length)root=j;else{const o=JSON.parse(localStorage.getItem('pitatto.mg.v1')||'null'),k=newKid('','k0');if(o&&o.stats){k.best=o.best||0;k.stats=o.stats;}root.kids=[k];}}catch(e){}
+// ひとりめの しるしは きまった 'k0'（2台で べつべつに 始めても iCloud で 同じ子に なる）。ふたりめからは でたらめな しるし
+function norm(){if(!root.kids||!root.kids.length)root.kids=[newKid('','k0')];root.cur=Math.max(0,Math.min(root.cur||0,root.kids.length-1));save=root.kids[root.cur];root.kids.forEach((k,i)=>{if(!k.id)k.id=i===0&&!root.kids.some(q=>q.id==='k0')?'k0':rid();if(!k.days)k.days={};if(!k.stats)k.stats={};if(k.hist){const ks=Object.keys(k.hist).sort();ks.slice(0,Math.max(0,ks.length-60)).forEach(d=>delete k.hist[d]);}});}
+norm();
+// ---------- アプリ（native/）との やりとり・買い切りの 線 ----------
+// ブラウザでは NATIVE が false で、ぜんぶ 遊べる（おうちのかたへ の「買い切り前を ためす」で 線を 試せる。購入は 見本）。アプリの 中では App Store の 買い切り（native/iap.js）
+// 無料：「あそぶ」と 各分野の 1本め（FREE・10本）。買い切り：30本・きょうの 5もん・にがて とっくん・たいせん・はなまるちょう・ふたりめからの 記録
+const NATIVE=!!window.__SANSU_NATIVE,SKU='sansu3.full',PRICE='¥500';if(/[?&]lock\b/.test(location.search))root.sim=true;
+let natSeq=0,storePrice=null;const natWait={};
+window.__sansuReply=(id,r)=>{const f=natWait[id];delete natWait[id];if(f)f(r);};
+const nat=(type,o)=>new Promise(res=>{if(!NATIVE||!window.ReactNativeWebView)return res(null);const id=++natSeq;natWait[id]=res;try{window.ReactNativeWebView.postMessage(JSON.stringify({id,type,...o}));}catch(e){delete natWait[id];res(null);}});
+const say=(type,o)=>{try{if(NATIVE&&window.ReactNativeWebView)window.ReactNativeWebView.postMessage(JSON.stringify({type,...o}));}catch(e){}};
+const full=()=>NATIVE||root.sim?!!root.full:true,openG=k=>full()||FREE.has(k),ownsFull=r=>!!(r&&Array.isArray(r.owned)&&r.owned.includes(SKU));
+const atHome=()=>state==='idle'&&!duelOn&&!$('scrTitle').classList.contains('hid');
+function persist(){let t='';try{t=JSON.stringify(root);localStorage.setItem(SAVE,t);}catch(e){}if(t)say('backup',{data:t});}
+// App Store の「課金の宣伝」から 来た：子に そのまま 買わせず、ホームに いれば 保護者の 関門を 開く
+window.__sansuEvent=name=>{try{if(name==='promoted'&&atHome())gatePage(parentPage);}catch(e){}};
+// ほかの端末の 記録（iCloud）を 入れる。あそんでいる 途中では 入れない（ホームに いる ときだけ）
+window.__sansuAdopt=raw=>{let ok=false;try{if(atHome()){const j=JSON.parse(raw);if(j&&j.kids&&j.kids.length){root=j;norm();ok=true;persist();home();}}}catch(e){}
+  try{window.ReactNativeWebView.postMessage(JSON.stringify({type:'adopted',ok}));}catch(e){}return ok;};
+// 起動の とき：ストアが「持っている」と 言えば ひらく（機種変更・入れ直しでも 戻る）。「持っていない」では 閉じない（つながらない だけ かも しれない）
+if(NATIVE){say('mute',{on:!!root.mute});
+  nat('iap',{op:'owned'}).then(r=>{if(ownsFull(r)&&!root.full){root.full=true;persist();if(atHome())home();}});
+  nat('iap',{op:'products',skus:[SKU]}).then(r=>{const p=r&&r.products&&r.products[0];if(p&&p.price)storePrice=p.price;});}
+const pool=()=>ORDER.filter(k=>openG(k)&&(save.adv!==false||!ADV.has(k)));
 const dkey=(d=new Date())=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 function dayPlan(){let s=7;for(const c of dkey())s=(s*31+c.charCodeAt(0))>>>0;const r=()=>(s=(s*1664525+1013904223)>>>0)/4294967296;const a=pool().slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a.slice(0,5);}
 const st=k=>save.stats[k]||[0,0];
-function show(id){['scrTitle','scrPlay','scrEnd','scrPrac','scrParent','scrVs','scrDuel','scrBook','scrKids'].forEach(s=>$(s).classList.toggle('hid',s!==id));}
+function show(id){say('awake',{on:id==='scrPlay'||id==='scrDuel'});['scrTitle','scrPlay','scrEnd','scrPrac','scrParent','scrVs','scrDuel','scrBook','scrKids','scrGate'].forEach(s=>$(s).classList.toggle('hid',s!==id));}
 function top(){$('lives').innerHTML=mode!=='mix'?'':[0,1,2].map(i=>'<i class="'+(i<lives?'':'off')+'"></i>').join('');
   $('round').textContent=mode==='prac'?'れんしゅう '+Math.min(round,5)+' / 5':mode==='weak'?'とっくん '+Math.min(round,plan.length)+' / '+plan.length:mode==='day'?'きょうの '+Math.min(round,5)+' / 5':'';
   $('scbox').innerHTML=mode==='vs'?'<span class="vsc"><i class="mg a"></i>'+vs.sc[0]+'　<i class="mg b"></i>'+vs.sc[1]+'</span>':'クリア <b id="score">'+score+'</b>';}
@@ -575,7 +610,7 @@ function mkPlan(){const rate=k=>{const r=st(k);return r[0]/(r[0]+r[1]);},n=k=>st
 function setButtons(labels){const b=$('btns');b.innerHTML='';b.className='btns'+(labels.length===2?' two':'');
   labels.forEach((t,i)=>{const e=document.createElement('button');e.className='btn'+(labels.length===2&&i===1?' sky':'');e.textContent=t;e.id='b'+i;
     e.addEventListener('pointerdown',ev=>{ev.preventDefault();if(state==='play'&&g.btn)g.btn(i);});b.appendChild(e);});}
-let ac=null;function beep(f,d,type,when){try{if(!ac)return;const o=ac.createOscillator(),ga=ac.createGain(),t=ac.currentTime+(when||0);o.type=type||'square';o.frequency.value=f;ga.gain.setValueAtTime(.05,t);ga.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(ga);ga.connect(ac.destination);o.start(t);o.stop(t+d);}catch(e){}}
+let ac=null;function beep(f,d,type,when){try{if(!ac||root.mute)return;const o=ac.createOscillator(),ga=ac.createGain(),t=ac.currentTime+(when||0);o.type=type||'square';o.frequency.value=f;ga.gain.setValueAtTime(.05,t);ga.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(ga);ga.connect(ac.destination);o.start(t);o.stop(t+d);}catch(e){}}
 function start(m,key){if(m){mode=m;pracKey=key||'';}score=0;lives=3;round=0;tally={};bag=[];lastKey='';
   if(mode==='weak')plan=mkPlan();if(mode==='day')plan=dayPlan();if(mode==='vs'){vs.sc=[0,0];vs.i=0;vs.log=[];vs.keys=ORDER.slice().sort(()=>Math.random()-.5).slice(0,5);}
   show('scrPlay');fit();top();next();}
@@ -591,13 +626,13 @@ function play(){state='play';$('cover').classList.add('hid');setButtons(g.button
 function finish(win,label){if(duelOn)return dFinish(win,label);if(state!=='play')return;state='res';resT=win?.9:2.0;setButtons([]);$('timer').classList.add('hid');
   const t=tally[gkey]||(tally[gkey]=[0,0]);t[win?0:1]++;if(mode!=='vs'){const r=save.stats[gkey]||(save.stats[gkey]=[0,0]);r[win?0:1]++;const h=save.hist||(save.hist={}),d=h[dkey()]||(h[dkey()]={}),c=d[FOF[gkey]]||(d[FOF[gkey]]=[0,0]);c[win?0:1]++;persist();}
   if(mode==='vs'){if(win)vs.sc[vs.p]++;const r=(vs.i-1)>>1;(vs.log[r]||(vs.log[r]=[]))[vs.p]=win;}if(mode==='weak'&&win)wl[gkey]=Math.min(2,wl[gkey]+1);
-  if(win){score++;beep(880,.09);beep(1320,.14,'square',.09);}else{if(mode==='mix')lives--;beep(160,.35,'sawtooth');}
+  if(win){score++;say('feel',{name:'good'});beep(880,.09);beep(1320,.14,'square',.09);}else{if(mode==='mix')lives--;beep(160,.35,'sawtooth');}
   top();const f=$('flash');f.innerHTML=win?HANA+'<span>'+(label||'せいかい！')+'</span>':'<span>× ざんねん…</span>';f.className='flash '+(win?'ok':'ng');}
 const HANA=(function(){const R=18,cx=20,cy=20;let d='';for(let i=0;i<=90;i++){const a=i/90*Math.PI*5.2,r=R*.12+R*.5*i/90;d+=(i?'L':'M')+(cx+Math.cos(a)*r).toFixed(1)+' '+(cy+Math.sin(a)*r).toFixed(1);}
   let p='';for(let i=0;i<=120;i++){const a=i/120*Math.PI*2,r=R*(.86+.14*Math.abs(Math.sin(a*4)));p+=(i?'L':'M')+(cx+Math.cos(a)*r).toFixed(1)+' '+(cy+Math.sin(a)*r).toFixed(1);}
   return '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="'+d+'" fill="none" stroke="#FFB3C1" stroke-width="2.4" stroke-linecap="round"/><path d="'+p+'Z" fill="none" stroke="#FFB3C1" stroke-width="2.4"/></svg>';})();
 function over(){state='idle';show('scrEnd');$('total').textContent=score;$('total').className='big';$('endExtra').innerHTML='';
-  if(mode==='day'){save.days[dkey()]=Math.max(save.days[dkey()]||0,score+1);persist();$('endLabel').textContent='きょうの 5もん';$('best').textContent='カレンダーに はなまる！';$('tbl').innerHTML='';$('endExtra').innerHTML=cal();return;}
+  if(mode==='day'){say('feel',{name:'win'});save.days[dkey()]=Math.max(save.days[dkey()]||0,score+1);persist();$('endLabel').textContent='きょうの 5もん';$('best').textContent='カレンダーに はなまる！';$('tbl').innerHTML='';$('endExtra').innerHTML=cal();return;}
   if(mode==='weak'){$('endLabel').textContent='にがて とっくん：'+plan.length+'かいの うち';$('best').textContent=score===plan.length?'ぜんぶ クリア！ はなまる':'';
     $('tbl').innerHTML=ORDER.filter(k=>tally[k]).map(k=>'<tr><td>'+GAMES[k].name+'</td><td class="n ok-t">○ '+tally[k][0]+'</td><td class="n ng-t">× '+tally[k][1]+'</td><td class="ok-t">'+(tally[k][1]?'':'◎')+'</td></tr>').join('');return;}
   if(mode==='prac'){$('endLabel').textContent=GAMES[gkey].name+'：5かいの うち';$('best').textContent='';}
@@ -625,6 +660,7 @@ function home(){state='idle';g=null;show('scrTitle');const d=new Date();$('day')
   $('homeBest').textContent='ぜんぶ まぜて・3かい まちがえたら おしまい'+(save.best?'　じこベスト '+save.best:'');
   $('btnKid').innerHTML='<i class="mg k'+root.cur+'"></i>'+(save.name||'なまえを きめる');const sa=starAll();$('bookSub').textContent='★ '+sa+' / '+ORDER.length*3;
   $('daySub').textContent=save.days[dkey()]?'きょうは おわり！ はなまる':'まいにち かわる 5もん';
+  ['btnDay','btnWeak','btnVs','btnBook'].forEach(id=>$(id).classList.toggle('lk',!full()));
   const got=DOOD.map((q,i)=>sa>=q[0]?dood(i):'').join('');$('shelf').innerHTML=got||'ほしを あつめると ここに らくがきが ふえるよ';}
 function bookPage(){show('scrBook');const sa=starAll(),nx=DOOD.find(q=>sa<q[0]);
   $('bookBody').innerHTML='<div class="pl"><i class="mg k'+root.cur+'"></i>'+kname(save)+'　<span style="color:var(--yellow)">★ '+sa+' / '+ORDER.length*3+'</span></div>'
@@ -638,10 +674,25 @@ function kidsPage(){show('scrKids');$('kidsBody').innerHTML=root.kids.map((k,i)=
    +'<div class="note" style="font-family:var(--font);font-weight:400">4にんまで。きろくと ほしは ひとりずつ べつべつ。</div>';
   $('kidsBody').querySelectorAll('.krow').forEach(b=>b.onclick=()=>{root.cur=+b.dataset.i;save=root.kids[root.cur];persist();home();});
   const nm=()=>$('kidName').value.trim().slice(0,8);$('kidRen').onclick=()=>{if(!nm())return;save.name=nm();persist();kidsPage();};
-  if($('kidAdd'))$('kidAdd').onclick=()=>{if(!nm())return;root.kids.push(newKid(nm()));root.cur=root.kids.length-1;save=root.kids[root.cur];persist();home();};}
+  if($('kidAdd')){$('kidAdd').classList.toggle('lk',!full());$('kidAdd').onclick=()=>{if(!full())return lockPage('ふたりめからの きろく');if(!nm())return;root.kids.push(newKid(nm()));root.cur=root.kids.length-1;save=root.kids[root.cur];persist();home();};}}
 function pracPage(){show('scrPrac');$('pracList').innerHTML=FIELDS.map(f=>'<div class="fld"><h2>'+f.kid+'</h2><div class="chips">'+f.g.map(k=>{const r=st(k);
-    return '<button class="chip'+(FREE.has(k)?' free':'')+'" data-k="'+k+'"><span>'+GAMES[k].name+'</span><span class="st">'+stars(k)+'</span><small>○'+r[0]+' ×'+r[1]+'</small></button>';}).join('')+'</div></div>').join('');
-  $('pracList').querySelectorAll('.chip').forEach(b=>b.onclick=()=>enter(()=>start('prac',b.dataset.k)));}
+    return '<button class="chip'+(FREE.has(k)?' free':'')+(openG(k)?'':' lk')+'" data-k="'+k+'"><span>'+GAMES[k].name+'</span><span class="st">'+stars(k)+'</span><small>○'+r[0]+' ×'+r[1]+'</small></button>';}).join('')+'</div></div>').join('');
+  $('pracList').querySelectorAll('.chip').forEach(b=>b.onclick=()=>openG(b.dataset.k)?enter(()=>start('prac',b.dataset.k)):lockPage('れんしゅう「'+GAMES[b.dataset.k].name+'」'));}
+// ---------- かぎ・保護者の 関門 ----------
+const LOCK='<svg viewBox="0 0 60 60" width="70" height="70" aria-hidden="true" fill="none" stroke="#FFE08A" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 28V20a11 11 0 0 1 22 0v8"/><rect x="12" y="27" width="36" height="26" rx="5"/><path d="M30 37v7"/></svg>';
+// 子の 画面には 値段を 出さない。値段と 購入は 関門の 奥（おうちのかたへ）だけ
+function lockPage(what){show('scrGate');$('gateT').textContent='かぎの かかった あそび';
+  $('gateBody').innerHTML='<div style="margin-top:28px">'+LOCK+'</div><div style="font-size:23px;margin:6px 0 2px">'+what+'</div><p class="kid-p">ここから さきは<br>「ぜんぶ ひらく」で あそべるよ。<br>おうちの ひとに<br>この がめんを みせてね。</p>'
+   +'<div style="max-width:300px;margin:16px auto 0"><button class="btn yel" id="toPar">おうちの かたへ</button></div><p class="kid-p" style="font-size:14px;color:var(--mute)">「あそぶ」と、みどりの わくの<br>れんしゅうは、このまま<br>なんかいでも あそべるよ。</p>';
+  $('toPar').onclick=()=>gatePage(parentPage);}
+// 2けた × 2けた（13〜29 × 11〜19）。九九や 2けた×1けたは 小3・小4で すぐ 通るため
+function gatePage(next){show('scrGate');$('gateT').textContent='保護者の方へ';const a=rnd(13,29),b=rnd(11,19);let v='';
+  $('gateBody').innerHTML='<p style="margin-top:18px">この先は 保護者の方 向けの 画面です。<br>次の計算の答えを入力してください。</p><div class="gq" id="gq">'+a+' × '+b+' ＝ <span id="gv">？</span></div><div class="gmsg" id="gmsg"></div>'
+   +'<div class="pad">'+[1,2,3,4,5,6,7,8,9,'けす',0,'OK'].map(k=>'<button data-k="'+k+'"'+(k>=0?'':' style="font-size:17px"')+'>'+k+'</button>').join('')+'</div>';
+  $('gateBody').querySelectorAll('.pad button').forEach(bt=>bt.onclick=()=>{const k=bt.dataset.k;
+    if(k==='けす')v=v.slice(0,-1);else if(k==='OK'){if(+v===a*b)return next();v='';$('gmsg').textContent='答えがちがいます。もう一度入力してください。';}else if(v.length<4)v+=k;
+    $('gv').textContent=v||'？';});}
+function maybeReview(){try{if(!NATIVE||localStorage.getItem('sansu.review.v1')||Object.keys(save.hist||{}).length<5)return;localStorage.setItem('sansu.review.v1','1');setTimeout(()=>nat('review'),1200);}catch(e){}}
 function weekOf(off){const out={days:0,f:FIELDS.map(()=>[0,0])},h=save.hist||{};for(let i=0;i<7;i++){const d=new Date();d.setDate(d.getDate()-off-i);const r=h[dkey(d)];if(!r)continue;out.days++;Object.keys(r).forEach(k=>{if(out.f[k]){out.f[k][0]+=r[k][0];out.f[k][1]+=r[k][1];}});}return out;}
 function weekHtml(){const a=weekOf(0),b=weekOf(7),pc=q=>q[0]+q[1]?Math.round(q[0]/(q[0]+q[1])*100):null,tot=a.f.reduce((x,q)=>x+q[0]+q[1],0);
   if(!tot)return '<div class="note"><b>この1週間</b>：まだ記録がありません。遊ぶとここに分野ごとの様子が出ます。</div>';
@@ -652,16 +703,29 @@ function weekHtml(){const a=weekOf(0),b=weekOf(7),pc=q=>q[0]+q[1]?Math.round(q[0
   return '<div class="note"><b>この1週間</b>：7日のうち '+a.days+'日・'+tot+'回'+(b.days?'（その前の週は '+b.days+'日）':'')+'<table class="rec" style="margin-top:8px">'
    +rows.map(r=>'<tr><td style="width:38%">'+r.f.name+'</td><td><div style="height:10px;border:1px solid var(--line);border-radius:5px"><div style="height:100%;width:'+r.p+'%;background:'+(r.p>=80?'var(--green)':r.p>=60?'var(--yellow)':'var(--pink)')+';border-radius:5px"></div></div></td><td class="n" style="width:20%">'+r.p+'%'+(r.q!=null&&r.n>=5?'<br><span style="color:var(--mute);font-size:11px">'+(r.p-r.q>=0?'+':'')+(r.p-r.q)+'</span>':'')+'</td></tr>').join('')
    +'</table><div style="margin-top:8px">'+say.join('<br>')+'</div></div>';}
-function parentPage(){show('scrParent');let tot=[0,0];ORDER.forEach(k=>{const r=st(k);tot[0]+=r[0];tot[1]+=r[1];});
-  $('parentBody').innerHTML='<div class="pl"><i class="mg k'+root.cur+'"></i>'+kname(save)+' の きろく</div>'+weekHtml()+'<div class="note"><b>3びょうさんすう は、数えずに「だいたい」を当てる算数あそびです。</b><br>計算の速さではなく、数・量・長さ・時間・お金の「感覚」を育てます。1回は数秒、まちがえてもすぐ答え合わせが出ます。</div>'
+function parentPage(note){show('scrParent');const sim=NATIVE||root.sim,own=!!root.full;let tot=[0,0];ORDER.forEach(k=>{const r=st(k);tot[0]+=r[0];tot[1]+=r[1];});
+  $('parentBody').innerHTML=(typeof note==='string'?'<div class="note msg" id="pmsg">'+note+'</div>':'')+'<div class="pl"><i class="mg k'+root.cur+'"></i>'+kname(save)+' の きろく</div>'+weekHtml()+'<div class="note"><b>3びょうさんすう は、数えずに「だいたい」を当てる算数あそびです。</b><br>計算の速さではなく、数・量・長さ・時間・お金の「感覚」を育てます。1回は数秒、まちがえてもすぐ答え合わせが出ます。</div>'
    +FIELDS.map(f=>'<div class="fld"><h2>'+f.name+'</h2><div class="d">'+f.desc+'</div><table class="rec">'+f.g.map(k=>{const r=st(k),n=r[0]+r[1];
      return '<tr><td>'+GAMES[k].name+(FREE.has(k)?'（無料）':'')+'</td><td class="n">○ '+r[0]+'</td><td class="n">× '+r[1]+'</td><td class="n">'+(n?Math.round(r[0]/n*100)+'%':'—')+'</td></tr>';}).join('')+'</table></div>').join('')
-   +'<div class="note"><b>これまでの記録</b>：'+(tot[0]+tot[1])+'回あそんで ○ '+tot[0]+'・× '+tot[1]+'。記録はこの端末の中だけに残ります。</div>'
+   +'<div class="note"><b>これまでの記録</b>：'+(tot[0]+tot[1])+'回あそんで ○ '+tot[0]+'・× '+tot[1]+'。'+(NATIVE?'記録はこの端末と、ご自身の iCloud に残ります（同じ Apple ID の iPhone で記録がそろいます）。':'記録はこの端末の中だけに残ります。')+'広告は出ません。お子さまの名前や記録を、開発者が受け取ることはありません。</div>'
    +'<div class="note"><b>かけ算・わり算・大きな数</b>：小2〜小4の内容です。まだ早い場合は外せます。<br><button class="link" id="btnAdv" style="padding:6px 0">'+(save.adv!==false?'いまは 出す（おすと 出さない）':'いまは 出さない（おすと 出す）')+'</button></div>'
-   +'<div class="note"><b>買い切りの線（案）</b>：無料は「あそぶ」と各分野1本ずつの10本。買い切りで、30本すべて・きょうの 5もん・にがて とっくん・ふたりで たいせん・はなまるちょう・4人ぶんの記録が開く想定です。広告はありません。この試作ではすべて遊べます。</div>'
+   +'<div class="note" id="buyBox"><b>ぜんぶ ひらく（買い切り）</b>　'+(storePrice||PRICE)+'<br>1回だけのお支払いです。月額ではありません。広告はありません。<br>30本すべて・きょうの 5もん・にがて とっくん・ふたりで たいせん・はなまるちょう・4人ぶんの記録が開きます。<br>無料のままでも「あそぶ」と、各分野1本ずつの10本は、何回でも遊べます。'
+     +(sim?'<div class="pbtns">'+(own?'<button class="pbtn" disabled>購入済みです</button>'+(NATIVE?'':'<button class="pbtn" id="unbuy">（試作用）未購入に戻す</button>'):'<button class="pbtn get" id="buy">購入する</button><button class="pbtn" id="restore">購入を復元する</button>')+'</div>':'')
+     +'<div class="leg">'+(NATIVE?'※ お支払いは App Store を通して行われます。ファミリー共有に対応しています。承認待ち（承認と購入のリクエスト）の場合は、承認のあとにアプリを開き直すと反映されます。':sim?'※ いまは試作です。「購入する」を押してもお金はかからず、開いた状態を試せるだけです。<br><button class="link" id="simOff" style="padding:4px 0;font-size:13px">（試作用）ためすのを やめて、ぜんぶ遊べる状態に戻す</button>':'※ この試作では、すべて遊べます。<br><button class="link" id="simOn" style="padding:4px 0;font-size:13px">（試作用）買い切り前の状態を ためす</button>')+'</div></div>'
+   +'<div class="note"><b>設定</b><div class="pbtns"><button class="pbtn" id="btnMute">音：'+(root.mute?'オフ':'オン')+'</button></div></div>'
    +'<div style="text-align:center;margin-top:14px"><button class="link" id="btnReset">きろくを けす</button></div>';
   $('btnAdv').onclick=()=>{save.adv=save.adv===false;persist();parentPage();};
-  let armed=false;$('btnReset').onclick=e=>{if(!armed){armed=true;e.target.textContent='ほんとうに けす（もういちど おす）';return;}root.kids[root.cur]=save=Object.assign(newKid(save.name),{adv:save.adv});persist();parentPage();};}
+  const on=(id,f)=>{if($(id))$(id).onclick=f;},busy=t=>{['buy','restore'].forEach(id=>{if($(id))$(id).disabled=true;});if($('buy'))$('buy').textContent=t;},
+    opened=(r,yes,no)=>{if(ownsFull(r)){root.full=true;persist();parentPage(yes);}else parentPage(no);};
+  if(NATIVE){on('buy',()=>{busy('処理中…');nat('iap',{op:'buy',sku:SKU}).then(r=>opened(r&&r.ok?r:null,'ありがとうございます。すべて ひらきました。',r&&r.cancelled?undefined:r&&r.deferred?'保護者の方の承認を待っています（承認と購入のリクエスト）。承認のあと、アプリを開き直すと ひらきます。':'購入は完了しませんでした。時間をおいて、もう一度お試しください。'));});
+    on('restore',()=>{busy('確認中…');nat('iap',{op:'restore'}).then(r=>opened(r,'購入を復元しました。','復元できる購入が見つかりませんでした。'));});}
+  else{on('buy',()=>{root.full=true;persist();parentPage('ひらきました（試作のため、お支払いは発生していません）。');});on('restore',()=>parentPage('試作のため、復元できる購入はありません。'));}
+  on('unbuy',()=>{root.full=false;persist();parentPage('未購入の状態に戻しました。');});
+  on('simOn',()=>{root.sim=true;root.full=false;persist();parentPage('買い切り前の状態にしました。ホームに戻ると、かぎの印が付きます。');});
+  on('simOff',()=>{delete root.sim;persist();parentPage('ぜんぶ遊べる状態に戻しました。');});
+  on('btnMute',()=>{root.mute=!root.mute;persist();say('mute',{on:!!root.mute});parentPage();});
+  if($('pmsg'))$('parentBody').scrollTop=0;maybeReview();
+  let armed=false;$('btnReset').onclick=e=>{if(!armed){armed=true;e.target.textContent='ほんとうに けす（もういちど おす）';return;}root.kids[root.cur]=save=Object.assign(newKid(save.name,save.id),{adv:save.adv,ep:Date.now()});/* ep：消した時刻。iCloud で ほかの端末にも 届く（native/cloud-rules.js） */persist();parentPage('記録を消しました。');};}
 
 // ---------- ふたりで たいせん（むかいあわせ・どうじ） ----------
 const DPOOL=['more','buy','longer','clock','bugs','half','find','dice','big','ten','cup','seq','sub','mlen','coin','chg','arr','mulbig','kuku','share','pack','fair','line','near','est'];
@@ -716,17 +780,17 @@ let asked=false,ready=false;
 function enter(fn){if(ready)return fn();if(asked)return;asked=true;try{ac=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}
   const go=()=>{asked=false;ready=true;fn();};const pr=askTilt();if(pr&&pr.then)pr.then(go,go);else go();}
 $('btnStart').onclick=()=>enter(()=>start('mix'));
-$('btnPrac').onclick=pracPage;$('btnDay').onclick=()=>enter(()=>start('day'));$('btnBook').onclick=bookPage;$('btnKid').onclick=kidsPage;$('btnWeak').onclick=()=>enter(()=>start('weak'));
+$('btnPrac').onclick=pracPage;$('btnDay').onclick=()=>full()?enter(()=>start('day')):lockPage('きょうの 5もん');$('btnBook').onclick=()=>full()?bookPage():lockPage('はなまるちょう');$('btnKid').onclick=kidsPage;$('btnWeak').onclick=()=>full()?enter(()=>start('weak')):lockPage('にがて とっくん');
 function vsPage(){show('scrVs');['segA','segB'].forEach((id,p)=>{$(id).innerHTML=['ハンデ なし','1びょう まつ','2びょう まつ'].map((t,i)=>'<button class="chip'+(vs.lv[p]===i?' on':'')+'" data-i="'+i+'">'+t+'</button>').join('');
   $(id).querySelectorAll('.chip').forEach(b=>b.onclick=()=>{vs.lv[p]=+b.dataset.i;vsPage();});});}
-$('btnVs').onclick=vsPage;$('btnVsGo').onclick=()=>enter(dStart);
-$('btnParent').onclick=parentPage;
+$('btnVs').onclick=()=>full()?vsPage():lockPage('ふたりで たいせん');$('btnVsGo').onclick=()=>enter(dStart);
+$('btnParent').onclick=()=>gatePage(parentPage);
 document.querySelectorAll('[data-home]').forEach(b=>b.onclick=home);
 $('btnAgain').onclick=()=>mode==='vs'?dStart():start();$('btnHome').onclick=()=>mode==='prac'?pracPage():home();
 $('btnDQuit').onclick=()=>{duelOn=false;ctx=cv.getContext('2d');home();};
 $('btnQuit').onclick=()=>{state='idle';setButtons([]);mode==='prac'?pracPage():home();};
 home();
-window.__pitatto={get state(){return state;},get key(){return gkey;},get mode(){return mode;},get vs(){return vs;},get duel(){return {st:D.st,key:D.key,sc:D.sc,on:duelOn};}};
+window.__pitatto={get state(){return state;},get pool(){return pool();},get key(){return gkey;},get mode(){return mode;},get vs(){return vs;},get duel(){return {st:D.st,key:D.key,sc:D.sc,on:duelOn};}};
 })();
 </script>
 </body></html>
