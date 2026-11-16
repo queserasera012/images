@@ -247,6 +247,14 @@ const EN={
 "ぜんぶ まぜて・{0}かい まちがえたら おしまい":"All mixed. {0} misses and it's over.",
 "きょうの {0} / {1}":"Today {0} / {1}",
 "きょうは おわり！ はなまる":"Done for today! Great!",
+"きょうは おわり！ また あした":"Done for today! See you tomorrow",
+"きょうは おわり！":"Done for today!",
+"あしたは あたらしい":"Tomorrow brings",
+"{0}もんが とどくよ。":"{0} new questions.",
+"また あした あそぼうね。":"See you then!",
+"「ぜんぶ ひらく」だと":"With Unlock All,",
+"きょうの {0}もんも":"Today's {0} can be",
+"なんかいでも あそべるよ。":"replayed any time.",
 "まいにち かわる {0}もん":"{0} new questions every day",
 "なまえを きめる":"Set your name",
 "ふたりで たいせん":"2-Player Duel",
@@ -357,9 +365,9 @@ const EN={
 "「{s}」を 消す":"Remove \"{s}\"",
 "ほんとうに 消す（記録も 消えます。もういちど おす）":"Really remove? Records go too. (tap again)",
 "ぜんぶ ひらく（買い切り）":"Unlock All (one-time purchase)",
-"{0}本すべて・きょうの {1}もん・にがて とっくん・はなまるちょう・{2}人ぶんの記録が開きます。":"Opens all {0} games, Today's {1}, Weak-spot Training, the Star Book and records for {2} players.",
+"{0}本すべて・にがて とっくん・はなまるちょう・{1}人ぶんの記録が開き、きょうの {2}もんも 何回でも遊べます。":"Opens all {0} games, Weak-spot Training, the Star Book and records for {1} players, and lets you replay Today's {2} any time.",
 "{0}回だけのお支払いです。月額ではありません。広告はありません。":"A single payment. No subscription. No ads.",
-"無料のままでも「あそぶ」「ふたりで たいせん」と、各分野{0}本ずつの{1}本は、何回でも遊べます。":"Without buying, Play, 2-Player Duel and {1} games ({0} per area) stay free forever.",
+"無料のままでも「あそぶ」「ふたりで たいせん」と、各分野{0}本ずつの{1}本は 何回でも、きょうの {2}もんは {3}日{4}回 遊べます。":"Without buying, Play, 2-Player Duel and {1} games ({0} per area) stay free forever, and Today's {2} can be played once a day.",
 "ファミリー共有に対応しています。":"Family Sharing is supported.",
 "購入する":"Buy",
 "購入を復元する":"Restore purchase",
@@ -1305,8 +1313,10 @@ if(NATIVE){say('mute',{on:!!root.mute});
   nat('iap',{op:'owned'}).then(r=>{if(ownsFull(r)&&!root.full){root.full=true;persist();if(atHome())home();}});
   nat('iap',{op:'products',skus:[SKU]}).then(r=>{const p=r&&r.products&&r.products[0];if(p&&p.price)storePrice=p.price;});}
 const pool=()=>ORDER.filter(k=>openG(k)&&(save.adv!==false||!ADV.has(k)));
+// daily five: free, picked from all games; before purchase it can be finished once a day
+const dayPool=()=>ORDER.filter(k=>(save.adv!==false||!ADV.has(k))),dayOpen=()=>full()||!save.days[dkey()];
 const dkey=(d=new Date())=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-function dayPlan(){let s=7;for(const c of dkey())s=(s*31+c.charCodeAt(0))>>>0;const r=()=>(s=(s*1664525+1013904223)>>>0)/4294967296;const a=pool().slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a.slice(0,5);}
+function dayPlan(){let s=7;for(const c of dkey())s=(s*31+c.charCodeAt(0))>>>0;const r=()=>(s=(s*1664525+1013904223)>>>0)/4294967296;const a=dayPool().slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a.slice(0,5);}
 const st=k=>save.stats[k]||[0,0];
 function show(id){say('awake',{on:id==='scrPlay'||id==='scrDuel'});['scrTitle','scrPlay','scrEnd','scrPrac','scrParent','scrVs','scrDuel','scrBook','scrKids','scrGate'].forEach(s=>$(s).classList.toggle('hid',s!==id));}
 function top(){$('lives').innerHTML=mode!=='mix'?'':[0,1,2].map(i=>'<i class="'+(i<lives?'':'off')+'"></i>').join('');
@@ -1320,7 +1330,7 @@ function setButtons(labels){const b=$('btns');b.innerHTML='';b.className='btns'+
   labels.forEach((t,i)=>{const e=document.createElement('button');e.className='btn'+(labels.length===2&&i===1?' sky':'');e.textContent=t;e.id='b'+i;
     e.addEventListener('pointerdown',ev=>{ev.preventDefault();if(state==='play'&&g.btn)g.btn(i);});b.appendChild(e);});}
 let ac=null;function beep(f,d,type,when){try{if(!ac||root.mute)return;const o=ac.createOscillator(),ga=ac.createGain(),t=ac.currentTime+(when||0);o.type=type||'square';o.frequency.value=f;ga.gain.setValueAtTime(.05,t);ga.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(ga);ga.connect(ac.destination);o.start(t);o.stop(t+d);}catch(e){}}
-function start(m,key){if(m){mode=m;pracKey=key||'';}score=0;lives=3;round=0;tally={};bag=[];lastKey='';
+function start(m,key){if(m){mode=m;pracKey=key||'';}if(mode==='day'&&!dayOpen())return dayDonePage();score=0;lives=3;round=0;tally={};bag=[];lastKey='';
   if(mode==='weak')plan=mkPlan();if(mode==='day')plan=dayPlan();if(mode==='vs'){vs.sc=[0,0];vs.i=0;vs.log=[];vs.keys=ORDER.slice().mix().slice(0,5);}
   show('scrPlay');fit();top();next();}
 function next(){if(mode==='prac'){if(round>=5)return over();gkey=pracKey;g=GAMES[gkey];lv=[0,0,1,1,2][round];round++;g.setup(lv);top();return intro();}
@@ -1372,8 +1382,8 @@ const kname=k=>k.name||'なまえなし';
 function home(){state='idle';g=null;show('scrTitle');const d=new Date();$('day').textContent=LANG==='en'?['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]+', '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+' '+d.getDate():kan(d.getMonth()+1)+'月'+kan(d.getDate())+'日（'+'日月火水木金土'[d.getDay()]+'）';
   $('homeBest').textContent='ぜんぶ まぜて・3かい まちがえたら おしまい'+(save.best?'　じこベスト '+save.best:'');
   $('btnKid').innerHTML='<i class="mg k'+root.cur+'"></i>'+(save.name||'なまえを きめる');const sa=starAll();$('bookSub').textContent='★ '+sa+' / '+ORDER.length*3;
-  $('daySub').textContent=save.days[dkey()]?'きょうは おわり！ はなまる':'まいにち かわる 5もん';
-  ['btnDay','btnWeak','btnBook'].forEach(id=>$(id).classList.toggle('lk',!full()));
+  $('daySub').textContent=save.days[dkey()]?(full()?'きょうは おわり！ はなまる':'きょうは おわり！ また あした'):'まいにち かわる 5もん';
+  ['btnWeak','btnBook'].forEach(id=>$(id).classList.toggle('lk',!full()));$('btnDay').classList.toggle('lk',!dayOpen());
   const got=DOOD.map((q,i)=>sa>=q[0]?dood(i):'').join('');$('shelf').innerHTML=got||'ほしを あつめると ここに らくがきが ふえるよ';}
 function bookPage(){show('scrBook');const sa=starAll(),nx=DOOD.find(q=>sa<q[0]);
   $('bookBody').innerHTML='<div class="pl"><i class="mg k'+root.cur+'"></i>'+kname(save)+'　<span style="color:var(--yellow)">★ '+sa+' / '+ORDER.length*3+'</span></div>'
@@ -1395,6 +1405,10 @@ function pracPage(){show('scrPrac');$('pracList').innerHTML=FIELDS.map(f=>{const
 // ---------- かぎ・保護者の 関門 ----------
 const LOCK='<svg viewBox="0 0 60 60" width="70" height="70" aria-hidden="true" fill="none" stroke="#FFE08A" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 28V20a11 11 0 0 1 22 0v8"/><rect x="12" y="27" width="36" height="26" rx="5"/><path d="M30 37v7"/></svg>';
 // 子の 画面には 値段を 出さない。値段と 購入は 関門の 奥（おうちのかたへ）だけ
+function dayDonePage(){show('scrGate');$('gateT').textContent='きょうの 5もん';
+  $('gateBody').innerHTML='<div style="margin-top:28px;font-size:23px">きょうは おわり！</div><p class="kid-p">あしたは あたらしい<br>5もんが とどくよ。<br>また あした あそぼうね。</p>'+cal()
+   +'<p class="kid-p" style="font-size:14px;color:var(--mute)">「ぜんぶ ひらく」だと<br>きょうの 5もんも<br>なんかいでも あそべるよ。</p><div style="max-width:300px;margin:10px auto 0"><button class="btn" id="toPar">おうちの かたへ</button></div>';
+  $('toPar').onclick=()=>gatePage(parentPage);}
 function lockPage(what){show('scrGate');$('gateT').textContent='かぎの かかった あそび';
   $('gateBody').innerHTML='<div style="margin-top:28px">'+LOCK+'</div><div style="font-size:23px;margin:6px 0 2px">'+what+'</div><p class="kid-p">ここから さきは<br>「ぜんぶ ひらく」で あそべるよ。<br>おうちの ひとに<br>この がめんを みせてね。</p>'
    +'<div style="max-width:300px;margin:16px auto 0"><button class="btn yel" id="toPar">おうちの かたへ</button></div><p class="kid-p" style="font-size:14px;color:var(--mute)">「あそぶ」「たいせん」と、<br>みどりの わくの れんしゅうは、<br>このまま なんかいでも あそべるよ。</p>';
@@ -1438,7 +1452,7 @@ function parentPage(note){show('scrParent');const sim=NATIVE||root.sim,own=!!roo
      return '<tr><td>'+GAMES[k].name+(FREE.has(k)?'（無料）':'')+lvLine(k)+'</td><td class="n">○ '+r[0]+'</td><td class="n">× '+r[1]+'</td><td class="n">'+(n?Math.round(r[0]/n*100)+'%':'—')+'</td></tr>';}).join('')+'</table></div>').join('')
    +'<div class="note"><b>これまでの記録</b>：'+(tot[0]+tot[1])+'回あそんで ○ '+tot[0]+'・× '+tot[1]+'。'+(NATIVE?'記録はこの端末と、ご自身の iCloud に残ります（同じ Apple ID の iPhone で記録がそろいます）。':'記録はこの端末の中だけに残ります。')+'広告は出ません。お子さまの名前や記録を、開発者が受け取ることはありません。</div>'
    +'<div class="note"><b>かけ算・わり算・大きな数</b>：小2〜小4の内容です。まだ早い場合は外せます。<br><button class="link" id="btnAdv" style="padding:6px 0">'+(save.adv!==false?'いまは 出す（おすと 出さない）':'いまは 出さない（おすと 出す）')+'</button></div>'
-   +'<div class="note" id="buyBox"><b>ぜんぶ ひらく（買い切り）</b>　'+(storePrice||PRICE)+'<br>1回だけのお支払いです。月額ではありません。広告はありません。<br>'+ORDER.length+'本すべて・きょうの 5もん・にがて とっくん・はなまるちょう・4人ぶんの記録が開きます。<br>無料のままでも「あそぶ」「ふたりで たいせん」と、各分野1本ずつの10本は、何回でも遊べます。'
+   +'<div class="note" id="buyBox"><b>ぜんぶ ひらく（買い切り）</b>　'+(storePrice||PRICE)+'<br>1回だけのお支払いです。月額ではありません。広告はありません。<br>'+ORDER.length+'本すべて・にがて とっくん・はなまるちょう・4人ぶんの記録が開き、きょうの 5もんも 何回でも遊べます。<br>無料のままでも「あそぶ」「ふたりで たいせん」と、各分野1本ずつの10本は 何回でも、きょうの 5もんは 1日1回 遊べます。'
      +(sim?'<div class="pbtns">'+(own?'<button class="pbtn" disabled>購入済みです</button>'+(NATIVE?'':'<button class="pbtn" id="unbuy">（試作用）未購入に戻す</button>'):'<button class="pbtn get" id="buy">購入する</button><button class="pbtn" id="restore">購入を復元する</button>')+'</div>':'')
      +'<div class="leg">'+(NATIVE?'※ お支払いは App Store を通して行われます。ファミリー共有に対応しています。承認待ち（承認と購入のリクエスト）の場合は、承認のあとにアプリを開き直すと反映されます。':sim?'※ いまは試作です。「購入する」を押してもお金はかからず、開いた状態を試せるだけです。<br><button class="link" id="simOff" style="padding:4px 0;font-size:13px">（試作用）ためすのを やめて、ぜんぶ遊べる状態に戻す</button>':'※ この試作では、すべて遊べます。<br><button class="link" id="simOn" style="padding:4px 0;font-size:13px">（試作用）買い切り前の状態を ためす</button>')+'</div></div>'
    +'<div class="note"><b>設定</b><div class="pbtns"><button class="pbtn" id="btnMute">音：'+(root.mute?'オフ':'オン')+'</button><button class="pbtn" id="btnPin">暗証番号を変える</button><button class="pbtn" id="btnLang">'+(LANG==='en'?'にほんごに する':'English')+'</button></div>'+(pinOf()===PIN0?'<div style="margin-top:6px">暗証番号が はじめの 1234 のままです。お子さまに知られないよう、変えておくと安心です。</div>':'')+'</div>'
@@ -1509,7 +1523,7 @@ let asked=false,ready=false;
 function enter(fn){if(ready)return fn();if(asked)return;asked=true;try{ac=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}
   asked=false;ready=true;fn();}
 $('btnStart').onclick=()=>enter(()=>start('mix'));
-$('btnPrac').onclick=pracPage;$('btnDay').onclick=()=>full()?enter(()=>start('day')):lockPage('きょうの 5もん');$('btnBook').onclick=()=>full()?bookPage():lockPage('はなまるちょう');$('btnKid').onclick=kidsPage;$('btnWeak').onclick=()=>full()?enter(()=>start('weak')):lockPage('にがて とっくん');
+$('btnPrac').onclick=pracPage;$('btnDay').onclick=()=>dayOpen()?enter(()=>start('day')):dayDonePage();$('btnBook').onclick=()=>full()?bookPage():lockPage('はなまるちょう');$('btnKid').onclick=kidsPage;$('btnWeak').onclick=()=>full()?enter(()=>start('weak')):lockPage('にがて とっくん');
 function vsPage(){show('scrVs');['segA','segB'].forEach((id,p)=>{$(id).innerHTML=['ハンデ なし','1びょう まつ','2びょう まつ'].map((t,i)=>'<button class="chip'+(vs.lv[p]===i?' on':'')+'" data-i="'+i+'">'+t+'</button>').join('');
   $(id).querySelectorAll('.chip').forEach(b=>b.onclick=()=>{vs.lv[p]=+b.dataset.i;vsPage();});});
   // かけざん・わりざん・おおきな かず を 出すか（はじめは いまの 子の 設定と 同じ）
@@ -1525,7 +1539,7 @@ $('btnAgain').onclick=()=>mode==='vs'?dStart():start();$('btnHome').onclick=()=>
 $('btnDQuit').onclick=()=>{duelOn=false;ctx=cv.getContext('2d');home();};
 $('btnQuit').onclick=()=>{state='idle';setButtons([]);mode==='prac'?pracPage():home();};
 home();
-window.__pitatto={get i18n(){return I18N;},get games(){return GAMES;},get state(){return state;},get pool(){return pool();},get key(){return gkey;},get mode(){return mode;},get vs(){return vs;},dpool(){return dPool();},get duel(){return {st:D.st,key:D.key,sc:D.sc,on:duelOn};}};
+window.__pitatto={get i18n(){return I18N;},get games(){return GAMES;},get state(){return state;},get pool(){return pool();},get dayPool(){return dayPool();},get key(){return gkey;},get mode(){return mode;},get vs(){return vs;},dpool(){return dPool();},get duel(){return {st:D.st,key:D.key,sc:D.sc,on:duelOn};}};
 })();
 </script>
 </body></html>
