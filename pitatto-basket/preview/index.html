@@ -636,6 +636,9 @@ function wazaInfo(k, got) {
 
 
 // ===== リーグ：6チームの そうあたり。リーグの 試合は 1日に 1つ =====
+// 2026-11-16（レビュー A-2）：あいては 10チームから シーズンごとに 5つ（シーズン1 は はじめの 5つの まま）。
+// 強さは「クラス」＝ ゆうしょうした 回数（cups）で 上がる。シーズンの 数では 上がらない（勝てない子が 置いて いかれない・勝てる子は 頭打ちに ならない）。
+// 保存の 形は 変えて いない（tbl は きみ＋5つの 席。席 i の チームは LG.team(i) が シーズンから きめる）
 // くせ（trait）は あいての まもり・シュートに 出る。メモを 読んで、どこを 見るか 考える
 const TEAMS = [
   { name: "きみの チーム", col: "#3F78C9" },
@@ -644,52 +647,62 @@ const TEAMS = [
   { name: "うさぎーズ", pow: 3, over: 2, shot: .03, memo: "パスを とろうと 前に とび出して くる。うしろが あく。", look: "あいてが パスの 道に 出て きて いないか" },
   { name: "くまさんズ", pow: 4, shot: .12, memo: "シュートが うまい。フリーで うたせると 入れられる。", look: "まもりで、自分の あいてから はなれすぎて いないか" },
   { name: "はやぶさズ", pow: 5, sp: 3.7, few: 1, shot: .06, memo: "足が はやくて、まもりの すきが 少ない。", look: "いちばん いい なかまは だれか。あせらず さがそう" },
+  { name: "ぞうさんズ", pow: 2, sp: 2.6, shot: .15, memo: "足は とても ゆっくり。でも シュートは とても うまい。", look: "こうげきは よこを ぬく。まもりは あいてから はなれない" },
+  { name: "きつねズ", pow: 3, watch: 2, shot: .08, memo: "ボールばかり 見て いる。でも フリーに すると シュートを きめて くる。", look: "フリーの なかまを さがす。まもりは 自分の あいてを 見うしなわない" },
+  { name: "りすさんズ", pow: 3, over: 2, sp: 3.5, shot: 0, memo: "すばしこくて、パスを とりに 前へ とび出して くる。", look: "あいてが 前に 出たら、うしろ（ゴールがわ）が あいて いる" },
+  { name: "おおかみズ", pow: 4, sp: 3.6, shot: .08, memo: "足が はやくて、ぬいても すぐ 追いついて くる。", look: "ドリブルより パス。ボールを 早く 動かそう" },
+  { name: "たかさんズ", pow: 5, sp: 3.5, few: 1, shot: .12, memo: "すきが 少なくて、シュートも うまい。いちばんの 強てき。", look: "まわりを よく 見て、いちばん いい 手を えらぶ。まもりは はなれない" },
 ];
+const ME_TEAM = TEAMS[0], RIVALS = TEAMS.slice(1);
 const LG_R = 5; let OPP = null;
 const LG = {
   get d() { return WZ.d.lg; },
   today() { const t = new Date(Date.now() + ((this.d && this.d.off) || 0) * 864e5); return `${t.getFullYear()}-${t.getMonth() + 1}-${t.getDate()}`; },
-  fresh(season, off) { return { season, round: 0, day: "", off: off || 0, tbl: TEAMS.map(() => [0, 0, 0, 0, 0]), log: [], cups: (this.d && this.d.cups) || 0 }; },
-  init() { const d = WZ.d.lg; if (!d || !Array.isArray(d.tbl) || d.tbl.length !== TEAMS.length) WZ.d.lg = this.fresh(1); else if (d.round >= LG_R && d.day !== this.today()) WZ.d.lg = this.fresh(d.season + 1, d.off); },
+  fresh(season, off) { return { season, round: 0, day: "", off: off || 0, tbl: [0, 1, 2, 3, 4, 5].map(() => [0, 0, 0, 0, 0]), log: [], cups: (this.d && this.d.cups) || 0 }; },
+  // この シーズンの 5チーム：10チームの 中から 3つずつ ずらして えらび、弱い 順に ならべる（さいごの 試合が いちばん 強い）
+  roster(season) { const s = Math.max(1, (season === undefined ? (this.d && this.d.season) : season) | 0), o = (s - 1) * 3 % RIVALS.length; return [0, 1, 2, 3, 4].map(k => RIVALS[(o + k) % RIVALS.length]).sort((a, b) => a.pow - b.pow || RIVALS.indexOf(a) - RIVALS.indexOf(b)); },
+  team(i) { return i === 0 ? ME_TEAM : this.roster()[i - 1]; },
+  cls() { return ((this.d && this.d.cups) | 0) + 1; }, // クラス：ゆうしょう するたびに 1つ 上がる
+  init() { const d = WZ.d.lg; if (!d || !Array.isArray(d.tbl) || d.tbl.length !== 6) WZ.d.lg = this.fresh(1); else if (d.round >= LG_R && d.day !== this.today()) WZ.d.lg = this.fresh(d.season + 1, d.off); },
   played() { return this.d.day === this.today(); },
   over() { return this.d.round >= LG_R; },
   oppIdx(r) { return 1 + r % 5; },
   pairs(r) { const a = [1, 2, 3, 4, 5].map((_, i) => 1 + (i + r) % 5); return [[0, a[0]], [a[1], a[4]], [a[2], a[3]]]; },
-  rank() { return TEAMS.map((_, i) => i).sort((p, q) => { const a = this.d.tbl[p], b = this.d.tbl[q]; return (b[0] * 2 + b[1]) - (a[0] * 2 + a[1]) || (b[3] - b[4]) - (a[3] - a[4]) || b[3] - a[3] || p - q; }); },
+  rank() { return [0, 1, 2, 3, 4, 5].sort((p, q) => { const a = this.d.tbl[p], b = this.d.tbl[q]; return (b[0] * 2 + b[1]) - (a[0] * 2 + a[1]) || (b[3] - b[4]) - (a[3] - a[4]) || b[3] - a[3] || p - q; }); },
   add(i, f, a) { const t = this.d.tbl[i]; t[f > a ? 0 : f === a ? 1 : 2]++; t[3] += f; t[4] += a; },
-  // あいての 強さ：シーズンが すすむと 少しずつ 上がる
-  opp(i) { const t = TEAMS[i], up = Math.min(3, this.d.season - 1); return { ...t, idx: i, sp: (t.sp || 3.3) + up * .1, shot: (t.shot || 0) + up * .02 }; },
-  simScore(i) { const p = TEAMS[i].pow; let n = 0; for (let k = 0; k < 4; k++) if (Math.random() < .15 + p * .05) n++; return n * 2; },
+  // あいての 強さ：クラスが 上がると 少しずつ 上がる（足は 4.6 まで・シュートは +.3 まで。クラス4 からは まもりの すきも へる）
+  opp(i) { const t = this.team(i), up = this.cls() - 1; return { ...t, idx: i, sp: Math.min(4.6, (t.sp || 3.3) + up * .1), shot: (t.shot || 0) + Math.min(.3, up * .03), few: t.few || (up >= 3 ? 1 : 0) }; },
+  simScore(i) { const p = this.team(i).pow; let n = 0; for (let k = 0; k < 4; k++) if (Math.random() < .15 + p * .05) n++; return n * 2; },
   record(a, b) {
     const r = this.d.round, out = [];
     this.pairs(r).forEach(([x, y]) => { const sx = x === 0 ? a : this.simScore(x), sy = x === 0 ? b : this.simScore(y); this.add(x, sx, sy); this.add(y, sy, sx); out.push([x, y, sx, sy]); });
     this.d.log.push(out); this.d.round++; this.d.day = this.today();
-    const last = this.over(), pos = this.rank().indexOf(0) + 1; if (last && pos === 1) this.d.cups++;
+    const last = this.over(), pos = this.rank().indexOf(0) + 1; if (last && pos === 1) this.d.cups = (this.d.cups | 0) + 1;
     WZ.save(); return { out, last, pos };
   },
 };
 function leagueEnd(a, b) {
   const opp = OPP, bonus = a > b ? 5 : a === b ? 2 : 0; S.stars += bonus; const r = LG.record(a, b); OPP = null;
   return `<div class="lgbox"><b>リーグ戦　第${LG.d.round}せつ</b>　${opp.name}に ${a > b ? "かち" : a < b ? "まけ" : "ひきわけ"}${bonus ? `（ボーナス ★${bonus}）` : ""}<br>
-    ${r.out.slice(1).map(o => `${TEAMS[o[0]].name} ${o[2]}-${o[3]} ${TEAMS[o[1]].name}`).join("<br>")}<br>
-    <b>${r.last ? (r.pos === 1 ? "ゆうしょう！ おめでとう！" : `シーズン おわり。${r.pos}い でした`) : `いま ${r.pos}い`}</b>${r.last ? "　あしたから 次の シーズン" : "　つぎの 試合は あした"}</div>
+    ${r.out.slice(1).map(o => `${LG.team(o[0]).name} ${o[2]}-${o[3]} ${LG.team(o[1]).name}`).join("<br>")}<br>
+    <b>${r.last ? (r.pos === 1 ? `ゆうしょう！ おめでとう！ つぎは クラス${LG.cls()}に あがるよ` : `シーズン おわり。${r.pos}い でした`) : `いま ${r.pos}い`}</b>${r.last ? "　あしたから 次の シーズン" : "　つぎの 試合は あした"}</div>
     <button class="go sub" id="tolg">リーグの 表を 見る</button>`;
 }
 function leagueMenu() {
-  LG.init(); const d = LG.d, c = $("cover"), rk = LG.rank(), played = LG.played(), fin = LG.over(), oi = LG.oppIdx(d.round), o = TEAMS[oi];
+  LG.init(); const d = LG.d, c = $("cover"), rk = LG.rank(), played = LG.played(), fin = LG.over(), oi = LG.oppIdx(d.round), o = LG.team(oi);
   S = { mode: "idle", holder: YOU }; c.hidden = false; c.classList.add("long"); $("hud").hidden = true; c.scrollTop = 0;
-  const row = (i, n) => { const t = d.tbl[i]; return `<tr class="${i === 0 ? "me" : ""}"><td>${n + 1}</td><td class="nm">${TEAMS[i].name}</td><td>${t[0]}</td><td>${t[1]}</td><td>${t[2]}</td><td>${t[3] - t[4] > 0 ? "+" : ""}${t[3] - t[4]}</td></tr>`; };
+  const row = (i, n) => { const t = d.tbl[i]; return `<tr class="${i === 0 ? "me" : ""}"><td>${n + 1}</td><td class="nm">${LG.team(i).name}</td><td>${t[0]}</td><td>${t[1]}</td><td>${t[2]}</td><td>${t[3] - t[4] > 0 ? "+" : ""}${t[3] - t[4]}</td></tr>`; };
   const next = fin ? "" : `<div class="wzc"><h3>${played ? "あしたの あいて" : "きょうの あいて"}<em>第${d.round + 1}せつ / ${LG_R}</em></h3>
       <div class="one"><b style="font-weight:400;font-size:18px">${o.name}</b><br>${o.memo}<br><span style="color:#1E6B49">見る ところ：${o.look}</span></div></div>`;
-  c.innerHTML = `<div class="wzh">リーグ</div><p style="font-size:13px;max-width:none">シーズン${d.season}　6チームの そうあたり（ぜんぶで ${LG_R}試合）${d.cups ? `<br>ゆうしょう ${d.cups}回` : ""}</p>
+  c.innerHTML = `<div class="wzh">リーグ</div><p style="font-size:13px;max-width:none">シーズン${d.season}・クラス${LG.cls()}　6チームの そうあたり（ぜんぶで ${LG_R}試合）${d.cups ? `<br>ゆうしょう ${d.cups}回` : ""}<br><span style="font-size:11.5px;color:var(--sub)">ゆうしょう すると クラスが 1つ 上がって、あいてが 少し 強く なる。あいては シーズンごとに 入れかわるよ</span></p>
     <table class="lgt"><tr><th></th><th class="nm">チーム</th><th>かち</th><th>わけ</th><th>まけ</th><th>とくしつ</th></tr>${rk.map(row).join("")}</table>
     <p style="font-size:11.5px;color:var(--sub);max-width:none">とくしつ＝入れた 点 − 入れられた 点。かちの 数が 同じ時は これで くらべる</p>
     ${next}
-    ${fin ? `<p style="font-size:14px;max-width:none">この シーズンは おわり。${rk[0] === 0 ? "ゆうしょう！" : `${rk.indexOf(0) + 1}い でした。`}<br>あしたから シーズン${d.season + 1}が はじまるよ。</p>`
+    ${fin ? `<p style="font-size:14px;max-width:none">この シーズンは おわり。${rk[0] === 0 ? "ゆうしょう！" : `${rk.indexOf(0) + 1}い でした。`}<br>あしたから シーズン${d.season + 1}が はじまるよ。あいては ${LG.roster(d.season + 1).map(t => t.name).join("・")}。</p>`
       : played ? `<p style="font-size:14px;max-width:none">きょうの リーグ戦は おわり。つづきは あした。<br>「いつでも 試合」と「れんしゅう」は 何回でも できるよ。</p>`
       : lgLocked() ? `<div class="lgbox" style="text-align:center">${LOCK_SVG}<br>おためしの ${FREE_LG}試合が おわったよ。<br>つづきは「ぜんぶ ひらく」で あそべる。<br>おうちの 人に 見せてね。</div><button class="go sub" id="topar">おうちの 方へ</button>`
       : `<button class="go" id="lgo">リーグ戦 かいし</button>${PAID() ? "" : `<p style="font-size:12px;color:var(--sub);max-width:none">おためし：あと ${Math.max(0, FREE_LG - d.round)}試合</p>`}`}
-    ${d.log.length ? `<div class="wzd"><h4>これまでの けっか</h4>${d.log.map((r, k) => `<p style="font-size:12.5px;line-height:1.5"><span style="color:#B65E00">第${k + 1}せつ</span><br>${r.map(o => `${TEAMS[o[0]].name} ${o[2]}-${o[3]} ${TEAMS[o[1]].name}`).join("<br>")}</p>`).join("")}</div>` : ""}
+    ${d.log.length ? `<div class="wzd"><h4>これまでの けっか</h4>${d.log.map((r, k) => `<p style="font-size:12.5px;line-height:1.5"><span style="color:#B65E00">第${k + 1}せつ</span><br>${r.map(o => `${LG.team(o[0]).name} ${o[2]}-${o[3]} ${LG.team(o[1]).name}`).join("<br>")}</p>`).join("")}</div>` : ""}
     <button class="go sub" id="wzback">もどる</button>`;
   $("wzback").onclick = wazaBack;
   if ($("topar")) $("topar").onclick = () => parentGate(parentMenu);
@@ -1701,7 +1714,7 @@ function title() {
   S = { mode: "idle", holder: YOU }; $("hud").hidden = true; $("cover").hidden = false; $("cover").classList.remove("long"); camGoal = 0; LG.init();
   $("cover").innerHTML = `<h1>ピタッと<span>バスケ</span></h1><p>しあいの とちゅうで 時間が 止まる。上から コートを 見て、つぎの 一手を えらぼう。</p>
     <ol><li><b>1</b>　きみは オレンジの 4番</li><li><b>2</b>　ピタッ！と 止まったら 上から 見る</li><li><b>3</b>　パス・シュート・ドリブルを タップ</li><li><b>4</b>　まもりでは 立つ 場所を タップ</li></ol>
-    <div class="row2 main">${[`<button class="go${LG.over() || LG.played() ? " off" : ""}" id="lg" ${LG.over() || LG.played() ? "disabled" : ""}>リーグ戦<small>${LG.over() ? "シーズン おわり<br>つぎは あした" : LG.played() ? "きょうは おわり<br>つづきは あした" : lgLocked() ? "つづきは<br>かぎ つき" : `きょうの あいて<br>${TEAMS[LG.oppIdx(LG.d.round)].name}`}</small></button>`, `<button class="go" id="start">いつでも 試合<small>何回でも<br>できる</small></button>`][lgLocked() ? "reverse" : "slice"]().join("")}</div>
+    <div class="row2 main">${[`<button class="go${LG.over() || LG.played() ? " off" : ""}" id="lg" ${LG.over() || LG.played() ? "disabled" : ""}>リーグ戦<small>${LG.over() ? "シーズン おわり<br>つぎは あした" : LG.played() ? "きょうは おわり<br>つづきは あした" : lgLocked() ? "つづきは<br>かぎ つき" : `きょうの あいて<br>${LG.team(LG.oppIdx(LG.d.round)).name}`}</small></button>`, `<button class="go" id="start">いつでも 試合<small>何回でも<br>できる</small></button>`][lgLocked() ? "reverse" : "slice"]().join("")}</div>
     <div class="row2"><button class="go sub" id="prac">れんしゅう</button><button class="go sub" id="towaza">わざ ★${WZ.d.bank}</button><button class="go sub" id="lgt">リーグの 表</button></div>
     <button class="plink" id="par">おうちの 方へ</button>`;
   $("lg").onclick = leagueMenu; $("lgt").onclick = leagueMenu; $("par").onclick = () => parentGate(parentMenu);
