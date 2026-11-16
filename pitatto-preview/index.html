@@ -549,6 +549,7 @@ const FIELDS=[
  {name:'かけざんの かん',kid:'かけざん',desc:'並びを「いくつ分」で見る、九九の大きさを比べる、□に入る数を探す。',g:['arr','mulbig','kuku']},
  {name:'わける',kid:'わける',desc:'同じ数ずつ分ける、いくつ分とれるか、あまりが出るかを見ぬく。わり算の入口です。',g:['share','pack','fair']},
  {name:'おおきな かず・だいたい',kid:'おおきな かず',desc:'数直線を読む、どちらに近いかで丸める、だいたいの答えを先につかむ（概数・見積もり）。',g:['line','near','est']}];
+const FOF={};FIELDS.forEach((f,i)=>f.g.forEach(k=>FOF[k]=i));
 const ADV=new Set(FIELDS.slice(7).flatMap(f=>f.g));
 const FREE=new Set(FIELDS.map(f=>f.g[0]));
 const ORDER=Object.keys(GAMES);
@@ -557,7 +558,7 @@ const ORDER=Object.keys(GAMES);
 let state='idle',g=null,gkey='',lastKey='',lv=0,score=0,lives=3,tLeft=0,tMax=1,cmdT=0,resT=0,tally={},bag=[],mode='mix',pracKey='',round=0,plan=[],wl={},vs={lv:[0,0],sc:[0,0],i:0,keys:[],log:[],p:0};const PN=['あか','あお'],PC=['var(--pink)','var(--blue)'];
 const SAVE='sansu.v2';let root={cur:0,kids:[]},save;const newKid=n=>({name:n||'',best:0,stats:{},days:{},adv:true});
 try{const j=JSON.parse(localStorage.getItem(SAVE)||'null');if(j&&j.kids&&j.kids.length)root=j;else{const o=JSON.parse(localStorage.getItem('pitatto.mg.v1')||'null'),k=newKid('');if(o&&o.stats){k.best=o.best||0;k.stats=o.stats;}root.kids=[k];}}catch(e){}
-if(!root.kids.length)root.kids=[newKid('')];root.cur=Math.max(0,Math.min(root.cur||0,root.kids.length-1));save=root.kids[root.cur];root.kids.forEach(k=>{if(!k.days)k.days={};if(!k.stats)k.stats={};});
+if(!root.kids.length)root.kids=[newKid('')];root.cur=Math.max(0,Math.min(root.cur||0,root.kids.length-1));save=root.kids[root.cur];root.kids.forEach(k=>{if(!k.days)k.days={};if(!k.stats)k.stats={};if(k.hist){const ks=Object.keys(k.hist).sort();ks.slice(0,Math.max(0,ks.length-60)).forEach(d=>delete k.hist[d]);}});
 function persist(){try{localStorage.setItem(SAVE,JSON.stringify(root));}catch(e){}}
 const pool=()=>ORDER.filter(k=>save.adv!==false||!ADV.has(k));
 const dkey=(d=new Date())=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -586,9 +587,9 @@ function next(){if(mode==='prac'){if(round>=5)return over();gkey=pracKey;g=GAMES
 function intro(){$('cmd').style.color='';const c=g.cmd();$('qtext').textContent=c;$('cmd').textContent=c;$('sub').textContent='レベル '+((mode==='mix'?Math.floor(score/5):lv)+1);
   $('cover').classList.remove('hid');$('flash').classList.add('hid');$('timer').classList.add('hid');setButtons([]);
   state='cmd';cmdT=[1.6,1.3,1.1][lv];beep(660,.08);}
-function play(){state='play';$('cover').classList.add('hid');setButtons(g.buttons||[]);tMax=tLeft=Math.max(2.2,[4.0,3.5,3.0][lv]*Math.pow(.9,mode==='mix'?Math.max(0,Math.floor(score/5)-2):0));$('timer').classList.toggle('hid',!!g.noTimer);}
+function play(){state='play';$('cover').classList.add('hid');setButtons(g.buttons||[]);tMax=tLeft=Math.max(2.2,[5.5,4.5,3.6][lv]*Math.pow(.9,mode==='mix'?Math.max(0,Math.floor(score/5)-2):0));$('timer').classList.toggle('hid',!!g.noTimer);}
 function finish(win,label){if(duelOn)return dFinish(win,label);if(state!=='play')return;state='res';resT=win?.9:2.0;setButtons([]);$('timer').classList.add('hid');
-  const t=tally[gkey]||(tally[gkey]=[0,0]);t[win?0:1]++;if(mode!=='vs'){const r=save.stats[gkey]||(save.stats[gkey]=[0,0]);r[win?0:1]++;persist();}
+  const t=tally[gkey]||(tally[gkey]=[0,0]);t[win?0:1]++;if(mode!=='vs'){const r=save.stats[gkey]||(save.stats[gkey]=[0,0]);r[win?0:1]++;const h=save.hist||(save.hist={}),d=h[dkey()]||(h[dkey()]={}),c=d[FOF[gkey]]||(d[FOF[gkey]]=[0,0]);c[win?0:1]++;persist();}
   if(mode==='vs'){if(win)vs.sc[vs.p]++;const r=(vs.i-1)>>1;(vs.log[r]||(vs.log[r]=[]))[vs.p]=win;}if(mode==='weak'&&win)wl[gkey]=Math.min(2,wl[gkey]+1);
   if(win){score++;beep(880,.09);beep(1320,.14,'square',.09);}else{if(mode==='mix')lives--;beep(160,.35,'sawtooth');}
   top();const f=$('flash');f.innerHTML=win?HANA+'<span>'+(label||'せいかい！')+'</span>':'<span>× ざんねん…</span>';f.className='flash '+(win?'ok':'ng');}
@@ -641,8 +642,18 @@ function kidsPage(){show('scrKids');$('kidsBody').innerHTML=root.kids.map((k,i)=
 function pracPage(){show('scrPrac');$('pracList').innerHTML=FIELDS.map(f=>'<div class="fld"><h2>'+f.kid+'</h2><div class="chips">'+f.g.map(k=>{const r=st(k);
     return '<button class="chip'+(FREE.has(k)?' free':'')+'" data-k="'+k+'"><span>'+GAMES[k].name+'</span><span class="st">'+stars(k)+'</span><small>○'+r[0]+' ×'+r[1]+'</small></button>';}).join('')+'</div></div>').join('');
   $('pracList').querySelectorAll('.chip').forEach(b=>b.onclick=()=>enter(()=>start('prac',b.dataset.k)));}
+function weekOf(off){const out={days:0,f:FIELDS.map(()=>[0,0])},h=save.hist||{};for(let i=0;i<7;i++){const d=new Date();d.setDate(d.getDate()-off-i);const r=h[dkey(d)];if(!r)continue;out.days++;Object.keys(r).forEach(k=>{if(out.f[k]){out.f[k][0]+=r[k][0];out.f[k][1]+=r[k][1];}});}return out;}
+function weekHtml(){const a=weekOf(0),b=weekOf(7),pc=q=>q[0]+q[1]?Math.round(q[0]/(q[0]+q[1])*100):null,tot=a.f.reduce((x,q)=>x+q[0]+q[1],0);
+  if(!tot)return '<div class="note"><b>この1週間</b>：まだ記録がありません。遊ぶとここに分野ごとの様子が出ます。</div>';
+  const rows=FIELDS.map((f,i)=>({f,i,n:a.f[i][0]+a.f[i][1],p:pc(a.f[i]),q:pc(b.f[i])})).filter(r=>r.n);
+  const en=rows.filter(r=>r.n>=5),best=en.slice().sort((x,y)=>y.p-x.p)[0],weak=en.slice().sort((x,y)=>x.p-y.p)[0],up=en.filter(r=>r.q!=null&&r.p-r.q>=10).sort((x,y)=>(y.p-y.q)-(x.p-x.q))[0];
+  let say=[];if(best&&best.p>=80)say.push('とくい：'+best.f.name+'（'+best.p+'%）');if(up)say.push('のびた：'+up.f.name+'（先週 '+up.q+'% → '+up.p+'%）');if(weak&&weak.p<70&&weak!==best)say.push('のびしろ：'+weak.f.name+'（'+weak.p+'%）。「にがて とっくん」に出やすくなります');
+  if(!say.length)say.push(en.length?'どの分野も大きなかたよりはありません。':'もう少し遊ぶと、とくい・のびしろが出ます（1分野5回から）。');
+  return '<div class="note"><b>この1週間</b>：7日のうち '+a.days+'日・'+tot+'回'+(b.days?'（その前の週は '+b.days+'日）':'')+'<table class="rec" style="margin-top:8px">'
+   +rows.map(r=>'<tr><td style="width:38%">'+r.f.name+'</td><td><div style="height:10px;border:1px solid var(--line);border-radius:5px"><div style="height:100%;width:'+r.p+'%;background:'+(r.p>=80?'var(--green)':r.p>=60?'var(--yellow)':'var(--pink)')+';border-radius:5px"></div></div></td><td class="n" style="width:20%">'+r.p+'%'+(r.q!=null&&r.n>=5?'<br><span style="color:var(--mute);font-size:11px">'+(r.p-r.q>=0?'+':'')+(r.p-r.q)+'</span>':'')+'</td></tr>').join('')
+   +'</table><div style="margin-top:8px">'+say.join('<br>')+'</div></div>';}
 function parentPage(){show('scrParent');let tot=[0,0];ORDER.forEach(k=>{const r=st(k);tot[0]+=r[0];tot[1]+=r[1];});
-  $('parentBody').innerHTML='<div class="pl"><i class="mg k'+root.cur+'"></i>'+kname(save)+' の きろく</div><div class="note"><b>3びょうさんすう は、数えずに「だいたい」を当てる算数あそびです。</b><br>計算の速さではなく、数・量・長さ・時間・お金の「感覚」を育てます。1回は数秒、まちがえてもすぐ答え合わせが出ます。</div>'
+  $('parentBody').innerHTML='<div class="pl"><i class="mg k'+root.cur+'"></i>'+kname(save)+' の きろく</div>'+weekHtml()+'<div class="note"><b>3びょうさんすう は、数えずに「だいたい」を当てる算数あそびです。</b><br>計算の速さではなく、数・量・長さ・時間・お金の「感覚」を育てます。1回は数秒、まちがえてもすぐ答え合わせが出ます。</div>'
    +FIELDS.map(f=>'<div class="fld"><h2>'+f.name+'</h2><div class="d">'+f.desc+'</div><table class="rec">'+f.g.map(k=>{const r=st(k),n=r[0]+r[1];
      return '<tr><td>'+GAMES[k].name+(FREE.has(k)?'（無料）':'')+'</td><td class="n">○ '+r[0]+'</td><td class="n">× '+r[1]+'</td><td class="n">'+(n?Math.round(r[0]/n*100)+'%':'—')+'</td></tr>';}).join('')+'</table></div>').join('')
    +'<div class="note"><b>これまでの記録</b>：'+(tot[0]+tot[1])+'回あそんで ○ '+tot[0]+'・× '+tot[1]+'。記録はこの端末の中だけに残ります。</div>'
@@ -679,7 +690,7 @@ function dFinish(win){const pl=cur;if(D.st!=='play'||pl.out)return;if(win){D.sc[
 function dEnd(w){D.st='res';D.t=2.4;dScore();if(w>=0){beep(880,.09);beep(1320,.14,'square',.09);}
   P.forEach(pl=>{pl.timer.classList.add('hid');pl.cover.classList.add('hid');if(w===pl.i)dFlash(pl,HANA+'<span>とった！</span>',true);else if(!pl.out)dFlash(pl,'<span>'+(w<0?'× じかんぎれ':'とられた…')+'</span>');});}
 function dTick(dt){
-  if(D.st==='cmd'){D.t-=dt;if(D.t<=0){D.st='play';D.tm=D.tl=[5,4.5,4][D.lv];P.forEach(pl=>{if(pl.wait>0){pl.cmd.textContent='まって…';}else pl.cover.classList.add('hid');});}}
+  if(D.st==='cmd'){D.t-=dt;if(D.t<=0){D.st='play';D.tm=D.tl=[7,6,5][D.lv];P.forEach(pl=>{if(pl.wait>0){pl.cmd.textContent='まって…';}else pl.cover.classList.add('hid');});}}
   else if(D.st==='play'){P.forEach(pl=>{if(pl.wait>0){pl.wait-=dt;if(pl.wait<=0)pl.cover.classList.add('hid');}});
     for(const pl of P){if(D.st!=='play')break;if(pl.out)continue;use(pl);if(pl.g.step)pl.g.step(dt);}
     if(D.st==='play'){if(!P[0].g.noTimer){D.tl-=dt;P.forEach(pl=>pl.timer.style.width=Math.max(0,D.tl/D.tm*100)+'%');}if(D.tl<=0||(P[0].out&&P[1].out))dEnd(-1);}}
