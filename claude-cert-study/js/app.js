@@ -49,10 +49,11 @@
     setTitle('Claude 資格 問題集');
     const total = Object.keys(B).reduce((s, k) => s + qsOf(k).length, 0);
     const hard = level() === 'hard';
-    let h = `<p class="muted">Anthropic 公式の試験ガイド（2026年7月・v1.0）の出題範囲に沿って作った<b>オリジナル問題</b>です。本番の問題は NDA の下にあり公開されていません。</p>
+    let h = `<p class="muted">Anthropic 公式の試験ガイド（2026年7月・v1.0。CCDV-P は 2026年11月・v1.0）の出題範囲に沿って作った<b>オリジナル問題</b>です。本番の問題は NDA の下にあり公開されていません。</p>
       <div class="card"><div class="row"><div class="grow"><b>難易度</b><div class="muted small">${hard ? '上級：選択肢の長さを揃え、複数選択と「どれも正しそう」な問題を増やした版' : '標準：出題範囲を一通り確かめる版'}</div></div>
         <button class="btn ${hard ? '' : 'primary'}" data-lv="std">標準</button><button class="btn ${hard ? 'primary' : ''}" data-lv="hard">上級</button></div>
-        <div class="muted small" style="margin-top:6px">合計 ${total} 問。記録は難易度ごとに別。</div></div>`;
+        <div class="muted small" style="margin-top:6px">合計 ${total} 問。記録は難易度ごとに別。</div></div>
+      <p class="muted small">🆕 2026-11-18：新試験 <b>CCDV-P</b> を追加。CCAO-F・CCDV-F・CCAR-P は <b>12月7日以降の受験</b>から出題範囲が変わる（各試験のページに変更点と新ガイド）。CCAR-F は変更なし。</p>`;
     for (const k of Object.keys(B)) {
       const b = B[k], qs = qsOf(k);
       const seen = qs.filter(q => stat(q.id).n).length, ok = qs.filter(q => stat(q.id).ok).length;
@@ -89,9 +90,15 @@
     $app.innerHTML = `
       <div class="card"><h2>${esc(b.name)}</h2>
         <div class="muted">${esc(b.who)}</div>
-        <div class="muted" style="margin-top:6px">本番：${b.items} 問・${b.minutes} 分・${b.fee}${b.scenarios ? '・シナリオ6本中4本' : ''}</div>
+        <div class="muted" style="margin-top:6px">本番：${b.items} 問${b.scored ? `（採点 ${b.scored}）` : ''}・${b.minutes} 分・${b.fee}${b.scenarios ? '・シナリオ6本中4本' : ''}${b.version ? '・ガイド ' + esc(b.version) : ''}</div>
         <div class="row" style="margin-top:6px"><a class="small" href="${b.guide.ja}" target="_blank" rel="noopener">公式ガイド（日本語 PDF）</a><a class="small" href="${b.guide.en}" target="_blank" rel="noopener">英語 PDF</a></div>
       </div>
+      ${b.next ? `<div class="card"><h2>${esc(b.next.from)} からの変更 <span class="tag">v1.1</span></h2>
+        <p class="muted small">受験日（予約した日）が ${esc(b.next.from)} 以降なら新しいガイドの範囲で出る。それより前なら今の範囲（このアプリの問題とテキスト）のまま。本番は ${esc(b.next.items)}。</p>
+        <p class="small">${esc(b.next.summary)}</p>
+        <ul class="small" style="margin:6px 0 0 18px">${b.next.domains.map(d => `<li>${esc(d)}</li>`).join('')}</ul>
+        ${b.guide.nextJa ? `<div class="row" style="margin-top:6px"><a class="small" href="${b.guide.nextJa}" target="_blank" rel="noopener">新ガイド（日本語 PDF）</a><a class="small" href="${b.guide.nextEn}" target="_blank" rel="noopener">英語 PDF</a></div>` : ''}
+      </div>` : ''}
       ${T[v.exam] ? `<div class="card"><h2>テキスト</h2><p class="muted">出題範囲の目標ごとに要点をまとめた読みもの。読んだ ${readCount(v.exam)} / ${objCount(v.exam)} 目標。</p><button class="btn primary wide" id="text">テキストを読む</button></div>` : ''}
       <div class="card"><h2>ドリル</h2><p class="muted">1問ずつ、答えるとすぐ解説。ドメインを選んで集中的に。</p>
         <div class="row"><button class="btn primary grow" id="drillAll">全ドメイン</button><button class="btn grow" id="drillUnseen" ${unseen ? '' : 'disabled'}>未出題 ${unseen}</button><button class="btn grow" id="drillWrong" ${wrong ? '' : 'disabled'}>前回まちがえた ${wrong}</button></div>

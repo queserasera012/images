@@ -6,6 +6,7 @@
 import json, re, sys, pathlib
 root = pathlib.Path(__file__).resolve().parent
 for src in sorted(root.glob('*.md')):
+    if src.stem == 'README': continue
     ex = src.stem
     out = {'intro': '', 'domains': {}, 'appendix': None}
     cur = None; dom = None; obj = None; app = None
