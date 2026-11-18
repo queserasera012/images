@@ -99,6 +99,7 @@
         <ul class="small" style="margin:6px 0 0 18px">${b.next.domains.map(d => `<li>${esc(d)}</li>`).join('')}</ul>
         ${b.guide.nextJa ? `<div class="row" style="margin-top:6px"><a class="small" href="${b.guide.nextJa}" target="_blank" rel="noopener">新ガイド（日本語 PDF）</a><a class="small" href="${b.guide.nextEn}" target="_blank" rel="noopener">英語 PDF</a></div>` : ''}
       </div>` : ''}
+      <div class="card"><h2>合格ノート</h2><p class="muted">受かることだけに絞った図解のまとめ。配点・判断表・ことば→答え・直前チェック。</p><a class="btn primary wide" href="pass/${v.exam}.html" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">合格ノートを開く</a></div>
       ${T[v.exam] ? `<div class="card"><h2>テキスト</h2><p class="muted">出題範囲の目標ごとに要点をまとめた読みもの。読んだ ${readCount(v.exam)} / ${objCount(v.exam)} 目標。</p><button class="btn primary wide" id="text">テキストを読む</button></div>` : ''}
       <div class="card"><h2>ドリル</h2><p class="muted">1問ずつ、答えるとすぐ解説。ドメインを選んで集中的に。</p>
         <div class="row"><button class="btn primary grow" id="drillAll">全ドメイン</button><button class="btn grow" id="drillUnseen" ${unseen ? '' : 'disabled'}>未出題 ${unseen}</button><button class="btn grow" id="drillWrong" ${wrong ? '' : 'disabled'}>前回まちがえた ${wrong}</button></div>
