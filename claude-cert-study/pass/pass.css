@@ -102,3 +102,5 @@ small,.muted,.w .note,th{font-size:14px}
 .tag{font-size:13px}.foot{font-size:14px}.toc a{font-size:14px;padding:6px 10px}.co{font-size:15px}.flow .st>b:first-child{color:var(--muted);letter-spacing:0}
 .toc a{display:inline-flex;align-items:center;min-height:44px}.tag.hot{color:#b3261e}@media (prefers-color-scheme: dark){.tag.hot{color:var(--ng)}.flow .st>b:first-child{color:var(--ink)}}
 .toc a{min-width:44px;justify-content:center}.chk li{min-height:44px}
+html{color-scheme:light dark}
+.tile,.flow .st{overflow-wrap:anywhere;min-width:0}.tile>b:first-child{word-break:break-all}main{overflow-x:clip}

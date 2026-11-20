@@ -59,6 +59,7 @@
     h += `<div class="row" style="margin:0 0 10px"><div class="grow"><b>難易度</b><div class="muted">${hard ? '選択肢の長さがそろい、複数選択が多い' : '出題範囲をひととおり確かめる'}</div></div>
       <div class="seg"><button data-lv="std" aria-pressed="${!hard}">標準</button><button data-lv="hard" aria-pressed="${hard}">上級</button></div></div>
       <ul class="exams">`;
+    const ui = document.documentElement.dataset.ui || 'a';
     for (const k of Object.keys(B)) {
       const b = B[k], qs = qsOf(k);
       const seen = qs.filter(q => stat(q.id).n).length;
@@ -73,10 +74,13 @@
     h += `</ul>
       <p class="foot">全 ${total} 問。記録は難易度ごとに別です。どの試験も 120 分、合格はスケールスコア 720/1000（このアプリでは正答率 ${PASS_PCT}% を目安に表示）。CCAO-F・CCDV-F・CCAR-P は 12 月 7 日以降の受験から出題範囲が変わります。</p>
       <p class="foot">公式の試験ガイドの出題範囲に沿って作ったオリジナルの問題です。本番の問題は公開されていません。受験には Claude Partner Network 加盟企業のメールアドレスが要ります。</p>
+      <div class="row" style="margin:18px 0 10px"><div class="grow"><b>見た目</b><div class="muted">${ui === 'b' ? '黒板とチョーク' : ui === 'c' ? '本番の画面に近い、飾りなし' : '書き込んだ参考書'}</div></div>
+      <div class="seg">${[['a', '参考書'], ['b', '黒板'], ['c', '試験会場']].map(([k, t]) => `<button data-ui="${k}" aria-pressed="${k === ui}">${t}</button>`).join('')}</div></div>
       <p class="foot"><a href="#" id="reset">保存した記録を消す</a></p>`;
     $app.innerHTML = h;
     $app.querySelectorAll('[data-ex]').forEach(el => el.onclick = () => go({ name: 'exam', exam: el.dataset.ex }));
     $app.querySelectorAll('button[data-lv]').forEach(el => el.onclick = () => { S.level = el.dataset.lv; save(); render(); });
+    $app.querySelectorAll('button[data-ui]').forEach(el => el.onclick = () => { const k = el.dataset.ui; try { localStorage.setItem('ccs.ui', k); } catch (e) {} if (k === 'a') delete document.documentElement.dataset.ui; else document.documentElement.dataset.ui = k; render(); });
     $app.querySelector('#reset').onclick = e => { e.preventDefault(); if (confirm('解答の記録と模試の履歴をぜんぶ消します。よいですか？')) { S = { stats: {}, mocks: [], flags: {}, read: {} }; save(); render(); } };
   }
 

@@ -13,7 +13,7 @@
     --marker:#b89c00; --marker-soft:#4a4210; --pen:#ff6b5e; --ok:#4cc28f; --ok-bg:#143325; --ng-bg:#3b1d1b; --blue:#7fb2f5; --wash:#212a37; }
 }
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;color-scheme:light dark}
 body{margin:0;background:var(--paper);color:var(--ink);font:500 16px/1.7 var(--jp);-webkit-font-smoothing:antialiased}
 [data-ex=ccao]{--tab:var(--t-ccao)}[data-ex=ccdv]{--tab:var(--t-ccdv)}[data-ex=ccarf]{--tab:var(--t-ccarf)}[data-ex=ccarp]{--tab:var(--t-ccarp)}[data-ex=ccdvp]{--tab:var(--t-ccdvp)}
 a{color:var(--blue)}
