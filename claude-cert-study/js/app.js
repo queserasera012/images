@@ -47,147 +47,177 @@
   // ---------- ホーム ----------
   function home() {
     setTitle('Claude 資格 問題集');
+    document.body.removeAttribute('data-ex');
     const total = Object.keys(B).reduce((s, k) => s + qsOf(k).length, 0);
     const hard = level() === 'hard';
-    let h = `<p class="muted">Anthropic 公式の試験ガイド（2026年7月・v1.0。CCDV-P は 2026年11月・v1.0）の出題範囲に沿って作った<b>オリジナル問題</b>です。本番の問題は NDA の下にあり公開されていません。</p>
-      <div class="card"><div class="row"><div class="grow"><b>難易度</b><div class="muted small">${hard ? '上級：選択肢の長さを揃え、複数選択と「どれも正しそう」な問題を増やした版' : '標準：出題範囲を一通り確かめる版'}</div></div>
-        <button class="btn ${hard ? '' : 'primary'}" data-lv="std">標準</button><button class="btn ${hard ? 'primary' : ''}" data-lv="hard">上級</button></div>
-        <div class="muted small" style="margin-top:6px">合計 ${total} 問。記録は難易度ごとに別。</div></div>
-      <p class="muted small">🆕 2026-11-18：新試験 <b>CCDV-P</b> を追加。CCAO-F・CCDV-F・CCAR-P は <b>12月7日以降の受験</b>から出題範囲が変わる（各試験のページに変更点と新ガイド）。CCAR-F は変更なし。</p>`;
+    const last = S.last && B[S.last] ? S.last : null;
+    let h = '';
+    if (last) {
+      const qs = qsOf(last), wrong = qs.filter(q => stat(q.id).wrongLast).length, unseen = qs.filter(q => !stat(q.id).n).length;
+      h += `<button class="resume" data-ex="${last}"><span><b>${B[last].code}</b> のつづき<br><span class="small">${wrong ? `前回まちがえた ${wrong} 問` : unseen ? `まだ解いていない ${unseen} 問` : 'ひととおり解いた'}</span></span><span class="go">ひらく ›</span></button>`;
+    }
+    h += `<div class="row" style="margin:0 0 10px"><div class="grow"><b>難易度</b><div class="muted">${hard ? '選択肢の長さがそろい、複数選択が多い' : '出題範囲をひととおり確かめる'}</div></div>
+      <div class="seg"><button data-lv="std" aria-pressed="${!hard}">標準</button><button data-lv="hard" aria-pressed="${hard}">上級</button></div></div>
+      <ul class="exams">`;
     for (const k of Object.keys(B)) {
       const b = B[k], qs = qsOf(k);
-      const seen = qs.filter(q => stat(q.id).n).length, ok = qs.filter(q => stat(q.id).ok).length;
+      const seen = qs.filter(q => stat(q.id).n).length;
       const mocks = S.mocks.filter(m => m.exam === k && (m.level || 'std') === level()), best = mocks.length ? Math.max(...mocks.map(m => m.pct)) : null;
-      h += `<button class="card exam" data-ex="${k}">
-        <div class="code">${b.code}</div><div class="name">${b.ja}</div>
-        <div class="muted">${esc(b.name)}</div>
-        <div class="bar"><i style="width:${pct(seen, qs.length)}%"></i></div>
-        <div class="muted">${qs.length} 問・解いた ${seen}・一度は正解 ${ok}${best !== null ? `・模試ベスト ${best}%` : ''}</div>
-      </button>`;
+      h += `<li><button class="exam" data-ex="${k}">
+        <span class="code">${b.code}</span><span class="name">${b.ja}</span>
+        <span class="meta">${qs.length} 問・解いた ${seen}</span>
+        <span class="pct">${best !== null ? best + '%<small>模試の最高</small>' : pct(seen, qs.length) + '%<small>解いた</small>'}</span>
+        <span class="bar"><i style="width:${pct(seen, qs.length)}%"></i></span>
+      </button></li>`;
     }
-    h += `<div class="card small muted">
-      <b>共通：</b>120分・合格はスケールスコア 720/1000（このアプリでは 72% を目安に表示）・有効 12か月・Pearson VUE の監督付き・日本語版あり。
-      受験には Claude Partner Network 加盟企業のメールアドレスが要る（公式 FAQ・2026-11-05 時点）。<br>
-      <a href="#" id="reset">保存した記録を消す</a>
-    </div>`;
+    h += `</ul>
+      <p class="foot">全 ${total} 問。記録は難易度ごとに別です。どの試験も 120 分、合格はスケールスコア 720/1000（このアプリでは正答率 ${PASS_PCT}% を目安に表示）。CCAO-F・CCDV-F・CCAR-P は 12 月 7 日以降の受験から出題範囲が変わります。</p>
+      <p class="foot">公式の試験ガイドの出題範囲に沿って作ったオリジナルの問題です。本番の問題は公開されていません。受験には Claude Partner Network 加盟企業のメールアドレスが要ります。</p>
+      <p class="foot"><a href="#" id="reset">保存した記録を消す</a></p>`;
     $app.innerHTML = h;
-    $app.querySelectorAll('.exam').forEach(el => el.onclick = () => go({ name: 'exam', exam: el.dataset.ex }));
+    $app.querySelectorAll('[data-ex]').forEach(el => el.onclick = () => go({ name: 'exam', exam: el.dataset.ex }));
     $app.querySelectorAll('button[data-lv]').forEach(el => el.onclick = () => { S.level = el.dataset.lv; save(); render(); });
     $app.querySelector('#reset').onclick = e => { e.preventDefault(); if (confirm('解答の記録と模試の履歴をぜんぶ消します。よいですか？')) { S = { stats: {}, mocks: [], flags: {}, read: {} }; save(); render(); } };
   }
 
-  // ---------- 試験ごとのホーム ----------
+  // ---------- 試験ごとのホーム（読む・解く・模試・成績） ----------
   function exam(v) {
     const b = B[v.exam], qs = qsOf(v.exam);
-    if (!qs.length) { setTitle(b.code); $app.innerHTML = '<div class="card">上級の問題はまだ用意していません。ホームで「標準」に切り替えてください。</div>'; return; }
-    setTitle(b.code + ' ' + b.ja + (level() === 'hard' ? '・上級' : ''));
-    const wrong = qs.filter(q => stat(q.id).wrongLast).length, unseen = qs.filter(q => !stat(q.id).n).length;
-    let rows = b.domains.map(d => {
-      const dq = qs.filter(q => q.d === d.id), seen = dq.filter(q => stat(q.id).n);
-      const n = seen.reduce((s, q) => s + stat(q.id).n, 0), ok = seen.reduce((s, q) => s + stat(q.id).ok, 0);
-      return `<tr><td>${d.id}. ${esc(d.name)}</td><td class="num">${d.weight}%</td><td class="num">${dq.length}問</td><td class="num">${n ? pct(ok, n) + '%' : '–'}</td></tr>`;
-    }).join('');
-    $app.innerHTML = `
-      <div class="card"><h2>${esc(b.name)}</h2>
-        <div class="muted">${esc(b.who)}</div>
-        <div class="muted" style="margin-top:6px">本番：${b.items} 問${b.scored ? `（採点 ${b.scored}）` : ''}・${b.minutes} 分・${b.fee}${b.scenarios ? '・シナリオ6本中4本' : ''}${b.version ? '・ガイド ' + esc(b.version) : ''}</div>
-        <div class="row" style="margin-top:6px"><a class="small" href="${b.guide.ja}" target="_blank" rel="noopener">公式ガイド（日本語 PDF）</a><a class="small" href="${b.guide.en}" target="_blank" rel="noopener">英語 PDF</a></div>
-      </div>
-      ${b.next ? `<div class="card"><h2>${esc(b.next.from)} からの変更 <span class="tag">v1.1</span></h2>
-        <p class="muted small">受験日（予約した日）が ${esc(b.next.from)} 以降なら新しいガイドの範囲で出る。それより前なら今の範囲（このアプリの問題とテキスト）のまま。本番は ${esc(b.next.items)}。</p>
-        <p class="small">${esc(b.next.summary)}</p>
-        <ul class="small" style="margin:6px 0 0 18px">${b.next.domains.map(d => `<li>${esc(d)}</li>`).join('')}</ul>
-        ${b.guide.nextJa ? `<div class="row" style="margin-top:6px"><a class="small" href="${b.guide.nextJa}" target="_blank" rel="noopener">新ガイド（日本語 PDF）</a><a class="small" href="${b.guide.nextEn}" target="_blank" rel="noopener">英語 PDF</a></div>` : ''}
-      </div>` : ''}
-      <div class="card"><h2>合格ノート</h2><p class="muted">受かることだけに絞った図解のまとめ。配点・判断表・ことば→答え・直前チェック。</p><a class="btn primary wide" href="pass/${v.exam}.html" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box">合格ノートを開く</a></div>
-      ${T[v.exam] ? `<div class="card"><h2>テキスト</h2><p class="muted">出題範囲の目標ごとに要点をまとめた読みもの。読んだ ${readCount(v.exam)} / ${objCount(v.exam)} 目標。</p><button class="btn primary wide" id="text">テキストを読む</button></div>` : ''}
-      <div class="card"><h2>ドリル</h2><p class="muted">1問ずつ、答えるとすぐ解説。ドメインを選んで集中的に。</p>
-        <div class="row"><button class="btn primary grow" id="drillAll">全ドメイン</button><button class="btn grow" id="drillUnseen" ${unseen ? '' : 'disabled'}>未出題 ${unseen}</button><button class="btn grow" id="drillWrong" ${wrong ? '' : 'disabled'}>前回まちがえた ${wrong}</button></div>
-        <div class="row" style="margin-top:8px"><select id="dom" class="grow">${b.domains.map(d => `<option value="${d.id}">${d.id}. ${esc(d.name)}（${d.weight}%）</option>`).join('')}</select><button class="btn" id="drillDom">このドメイン</button></div>
-      </div>
-      <div class="card"><h2>模試</h2><p class="muted">本番と同じ問題数・時間・ドメイン配分で。終わるまで答えは見えない。</p>
-        <button class="btn primary wide" id="mock">模試をはじめる（${b.items} 問・${b.minutes} 分）</button>
-        ${S.mocks.filter(m => m.exam === v.exam && (m.level || 'std') === level()).length ? '<button class="btn wide" id="hist" style="margin-top:8px">模試の履歴</button>' : ''}
-      </div>
-      <div class="card"><h2>ドメインごとの正答率</h2><table><tr><th>ドメイン</th><th class="num">配点</th><th class="num">問題</th><th class="num">正答率</th></tr>${rows}</table>
-        <button class="btn wide" id="scope" style="margin-top:10px">出題範囲（目標ごとの成績）</button></div>`;
-    const start = (list, label) => go({ name: 'drill', exam: v.exam, list: shuffle(list), label });
-    $app.querySelector('#drillAll').onclick = () => start(qs, '全ドメイン');
-    $app.querySelector('#drillUnseen').onclick = () => start(qs.filter(q => !stat(q.id).n), '未出題');
-    $app.querySelector('#drillWrong').onclick = () => start(qs.filter(q => stat(q.id).wrongLast), '前回まちがえた');
-    $app.querySelector('#drillDom').onclick = () => { const d = +$app.querySelector('#dom').value; start(qs.filter(q => q.d === d), domainOf(v.exam, d).name); };
-    $app.querySelector('#mock').onclick = () => go({ name: 'mockSetup', exam: v.exam });
-    const tb = $app.querySelector('#text'); if (tb) tb.onclick = () => go({ name: 'text', exam: v.exam });
-    $app.querySelector('#scope').onclick = () => go({ name: 'scope', exam: v.exam });
-    const hb = $app.querySelector('#hist'); if (hb) hb.onclick = () => go({ name: 'history', exam: v.exam });
+    document.body.dataset.ex = v.exam;
+    if (S.last !== v.exam) { S.last = v.exam; save(); }
+    setTitle(b.code + (level() === 'hard' ? '・上級' : ''));
+    if (!qs.length) { $app.innerHTML = '<div class="sheet">上級の問題はまだ用意していません。ホームで「標準」に切り替えてください。</div>'; return; }
+    S.tab = S.tab || {}; const tab = v.tab || S.tab[v.exam] || 'read';
+    const wrong = qs.filter(q => stat(q.id).wrongLast), unseen = qs.filter(q => !stat(q.id).n);
+    const dstat = d => { const dq = qs.filter(q => q.d === d.id), seen = dq.filter(q => stat(q.id).n); const n = seen.reduce((s, q) => s + stat(q.id).n, 0), ok = seen.reduce((s, q) => s + stat(q.id).ok, 0); return { dq, n, ok, p: n ? pct(ok, n) : null }; };
+    const unit = b.code === 'CCAR-F' ? 'タスク' : '目標';
+    const TABS = [['read', '読む'], ['solve', '解く'], ['mock', '模試'], ['stats', '成績']];
+    let h = `<div class="cover"><div class="code">${b.code}</div><div class="name">${b.ja}</div>
+        <div class="facts">本番は ${b.items} 問${b.scored ? `（採点 ${b.scored}）` : ''}、${b.minutes} 分、${b.fee}${b.scenarios ? '。シナリオ 6 本中 4 本' : ''}</div></div>
+      <div class="tabs" role="tablist">${TABS.map(([k, t]) => `<button role="tab" data-tab="${k}" aria-selected="${k === tab}">${t}</button>`).join('')}</div>`;
+    if (tab === 'read') {
+      h += `<ul class="rows"><li><a class="rowbtn" href="pass/${v.exam}.html"><span class="t">合格ノート</span><span class="s">配点と作戦、図解、判断表、直前チェック</span><span class="r chev"></span></a></li>
+        ${T[v.exam] ? `<li><button class="rowbtn" id="text"><span class="t">はじめに・早見表</span><span class="s">選択肢の見分け方と用語のまとめ</span><span class="r chev"></span></button></li>` : ''}</ul>`;
+      if (T[v.exam]) {
+        h += `<h2 class="head">テキスト　${readCount(v.exam)} / ${objCount(v.exam)} ${unit}</h2><ul class="rows">`;
+        for (const d of b.domains) { const r = readCount(v.exam, d.id), n = d.objectives.length;
+          h += `<li><button class="rowbtn" data-td="${d.id}"><span class="t"><span class="w">${d.weight}%</span>${esc(d.name)}</span><span class="s">読んだ ${r} / ${n}</span><span class="r chev"></span><span class="bar"><i class="${r === n ? 'ok' : ''}" style="width:${pct(r, n)}%"></i></span></button></li>`; }
+        h += '</ul>';
+      }
+      if (b.next) h += `<details class="change"><summary>${esc(b.next.from)} の受験から出題範囲が変わる</summary>
+        <p class="small">予約した受験日が ${esc(b.next.from)} 以降なら新しいガイドの範囲、それより前なら今の範囲（このアプリの問題とテキスト）です。本番は ${esc(b.next.items)}。</p>
+        <p class="small">${esc(b.next.summary)}</p><ul>${b.next.domains.map(d => `<li>${esc(d)}</li>`).join('')}</ul>
+        ${b.guide.nextJa ? `<p class="small"><a href="${b.guide.nextJa}" target="_blank" rel="noopener">新しいガイド（日本語 PDF）</a>　<a href="${b.guide.nextEn}" target="_blank" rel="noopener">英語 PDF</a></p>` : ''}</details>`;
+      h += `<p class="foot">${esc(b.who)}<br><a href="${b.guide.ja}" target="_blank" rel="noopener">公式ガイド（日本語 PDF）</a>　<a href="${b.guide.en}" target="_blank" rel="noopener">英語 PDF</a></p>`;
+    } else if (tab === 'solve') {
+      h += `<button class="btn primary wide" id="drillAll">全ドメインから解く（${qs.length} 問）</button>
+        <div class="row" style="margin:8px 0 4px"><button class="btn grow" id="drillWrong" ${wrong.length ? '' : 'disabled'}>前回まちがえた ${wrong.length}</button><button class="btn grow" id="drillUnseen" ${unseen.length ? '' : 'disabled'}>まだ解いていない ${unseen.length}</button></div>
+        <h2 class="head">ドメインをえらんで解く</h2><ul class="rows">`;
+      for (const d of b.domains) { const x = dstat(d);
+        h += `<li><button class="rowbtn" data-dd="${d.id}"><span class="t"><span class="w">${d.weight}%</span>${esc(d.name)}</span><span class="s">${x.dq.length} 問</span><span class="r">${x.p === null ? '<small>まだ</small>' : x.p + '<small>%</small>'}</span></button></li>`; }
+      h += `</ul><p class="note">1 問ずつ、答えるとすぐ解説が出ます。数字は そのドメインの正答率です。</p>`;
+    } else if (tab === 'mock') {
+      const ms = S.mocks.filter(m => m.exam === v.exam && (m.level || 'std') === level()).slice().reverse();
+      h += `<div class="sheet"><h2>本番と同じ ${b.items} 問・${b.minutes} 分</h2><p class="muted">ドメインの配分も本番どおり。終わるまで答えは見えません。</p>
+        <button class="btn primary wide" id="mock">模試の準備へ</button></div>`;
+      if (ms.length) { h += `<h2 class="head">これまでの模試</h2><ul class="rows">${ms.slice(0, 5).map(m => `<li><div class="rowbtn" style="cursor:default"><span class="t">${new Date(m.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span><span class="s">${m.ok} / ${m.n} 問、${Math.floor(m.secs / 60)} 分</span><span class="r ${m.pct >= PASS_PCT ? '' : 'danger'}">${m.pct}<small>%</small></span></div></li>`).join('')}</ul>
+        <button class="btn wide" id="hist">ドメインごとの推移を見る</button>`; }
+      else h += `<p class="note">まだ模試を受けていません。合格の目安は正答率 ${PASS_PCT}% です。</p>`;
+    } else {
+      h += `<ul class="rows">`;
+      for (const d of b.domains) { const x = dstat(d);
+        h += `<li><div class="rowbtn" style="cursor:default"><span class="t"><span class="w">${d.weight}%</span>${esc(d.name)}</span><span class="s">${x.n ? `${x.ok} / ${x.n} 回 正解` : 'まだ解いていない'}</span><span class="r ${x.p !== null && x.p < PASS_PCT ? 'danger' : ''}">${x.p === null ? '–' : x.p + '<small>%</small>'}</span><span class="bar"><i class="${x.p !== null && x.p >= PASS_PCT ? 'ok' : ''}" style="width:${x.p || 0}%"></i></span></div></li>`; }
+      h += `</ul><button class="btn wide" id="scope">${unit}ごとの成績を見る</button><p class="note">左の数字は配点です。配点が大きく、正答率が ${PASS_PCT}% に届いていないドメインから固めます。</p>`;
+    }
+    $app.innerHTML = h;
+    const on = (sel, fn) => { const el = $app.querySelector(sel); if (el) el.onclick = fn; };
+    const start = (list, label) => go({ name: 'drill', exam: v.exam, list: shuffle(list.slice()), label });
+    $app.querySelectorAll('[data-tab]').forEach(el => el.onclick = () => { S.tab[v.exam] = el.dataset.tab; save(); v.tab = el.dataset.tab; render(); });
+    $app.querySelectorAll('[data-td]').forEach(el => el.onclick = () => go({ name: 'textDomain', exam: v.exam, d: +el.dataset.td }));
+    $app.querySelectorAll('[data-dd]').forEach(el => el.onclick = () => { const d = +el.dataset.dd; start(qs.filter(q => q.d === d), domainOf(v.exam, d).name); });
+    on('#text', () => go({ name: 'text', exam: v.exam }));
+    on('#drillAll', () => start(qs, '全ドメイン'));
+    on('#drillUnseen', () => start(unseen, 'まだ解いていない'));
+    on('#drillWrong', () => start(wrong, '前回まちがえた'));
+    on('#mock', () => go({ name: 'mockSetup', exam: v.exam }));
+    on('#scope', () => go({ name: 'scope', exam: v.exam }));
+    on('#hist', () => go({ name: 'history', exam: v.exam }));
   }
 
   // ---------- 出題範囲 ----------
   function scope(v) {
     const b = B[v.exam], qs = qsOf(v.exam);
-    setTitle('出題範囲 ' + b.code);
+    setTitle('成績 ' + b.code);
     let h = '';
-    if (b.scenarios) h += `<div class="card"><h2>本番のシナリオ（6本中4本が出る）</h2><ol class="small">${b.scenarios.map(s => `<li>${esc(s)}</li>`).join('')}</ol></div>`;
+    if (b.scenarios) h += `<div class="sheet"><h2>本番のシナリオ（6 本中 4 本が出る）</h2><ol class="small">${b.scenarios.map(s => `<li>${esc(s)}</li>`).join('')}</ol></div>`;
     for (const d of b.domains) {
-      h += `<div class="card"><h2>${d.id}. ${esc(d.name)} <span class="tag">${d.weight}%</span></h2><div class="muted">${esc(d.en)}</div><ul class="list">`;
+      h += `<h2 class="head">${d.id}. ${esc(d.name)}　${d.weight}%</h2><ul class="rows">`;
       d.objectives.forEach((o, i) => {
         const oq = qs.filter(q => q.d === d.id && q.o === i);
-        const n = oq.reduce((s, q) => s + stat(q.id).n, 0), ok = oq.reduce((s, q) => s + stat(q.id).ok, 0);
-        h += `<li><div>${esc(o)}</div><div class="row"><span class="pill">${oq.length} 問</span>${n ? `<span class="pill ${pct(ok, n) >= PASS_PCT ? 'ok' : 'ng'}">${pct(ok, n)}%</span>` : ''}${oq.length ? `<a href="#" class="small" data-d="${d.id}" data-o="${i}">この目標を解く</a>` : ''}</div></li>`;
+        const n = oq.reduce((s, q) => s + stat(q.id).n, 0), ok = oq.reduce((s, q) => s + stat(q.id).ok, 0), p = n ? pct(ok, n) : null;
+        h += `<li><button class="rowbtn" data-d="${d.id}" data-o="${i}" ${oq.length ? '' : 'disabled'}><span class="t" style="font-weight:500">${esc(o)}</span><span class="s">${oq.length} 問を解く</span><span class="r ${p !== null && p < PASS_PCT ? 'danger' : ''}">${p === null ? '–' : p + '<small>%</small>'}</span></button></li>`;
       });
-      h += '</ul></div>';
+      h += '</ul>';
     }
     $app.innerHTML = h;
-    $app.querySelectorAll('a[data-d]').forEach(a => a.onclick = e => { e.preventDefault(); const d = +a.dataset.d, o = +a.dataset.o; go({ name: 'drill', exam: v.exam, list: shuffle(qs.filter(q => q.d === d && q.o === o)), label: domainOf(v.exam, d).name }); });
+    $app.querySelectorAll('button[data-d]').forEach(a => a.onclick = () => { const d = +a.dataset.d, o = +a.dataset.o; go({ name: 'drill', exam: v.exam, list: shuffle(qs.filter(q => q.d === d && q.o === o)), label: domainOf(v.exam, d).name }); });
   }
 
   // ---------- テキスト ----------
   function objCount(ex) { return B[ex].domains.reduce((s, d) => s + d.objectives.length, 0); }
   function readCount(ex, d) { return Object.keys(S.read).filter(k => k.startsWith(ex + '-' + (d ? d + '-' : ''))).length; }
-  // 軽いマークダウン：段落 / "- " 箇条書き / "> " 試験の見方 / **太字** / `code` / [文字](url)
+  // 軽いマークダウン：段落 / "- " 箇条書き / "> " 試験の見方 / "### " 小見出し / **太字** / `code` / [文字](url)
+  // 箇条書きは形で描き分ける：「**ことば**：説明」は ことばの表、「A → B」は 対応の表
   function md(src) {
     const inline = s => fmt(s).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-    const out = []; let list = null, quote = null;
-    const flush = () => { if (list) { out.push('<ul>' + list.map(x => `<li>${inline(x)}</li>`).join('') + '</ul>'); list = null; } if (quote) { out.push(`<div class="tip">${quote.map(inline).join('<br>')}</div>`); quote = null; } };
+    const item = x => {
+      let m = x.match(/^\*\*([^*]{1,28})\*\*[：:]\s*(.+)$/);
+      if (m) return `<li class="${m[2].replace(/[*`]/g, '').length > 46 ? 'def2' : 'def'}"><b>${fmt(m[1])}</b><span>${inline(m[2])}</span></li>`;
+      const parts = x.split(' → ');
+      if (parts.length === 2 && !(parts[0].includes('`') && parts[0].length > 22) && parts[0].replace(/[*`]/g, '').length <= 34 && parts[1].replace(/[*`]/g, '').length <= 70) return `<li class="arrow"><span>${inline(parts[0])}</span><i>→</i><span>${inline(parts[1])}</span></li>`;
+      return `<li>${inline(x)}</li>`;
+    };
+    const out = []; let list = null, quote = null, course = false;
+    const flush = () => { if (list) { out.push('<ul>' + list.map(item).join('') + '</ul>'); list = null; } if (quote) { out.push(`<div class="tip">${quote.map(inline).join('<br>')}</div>`); quote = null; } };
+    const endCourse = () => { if (course) { flush(); out.push('</div>'); course = false; } };
     for (const raw of src.split('\n')) {
       const line = raw.trim();
       if (!line) { flush(); continue; }
       if (line.startsWith('- ')) { if (quote) flush(); (list = list || []).push(line.slice(2)); continue; }
-      if (line.startsWith('> ')) { if (list) flush(); (quote = quote || []).push(line.slice(2)); continue; }
-      if (line.startsWith('### ')) { flush(); out.push(`<h4>${inline(line.slice(4))}</h4>`); continue; }
-      flush(); out.push(`<p>${inline(line)}</p>`);
+      if (line.startsWith('> ')) { if (list) flush(); endCourse(); (quote = quote || []).push(line.slice(2)); continue; }
+      if (line.startsWith('### ')) { flush(); endCourse(); let t = line.slice(4);
+        if (t.startsWith('🎓')) { course = true; t = t.replace(/^🎓\s*/, ''); out.push(`<div class="course"><h4><span class="chip">対策</span>${inline(t)}</h4>`); }
+        else out.push(`<h4>${inline(t)}</h4>`);
+        continue; }
+      flush(); out.push(`<p>${inline(line.replace(/^\*\*🎓\s*/, '**'))}</p>`);
     }
-    flush(); return out.join('');
+    flush(); endCourse(); return out.join('');
   }
   function text(v) {
     const b = B[v.exam], tx = T[v.exam];
-    setTitle('テキスト ' + b.code);
+    setTitle('はじめに ' + b.code);
     v.onBack = () => go({ name: 'exam', exam: v.exam });
-    let h = tx.intro ? `<div class="card text">${md(tx.intro)}</div>` : '';
-    for (const d of b.domains) {
-      const r = readCount(v.exam, d.id), n = d.objectives.length;
-      h += `<button class="card exam" data-d="${d.id}"><div class="name">${d.id}. ${esc(d.name)} <span class="tag">${d.weight}%</span></div><div class="muted">${esc(d.en)}・${n} ${b.code === 'CCAR-F' ? 'タスク' : '目標'}</div><div class="bar"><i class="${r === n ? 'ok' : ''}" style="width:${pct(r, n)}%"></i></div><div class="muted">読んだ ${r} / ${n}</div></button>`;
-    }
-    if (tx.appendix) h += `<div class="card text"><h2>${esc(tx.appendix.title)}</h2>${md(tx.appendix.body)}</div>`;
+    let h = tx.intro ? `<div class="sheet text"><h3>この試験の見方</h3>${md(tx.intro)}</div>` : '';
+    if (tx.appendix) h += `<div class="sheet text"><h3>${esc(tx.appendix.title)}</h3>${md(tx.appendix.body)}</div>`;
     $app.innerHTML = h;
-    $app.querySelectorAll('button[data-d]').forEach(el => el.onclick = () => go({ name: 'textDomain', exam: v.exam, d: +el.dataset.d }));
   }
   function textDomain(v) {
     const b = B[v.exam], d = domainOf(v.exam, v.d), td = (T[v.exam].domains || {})[v.d] || {}, qs = qsOf(v.exam);
     setTitle(`${b.code} ${v.d}. ${d.name}`);
-    v.onBack = () => v.back ? go(v.back) : go({ name: 'text', exam: v.exam });
+    v.onBack = () => v.back ? go(v.back) : go({ name: 'exam', exam: v.exam });
     const ids = b.domains.map(x => x.id), pos = ids.indexOf(v.d);
-    let h = `<div class="card text"><h2>${v.d}. ${esc(d.name)} <span class="tag">${d.weight}%</span></h2><div class="muted">${esc(d.en)}</div>${td.intro ? md(td.intro) : ''}</div>`;
+    let h = `<div class="cover"><div class="code">${d.weight}%</div><div class="name">${v.d}. ${esc(d.name)}</div><div class="facts">${esc(d.en)}</div></div>${td.intro ? `<div class="text">${md(td.intro)}</div>` : ''}`;
     d.objectives.forEach((o, i) => {
       const key = `${v.exam}-${v.d}-${i}`, sec = (td.obj || [])[i], oq = qs.filter(q => q.d === v.d && q.o === i);
-      const num = `${v.d}.${i + 1}`, label = o.startsWith(num + ' ') ? o : num + '　' + o;
-      h += `<div class="card text" id="o-${i}"><h3>${esc(label)}</h3>${sec ? md(sec.body) : '<p class="muted">（このテキストはまだ書いていません）</p>'}
-        ${sec && sec.docs && sec.docs.length ? `<div class="docs">公式ドキュメント：${sec.docs.map(x => `<a href="${x[1]}" target="_blank" rel="noopener">${esc(x[0])} ↗</a>`).join('　')}</div>` : ''}
-        <div class="row" style="margin-top:10px"><button class="btn ${S.read[key] ? 'primary' : ''}" data-read="${key}">${S.read[key] ? '✓ 読んだ' : '読んだ'}</button>${oq.length ? `<button class="btn" data-o="${i}">この目標を解く（${oq.length} 問）</button>` : ''}</div></div>`;
+      const num = `${v.d}.${i + 1}`, title = o.startsWith(num + ' ') ? o.slice(num.length + 1) : o;
+      const cut = title.indexOf('（'), t1 = cut > 0 ? title.slice(0, cut) : title, t2 = cut > 0 ? title.slice(cut + 1).replace(/）$/, '') : '';
+      h += `<div class="sheet text" id="o-${i}"><h3><span class="objno">${num}</span>${esc(t1)}${t2 ? `<small>${esc(t2)}</small>` : ''}</h3>${sec ? md(sec.body) : '<p class="muted">（このテキストはまだ書いていません）</p>'}
+        ${sec && sec.docs && sec.docs.length ? `<div class="docs">公式ドキュメント：${sec.docs.map(x => `<a href="${x[1]}" target="_blank" rel="noopener">${esc(x[0])}</a>`).join('　')}</div>` : ''}
+        <div class="row" style="margin-top:12px"><button class="btn ${S.read[key] ? 'primary' : ''}" data-read="${key}">${S.read[key] ? '読んだ ○' : '読んだことにする'}</button>${oq.length ? `<button class="btn grow" data-o="${i}">${oq.length} 問を解く</button>` : ''}</div></div>`;
     });
-    h += `<div class="row">${pos > 0 ? `<button class="btn grow" data-nav="${ids[pos - 1]}">‹ ${ids[pos - 1]}. ${esc(domainOf(v.exam, ids[pos - 1]).name)}</button>` : ''}${pos < ids.length - 1 ? `<button class="btn grow" data-nav="${ids[pos + 1]}">${ids[pos + 1]}. ${esc(domainOf(v.exam, ids[pos + 1]).name)} ›</button>` : ''}</div>`;
+    h += `<div class="row">${pos > 0 ? `<button class="btn grow" data-nav="${ids[pos - 1]}">‹ 前のドメイン</button>` : ''}${pos < ids.length - 1 ? `<button class="btn grow" data-nav="${ids[pos + 1]}">次のドメイン ›</button>` : ''}</div>`;
     $app.innerHTML = h;
-    $app.querySelectorAll('button[data-read]').forEach(el => el.onclick = () => { const k = el.dataset.read; if (S.read[k]) delete S.read[k]; else S.read[k] = Date.now(); save(); el.className = 'btn ' + (S.read[k] ? 'primary' : ''); el.textContent = S.read[k] ? '✓ 読んだ' : '読んだ'; });
+    $app.querySelectorAll('button[data-read]').forEach(el => el.onclick = () => { const k = el.dataset.read; if (S.read[k]) delete S.read[k]; else S.read[k] = Date.now(); save(); el.className = 'btn ' + (S.read[k] ? 'primary' : ''); el.textContent = S.read[k] ? '読んだ ○' : '読んだことにする'; });
     $app.querySelectorAll('button[data-o]').forEach(el => el.onclick = () => { const o = +el.dataset.o; go({ name: 'drill', exam: v.exam, list: shuffle(qs.filter(q => q.d === v.d && q.o === o)), label: d.name }); });
     $app.querySelectorAll('button[data-nav]').forEach(el => el.onclick = () => go({ name: 'textDomain', exam: v.exam, d: +el.dataset.nav }));
     if (v.o !== undefined) { const el = document.getElementById('o-' + v.o); if (el) setTimeout(() => el.scrollIntoView({ block: 'start' }), 0); }
@@ -195,7 +225,7 @@
 
   // ---------- ドリル ----------
   function drill(v) {
-    if (!v.list.length) { $app.innerHTML = '<div class="card">この条件の問題はありません。</div>'; return; }
+    if (!v.list.length) { $app.innerHTML = '<div class="sheet">この条件の問題はありません。</div>'; return; }
     v.i = v.i || 0; v.answers = v.answers || [];
     go({ name: 'question', exam: v.exam, mode: 'drill', list: v.list, i: 0, label: v.label, answers: [] });
   }
@@ -204,12 +234,12 @@
   function mockSetup(v) {
     const b = B[v.exam], qs = qsOf(v.exam);
     setTitle('模試 ' + b.code);
-    $app.innerHTML = `<div class="card"><h2>模試</h2>
-      <p>${b.items} 問を公式の配点比率どおりにドメインから引きます。時間は ${b.minutes} 分。途中で閉じると消えます。</p>
+    $app.innerHTML = `<div class="sheet"><h2>${b.items} 問・${b.minutes} 分</h2>
+      <p>公式の配点どおりにドメインから出します。途中で閉じると記録は残りません。</p>
       <label class="opt"><input type="checkbox" id="prefUnseen" checked> まだ解いていない問題を優先する</label>
       <label class="opt"><input type="checkbox" id="timed" checked> 時間を計る（残り時間を上に出す）</label>
       <p class="note">問題が足りないドメインは、あるだけ出します（本番の配分より少なくなる）。</p>
-      <button class="btn primary wide" id="go">はじめる</button></div>`;
+      <button class="btn primary wide" id="go">模試をはじめる</button></div>`;
     $app.querySelector('#go').onclick = () => {
       const prefUnseen = $app.querySelector('#prefUnseen').checked, timed = $app.querySelector('#timed').checked;
       // ドメインごとの出題数（最大剰余法）
@@ -242,22 +272,25 @@
     let answered = !!(v.answers[v.i] && v.answers[v.i].done);
     const grade = () => ord ? orderOk(picked, q) : sameSet(picked, new Set(q.a));
 
+    const head = () => `<div class="qbar"><i style="width:${pct(v.i + (answered ? 1 : 0), v.list.length)}%"></i></div>
+        <div class="prog"><span><b>${v.i + 1}</b> / ${v.list.length}${isMock ? '' : v.label && v.label !== d.name ? '　' + esc(v.label) : ''}</span><span class="dom">${esc(d.name)}${q.s ? '（シナリオ ' + q.s + '）' : ''}</span></div>`;
+    const links = () => `${q.ref ? `\n<a href="${q.ref}" target="_blank" rel="noopener">参考の公式ドキュメント</a>` : ''}${T[v.exam] ? `\n<a href="#" id="totext">この${b.code === 'CCAR-F' ? 'タスク' : '目標'}のテキストを読む</a>` : ''}`;
+    const verdict = (ok, right) => `<div class="verdict"><span class="mark ${ok ? 'maru' : ''}">${ok ? '' : '×'}</span><span>${ok ? '正解' : 'まちがい'}<br><small>${right}</small></span></div>`;
+    const actions = (ready, extra) => `<div class="actions">
+          ${v.i > 0 && isMock ? '<button class="btn" id="prev">前へ</button>' : ''}${!answered && extra ? extra : ''}
+          ${!answered ? `<button class="btn primary grow" id="ans" ${ready ? '' : 'disabled'}>${isMock ? 'この答えで決める' : '答え合わせ'}</button>` : `<button class="btn primary grow" id="next">${v.i + 1 < v.list.length ? '次の問題へ' : (isMock ? '採点する' : '結果を見る')}</button>`}
+        </div>`;
     function draw() {
       const ok = answered && grade();
       if (ord) { drawOrder(ok); return; }
-      $app.innerHTML = `<div class="prog"><span>${v.i + 1} / ${v.list.length}${v.label ? '・' + esc(v.label) : ''}</span><span>${d.id}. ${esc(d.name)}${q.s ? '・シナリオ' + q.s : ''}</span></div>
-        <div class="card"><div class="q">${fmt(q.q)}</div>
-        <div class="muted small" style="margin-top:6px">${multi ? `<b>${q.a.length} つ</b>選んでください` : '1 つ選んでください'}</div>
+      $app.innerHTML = `${head()}
+        <div class="q">${fmt(q.q)}</div>
+        <p class="how">${multi ? `<b>${q.a.length} つ</b>選ぶ` : '1 つ選ぶ'}</p>
         <ul class="choices">${order.map((ci, k) => {
-          let cls = 'choice'; if (answered) { cls += ' answered'; if (q.a.includes(ci)) cls += ' right'; else if (picked.has(ci)) cls += ' wrong'; } else if (picked.has(ci)) cls += ' sel';
+          let cls = 'choice'; if (answered) { cls += ' answered'; if (!isMock) { if (q.a.includes(ci)) cls += ' right'; else if (picked.has(ci)) cls += ' wrong'; } else if (picked.has(ci)) cls += ' sel'; } else if (picked.has(ci)) cls += ' sel';
           return `<li class="${cls}" data-c="${ci}"><span class="k">${L[k]}</span><span>${fmt(q.c[ci])}</span></li>`; }).join('')}</ul>
-        ${answered && !isMock ? `<div class="ex ${ok ? 'ok' : 'ng'}"><b>${ok ? '正解' : 'まちがい'}</b>　正解：${q.a.map(ci => L[order.indexOf(ci)]).sort().join('・')}\n${fmt(q.e)}${q.ref ? `\n<a href="${q.ref}" target="_blank" rel="noopener">参考 ↗</a>` : ''}${T[v.exam] ? `\n<a href="#" id="totext">📖 この目標のテキストを読む</a>` : ''}</div>` : ''}
-        </div>
-        <div class="row">
-          ${v.i > 0 && isMock ? '<button class="btn" id="prev">前へ</button>' : ''}
-          ${!answered ? `<button class="btn primary grow" id="ans" ${picked.size ? '' : 'disabled'}>${isMock ? '決める' : '答える'}</button>` : `<button class="btn primary grow" id="next">${v.i + 1 < v.list.length ? '次へ' : (isMock ? '採点する' : '結果を見る')}</button>`}
-        </div>
-        ${isMock ? `<div class="note">決めたあとも「前へ」で見直せる。最後の問題の「採点する」で終わる。</div>` : `<div class="note">わからないときは勘で答えず、選択肢ごとに「なぜ違うか」を言えるかを確かめる。</div>`}`;
+        ${answered && !isMock ? `${verdict(ok, '正解は ' + q.a.map(ci => L[order.indexOf(ci)]).sort().join('・'))}<div class="ex">${fmt(q.e)}${links()}</div>` : ''}
+        ${actions(picked.size)}`;
       $app.querySelectorAll('.choice').forEach(el => el.onclick = () => {
         if (answered) return; const ci = +el.dataset.c;
         if (multi) { if (picked.has(ci)) picked.delete(ci); else if (picked.size < q.a.length) picked.add(ci); else { picked.delete([...picked][0]); picked.add(ci); } }
@@ -272,30 +305,26 @@
         v.answers[v.i] = { picked: [...picked], done: true, ok: okNow };
         if (!isMock) record(q.id, okNow);
         draw();
+        if (!isMock) { const vd = $app.querySelector('.verdict'); if (vd) vd.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }
       };
-      const nx = $app.querySelector('#next'); if (nx) nx.onclick = () => { if (v.i + 1 < v.list.length) { v.i++; render(); } else finish(); };
+      const nx = $app.querySelector('#next'); if (nx) nx.onclick = () => { if (v.i + 1 < v.list.length) { v.i++; render(); window.scrollTo(0, 0); } else finish(); };
       const tt = $app.querySelector('#totext'); if (tt) tt.onclick = e => { e.preventDefault(); go({ name: 'textDomain', exam: v.exam, d: q.d, o: q.o, back: v }); };
-      const pv = $app.querySelector('#prev'); if (pv) pv.onclick = () => { v.i--; render(); };
+      const pv = $app.querySelector('#prev'); if (pv) pv.onclick = () => { v.i--; render(); window.scrollTo(0, 0); };
       const rs = $app.querySelector('#reset'); if (rs) rs.onclick = () => { picked = []; draw(); };
     }
     // 並べ替え：押した順に 1,2,3… の番号が付く。番号の付いた項目を押すと外れる
     function drawOrder(ok) {
       const n = q.c.length;
-      $app.innerHTML = `<div class="prog"><span>${v.i + 1} / ${v.list.length}${v.label ? '・' + esc(v.label) : ''}</span><span>${d.id}. ${esc(d.name)}${q.s ? '・シナリオ' + q.s : ''}</span></div>
-        <div class="card"><div class="q">${fmt(q.q)}</div>
-        <div class="muted small" style="margin-top:6px"><b>正しい順番</b>に 1 つずつ押してください（${n} 項目・押し直すと外れる）</div>
+      $app.innerHTML = `${head()}
+        <div class="q">${fmt(q.q)}</div>
+        <p class="how"><b>正しい順</b>に 1 つずつ押す（${n} 項目。もう一度押すと外れる）</p>
         <ul class="choices">${order.map(ci => {
           const pos = picked.indexOf(ci);
           let cls = 'choice', badge = pos >= 0 ? String(pos + 1) : '';
-          if (answered) { cls += ' answered'; cls += pos === ci ? ' right' : ' wrong'; badge = `${pos >= 0 ? pos + 1 : '–'}→${ci + 1}`; } else if (pos >= 0) cls += ' sel';
-          return `<li class="${cls}" data-c="${ci}"><span class="k${answered ? ' k2' : ''}">${badge}</span><span>${fmt(q.c[ci])}</span></li>`; }).join('')}</ul>
-        ${answered && !isMock ? `<div class="ex ${ok ? 'ok' : 'ng'}"><b>${ok ? '正解' : 'まちがい'}</b>　正しい順：\n${q.c.map((s, i) => `${i + 1}. ${fmt(s)}`).join('\n')}\n\n${fmt(q.e)}${q.ref ? `\n<a href="${q.ref}" target="_blank" rel="noopener">参考 ↗</a>` : ''}${T[v.exam] ? `\n<a href="#" id="totext">📖 この目標のテキストを読む</a>` : ''}</div>` : ''}
-        </div>
-        <div class="row">
-          ${v.i > 0 && isMock ? '<button class="btn" id="prev">前へ</button>' : ''}
-          ${!answered ? `<button class="btn" id="reset" ${picked.length ? '' : 'disabled'}>やり直す</button><button class="btn primary grow" id="ans" ${picked.length === n ? '' : 'disabled'}>${isMock ? '決める' : '答える'}</button>` : `<button class="btn primary grow" id="next">${v.i + 1 < v.list.length ? '次へ' : (isMock ? '採点する' : '結果を見る')}</button>`}
-        </div>
-        <div class="note">${answered ? '番号は「自分の順→正しい順」。' : '全部に番号が付くと答えられる。'}本番にも「手順を 1〜5 に並べる」形式がある（2026-11 受験者の報告）。</div>`;
+          if (answered && !isMock) { cls += ' answered'; cls += pos === ci ? ' right' : ' wrong'; badge = `${pos >= 0 ? pos + 1 : '–'}→${ci + 1}`; } else { if (answered) cls += ' answered'; if (pos >= 0) cls += ' sel'; }
+          return `<li class="${cls}" data-c="${ci}"><span class="k${answered && !isMock ? ' k2' : ''}">${badge}</span><span>${fmt(q.c[ci])}</span></li>`; }).join('')}</ul>
+        ${answered && !isMock ? `${verdict(ok, '番号は「自分の順→正しい順」')}<div class="ex">${q.c.map((s, i) => `${i + 1}. ${fmt(s)}`).join('\n')}\n\n${fmt(q.e)}${links()}</div>` : ''}
+        ${actions(picked.length === n, `<button class="btn" id="reset" ${picked.length ? '' : 'disabled'}>やり直す</button>`)}`;
       $app.querySelectorAll('.choice').forEach(el => el.onclick = () => {
         if (answered) return; const ci = +el.dataset.c, pos = picked.indexOf(ci);
         if (pos >= 0) picked.splice(pos, 1); else if (picked.length < n) picked.push(ci);
@@ -327,12 +356,13 @@
     const by = b.domains.map(d => { const idx = v.list.map((q, i) => q.d === d.id ? i : -1).filter(i => i >= 0); const o = idx.filter(i => v.answers[i] && v.answers[i].ok).length; return { d, n: idx.length, ok: o }; });
     if (v.mode === 'mock' && !v.saved) { v.saved = true; S.mocks.push({ exam: v.exam, level: level(), at: Date.now(), n, ok, pct: p, by: by.map(x => [x.d.id, x.n, x.ok]), secs: v.start ? Math.round((Date.now() - v.start) / 1000) : 0 }); save(); }
     const wrongs = v.list.map((q, i) => ({ q, i })).filter(x => !(v.answers[x.i] && v.answers[x.i].ok));
-    $app.innerHTML = `<div class="card center"><div class="score ${p >= PASS_PCT ? '' : 'danger'}">${p}%</div><div class="muted">${ok} / ${n} 問${v.mode === 'mock' ? `・合格の目安 ${PASS_PCT}%（公式は 720/1000。素点との対応は非公開）` : ''}</div>
-      ${p >= PASS_PCT && v.mode === 'mock' ? '<div class="pill ok" style="margin-top:8px">目安を超えた</div>' : ''}</div>
-      <div class="card"><h2>ドメインごと</h2><table><tr><th>ドメイン</th><th class="num">正解</th><th class="num">率</th></tr>${by.filter(x => x.n).map(x => `<tr><td>${x.d.id}. ${esc(x.d.name)}</td><td class="num">${x.ok}/${x.n}</td><td class="num">${pct(x.ok, x.n)}%</td></tr>`).join('')}</table>
-      <p class="note">本番のスコアレポートもドメインごとの正答率が出る。配点の大きいドメイン（${b.domains.slice().sort((a, c) => c.weight - a.weight).slice(0, 2).map(d => d.name).join('・')}）から固める。</p></div>
+    const pass = p >= PASS_PCT, mock = v.mode === 'mock';
+    $app.innerHTML = `<div class="paper"><div class="score">${p}<small>%</small></div>
+      <div class="judge ${pass && mock ? 'pass' : ''}">${mock ? (pass ? '合格の目安を超えた' : `目安の ${PASS_PCT}% まで あと ${PASS_PCT - p} ポイント`) : `${n} 問中 ${ok} 問 正解`}</div>
+      <div class="muted">${mock ? `${n} 問中 ${ok} 問 正解。公式の合格点は 720/1000 で、正答率との対応は公開されていません。` : ''}</div></div>
+      <h2 class="head">ドメインごと</h2><ul class="rows">${by.filter(x => x.n).map(x => { const dp = pct(x.ok, x.n); return `<li><div class="rowbtn" style="cursor:default"><span class="t"><span class="w">${x.d.weight}%</span>${esc(x.d.name)}</span><span class="s">${x.ok} / ${x.n} 問</span><span class="r ${dp < PASS_PCT ? 'danger' : ''}">${dp}<small>%</small></span><span class="bar"><i class="${dp >= PASS_PCT ? 'ok' : ''}" style="width:${dp}%"></i></span></div></li>`; }).join('')}</ul>
       ${wrongs.length ? `<button class="btn primary wide" id="rev">まちがえた ${wrongs.length} 問の解説を読む</button>` : ''}
-      <button class="btn wide" id="done" style="margin-top:8px">${b.code} のホームへ</button>`;
+      <button class="btn wide" id="done" style="margin-top:8px">${b.code} にもどる</button>`;
     const rb = $app.querySelector('#rev'); if (rb) rb.onclick = () => go({ name: 'review', exam: v.exam, items: wrongs.map(x => ({ q: x.q, picked: v.answers[x.i] ? v.answers[x.i].picked : [] })), back: v });
     $app.querySelector('#done').onclick = () => go({ name: 'exam', exam: v.exam });
   }
@@ -344,22 +374,23 @@
     v.onBack = () => go(v.back);
     $app.innerHTML = v.items.map(({ q, picked }, k) => {
       const order = q.order || (q.order = shuffle(q.c.map((_, i) => i), seeded(q.id)));
-      if (isOrder(q)) return `<div class="card"><div class="tag">${k + 1}. ${domainOf(v.exam, q.d).name}・並べ替え</div><div class="q">${fmt(q.q)}</div>
+      if (isOrder(q)) return `<div class="sheet"><div class="tag">${k + 1}. ${domainOf(v.exam, q.d).name}（並べ替え）</div><div class="q">${fmt(q.q)}</div>
         <ul class="choices">${q.c.map((s, i) => { const pos = picked.indexOf(i); return `<li class="choice answered ${pos === i ? 'right' : 'wrong'}"><span class="k k2">${pos >= 0 ? pos + 1 : '–'}→${i + 1}</span><span>${fmt(s)}</span></li>`; }).join('')}</ul>
-        <div class="ex">${fmt(q.e)}${q.ref ? `\n<a href="${q.ref}" target="_blank" rel="noopener">参考 ↗</a>` : ''}</div></div>`;
-      return `<div class="card"><div class="tag">${k + 1}. ${domainOf(v.exam, q.d).name}</div><div class="q">${fmt(q.q)}</div>
+        <div class="ex" style="margin-top:12px">${fmt(q.e)}${q.ref ? `\n<a href="${q.ref}" target="_blank" rel="noopener">参考の公式ドキュメント</a>` : ''}</div></div>`;
+      return `<div class="sheet"><div class="tag">${k + 1}. ${domainOf(v.exam, q.d).name}</div><div class="q">${fmt(q.q)}</div>
         <ul class="choices">${order.map((ci, i) => `<li class="choice answered ${q.a.includes(ci) ? 'right' : (picked.includes(ci) ? 'wrong' : '')}"><span class="k">${L[i]}</span><span>${fmt(q.c[ci])}</span></li>`).join('')}</ul>
-        <div class="ex">${fmt(q.e)}${q.ref ? `\n<a href="${q.ref}" target="_blank" rel="noopener">参考 ↗</a>` : ''}</div></div>`;
+        <div class="ex" style="margin-top:12px">${fmt(q.e)}${q.ref ? `\n<a href="${q.ref}" target="_blank" rel="noopener">参考の公式ドキュメント</a>` : ''}</div></div>`;
     }).join('');
   }
 
   // ---------- 模試の履歴 ----------
   function history(v) {
     const b = B[v.exam];
-    setTitle('模試の履歴 ' + b.code);
+    setTitle('模試の推移 ' + b.code);
+    v.onBack = () => go({ name: 'exam', exam: v.exam });
     const ms = S.mocks.filter(m => m.exam === v.exam && (m.level || 'std') === level()).slice().reverse();
-    $app.innerHTML = `<div class="card"><table><tr><th>日時</th><th class="num">正解</th><th class="num">率</th><th class="num">時間</th></tr>${ms.map(m => `<tr><td>${new Date(m.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td><td class="num">${m.ok}/${m.n}</td><td class="num ${m.pct >= PASS_PCT ? '' : 'danger'}">${m.pct}%</td><td class="num">${Math.floor(m.secs / 60)}分</td></tr>`).join('')}</table></div>
-      <div class="card"><h2>ドメインごとの推移</h2><table><tr><th>ドメイン</th>${ms.slice(0, 5).reverse().map((_, i) => `<th class="num">${i + 1}</th>`).join('')}</tr>${b.domains.map(d => `<tr><td>${d.id}. ${esc(d.name)}</td>${ms.slice(0, 5).reverse().map(m => { const x = (m.by || []).find(y => y[0] === d.id); return `<td class="num">${x && x[1] ? pct(x[2], x[1]) + '%' : '–'}</td>`; }).join('')}</tr>`).join('')}</table><p class="note">直近5回。</p></div>`;
+    $app.innerHTML = `<div class="sheet"><table><tr><th>日時</th><th class="num">正解</th><th class="num">率</th><th class="num">時間</th></tr>${ms.map(m => `<tr><td>${new Date(m.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td><td class="num">${m.ok}/${m.n}</td><td class="num ${m.pct >= PASS_PCT ? '' : 'danger'}">${m.pct}%</td><td class="num">${Math.floor(m.secs / 60)}分</td></tr>`).join('')}</table></div>
+      <div class="sheet"><h2>ドメインごとの推移</h2><table><tr><th>ドメイン</th>${ms.slice(0, 5).reverse().map((_, i) => `<th class="num">${i + 1}</th>`).join('')}</tr>${b.domains.map(d => `<tr><td>${d.id}. ${esc(d.name)}</td>${ms.slice(0, 5).reverse().map(m => { const x = (m.by || []).find(y => y[0] === d.id); return `<td class="num">${x && x[1] ? pct(x[2], x[1]) + '%' : '–'}</td>`; }).join('')}</tr>`).join('')}</table><p class="note">直近5回。</p></div>`;
   }
 
   render();

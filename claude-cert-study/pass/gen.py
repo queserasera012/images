@@ -19,7 +19,7 @@ def weights(doms,note=None):
     if note: h+=f'<p class="muted">{fmt(note)}</p>'
     return h+'</div>'
 def rules(rows):
-    return ''.join(f'<div class="rule"><div class="sit">{fmt(s)}</div><div class="ok"><b>✅ 選ぶ</b>　{fmt(o)}</div><div class="ng"><b>❌ 選ばない</b>　{fmt(n)}</div></div>' for s,o,n in rows)
+    return ''.join(f'<div class="rule"><div class="sit">{fmt(s)}</div><div class="ok"><b>○ 選ぶ</b>{fmt(o)}</div><div class="ng"><b>× 選ばない</b>{fmt(n)}</div></div>' for s,o,n in rows)
 def flow(steps,vertical=False,title=None):
     h='<div class="card">'+(f'<h3>{fmt(title)}</h3>' if title else '')+f'<div class="flow{" v" if vertical else ""}">'
     for i,st in enumerate(steps):
@@ -50,6 +50,6 @@ boxes.forEach(function(b){b.checked=!!st[b.id];b.onchange=function(){st[b.id]=b.
 </script>'''
 def page(exam,code,name,body,toc):
     t=''.join(f'<a href="#{a}">{esc(l)}</a>' for a,l in toc)
-    return f'''<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>合格ノート {esc(code)}</title><link rel="stylesheet" href="pass.css?v=1"></head><body>
+    return f'''<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>合格ノート {esc(code)}</title><meta name="color-scheme" content="light dark"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap"><link rel="stylesheet" href="pass.css?v=2"></head><body>
 <div class="top"><a class="back" href="../" aria-label="戻る">‹</a><h1>合格ノート {esc(code)}　{esc(name)}</h1></div>
 <main><div class="toc">{t}</div>{body}<p class="foot">本番の問題は NDA の下にあり、このノートは公式ガイドの出題範囲と対策コースの要点から書いたオリジナルの整理です。数字（価格・上限）は暗記の対象外。</p></main>{JS}</body></html>'''

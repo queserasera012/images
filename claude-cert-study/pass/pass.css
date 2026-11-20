@@ -1,8 +1,9 @@
-:root{--bg:#f6f4ee;--card:#fff;--ink:#1f2a44;--muted:#6b7280;--line:#e5e1d8;--accent:#4fb8e8;--accent-ink:#0b5c7a;--ok:#2f9e6a;--ok-bg:#e6f6ee;--ng:#d9534f;--ng-bg:#fdecec;--warn:#b7791f;--warn-bg:#fff6dc;--sel:#e8f5fc;--r:14px;
- --d1:#4fb8e8;--d2:#3ddc97;--d3:#ffd23f;--d4:#ff6b6b;--d5:#a78bfa;--d6:#f59e0b;--d7:#34d399;--d8:#60a5fa}
-@media (prefers-color-scheme: dark){:root{--bg:#141821;--card:#1d2330;--ink:#e8ecf3;--muted:#9aa3b2;--line:#2c3443;--accent-ink:#9ad9f5;--ok:#4fc08d;--ok-bg:#15301f;--ng:#ef6b67;--ng-bg:#3a1f1f;--warn:#f0c060;--warn-bg:#3a3214;--sel:#1f3340}}
+:root{--bg:#f3f6f9;--card:#fff;--ink:#18212f;--muted:#566173;--line:#d3dce6;--accent:#18212f;--accent-ink:#1d57b0;--ok:#147a50;--ok-bg:#e3f4ec;--ng:#d9342b;--ng-bg:#fdeceb;--warn:#8a5a00;--warn-bg:#fff5b0;--sel:#eaf0f6;--r:4px;--marker:#ffe44d;
+ --d1:#2f8fd8;--d2:#2fa878;--d3:#f0a030;--d4:#e05580;--d5:#8a68d6;--d6:#c9892a;--d7:#3aa39a;--d8:#5b7fd6;
+ --jp:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;--num:"Barlow Condensed","Zen Kaku Gothic New",sans-serif}
+@media (prefers-color-scheme: dark){:root{--bg:#10151d;--card:#19202b;--ink:#e9eef5;--muted:#a3aebd;--line:#2e3848;--accent:#e9eef5;--accent-ink:#7fb2f5;--ok:#4cc28f;--ok-bg:#143325;--ng:#ff6b5e;--ng-bg:#3b1d1b;--warn:#f0c060;--warn-bg:#4a4210;--sel:#212a37;--marker:#8a7500}}
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 -apple-system,"Hiragino Sans","Noto Sans JP",system-ui,sans-serif;-webkit-text-size-adjust:100%}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:500 16px/1.7 var(--jp);-webkit-text-size-adjust:100%}
 a{color:var(--accent-ink)}
 .top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top));background:var(--bg);border-bottom:1px solid var(--line)}
 .top a.back{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--card);text-decoration:none;font-size:22px;color:var(--ink)}
@@ -73,3 +74,31 @@ td.v::before{content:"→ ";color:var(--accent-ink);font-weight:800}
 ul.pt{margin:6px 0 0;padding-left:20px}ul.pt li{margin:3px 0}
 .foot{margin-top:28px;font-size:12px;color:var(--muted)}
 td code,.tile code,.st code{word-break:break-all;white-space:normal}td{overflow-wrap:anywhere}
+
+/* 本体と同じ見た目 */
+.top{border-bottom:2px solid var(--ink)}.top h1{font-weight:900}
+.top a.back{border:0;background:none;font-size:30px;width:44px;height:44px;margin-left:-10px}
+.hero{background:var(--card);color:var(--ink);border:1px solid var(--line);border-left:10px solid var(--ink);border-radius:4px}
+.hero .code{font:700 40px/1 var(--num);letter-spacing:.02em;opacity:1}
+.hero h2{font-weight:900;font-size:18px;margin:2px 0 10px}
+.facts span{background:var(--sel);border-radius:3px;font-size:14px}
+.hero ol li b{background:linear-gradient(transparent 60%,var(--warn-bg) 60%)}
+.sec{margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--ink)}
+.sec h2{font-weight:900}
+.sec .n{background:none;color:var(--ink);font:700 30px/1 var(--num);width:auto;height:auto;border-radius:0}
+.card h3{font-weight:900}
+.w .pct{font:700 20px/1 var(--num)}.w .bar{height:10px;border-radius:0}
+.tag{border-radius:3px;font-size:13px}
+.rule{border-radius:4px}
+.rule .ok,.rule .ng{border-radius:4px;background:none;padding:6px 0 6px 12px}
+.rule .ok{border-left:4px solid var(--ok)}.rule .ng{border-left:4px solid var(--ng)}
+.rule .ok>b:first-child,.rule .ng>b:first-child{display:block;font-size:13px;font-weight:900}
+.flow .st{border-radius:4px}.flow .st>b:first-child{font-size:13px}
+.tile{border-radius:4px}.tile>b:first-child{font-weight:900;font-size:15px;color:var(--ink)}
+.co{border-radius:4px}
+td.k{font-weight:700}
+.toc a{border-radius:3px}
+small,.muted,.w .note,th{font-size:14px}
+.tag{font-size:13px}.foot{font-size:14px}.toc a{font-size:14px;padding:6px 10px}.co{font-size:15px}.flow .st>b:first-child{color:var(--muted);letter-spacing:0}
+.toc a{display:inline-flex;align-items:center;min-height:44px}.tag.hot{color:#b3261e}@media (prefers-color-scheme: dark){.tag.hot{color:var(--ng)}.flow .st>b:first-child{color:var(--ink)}}
+.toc a{min-width:44px;justify-content:center}.chk li{min-height:44px}
