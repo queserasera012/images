@@ -104,3 +104,4 @@ small,.muted,.w .note,th{font-size:14px}
 .toc a{min-width:44px;justify-content:center}.chk li{min-height:44px}
 html{color-scheme:light dark}
 .tile,.flow .st{overflow-wrap:anywhere;min-width:0}.tile>b:first-child{word-break:break-all}main{overflow-x:clip}
+.sec,[id]{scroll-margin-top:calc(78px + env(safe-area-inset-top))}

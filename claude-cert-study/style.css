@@ -179,3 +179,4 @@ select,input[type=number]{font:inherit;padding:8px;max-width:100%;min-width:0;bo
 .text li.def2>b{display:block;background:none;font-weight:900}
 .text h3 small{display:block;font:500 14px/1.6 var(--jp);color:var(--sub);margin-top:4px}
 .choice.wrong .k{color:#b3261e}@media (prefers-color-scheme: dark){.choice.wrong .k{color:var(--pen)}}
+.sheet[id]{scroll-margin-top:calc(66px + env(safe-area-inset-top))}
