@@ -62,5 +62,62 @@ window.BLUEPRINT = {
       ]},
     ],
   },
+  ccdv: {
+    code: 'CCDV-F', short: 'Developer',
+    name: 'Claude Certified Developer – Foundations',
+    ja: 'Developer – Foundations',
+    who: 'For engineers who build applications with the Claude API, tools and agents.',
+    items: 53, minutes: 120, fee: '$125', pass: 720,
+    guide: {
+      en: 'https://cc.sj-cdn.net/instructor/6nizmqk8tpzpfjvt6qmmav7rh/public/1794946716/Claude_Certified_Developer_-_Foundations_Exam_Guide.pdf',
+      nextEn: 'https://cc.sj-cdn.net/instructor/6nizmqk8tpzpfjvt6qmmav7rh/public/1794946771/Claude_Certified_Developer_-_Foundations_Exam_Guide_Updated_Dec_7.pdf',
+    },
+    next: { from: '2026-12-07', items: '70 questions (60 scored + 10 unscored)',
+      summary: 'The weights move a lot: integration 33→20%, Claude Code 3→8%, eval and debugging 3→10%, prompting 11→15%, agents 15→17%, models 17→12%. Objectives are regrouped into 8 domains and 24 skills. Newly spelled out: streaming end events (message_stop, and stop_reason on message_delta) and retries that tell error types apart (rate limit, overloaded, invalid request, timeout); ingesting files with the Files API; grounding and citations (answer "not found" when the source has nothing); full-context versus retrieval; choosing a sandboxed runtime such as Managed Agents; structured outputs with strict schemas; cache breakpoints (single, layered, rolling); workspace-scoped API keys; and when to use Skills, plugins, rules, hooks, subagents and slash commands.',
+      domains: ['1 Agents and Workflows 17%', '2 Applications and Integration 20%', '3 Claude Code 8%', '4 Eval, Testing, and Debugging 10%', '5 Model Selection and Optimization 12%', '6 Prompt and Context Engineering 15%', '7 Security and Safety 8%', '8 Tools and MCPs 10%'] },
+    domains: [
+      { id: 1, name: 'Agents and Workflows', en: 'Agents and Workflows', weight: 14.7, objectives: [
+        'Agent Architecture (4.5%): workflows versus agents, manager/supervisor hierarchies, subagent roles',
+        'Agent Construction with Claude (5.3%): Claude Agent SDK, custom agent loops and harnesses, managed agents (self-hosted or Anthropic-hosted), hooks for deterministic behavior',
+        'Agent Patterns and Frameworks (4.9%): tool-use loop, subagents, memory, context window management, abstraction frameworks (Strands, LangGraph, PydanticAI and others)',
+      ]},
+      { id: 2, name: 'Applications and Integration', en: 'Applications and Integration', weight: 33.1, objectives: [
+        'Understanding Requirements (3.4%): functional and infrastructure requirements from business needs and solution architecture',
+        'Systems Life Cycle (2.8%): concepts and frameworks for development, deployment, operation and maintenance',
+        'Claude API Mechanics (6.8%): messages, tools, streaming, vision, thinking, caching, calling through third-party platforms, Batch API, real time versus batch',
+        'Software Engineering Foundations (7.4%): REST APIs, JSON, async, version control, fitting into the SDLC, code review, refactoring',
+        'Claude Application Design (8.6%): how instructions are read on each surface (Claude Code, Desktop, claude.ai, API, SDK), content boundaries, schema design, session hygiene, plugin management',
+        'Configuration Management (4.1%): CLAUDE.md, settings.json, pinning model versions, versioning prompts, plugin dependencies',
+      ]},
+      { id: 3, name: 'Claude Code', en: 'Claude Code', weight: 3.1, objectives: [
+        'Claude Code Operation (3.1%): rules, skills, commands, agents and agent memory; session management, slash commands, headless mode, streaming mode, auto mode, the CLAUDE.md hierarchy, initializing a repository, settings.json',
+      ]},
+      { id: 4, name: 'Eval, Testing, and Debugging', en: 'Eval, Testing, and Debugging', weight: 2.6, objectives: [
+        'Debugging and Error Handling (2.6%): identifying error types, recovery strategies, trace analysis, separating the integration layer from model output',
+      ]},
+      { id: 5, name: 'Model Selection and Optimization', en: 'Model Selection and Optimization', weight: 16.8, objectives: [
+        'LLM Fundamentals (5.2%): tokens, context windows, sampling, non-determinism, next-token generation; fast mode, extended thinking, adaptive thinking, effort levels; zero-, single- and multi-shot',
+        'Technical Fundamentals (6.1%): integrating through SDKs that wrap the REST API, WebSockets and other basic technical concepts',
+        'Model Selection and Tradeoffs (2.7%): use cases for Opus, Sonnet and Haiku, adaptive thinking support, quality/latency/cost tradeoffs, breaking changes between releases',
+        'Cost and Token Management (2.8%): tracking token usage, cost modeling, prompt caching and cache checkpoints',
+      ]},
+      { id: 6, name: 'Prompt and Context Engineering', en: 'Prompt and Context Engineering', weight: 11.0, objectives: [
+        'Context Engineering (3.8%): managing the context window, preventing drift and bloat (pruning tool output, compaction), isolating context with subagents',
+        'Prompt Engineering (4.6%): clear instructions, few-shot, system versus user placement, output constraints, iterative refinement, sanitizing input',
+        'Output Handling (2.6%): structured output patterns, validating responses, defensive parsing, not trusting confident output',
+      ]},
+      { id: 7, name: 'Security and Safety', en: 'Security and Safety', weight: 8.1, objectives: [
+        'AI Application Security (3.2%): prompt injection, jailbreaks, untrusted input, data leakage, PII, authentication, authorization, confidentiality, integrity',
+        'Guardrails and Safe Deployment (2.3%): content policy, layered guardrails, secure by design, least privilege',
+        'Claude Hooks (1.0%): hooks as guardrails that prevent destructive actions',
+        'Identity, Secrets, and Key Management (1.6%): managing secrets and API keys in development and production, authentication, checking access levels, monitoring',
+      ]},
+      { id: 8, name: 'Tools and MCPs', en: 'Tools and MCPs', weight: 10.6, objectives: [
+        'Tool Implementation (4.4%): tool use and function calling, writing tool descriptions, error handling, client-side and server-side tools, approval patterns, building toolsets',
+        'MCP Server Development (2.1%): building, deploying and integrating servers; resources, tools and prompts; communication patterns (stdio, sockets, client and server)',
+        'Agentic Customization (4.1%): tradeoffs between built-in tools, custom tools, skills and MCP, and when to use each',
+      ]},
+    ],
+  },
 };
 window.QUESTIONS = window.QUESTIONS || {};
