@@ -1,0 +1,86 @@
+/* 見た目の別パターン。html[data-ui] で切り替える（何も付いていなければ「参考書」）。
+   style.css（本体）と pass/pass.css（合格ノート）の両方の色の名前をここで上書きする。 */
+
+/* ---------- B 黒板とチョーク ---------- */
+html[data-ui=b]{color-scheme:dark;
+  --paper:#27463b; --sheet:#2d5044; --ink:#f4f1e4; --sub:#c3d3c8; --rule:#557a6b;
+  --marker:#f3d56b; --marker-soft:#4d6a3f; --pen:#ffb3a3; --ok:#a8e6b8; --ok-bg:#35604a; --ng-bg:#5a4540;
+  --blue:#a9d4f5; --wash:#3a6152; --on-tab:#1d342c;
+  --t-ccao:#f3d56b; --t-ccdv:#a9d4f5; --t-ccarf:#a8e6b8; --t-ccarp:#d3c1f5; --t-ccdvp:#ffb9c9;
+  --jp:"Klee One","Hiragino Maru Gothic ProN","Zen Kaku Gothic New",sans-serif; --num:"Klee One","Zen Kaku Gothic New",sans-serif;
+  --bg:#27463b; --card:#2d5044; --muted:#c3d3c8; --line:#557a6b; --accent:#f4f1e4; --accent-ink:#a9d4f5;
+  --ng:#ffb3a3; --warn:#f3d56b; --warn-bg:#4d6a3f; --sel:#3a6152;
+  --d1:#a9d4f5; --d2:#a8e6b8; --d3:#f3d56b; --d4:#ffb9c9; --d5:#d3c1f5; --d6:#f0c48a; --d7:#9fe0d6; --d8:#bcc9f5}
+html[data-ui=b] body{font-weight:600;letter-spacing:.01em}
+html[data-ui=b] .top{border-bottom:10px solid #9a7447;box-shadow:inset 0 -2px 0 #6f5230}
+html[data-ui=b] .sheet,html[data-ui=b] .card,html[data-ui=b] .paper,html[data-ui=b] .rows,html[data-ui=b] .exam,html[data-ui=b] .hero,html[data-ui=b] .rule,html[data-ui=b] .tile{background:none}
+html[data-ui=b] .sheet,html[data-ui=b] .card,html[data-ui=b] .paper,html[data-ui=b] .hero{border:2px dashed var(--rule);border-radius:2px}
+html[data-ui=b] .hero{border-left:2px dashed var(--rule)}
+html[data-ui=b] .btn,html[data-ui=b] .seg,html[data-ui=b] .choice,html[data-ui=b] .resume{border-radius:3px}
+html[data-ui=b] .choice{background:none;border:1.5px dashed var(--rule)}
+html[data-ui=b] .choice.sel{background:var(--marker-soft);border-style:solid}
+html[data-ui=b] .choice.right{background:var(--ok-bg);border-style:solid}
+html[data-ui=b] .choice.wrong{background:var(--ng-bg);border-style:solid}
+html[data-ui=b] .choice.wrong .k{color:var(--pen)}
+html[data-ui=b] .resume{background:var(--marker-soft)}
+html[data-ui=b] .exam .code{border-radius:2px;margin:0;align-self:center;height:44px;transform:rotate(-2deg)}
+html[data-ui=b] .text b,html[data-ui=b] .how b,html[data-ui=b] .mk,html[data-ui=b] .hero ol li b{background:none;color:var(--marker);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
+html[data-ui=b] .text li.def>b,html[data-ui=b] .text li.def2>b{text-decoration:none}
+html[data-ui=b] code{background:none;border:1px solid var(--rule);color:var(--blue)}
+html[data-ui=b] .score{border-bottom-style:solid;font-weight:600}
+html[data-ui=b] .cover .code,html[data-ui=b] .hero .code,html[data-ui=b] .exam .pct,html[data-ui=b] .rowbtn .r,html[data-ui=b] .timer,html[data-ui=b] .prog b{font-weight:600}
+html[data-ui=b] .text .tip::before,html[data-ui=b] .text h4 .chip{color:var(--paper)}
+html[data-ui=b] .tag.hot{color:var(--ng)}html[data-ui=b] .tag{background:none;border:1px solid currentColor}
+html[data-ui=b] .co{background:none;border:1.5px dashed var(--rule);border-left:4px solid var(--accent)}
+html[data-ui=b] .flow .st{background:none;border:1.5px solid var(--rule)}
+html[data-ui=b] .flow .st.ok{border-color:var(--ok)}html[data-ui=b] .flow .st.ng{border-color:var(--ng)}html[data-ui=b] .flow .st.warn{border-color:var(--warn)}
+html[data-ui=b] .flow .st>b:first-child{color:var(--marker)}
+html[data-ui=b] .toc a{background:none}
+
+/* ---------- C 試験会場（本番の画面に近い、飾りなし） ---------- */
+html[data-ui=c]{color-scheme:light;
+  --paper:#e6e9ed; --sheet:#fff; --ink:#111a24; --sub:#4a5563; --rule:#b9c1cb;
+  --marker:#bcd6f7; --marker-soft:#dbe9fb; --pen:#b3261e; --ok:#12693f; --ok-bg:#dff1e6; --ng-bg:#fbe6e4;
+  --blue:#0b4ea2; --wash:#dfe4ea; --on-tab:#fff;
+  --t-ccao:#1f3a5f; --t-ccdv:#1f3a5f; --t-ccarf:#1f3a5f; --t-ccarp:#1f3a5f; --t-ccdvp:#1f3a5f;
+  --jp:"Hiragino Sans","Yu Gothic","Meiryo",system-ui,sans-serif; --num:"Helvetica Neue",Arial,"Hiragino Sans",sans-serif;
+  --bg:#e6e9ed; --card:#fff; --muted:#4a5563; --line:#b9c1cb; --accent:#1f3a5f; --accent-ink:#0b4ea2;
+  --ng:#b3261e; --warn:#6b4a00; --warn-bg:#fff1c2; --sel:#dfe4ea;
+  --d1:#1f3a5f; --d2:#2f6f9f; --d3:#4a8f7a; --d4:#8a5a9a; --d5:#a85a4a; --d6:#6a7a2a; --d7:#3a6a8a; --d8:#5a5a8a}
+html[data-ui=c] body{font-weight:400}
+html[data-ui=c] .top{background:#1f3a5f;color:#fff;border-bottom:0}
+html[data-ui=c] .top a.back{color:#fff}
+html[data-ui=c] .top h1{font-weight:700}
+html[data-ui=c] .timer{color:#fff;background:#11253f;padding:6px 10px;font-size:18px}
+html[data-ui=c] .timer.low{color:#ffd0c9}
+html[data-ui=c] .sheet,html[data-ui=c] .card,html[data-ui=c] .paper,html[data-ui=c] .btn,html[data-ui=c] .seg,html[data-ui=c] .choice,html[data-ui=c] .resume,html[data-ui=c] .hero,html[data-ui=c] .rule,html[data-ui=c] .tile,html[data-ui=c] .flow .st,html[data-ui=c] .co{border-radius:0}
+html[data-ui=c] .btn{border:1px solid #1f3a5f;color:#1f3a5f;font-weight:700}
+html[data-ui=c] .btn.primary{background:#1f3a5f;color:#fff}
+html[data-ui=c] .seg{border:1px solid #1f3a5f}
+html[data-ui=c] .seg button[aria-pressed=true]{background:#1f3a5f;color:#fff}
+html[data-ui=c] .tabs{border-bottom:1px solid var(--rule)}
+html[data-ui=c] .tabs button{border-radius:0;font-weight:700}
+html[data-ui=c] .tabs button[aria-selected=true]{background:none;color:var(--ink);box-shadow:inset 0 -4px 0 #1f3a5f}
+html[data-ui=c] .exams{border-top:1px solid var(--rule)}
+html[data-ui=c] .exam .code{border-radius:0;margin:0;font-size:17px;font-weight:700}
+html[data-ui=c] .resume{background:#fff;border:1px solid #1f3a5f}
+html[data-ui=c] .cover{border-left:0;padding-left:0;border-bottom:1px solid var(--rule);padding-bottom:10px}
+html[data-ui=c] .cover .code{font-size:28px}
+html[data-ui=c] .q{background:#fff;border:1px solid var(--rule);padding:14px;font-weight:400}
+html[data-ui=c] .choice{border:1px solid var(--rule)}
+html[data-ui=c] .choice .k{border-radius:0;border:1px solid var(--ink);font-size:15px}
+html[data-ui=c] .choice.sel{background:var(--marker-soft);border-color:#1f3a5f}
+html[data-ui=c] .choice.sel .k{background:#1f3a5f;color:#fff}
+html[data-ui=c] .choice.right .k::after{border-radius:0;transform:none;inset:-4px;border-width:2px;border-color:var(--ok)}
+html[data-ui=c] .verdict .mark.maru{border-radius:50%;transform:none;border-color:var(--ok)}
+html[data-ui=c] .qbar i{background:#1f3a5f}
+html[data-ui=c] .score{transform:none;color:var(--ink);border-bottom:0;font-size:64px;margin-bottom:6px}
+html[data-ui=c] .judge.pass{color:var(--ok)}
+html[data-ui=c] .text b,html[data-ui=c] .how b,html[data-ui=c] .hero ol li b{background:none;font-weight:700}
+html[data-ui=c] .text li.def>b,html[data-ui=c] .text li.def2>b,html[data-ui=c] .sheet h2,html[data-ui=c] .text h3,html[data-ui=c] h2.head,html[data-ui=c] .exam .name{font-weight:700}
+html[data-ui=c] .text .tip{border-width:1px}
+html[data-ui=c] .hero{border-left:1px solid var(--line);border-top:6px solid #1f3a5f}
+html[data-ui=c] .hero .code,html[data-ui=c] .sec .n{font-weight:700}
+html[data-ui=c] .sec{border-bottom:1px solid var(--ink)}
+html[data-ui=c] .tag.hot{color:var(--ng)}
+html[data-ui=b] .exam .code{font-size:15px;white-space:nowrap;letter-spacing:0}html[data-ui=b] .exam{grid-template-columns:72px 1fr auto}

@@ -1,0 +1,313 @@
+// 公式試験ガイド（Version 1.0・2026年7月・Anthropic Partner Academy）から写した出題範囲。
+// 2026-11-18：ガイドの置き場が cc.sj-cdn.net に変わり、12/7 からの v1.1（next）と 新試験 CCDV-P（v1.0・2026年11月）が出た。
+// next は 12/7 以降に受ける人向けの変更点。問題とテキストは v1.0 のまま（11月受験に合わせる）。
+// 問題は js/q-*.js。問題の d はドメイン番号、o は objectives の添字（0 から）。
+window.BLUEPRINT = {
+  ccao: {
+    code: 'CCAO-F', short: 'Associate',
+    name: 'Claude Certified Associate – Foundations',
+    ja: 'アソシエイト（基礎）',
+    who: 'Claude を仕事の道具として使う人（業務・企画・教育など）。API やエージェント設計は範囲外',
+    items: 60, minutes: 120, fee: '$99', pass: 720,
+    guide: {
+      en: 'https://cc.sj-cdn.net/instructor/6nizmqk8tpzpfjvt6qmmav7rh/public/1794946524/Claude_Certified_Associate_-_Foundations_Exam_Guide.pdf',
+      ja: 'https://cc.sj-cdn.net/instructor/6nizmqk8tpzpfjvt6qmmav7rh/public/1794946560/Claude_Certified_Associate_-_Foundations_Exam_Guide_Japanese.pdf',
+      nextEn: 'https://cc.sj-cdn.net/instructor/6nizmqk8tpzpfjvt6qmmav7rh/public/1794946609/Claude_Certified_Associate_-_Foundations_Exam_Guide_Updated_Dec_7.pdf',
+      nextJa: 'https://cc.sj-cdn.net/instructor/6nizmqk8tpzpfjvt6qmmav7rh/public/1794946680/Claude_Certified_Associate_-_Foundations_Exam_Guide_Updated_Dec_7_Japanese.pdf',
+    },
+    next: { from: '2026-12-07', items: '70 問（採点 60＋採点外 10）', summary: '7ドメイン → 6ドメイン。「トラブルシューティングと最適化」が消え、「プロンプトの診断と反復」（D1）と「設定のライフサイクルと劣化」（D5）に吸収。配点 15／20／15／18／15／17。エフォートレベル・Skills・コネクタ・メモリとシークレットチャット・委任の判断基準（可逆性・利害・人の判断・説明責任）・サードパーティ Skills の信頼 が明文化。公表数値（価格・コンテキスト長・レート制限）の暗記は問わないと明記',
+      domains: ['1 タスク定義とプロンプト 15%', '2 出力の評価と品質管理 20%', '3 機能・モデル・コンテキストの選択 15%', '4 ワークフロー設計と統合 18%', '5 設定とナレッジ管理 15%', '6 責任ある利用・データ保護・ガバナンス 17%'] },
+    domains: [
+      { id: 1, name: 'プロンプト作成とタスク実行', en: 'Prompting and Task Execution', weight: 14, objectives: [
+        'ビジネスタスクおよび技術タスクのための効果的なプロンプトを作成する',
+        'タスク分解の手法を適用して、複雑な依頼を構造化する',
+        'プロンプトを反復的に改良して出力の品質を高める',
+        'タスクの種類（分析、調査、下書き、ブレインストーミング）に応じてプロンプト作成の戦略を調整する',
+      ]},
+      { id: 2, name: '出力の評価と検証', en: 'Output Evaluation and Validation', weight: 21, objectives: [
+        'Claude が生成した出力の正確性と網羅性を評価する',
+        '応答に含まれるハルシネーション、不整合、バイアスを特定する',
+        'ファクトチェックと検証の手法を適用する',
+        '人間によるレビューや追加の検証が必要な場面を判断する',
+        '想定する対象者に合わせて出力を編集、調整、改良、比較する',
+        '情報を整理、選別し、適切な出力形式（アーティファクト、インライン、構造化データ）を選択する',
+      ]},
+      { id: 3, name: '製品とモデルの選択', en: 'Product and Model Selection', weight: 12, objectives: [
+        'Claude の適切な製品機能（プロジェクト、リサーチ、チャット、アーティファクト）を選択する',
+        'Claude のモデルの種類（Haiku、Sonnet、Opus）を区別する',
+        'モデルの選択をタスクの要件（コスト、速度、品質）に合わせる',
+        'コンテキストの制限とメモリに関する考慮事項（やり直す、要約する、保持するタイミング）を理解し、管理する',
+      ]},
+      { id: 4, name: 'ワークフロー統合とソリューション設計', en: 'Workflow Integration and Solution Design', weight: 16, objectives: [
+        '要件とユースケースの分析に Claude を適用する',
+        '調査、計画、プロセスの最適化に Claude を活用する',
+        'ソリューションの設計、開発、反復的な改善を支援するために Claude を使用する',
+        '既存のワークフローに Claude を統合し、ワークフローを強化または再設計する',
+        'Claude の価値と限界をステークホルダーに伝える',
+      ]},
+      { id: 5, name: '設定とナレッジ管理', en: 'Configuration and Knowledge Management', weight: 12, objectives: [
+        '指示とナレッジソースを使って Claude のプロジェクトを設定する',
+        'アップロードしたナレッジとコネクタ（Google Drive、Gmail など）を管理する',
+        '効果的なシステムレベルの指示を作成する',
+        'Claude の設定、ナレッジソース、指示に情報を反映し、維持、更新する',
+      ]},
+      { id: 6, name: 'ガバナンス、リスク、責任ある利用', en: 'Governance, Risk, and Responsible Use', weight: 15, objectives: [
+        '適切なユースケースと不適切なユースケースを特定する',
+        'データの機密性、規制、プライバシーに関する考慮事項を適用する',
+        '組織の AI ポリシーとガバナンス基準に従う',
+        'AI 利用の倫理的な影響を理解する',
+      ]},
+      { id: 7, name: 'トラブルシューティングと最適化', en: 'Troubleshooting and Optimization', weight: 10, objectives: [
+        '期待どおりに機能しないプロンプトや質の低い出力の問題を特定、診断、解決する',
+        'フィードバックと結果に基づいてアプローチを調整する',
+        '効率と効果を高めるためにワークフローを最適化する',
+      ]},
+    ],
+  },
+
+  ccdv: {
+    code: 'CCDV-F', short: 'Developer',
+    name: 'Claude Certified Developer – Foundations',
+    ja: 'デベロッパー（基礎）',
+    who: 'Claude API・ツール・エージェントでアプリを作るエンジニア',
+    items: 53, minutes: 120, fee: '$125', pass: 720,
+    guide: {
+      en: 'https://cc.sj-cdn.net/instructor/6nizmqk8tpzpfjvt6qmmav7rh/public/1794946716/Claude_Certified_Developer_-_Foundations_Exam_Guide.pdf',
+      ja: 'https://cc.sj-cdn.net/instructor/6nizmqk8tpzpfjvt6qmmav7rh/public/1794946746/Claude_Certified_Developer_-_Foundations_Exam_Guide_Japanese.pdf',
+      nextEn: 'https://cc.sj-cdn.net/instructor/6nizmqk8tpzpfjvt6qmmav7rh/public/1794946771/Claude_Certified_Developer_-_Foundations_Exam_Guide_Updated_Dec_7.pdf',
+      nextJa: 'https://cc.sj-cdn.net/instructor/6nizmqk8tpzpfjvt6qmmav7rh/public/1794946795/Claude_Certified_Developer_-_Foundations_Exam_Guide_Updated_Dec_7_Japanese.pdf',
+    },
+    next: { from: '2026-12-07', items: '70 問（採点 60＋採点外 10）', summary: '配点が大きく動く：統合 33→20%、Claude Code 3→8%、評価・デバッグ 3→10%、プロンプト 11→15%、エージェント 15→17%、モデル 17→12%。目標は 8ドメイン 24スキルに整理。新しく明文化：ストリーミングの終了イベント（message_stop・message_delta の stop_reason）とエラー種別（レート制限・overloaded・invalid request・timeout）を区別するリトライ、Files API の取り込み、根拠づけと出典の提示（見つからなければ not found）、全文投入と検索の使い分け、Managed Agents などサンドボックス付きランタイムの選択、strict なスキーマの構造化出力、キャッシュのブレークポイント（単一・階層・ローリング）、workspace 単位の API キー、Skill／プラグイン／Rules／フック／サブエージェント／スラッシュコマンドの使い分け',
+      domains: ['1 エージェントとワークフロー 17%', '2 アプリケーションと統合 20%', '3 Claude Code 8%', '4 評価・テスト・デバッグ 10%', '5 モデルの選択と最適化 12%', '6 プロンプトとコンテキストのエンジニアリング 15%', '7 セキュリティと安全性 8%', '8 ツールと MCP 10%'] },
+    domains: [
+      { id: 1, name: 'エージェントとワークフロー', en: 'Agents and Workflows', weight: 14.7, objectives: [
+        'エージェントアーキテクチャ（4.5%）：ワークフローとエージェントの使い分け、マネージャー／スーパーバイザー階層、サブエージェントの役割',
+        'Claude によるエージェントの構築（5.3%）：Claude Agent SDK、カスタムのエージェントループとハーネス、マネージドエージェント（セルフホスト／Anthropic ホスト）、決定論的な動作のためのフック',
+        'エージェントのパターンとフレームワーク（4.9%）：ツール使用ループ、サブエージェント、メモリ、コンテキストウィンドウ管理、抽象化フレームワーク（Strands、LangGraph、PydanticAI など）',
+      ]},
+      { id: 2, name: 'アプリケーションと統合', en: 'Applications and Integration', weight: 33.1, objectives: [
+        '要件の理解（3.4%）：ビジネス要件とソリューションアーキテクチャに基づく機能要件・インフラ要件',
+        'システムライフサイクル（2.8%）：開発・導入・運用・保守のライフサイクル管理の概念とフレームワーク',
+        'Claude API の仕組み（6.8%）：メッセージ、ツール、ストリーミング、ビジョン、思考、キャッシング、サードパーティ経由の呼び出し、Batch API、リアルタイムとバッチの選択',
+        'ソフトウェアエンジニアリングの基礎（7.4%）：REST API、JSON、非同期処理、バージョン管理、SDLC への統合、コードレビュー、リファクタリング',
+        'Claude アプリケーションの設計（8.6%）：各インターフェース（Claude Code、Desktop、claude.ai、API、SDK）での指示の解釈、コンテンツの境界、スキーマ設計、セッションハイジーン、プラグイン管理',
+        '構成管理（4.1%）：CLAUDE.md、settings.json、モデルバージョンの固定、プロンプトのバージョン管理、プラグインの依存関係',
+      ]},
+      { id: 3, name: 'Claude Code', en: 'Claude Code', weight: 3.1, objectives: [
+        'Claude Code の操作（3.1%）：ルール・スキル・コマンド・エージェント・エージェントメモリ、セッション管理、スラッシュコマンド、ヘッドレスモード、ストリーミングモード、自動モード、CLAUDE.md の階層、リポジトリの初期化、settings.json',
+      ]},
+      { id: 4, name: '評価、テスト、デバッグ', en: 'Eval, Testing, and Debugging', weight: 2.6, objectives: [
+        'デバッグとエラー処理（2.6%）：エラーの種類の特定、復旧戦略、トレース分析、統合レイヤーとモデル出力の切り分け',
+      ]},
+      { id: 5, name: 'モデルの選択と最適化', en: 'Model Selection and Optimization', weight: 16.8, objectives: [
+        'LLM の基礎（5.2%）：トークン、コンテキストウィンドウ、サンプリング、非決定性、次トークン生成、高速モード・拡張思考・適応型思考・エフォートレベル、ゼロ／シングル／マルチショット',
+        '技術的な基礎（6.1%）：REST API をラップする SDK との統合、WebSocket などの基礎的な技術概念',
+        'モデルの選択とトレードオフ（2.7%）：Opus／Sonnet／Haiku のユースケース、適応型思考のサポート、品質・レイテンシ・コストのトレードオフ、リリース間の互換性のない変更',
+        'コストとトークンの管理（2.8%）：トークン使用量の追跡、コストモデリング、プロンプトキャッシングとキャッシュのチェックポイント',
+      ]},
+      { id: 6, name: 'プロンプトとコンテキストのエンジニアリング', en: 'Prompt and Context Engineering', weight: 11.0, objectives: [
+        'コンテキストエンジニアリング（3.8%）：コンテキストウィンドウ管理、ドリフトと肥大化の防止（ツール出力の刈り込み、コンパクション）、サブエージェントによるコンテキストの分離',
+        'プロンプトエンジニアリング（4.6%）：指示の明確さ、few-shot、システムとユーザーの配置、出力の制約、反復的な改良、入力のサニタイズ',
+        '出力の処理（2.6%）：構造化出力のパターン、応答の検証、防御的なパース、自信に満ちた出力を鵜呑みにしない',
+      ]},
+      { id: 7, name: 'セキュリティと安全性', en: 'Security and Safety', weight: 8.1, objectives: [
+        'AI アプリケーションのセキュリティ（3.2%）：プロンプトインジェクション、ジェイルブレイク、信頼できない入力、データ漏えい、PII、認証・認可・機密性・完全性',
+        'ガードレールと安全なデプロイ（2.3%）：コンテンツポリシー、ガードレールの多層化、セキュアバイデザイン、最小権限',
+        'Claude のフック（1.0%）：破壊的なアクションを防ぐガードレールとしてのフック',
+        'ID、シークレット、キーの管理（1.6%）：開発環境と本番環境でのシークレット・API キーの管理、認証、アクセスレベルの確認、監視',
+      ]},
+      { id: 8, name: 'ツールと MCP', en: 'Tools and MCPs', weight: 10.6, objectives: [
+        'ツールの実装（4.4%）：ツール使用と関数呼び出し、ツールの説明の記述、エラー処理、クライアント側／サーバー側ツール、承認パターン、ツールセット構築',
+        'MCP サーバーの開発（2.1%）：サーバーの作成・デプロイ・統合、リソース・ツール・プロンプト、通信パターン（stdio、ソケット、クライアントとサーバー）',
+        'エージェントのカスタマイズ（4.1%）：組み込みツール・カスタムツール・スキル・MCP のトレードオフと使い分け',
+      ]},
+    ],
+  },
+
+  ccarf: {
+    code: 'CCAR-F', short: 'Architect F',
+    name: 'Claude Certified Architect – Foundations',
+    ja: 'アーキテクト（基礎）',
+    who: 'Claude Agent SDK・MCP・Claude Code でエージェントシステムを設計し作る人。シナリオ6本のうち4本が出る',
+    items: 60, minutes: 120, fee: '$125', pass: 720,
+    scenarios: [
+      'カスタマーサポート解決エージェント（Agent SDK・MCP ツール get_customer / lookup_order / process_refund / escalate_to_human・初回解決率80%以上）',
+      'Claude Code によるコード生成（スラッシュコマンド・CLAUDE.md・プランモードと直接実行）',
+      'マルチエージェントの調査システム（コーディネーターが検索・文書分析・統合・レポートのサブエージェントに委任）',
+      'Claude による開発者生産性（Agent SDK・組み込みツール Read/Write/Bash/Grep/Glob・MCP）',
+      'CI/CD の中の Claude Code（自動コードレビュー・テスト生成・PR へのフィードバック・誤検知の抑制）',
+      '構造化データ抽出（非構造化文書から抽出・JSON スキーマで検証・エッジケース・下流システムとの統合）',
+    ],
+    guide: {
+      en: 'https://cc.sj-cdn.net/instructor/6nizmqk8tpzpfjvt6qmmav7rh/public/1794946250/Claude_Certified_Architect_-_Foundations_Exam_Guide.pdf',
+      ja: 'https://cc.sj-cdn.net/instructor/6nizmqk8tpzpfjvt6qmmav7rh/public/1794946295/Claude_Certified_Architect_-_Foundations_Exam_Guide_Japanese.pdf',
+    },
+    domains: [
+      { id: 1, name: 'エージェントアーキテクチャとオーケストレーション', en: 'Agentic Architecture & Orchestration', weight: 27, objectives: [
+        '1.1 自律的なタスク実行のためのエージェントループを設計し実装する（stop_reason "tool_use"／"end_turn"・ツール結果を履歴に追加・終了判定のアンチパターン）',
+        '1.2 コーディネーター・サブエージェントパターンでマルチエージェントをオーケストレーションする（ハブ＆スポーク・分離されたコンテキスト・反復的な改良ループ）',
+        '1.3 サブエージェントの呼び出し、コンテキストの受け渡し、生成を設定する（Task ツール・allowedTools・AgentDefinition・並列生成・fork）',
+        '1.4 強制とハンドオフのパターンを用いて複数ステップのワークフローを実装する（プログラムによる前提条件ゲート・構造化されたハンドオフ）',
+        '1.5 ツール呼び出しのインターセプトとデータ正規化のために Agent SDK のフックを適用する（PostToolUse・ポリシー違反のブロック）',
+        '1.6 複雑なワークフローのためのタスク分解戦略を設計する（プロンプトチェーン vs 動的な分解・ファイル単位と横断パス）',
+        '1.7 セッションの状態、再開、フォークを管理する（--resume・fork_session・古い結果より要約で新規）',
+      ]},
+      { id: 2, name: 'ツール設計と MCP 統合', en: 'Tool Design & MCP Integration', weight: 18, objectives: [
+        '2.1 明確な説明と境界を備えた効果的なツールインターフェースを設計する（説明が選択の主要な手がかり・重複の解消・分割）',
+        '2.2 MCP ツールの構造化されたエラーレスポンスを実装する（isError・transient／validation／business／permission・isRetryable・空の結果との区別）',
+        '2.3 エージェント間でツールを適切に配分し、ツール選択を設定する（ツール数の抑制・役割ごとのスコープ・tool_choice auto／any／強制）',
+        '2.4 MCP サーバーを Claude Code とエージェントワークフローに統合する（.mcp.json と ~/.claude.json・環境変数の展開・リソース）',
+        '2.5 組み込みツール（Read、Write、Edit、Bash、Grep、Glob）を効果的に選択し適用する',
+      ]},
+      { id: 3, name: 'Claude Code の設定とワークフロー', en: 'Claude Code Configuration & Workflows', weight: 20, objectives: [
+        '3.1 適切な階層、スコープ設定、モジュール構成で CLAUDE.md ファイルを設定する（user／project／directory・@import・.claude/rules/・/memory）',
+        '3.2 カスタムスラッシュコマンドとスキルを作成し設定する（.claude/commands/・SKILL.md・context: fork・allowed-tools・argument-hint）',
+        '3.3 規約を条件付きで読み込むためにパス固有のルールを適用する（YAML frontmatter の paths・glob）',
+        '3.4 プランモードと直接実行のどちらを使用するかを判断する（Explore サブエージェント）',
+        '3.5 段階的な改善のために反復的な改良手法を適用する（入出力例・テスト駆動・インタビューパターン・一括 vs 逐次）',
+        '3.6 Claude Code を CI/CD パイプラインに統合する（-p・--output-format json・--json-schema・独立したレビュー）',
+      ]},
+      { id: 4, name: 'プロンプトエンジニアリングと構造化出力', en: 'Prompt Engineering & Structured Output', weight: 20, objectives: [
+        '4.1 精度を高め誤検知を減らすために、明示的な基準を備えたプロンプトを設計する',
+        '4.2 出力の一貫性と品質を高めるために few-shot プロンプティングを適用する',
+        '4.3 ツール使用と JSON スキーマを用いて構造化出力を強制する（tool_choice・nullable・enum の "other"・意味的エラーは残る）',
+        '4.4 抽出品質のための検証、リトライ、フィードバックループを実装する（エラー付き再試行・無効なリトライの見極め・detected_pattern）',
+        '4.5 効率的なバッチ処理戦略を設計する（Message Batches API：50%・24時間・custom_id・ツール呼び出し不可）',
+        '4.6 マルチインスタンスおよびマルチパスのレビューアーキテクチャを設計する（自己レビューの限界・独立インスタンス）',
+      ]},
+      { id: 5, name: 'コンテキスト管理と信頼性', en: 'Context Management & Reliability', weight: 15, objectives: [
+        '5.1 長いやり取りを通じて重要な情報を保持するために会話コンテキストを管理する（case facts・lost in the middle・ツール出力の刈り込み）',
+        '5.2 効果的なエスカレーションと曖昧さの解消のパターンを設計する（明示的な基準・人間の要求は即時・ポリシーの空白・複数一致）',
+        '5.3 マルチエージェントシステム全体でのエラー伝播戦略を実装する（構造化されたエラーコンテキスト・ローカル復旧・カバレッジ注記）',
+        '5.4 大規模なコードベースの探索においてコンテキストを効果的に管理する（スクラッチパッド・サブエージェント・マニフェスト・/compact）',
+        '5.5 人間によるレビューのワークフローと確信度のキャリブレーションを設計する（層化抽出・文書種別ごとの精度・フィールド単位の確信度）',
+        '5.6 複数の情報源の統合において情報の出所を保持し不確実性に対処する（claim-source マッピング・日付・矛盾の注記）',
+      ]},
+    ],
+  },
+
+  ccarp: {
+    code: 'CCAR-P', short: 'Architect P',
+    name: 'Claude Certified Architect – Professional',
+    ja: 'アーキテクト（プロフェッショナル）',
+    who: '企業規模で Claude ソリューションを設計し統治する人。Foundations の前提条件は無い',
+    items: 63, minutes: 120, fee: '$175', pass: 720,
+    guide: {
+      en: 'https://cc.sj-cdn.net/instructor/6nizmqk8tpzpfjvt6qmmav7rh/public/1794946331/Claude_Certified_Architect_-_Professional_Exam_Guide.pdf',
+      ja: 'https://cc.sj-cdn.net/instructor/6nizmqk8tpzpfjvt6qmmav7rh/public/1794946377/Claude_Certified_Architect_-_Professional_Exam_Guide_Japanese.pdf',
+      nextEn: 'https://cc.sj-cdn.net/instructor/6nizmqk8tpzpfjvt6qmmav7rh/public/1794946420/Claude_Certified_Architect_-_Professional_Exam_Guide_Updated_Dec_7.pdf',
+      nextJa: 'https://cc.sj-cdn.net/instructor/6nizmqk8tpzpfjvt6qmmav7rh/public/1794946484/Claude_Certified_Architect_-_Professional_Exam_Guide_Updated_Dec_7_Japanese.pdf',
+    },
+    next: { from: '2026-12-07', items: '70 問（採点 60＋採点外 10）', summary: '配点は 18／13／21／17／16／7／8（ステークホルダー 14→7%・統合 19→21%・ガバナンス 14→16%）。目標は 38 → 37スキルに書き直し。新しく明文化：デプロイ面（Anthropic API・Bedrock・Vertex AI・Microsoft Foundry）とエージェントランタイム（Messages API ループ・Agent SDK／ヘッドレス Claude Code・Managed Agents）の選択、モデル版の移行（固定・プロンプト再調整・評価の再ベースライン・延期）、推論エフォートとコンテキストのライフサイクル（コンテキスト編集・メモリツール・コンパクション）、本番の信頼性制御（冪等性・フォールバック）、LLM-as-judge のバイアス（位置・冗長・自己選好・ドリフト）、設定比較の実験設計（試行回数）、バイアスの源（データ／プロンプト／評価設計）の切り分け、Claude Code プラグインの配布と権限モード（default・acceptEdits・plan・auto・dontAsk・bypassPermissions）、AI 生成コードの説明責任',
+      domains: ['1 ソリューション設計とアーキテクチャ 18%', '2 モデル・プロンプト・コンテキストエンジニアリング 13%', '3 統合 21%', '4 評価・テスト・最適化 17%', '5 ガバナンス・安全性・リスク管理 16%', '6 ステークホルダーとライフサイクル 7%', '7 開発者生産性と運用支援 8%'] },
+    domains: [
+      { id: 1, name: 'ソリューション設計とアーキテクチャ', en: 'Solution Design & Architecture', weight: 17, objectives: [
+        'ビジネス課題を Claude ベースの AI ソリューションに落とし込む',
+        'エンドツーエンドのアーキテクチャ（入力 → 処理 → 出力 → フィードバックループ）を設計する',
+        '適切なアーキテクチャパターン（ワークフロー、エージェント型、拡張 LLM）を選択する',
+        'マルチエージェントシステムとオーケストレーション戦略を設計する',
+        '複雑な問題解決のために分解の手法を適用する',
+        'ソリューションをビジネス価値の柱（効率性、変革、生産性、コスト、パフォーマンス SLA）に整合させる',
+      ]},
+      { id: 2, name: 'Claude モデル、プロンプト作成、コンテキストエンジニアリング', en: 'Claude Models, Prompting & Context Engineering', weight: 13, objectives: [
+        'トレードオフに基づいて適切な Claude モデルを選択する',
+        'システムプロンプト、テンプレート、ガードレールを設計する',
+        'プロンプトエンジニアリングの手法（ゼロショット、few-shot、思考の連鎖）を適用する',
+        'コンテキストウィンドウを最適化し、トークン使用量を管理する',
+        'プロンプトの再利用戦略（キャッシング、モジュール型プロンプト、スキル）を実装する',
+      ]},
+      { id: 3, name: '統合', en: 'Integration', weight: 19, objectives: [
+        'ツールやエージェントの構成を、機能の肥大化の観点から評価する',
+        '認証と認可の要件を分析し、セキュリティ上のギャップを特定する',
+        '精度とレイテンシのトレードオフを評価し、構成に関する決定の根拠を示す',
+        'オブザーバビリティの課題を分析し、大規模環境でのモニタリング戦略を選択する',
+        '適切なチャンキング戦略とインデックス作成戦略を備えた RAG パイプラインを設計する',
+        'データの形状とクエリパターンに合った検索戦略を適用する',
+        '接続プロトコルを評価し、適切な統合メカニズム（MCP、API/CLI、エージェント間）を選択する',
+        '段階的ディスカバリーと一括型コンテキスト戦略を比較評価する',
+      ]},
+      { id: 4, name: '評価、テスト、最適化', en: 'Evaluation, Testing & Optimization', weight: 16, objectives: [
+        '評価指標（精度、レイテンシ、コスト、安全性、セキュリティ）を定義する',
+        '複数の方法論を組み合わせて、評価データセットとテストフレームワークを設計する',
+        'A/B テストと反復的な改善を実施する',
+        'システムの問題（プロンプトの失敗、ハルシネーション、モデルの不適合）を診断する',
+        'トークン使用量、レイテンシ、コストとパフォーマンスのトレードオフを最適化する',
+        'ロギングツールとオブザーバビリティツールを使用してシステムのパフォーマンスをモニタリングする',
+      ]},
+      { id: 5, name: 'ガバナンス、安全性、リスク管理', en: 'Governance, Safety & Risk Management', weight: 14, objectives: [
+        'ガードレールと安全管理策を実装する',
+        'LLM システムのリスク、限界、障害モードを特定する',
+        'ヒューマン・イン・ザ・ループによる検証戦略を適用する',
+        '規制（GDPR、HIPAA、FedRAMP など）へのコンプライアンスを確保する',
+        '倫理的な AI に関する考慮事項（バイアス、公平性、透明性）に対処する',
+      ]},
+      { id: 6, name: 'ステークホルダーとのコミュニケーションとライフサイクル管理', en: 'Stakeholder Communication & Lifecycle Management', weight: 14, objectives: [
+        '体系的なディスカバリーと要件収集を実施する',
+        'アーキテクチャ上の決定とトレードオフを伝える',
+        'ステークホルダーからのフィードバックループと期待値の調整（SLA を含む）を管理する',
+        'アーキテクチャを文書化し、実装のガイダンスを提供する',
+        'ライフサイクルの各フェーズ（ディスカバリー、設計、引き継ぎ、モニタリング、反復）を支援する',
+      ]},
+      { id: 7, name: '開発者の生産性と運用支援', en: 'Developer Productivity & Operational Enablement', weight: 7, objectives: [
+        'チーム向けに Claude のツールと環境（Claude Code など）を構成する',
+        'AI 支援ツールを使用して開発者のワークフローを改善する',
+        'デバッグと運用上の問題解決を支援する',
+      ]},
+    ],
+  },
+  ccdvp: {
+    code: 'CCDV-P', short: 'Developer P',
+    name: 'Claude Certified Developer – Professional',
+    ja: 'デベロッパー（プロフェッショナル）',
+    who: '本番で動く Claude のアプリ・エージェントを運用する人（可観測性・障害対応・評価ゲート・コスト・セキュリティ・コーディングエージェント群の運用）。CCDV-F が推奨だが前提ではない。複数選択の問題あり',
+    items: 70, scored: 60, minutes: 120, fee: '$175', pass: 720, version: 'v1.0・2026年11月',
+    guide: {
+      en: 'https://cc.sj-cdn.net/instructor/6nizmqk8tpzpfjvt6qmmav7rh/public/1794947325/Claude_Certified_Developer-Professional_Exam_Guide.pdf',
+      ja: 'https://cc.sj-cdn.net/instructor/6nizmqk8tpzpfjvt6qmmav7rh/public/1794947417/Claude_Certified_Developer-Professional_Exam_Guide_Japanese.pdf',
+    },
+    domains: [
+      { id: 1, name: '高度なエージェントアーキテクチャとオーケストレーション', en: 'Advanced Agent Architecture and Orchestration', weight: 17, objectives: [
+        'マルチエージェントのオーケストレーション：スーパーバイザー／ワーカー階層・サブエージェントの並列ディスパッチ・委任とコンテキスト分離の境界・エージェント間通信・human-in-the-loop と承認フロー を評価する',
+        '耐久性のある実行と状態管理：中断・再起動・モデル版の変更を越えて動く長時間エージェントに、セッションの永続化・チェックポイント・再開・メモリアーキテクチャを適用する',
+        '大規模環境でのアーキテクチャ選択：本番のコスト・信頼性・品質データから ワークフロー型 ⇄ エージェント型の移行を判断し、チームが採用するハーネス・フレームワーク・再利用パターンを選ぶ',
+        'コンテキストとメモリのアーキテクチャ：コンテキストの圧縮と編集・永続メモリ・キャッシュを損なわない指示変更・大きなツールカタログをコンテキスト外に置く手法 を評価する',
+      ]},
+      { id: 2, name: '本番環境の統合・信頼性・知識グラウンディング', en: 'Production Integration, Reliability, and Knowledge Grounding', weight: 20, objectives: [
+        'Claude サービスの信頼性エンジニアリング：リトライとバックオフ・サーキットブレーカー・グレースフルデグラデーション・モデル間／リージョン間／プラットフォーム間のフォールバック。レート制限・安全性の拒否・コンテキスト上限の停止を区別する',
+        'スケールとスループットの管理：レート制限戦略・キューとバックプレッシャー・バッチパイプライン・マルチテナントのクォータと分離・キャパシティ計画。制約が レート制限／トークンスループット／バッチの経済性 のどれかを特定する',
+        '本番環境の MCP と変更管理：リモート MCP のデプロイと認証・ツールとスキーマのバージョン管理・モデル版移行のテスト・プラットフォーム間の構成の一貫性とゲートウェイ・プロンプトのバージョン管理・ロールバック付きの段階的ロールアウト',
+        '大規模な検索と知識グラウンディング：エージェント型検索と RAG のトレードオフ・チャンキングと埋め込み・ハイブリッド検索・リランキング・出典の引用・不確実性の明示・確信度のシグナル・検索品質の障害を段階ごとに診断する',
+      ]},
+      { id: 3, name: 'オブザーバビリティと本番環境のモニタリング', en: 'Observability and Production Monitoring', weight: 12, objectives: [
+        'テレメトリと計装：エージェントループとツール呼び出しの分散トレース・トークンとコストのメトリクス・キャッシュ性能の診断・根拠と推論の追跡・構造化ログ・ゼロデータ保持などプライバシー制約下でのコンテンツ記録の設定',
+        '本番環境のモニタリングとアラート：SLI と SLO の定義・アラートとダッシュボード（トークン・コストを含む）・品質ドリフト・動作の回帰・異常な利用・モデル更新後のドリフト の検出',
+        '大規模なトレース分析：サンプリング・集計・障害コホート分析で、個々のトレースでは見えないシステム全体の問題を見つけて定量化する',
+      ]},
+      { id: 4, name: '高度なデバッグとインシデント対応', en: 'Advanced Debugging and Incident Response', weight: 10, objectives: [
+        '複雑な障害の診断：マルチターン・マルチエージェント・非決定的な障害の証拠から、原因を モデル出力／エージェントハーネス／ツール／データ に切り分ける。モデルの拒否も障害の一種・検索グラウンディングの障害も含む',
+        'インシデント対応と学習ループ：停止や品質回帰の間の トリアージ・緩和・ロールバック・コミュニケーション を評価し、インシデントを 回帰評価・監視範囲・ポストモーテム に反映する',
+      ]},
+      { id: 5, name: '評価エンジニアリングと品質保証', en: 'Evaluation Engineering and Quality Assurance', weight: 12, objectives: [
+        '評価システムの設計：ゴールデンセット・回帰スイート・動作チェック・CI/CD の評価ゲート・検索の適合率とグラウンディング指標・プロンプト／モデル／エージェント変更のリリース基準。汚染・飽和・カバレッジ不足に対して スイートの妥当性を保つ',
+        'LLM-as-judge のエンジニアリング：人のラベルに照らした キャリブレーション・ルーブリック設計・バイアスと位置の影響・評価者間信頼性・モデル版間のジャッジのドリフト',
+        'オンラインでの品質測定：ライブトラフィックのサンプリング・A/B テスト・フィードバックループ・タスクの種類（抽出・生成・エージェント型・検索根拠）に合った指標',
+      ]},
+      { id: 6, name: '大規模環境でのコストとレイテンシの最適化', en: 'Cost and Latency Optimization at Scale', weight: 8, objectives: [
+        '大規模環境でのコストアーキテクチャ：コストのモデリングと予測・モデルルーティングとカスケード・キャッシュ戦略と診断・バッチとリアルタイムの経済性・テナントごとの予算の適用',
+        'レイテンシエンジニアリング：最初のトークンまでの時間と全体のレイテンシの区別・ストリーミング・ツールの並列実行・キャッシュのチェックポイント・effort レベルの調整',
+      ]},
+      { id: 7, name: 'ランタイムガードレールと本番環境のセキュリティ', en: 'Runtime Guardrails and Production Security', weight: 11, objectives: [
+        'ランタイムガードレールシステム：入出力フィルタ・PII リダクション・フックによるポリシー適用・破壊的アクションの防止・本番を露出しないサンドボックス・承認ゲート・拒否の処理と安全なフォールバック・不可逆アクションの決定論的強制・偽陽性と偽陰性の調整',
+        'エージェント型システムの脅威対策と敵対的テスト：プロンプトインジェクション・ツールとメモリのポイズニング・データ流出経路・安全でない自律性・「プライベートデータ × 信頼できない入力 × 外部通信」の高リスクな組み合わせ。多層防御・レッドチーム演習・安全な MCP 構成。OWASP Top 10 for LLM・NIST AI RMF（生成 AI プロファイル）',
+        '大規模環境での ID・シークレット・監査：エージェントの ID・静的 API キーに代わるワークロード ID フェデレーション・認証情報とシークレットの管理・最小権限のツール権限・セキュリティに関わるアクションの監査ログ',
+      ]},
+      { id: 8, name: 'ソフトウェア提供のためのエージェントフリート運用', en: 'Agent Fleet Operations for Software Delivery', weight: 10, objectives: [
+        'エンジニアリング作業の並列エージェントオーケストレーション：分離されたワークツリーで動く並列エージェント・タスク分解・マージとコンフリクトの戦略・フリートのテレメトリからの障害モード診断',
+        '検証と AI コードレビューの運用：生成がレビューを上回るパイプラインで、シャドーモードで入れる AI コードレビュー・マージゲートにする前の人のレビューとのキャリブレーション・人の監督の設計',
+        '無人実行とイベント駆動のエージェント運用：目標駆動・スケジュール駆動・イベント駆動（CI/CD インシデントの一次対応など）のエージェントに、チェックポイント・通知・エスカレーションを設計する',
+        '組織全体でのコーディングエージェントの構成：管理設定とポリシー・MCP の許可リスト・テレメトリ・ゲートウェイのルーティング・プロンプト／Skills／MCP サーバーをチーム間で共有するときの品質と安全の基準',
+      ]},
+    ],
+  },
+};
+window.QUESTIONS = window.QUESTIONS || {};
