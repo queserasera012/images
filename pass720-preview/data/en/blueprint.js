@@ -247,5 +247,58 @@ window.BLUEPRINT = {
       ]},
     ],
   },
+  ccdvp: {
+    code: 'CCDV-P', short: 'Developer P',
+    name: 'Claude Certified Developer – Professional',
+    ja: 'Developer – Professional',
+    who: 'For people who operate Claude apps and agents running in production (observability, incident response, evaluation gates, cost, security, running fleets of coding agents). CCDV-F is recommended but not required. Includes multiple-select questions.',
+    items: 70, scored: 60, minutes: 120, fee: '$175', pass: 720, version: 'v1.0 · November 2026',
+    guide: {
+      en: 'https://cc.sj-cdn.net/instructor/6nizmqk8tpzpfjvt6qmmav7rh/public/1794947325/Claude_Certified_Developer-Professional_Exam_Guide.pdf',
+    },
+    domains: [
+      { id: 1, name: 'Advanced Agent Architecture and Orchestration', en: 'Advanced Agent Architecture and Orchestration', weight: 17, objectives: [
+        'Multi-agent orchestration: evaluate supervisor/worker hierarchies, parallel dispatch of subagents, the boundaries of delegation and context isolation, communication between agents, and human-in-the-loop and approval flows',
+        'Durable execution and state management: apply session persistence, checkpoints, resumption and memory architecture to long-running agents that work across interruptions, restarts and model version changes',
+        'Architecture choices at scale: decide on moving between workflow and agentic designs from production cost, reliability and quality data, and choose the harnesses, frameworks and reusable patterns a team adopts',
+        'Context and memory architecture: evaluate context compaction and editing, persistent memory, instruction changes that do not break the cache, and ways to keep a large tool catalog outside the context',
+      ]},
+      { id: 2, name: 'Production Integration, Reliability, and Knowledge Grounding', en: 'Production Integration, Reliability, and Knowledge Grounding', weight: 20, objectives: [
+        'Reliability engineering for Claude services: retries and backoff, circuit breakers, graceful degradation, and fallback across models, regions and platforms. Distinguish rate limits, safety refusals and stops at the context limit',
+        'Managing scale and throughput: rate-limit strategy, queues and backpressure, batch pipelines, multi-tenant quotas and isolation, and capacity planning. Identify whether the constraint is the rate limit, token throughput or batch economics',
+        'MCP in production and change management: deploying and authenticating remote MCP, versioning tools and schemas, testing model version migrations, consistent configuration across platforms and gateways, prompt versioning, and staged rollouts with rollback',
+        'Retrieval and knowledge grounding at scale: the trade-offs of agentic search and RAG, chunking and embeddings, hybrid search, reranking, citing sources, stating uncertainty, confidence signals, and diagnosing retrieval quality failures stage by stage',
+      ]},
+      { id: 3, name: 'Observability and Production Monitoring', en: 'Observability and Production Monitoring', weight: 12, objectives: [
+        'Telemetry and instrumentation: distributed traces of the agent loop and tool calls, token and cost metrics, diagnosing cache performance, tracking grounds and reasoning, structured logs, and configuring content recording under privacy constraints such as zero data retention',
+        'Production monitoring and alerting: defining SLIs and SLOs, alerts and dashboards (including tokens and cost), and detecting quality drift, behavioral regressions, anomalous usage and drift after a model update',
+        'Trace analysis at scale: use sampling, aggregation and failure cohort analysis to find and quantify system-wide problems that cannot be seen in individual traces',
+      ]},
+      { id: 4, name: 'Advanced Debugging and Incident Response', en: 'Advanced Debugging and Incident Response', weight: 10, objectives: [
+        'Diagnosing complex failures: from the evidence of multi-turn, multi-agent and non-deterministic failures, isolate the cause to model output, the agent harness, tools or data. A model refusal is also a kind of failure, and retrieval grounding failures are included',
+        'Incident response and the learning loop: evaluate triage, mitigation, rollback and communication during an outage or quality regression, and feed incidents into regression evaluations, monitoring coverage and postmortems',
+      ]},
+      { id: 5, name: 'Evaluation Engineering and Quality Assurance', en: 'Evaluation Engineering and Quality Assurance', weight: 12, objectives: [
+        'Designing evaluation systems: golden sets, regression suites, behavioral checks, evaluation gates in CI/CD, retrieval precision and grounding metrics, and release criteria for prompt, model and agent changes. Keep the suite valid against contamination, saturation and gaps in coverage',
+        'Engineering LLM-as-judge: calibration against human labels, rubric design, bias and position effects, inter-rater reliability, and judge drift across model versions',
+        'Measuring quality online: sampling live traffic, A/B tests, feedback loops, and metrics suited to the type of task (extraction, generation, agentic, retrieval-grounded)',
+      ]},
+      { id: 6, name: 'Cost and Latency Optimization at Scale', en: 'Cost and Latency Optimization at Scale', weight: 8, objectives: [
+        'Cost architecture at scale: cost modeling and forecasting, model routing and cascades, caching strategy and diagnosis, the economics of batch versus real time, and enforcing per-tenant budgets',
+        'Latency engineering: telling time to first token from total latency, streaming, parallel tool execution, cache checkpoints, and tuning the effort level',
+      ]},
+      { id: 7, name: 'Runtime Guardrails and Production Security', en: 'Runtime Guardrails and Production Security', weight: 11, objectives: [
+        'Runtime guardrail systems: input and output filters, PII redaction, policy enforcement with hooks, preventing destructive actions, sandboxes that do not expose production, approval gates, handling refusals with a safe fallback, deterministic enforcement for irreversible actions, and tuning false positives against false negatives',
+        'Threat mitigation and adversarial testing for agentic systems: prompt injection, tool and memory poisoning, data exfiltration paths, unsafe autonomy, and the high-risk combination of private data, untrusted input and external communication. Defense in depth, red team exercises and safe MCP configuration. OWASP Top 10 for LLM and the NIST AI RMF (Generative AI Profile)',
+        'Identity, secrets and audit at scale: agent identity, workload identity federation in place of static API keys, managing credentials and secrets, least-privilege tool permissions, and audit logs of security-relevant actions',
+      ]},
+      { id: 8, name: 'Agent Fleet Operations for Software Delivery', en: 'Agent Fleet Operations for Software Delivery', weight: 10, objectives: [
+        'Parallel agent orchestration for engineering work: parallel agents running in isolated worktrees, task decomposition, merge and conflict strategy, and diagnosing failure modes from fleet telemetry',
+        'Operating verification and AI code review: in a pipeline where generation outpaces review, AI code review introduced in shadow mode, calibration against human review before it becomes a merge gate, and the design of human oversight',
+        'Unattended and event-driven agent operation: design checkpoints, notifications and escalation for goal-driven, schedule-driven and event-driven agents (first response to a CI/CD incident, for example)',
+        'Configuring coding agents across an organization: managed settings and policy, MCP allowlists, telemetry, gateway routing, and quality and safety standards for sharing prompts, Skills and MCP servers between teams',
+      ]},
+    ],
+  },
 };
 window.QUESTIONS = window.QUESTIONS || {};

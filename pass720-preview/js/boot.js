@@ -6,7 +6,7 @@
   var V = '1';
   var EXAMS = {
     ja: ['ccao', 'ccdv', 'ccarf', 'ccarp', 'ccdvp'],
-    en: ['ccao','ccdv','ccarf','ccarp'],
+    en: ['ccao','ccdv','ccarf','ccarp','ccdvp'],
   };
   var get = function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } };
   var set = function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} };
