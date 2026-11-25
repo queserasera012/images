@@ -78,6 +78,7 @@ h2.head::after{content:"";flex:1;border-bottom:1px solid var(--rule)}
 .cover .code{font:700 44px/1 var(--num);letter-spacing:.02em}
 .cover .name{font-weight:900;font-size:18px;line-height:1.4;margin-top:2px}
 .cover .facts{font-size:14px;color:var(--sub);margin-top:4px}
+.row.ver{margin:-6px 0 14px}
 .tabs{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:2px solid var(--ink);margin:0 -16px 16px;padding:0 16px;position:sticky;top:calc(54px + env(safe-area-inset-top));background:var(--paper);z-index:4}
 .tabs button{appearance:none;border:0;background:none;font:700 16px/1 var(--jp);color:var(--sub);min-height:48px;cursor:pointer;border-radius:6px 6px 0 0}
 .tabs button[aria-selected=true]{background:var(--ink);color:var(--sheet)}
@@ -167,6 +168,7 @@ label.opt input{width:22px;height:22px;accent-color:var(--ink)}
 .text h4 .chip{font:700 13px/1 var(--jp);background:var(--ink);color:var(--sheet);padding:4px 7px;border-radius:3px;white-space:nowrap}
 .text .course{border-left:4px solid var(--tab);padding:2px 0 2px 12px;margin:14px 0}
 .text .course h4{margin-top:4px}
+.text .from{margin:22px 0 2px;padding-top:12px;border-top:1px dashed var(--rule);font:700 13px/1.6 var(--jp);color:var(--sub)}
 .text .tip{border:2px solid var(--pen);border-radius:4px;padding:10px 12px 10px;margin:14px 0 6px;font-size:15px;line-height:1.8;position:relative}
 .text .tip::before{content:"試験の見方";display:inline-block;font-weight:900;color:var(--sheet);background:var(--pen);font-size:13px;line-height:1;padding:4px 7px;border-radius:3px;margin-right:8px;vertical-align:2px}
 .text .docs{font-size:14px;color:var(--sub);margin-top:10px;line-height:2}
@@ -183,3 +185,7 @@ select,input[type=number]{font:inherit;padding:8px;max-width:100%;min-width:0;bo
 .exam.soon{cursor:default;opacity:.55}
 .exam.soon .name{font-weight:500;color:var(--sub);grid-row:1/3;align-self:center}
 html[lang=en] .text .tip::before{content:"Exam tip"}
+/* 買い切り（アプリだけ） */
+.rowbtn.lock .t::after{content:"";display:inline-block;width:11px;height:13px;margin-left:8px;vertical-align:-1px;background:currentColor;opacity:.45;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 11 13'%3E%3Cpath d='M2 6V4a3.5 3.5 0 0 1 7 0v2h1v7H1V6zm1.5 0h4V4a2 2 0 0 0-4 0z'/%3E%3C/svg%3E") no-repeat center/contain;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 11 13'%3E%3Cpath d='M2 6V4a3.5 3.5 0 0 1 7 0v2h1v7H1V6zm1.5 0h4V4a2 2 0 0 0-4 0z'/%3E%3C/svg%3E") no-repeat center/contain}
+.lockline{margin:-6px 0 12px}
+.sheet.pay{border:2px solid var(--ink)}

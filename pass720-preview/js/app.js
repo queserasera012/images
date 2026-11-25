@@ -1,7 +1,9 @@
 /* 合格720 / Pass 720 — 出題・模試・復習・進捗（localStorage）。画面の文は tr() を通す（英語は js/i18n-en.js） */
 (function () {
-  const B = window.BLUEPRINT, QS = window.QUESTIONS, QH = window.QUESTIONS_HARD || {}, QO = window.QUESTIONS_ORDER || {}, T = window.TEXT || {};
-  const P = window.P720 || { lang: 'ja', exams: Object.keys(B), all: Object.keys(B) }, EN = P.lang === 'en', DICT = window.I18N_EN || {};
+  const B0 = window.BLUEPRINT, QS = window.QUESTIONS, QH = window.QUESTIONS_HARD || {}, QO = window.QUESTIONS_ORDER || {}, T0 = window.TEXT || {};
+  const QN = window.QUESTIONS_NEW || {}, MAP = window.MAP11 || {};
+  const B = {}, T = {}; // 受験日に合わせた出題範囲とテキスト（rebuild() が作る）
+  const P = window.P720 || { lang: 'ja', exams: Object.keys(B0), all: Object.keys(B0) }, EN = P.lang === 'en', DICT = window.I18N_EN || {};
   const tr = (s, ...a) => { const t = EN && DICT[s] !== undefined ? DICT[s] : s; return a.length ? t.replace(/\{(\d)\}/g, (_, i) => a[+i]) : t; };
   const APP = tr('合格720'), SEP = EN ? ', ' : '・', LOCALE = EN ? 'en-US' : 'ja-JP';
   const CODES = { ccao: 'CCAO-F', ccdv: 'CCDV-F', ccarf: 'CCAR-F', ccarp: 'CCAR-P', ccdvp: 'CCDV-P' };
@@ -17,7 +19,75 @@
     catch (e) { return { stats: {}, mocks: [], flags: {}, read: {} }; }
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+
+  // ---------- 受験日で出題範囲を切りかえる（2026-12-07 からのガイド v1.1） ----------
+  // CCAO-F・CCDV-F・CCAR-P は 12/7 からの受験で範囲が変わる。試験ごとに S.ver[ex] = '10'（12/6 まで）か '11'（12/7 から）。
+  // えらんでいなければ 今日の日付で決める。v1.1 では いまの問題を MAP11 で新しい番号に割り当て、v1.1 で足した問題（QUESTIONS_NEW）も出す。
+  const V11_FROM = Date.parse('2026-12-07T00:00:00+09:00');
+  const hasNew = ex => !!(B0[ex] && B0[ex].v11 && MAP[ex]);
+  const isNew = ex => hasNew(ex) && ((S.ver || {})[ex] || (Date.now() >= V11_FROM ? '11' : '10')) === '11';
+  const verOf = ex => isNew(ex) ? '11' : '10';
+  function setVer(ex, x) { S.ver = S.ver || {}; S.ver[ex] = x; save(); rebuild(); }
+  function rebuild() {
+    for (const k of Object.keys(B0)) {
+      if (!isNew(k)) { B[k] = B0[k]; T[k] = T0[k]; continue; }
+      const v = B0[k].v11;
+      B[k] = Object.assign({}, B0[k], { items: v.items, scored: v.scored, domains: v.domains, isV11: true });
+      T[k] = text11(k);
+    }
+  }
+  // v1.1 のテキスト：目標ごとに「v1.1 で明記された点」（TEXT['ex-11']）＋ 割り当てた v1.0 の節
+  function text11(k) {
+    const old = T0[k], add = T0[k + '-11'], m = MAP[k], v = B0[k].v11; if (!old) return old;
+    const out = { intro: (add && add.intro) || old.intro, appendix: old.appendix, domains: {} };
+    for (const d of v.domains) {
+      const ad = (add && add.domains[d.id]) || {};
+      out.domains[d.id] = { intro: ad.intro || '', obj: d.objectives.map((_, i) => {
+        const a = (ad.obj || [])[i], parts = [], docs = [];
+        if (a) { parts.push(a.body); docs.push(...(a.docs || [])); }
+        for (const key of Object.keys(m.obj)) {
+          const t = m.obj[key]; if (t[0] !== d.id || t[1] !== i) continue;
+          const [od, oo] = key.split('.').map(Number), sec = ((old.domains[od] || {}).obj || [])[oo], on = (B0[k].domains.find(x => x.id === od) || {}).objectives;
+          if (!sec) continue;
+          parts.push(`@from ${tr('v1.0 の目標 {0}「{1}」から', `${od}.${oo + 1}`, (on && on[oo] || '').replace(/[（(].*$/, '').replace(/：.*$/, '').replace(/:\s.*$/, '').trim())}\n${sec.body}`);
+          for (const x of sec.docs || []) if (!docs.some(y => y[1] === x[1])) docs.push(x);
+        }
+        return parts.length ? { body: parts.join('\n\n'), docs } : null;
+      }) };
+    }
+    return out;
+  }
+  rebuild();
   function stat(id) { return S.stats[id] || (S.stats[id] = { n: 0, ok: 0, streak: 0, last: 0, wrongLast: false }); }
+  // ---------- 買い切り（アプリだけ・2026-11-22 オーナー決定 ¥1,500）----------
+  // CCAO-F は ずっと無料。ほかの 4 試験は お試し 10 問（標準・並べ替えを除く・日英で同じ問題）だけ。買うと ぜんぶ ひらく。
+  // ウェブ版（プレビュー）は 鍵を かけない。持っているかは アプリが App Store に 聞いて p720.full に 書く
+  const NATIVE = !!window.__P720_NATIVE, SKU = 'pass720.full', FREE = ['ccao'], SAMPLE = 10;
+  let owned = !NATIVE || localStorage.getItem('p720.full') === '1', price = null;
+  const locked = ex => !owned && FREE.indexOf(ex) < 0;
+  const asks = {}; let askN = 0;
+  function native(type, extra) { return new Promise(res => { const id = 'q' + (++askN); asks[id] = res; try { window.ReactNativeWebView.postMessage(JSON.stringify(Object.assign({ id, type }, extra))); } catch (e) { delete asks[id]; res(null); } }); }
+  window.__p720Reply = (id, r) => { const f = asks[id]; delete asks[id]; if (f) f(r); };
+  function takeOwned(r) { if (!r || !r.ok) return; const was = owned; owned = (r.owned || []).indexOf(SKU) >= 0; try { if (owned) localStorage.setItem('p720.full', '1'); else localStorage.removeItem('p720.full'); } catch (e) {} if (was !== owned) { if (owned && view.name === 'locked') go({ name: 'exam', exam: view.exam }); else render(); } }
+  if (NATIVE) {
+    native('iap', { op: 'owned' }).then(takeOwned);
+    native('iap', { op: 'products', skus: [SKU] }).then(r => { const p = r && r.products && r.products.find(x => x.id === SKU); if (p && p.price) { price = p.price; const b = document.getElementById('buy'); if (b) b.textContent = tr('購入する（{0}）', price); } });
+  }
+  function sampleOf(ex) { return shuffle(qsOf(ex, 'std').filter(q => !isOrder(q)), seeded('sample-' + ex)).slice(0, SAMPLE); }
+  function paywall() {
+    return `<div class="sheet pay"><h2>${tr('4 つの試験をひらく')}</h2>
+      <p class="muted">${tr('CCDV-F・CCAR-F・CCAR-P・CCDV-P の問題（標準・上級・並べ替え）、テキスト、合格ノート、模試がすべて使えます。1 回の買い切りで、月ごとの支払いはありません。CCAO-F はずっと無料です。')}</p>
+      <button class="btn primary wide" id="buy">${price ? tr('購入する（{0}）', price) : tr('購入する')}</button>
+      <p class="small" style="margin:10px 0 0;text-align:center"><a href="#" id="restore">${tr('購入を復元する')}</a></p></div>`;
+  }
+  function wirePay() {
+    const b = $app.querySelector('#buy'), r = $app.querySelector('#restore');
+    if (b) b.onclick = () => { b.disabled = true; native('iap', { op: 'buy', sku: SKU }).then(x => { b.disabled = false; takeOwned(x); if (x && !x.ok && !x.cancelled) alert(tr('購入できませんでした。時間をおいて もう一度お試しください。')); }); };
+    if (r) r.onclick = e => { e.preventDefault(); native('iap', { op: 'restore' }).then(x => { takeOwned(x); if (!owned) alert(x && x.ok ? tr('復元できる購入はありません。') : tr('App Store につながりませんでした。')); }); };
+  }
+  function locked_(v) { setTitle(B[v.exam].code); v.onBack = () => go({ name: 'exam', exam: v.exam }); $app.innerHTML = `<p class="note" style="margin-top:0">${tr('この先は 購入すると使えます。')}</p>` + paywall(); wirePay(); }
+  const guard = (v, f) => locked(v.exam) ? go({ name: 'locked', exam: v.exam }) : f(v);
+
   function record(id, ok) { const s = stat(id); s.n++; if (ok) { s.ok++; s.streak++; } else { s.streak = 0; } s.wrongLast = !ok; s.last = Date.now(); save(); }
 
   // ---------- 便利 ----------
@@ -26,7 +96,15 @@
   const L = 'ABCDEFGH';
   function shuffle(a, rnd) { rnd = rnd || Math.random; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
   function level() { return S.level === 'hard' ? 'hard' : 'std'; }
-  function qsOf(ex, lv) { const src = (((lv || level()) === 'hard' ? QH : QS)[ex] || []).concat(QO[ex] || []); return src.map((q, i) => Object.assign({ exam: ex, id: q.id || (ex + '-' + i) }, q)); }
+  function qsOf(ex, lv) {
+    const hard = (lv || level()) === 'hard', src = ((hard ? QH : QS)[ex] || []).concat(QO[ex] || []);
+    const list = src.map((q, i) => Object.assign({ exam: ex, id: q.id || (ex + '-' + i) }, q));
+    if (!isNew(ex)) return list;
+    const m = MAP[ex], out = [];
+    for (const q of list) { if (m.drop.indexOf(q.id) >= 0) continue; const n = m.q[q.id] || m.obj[q.d + '.' + q.o]; if (n) out.push(Object.assign(q, { d: n[0], o: n[1] })); }
+    for (const q of QN[ex] || []) if ((q.lv === 'hard') === hard) out.push(Object.assign({ exam: ex }, q));
+    return out;
+  }
   // 並べ替え問題：q.t === 'order'。q.c は正しい順。答えは並べた順（添字の配列）が [0,1,2,...] と一致したら正解
   function isOrder(q) { return q.t === 'order'; }
   function orderOk(picked, q) { return picked.length === q.c.length && picked.every((ci, i) => ci === i); }
@@ -43,7 +121,8 @@
   function render() {
     stopTimer();
     $back.hidden = view.name === 'home';
-    const r = { home, exam, drill, question, result, review, scope, mockSetup, history, text, textDomain }[view.name];
+    const r = { home, exam, drill, question, result, review, history, text, locked: locked_,
+      scope: v => guard(v, scope), mockSetup: v => guard(v, mockSetup), textDomain: v => guard(v, textDomain) }[view.name];
     $app.innerHTML = '';
     r(view);
   }
@@ -67,28 +146,29 @@
     for (const k of Object.keys(B)) {
       const b = B[k], qs = qsOf(k);
       const seen = qs.filter(q => stat(q.id).n).length;
-      const mocks = S.mocks.filter(m => m.exam === k && (m.level || 'std') === level()), best = mocks.length ? Math.max(...mocks.map(m => m.pct)) : null;
+      const mocks = S.mocks.filter(m => m.exam === k && (m.level || 'std') === level() && (m.ver || '10') === verOf(k)), best = mocks.length ? Math.max(...mocks.map(m => m.pct)) : null;
       h += `<li><button class="exam" data-ex="${k}">
         <span class="code">${b.code}</span><span class="name">${b.ja}</span>
-        <span class="meta">${tr('{0} 問・解いた {1}', qs.length, seen)}</span>
+        <span class="meta">${tr('{0} 問・解いた {1}', qs.length, seen)}${locked(k) ? SEP + tr('お試し {0} 問', SAMPLE) : ''}</span>
         <span class="pct">${best !== null ? best + '%<small>' + tr('模試の最高') + '</small>' : pct(seen, qs.length) + '%<small>' + tr('解いた') + '</small>'}</span>
         <span class="bar"><i style="width:${pct(seen, qs.length)}%"></i></span>
       </button></li>`;
     }
     for (const k of P.all.filter(x => !B[x])) h += `<li><div class="exam soon"><span class="code">${CODES[k]}</span><span class="name">${tr('準備中')}</span></div></li>`;
     h += `</ul>
-      <p class="foot">${tr('全 {0} 問。記録は難易度ごとに別です。どの試験も 120 分、合格はスケールスコア 720/1000（このアプリでは正答率 {1}% を目安に表示）。CCAO-F・CCDV-F・CCAR-P は 12 月 7 日以降の受験から出題範囲が変わります。', total, PASS_PCT)}</p>
+      <p class="foot">${tr('全 {0} 問。記録は難易度ごとに別です。どの試験も 120 分、合格はスケールスコア 720/1000（このアプリでは正答率 {1}% を目安に表示）。CCAO-F・CCDV-F・CCAR-P は 12 月 7 日以降の受験から出題範囲が変わります（試験のページの「受験日」で切りかえ）。', total, PASS_PCT)}</p>
       <p class="foot">${tr('公式の試験ガイドの出題範囲に沿って作ったオリジナルの問題です。本番の問題は公開されていません。Anthropic とは関係のない非公式の学習アプリです。')}</p>
       <div class="row" style="margin:18px 0 10px"><div class="grow"><b>${tr('見た目')}</b><div class="muted">${ui === 'b' ? tr('黒板とチョーク') : ui === 'c' ? tr('本番の画面に近い、飾りなし') : tr('書き込んだ参考書')}</div></div>
       <div class="seg">${[['a', tr('参考書')], ['b', tr('黒板')], ['c', tr('試験会場')]].map(([k, t]) => `<button data-ui="${k}" aria-pressed="${k === ui}">${t}</button>`).join('')}</div></div>
       <div class="row" style="margin:0 0 10px"><div class="grow"><b>${tr('ことば')}</b><div class="muted">${tr('問題・テキストも切りかわる。記録はそのまま')}</div></div>
       <div class="seg">${[['ja', '日本語'], ['en', 'English']].map(([k, t]) => `<button data-lang="${k}" aria-pressed="${k === P.lang}">${t}</button>`).join('')}</div></div>
-      <p class="foot"><a href="#" id="reset">${tr('保存した記録を消す')}</a></p>`;
+      <p class="foot">${NATIVE && !owned ? `<a href="#" id="restore">${tr('購入を復元する')}</a>　` : ''}<a href="#" id="reset">${tr('保存した記録を消す')}</a></p>`;
     $app.innerHTML = h;
     $app.querySelectorAll('[data-ex]').forEach(el => el.onclick = () => go({ name: 'exam', exam: el.dataset.ex }));
     $app.querySelectorAll('button[data-lv]').forEach(el => el.onclick = () => { S.level = el.dataset.lv; save(); render(); });
     $app.querySelectorAll('button[data-ui]').forEach(el => el.onclick = () => { const k = el.dataset.ui; try { localStorage.setItem('p720.ui', k); } catch (e) {} if (k === 'a') delete document.documentElement.dataset.ui; else document.documentElement.dataset.ui = k; render(); });
     $app.querySelectorAll('button[data-lang]').forEach(el => el.onclick = () => { if (el.dataset.lang !== P.lang && P.setLang) P.setLang(el.dataset.lang); });
+    wirePay();
     $app.querySelector('#reset').onclick = e => { e.preventDefault(); if (confirm(tr('解答の記録と模試の履歴をぜんぶ消します。よいですか？'))) { S = { stats: {}, mocks: [], flags: {}, read: {} }; save(); render(); } };
   }
 
@@ -107,21 +187,30 @@
     const TABS = [['read', tr('読む')], ['solve', tr('解く')], ['mock', tr('模試')], ['stats', tr('成績')]];
     let h = `<div class="cover"><div class="code">${b.code}</div><div class="name">${b.ja}</div>
         <div class="facts">${tr('本番は {0} 問', b.items)}${b.scored ? tr('（採点 {0}）', b.scored) : ''}${tr('、{0} 分、{1}', b.minutes, b.fee)}${b.scenarios ? tr('。シナリオ 6 本中 4 本') : ''}</div></div>
+      ${hasNew(v.exam) ? `<div class="row ver"><div class="grow"><b>${tr('受験日')}</b><div class="muted">${isNew(v.exam) ? tr('新しいガイド v1.1 の範囲（70 問・採点 60）') : tr('今のガイド v1.0 の範囲')}</div></div>
+        <div class="seg"><button data-ver="10" aria-pressed="${!isNew(v.exam)}">${tr('12/6 まで')}</button><button data-ver="11" aria-pressed="${isNew(v.exam)}">${tr('12/7 から')}</button></div></div>` : ''}
       <div class="tabs" role="tablist">${TABS.map(([k, t]) => `<button role="tab" data-tab="${k}" aria-selected="${k === tab}">${t}</button>`).join('')}</div>`;
+    const lk = locked(v.exam);
+    if (lk) h += `<p class="note lockline">${tr('お試し中：標準の {0} 問と「はじめに・早見表」が使えます。', SAMPLE)}</p>`;
     if (tab === 'read') {
-      h += `<ul class="rows"><li><a class="rowbtn" href="pass/${P.lang}/${v.exam}.html"><span class="t">${tr('合格ノート')}</span><span class="s">${tr('配点と作戦、図解、判断表、直前チェック')}</span><span class="r chev"></span></a></li>
+      h += `<ul class="rows"><li><a class="rowbtn${lk ? ' lock' : ''}" ${lk ? 'href="#" data-pay' : `href="pass/${P.lang}/${v.exam}.html"`}><span class="t">${tr('合格ノート')}</span><span class="s">${tr('配点と作戦、図解、判断表、直前チェック')}</span><span class="r chev"></span></a></li>
         ${T[v.exam] ? `<li><button class="rowbtn" id="text"><span class="t">${tr('はじめに・早見表')}</span><span class="s">${tr('選択肢の見分け方と用語のまとめ')}</span><span class="r chev"></span></button></li>` : ''}</ul>`;
       if (T[v.exam]) {
         h += `<h2 class="head">${tr('テキスト')}　${readCount(v.exam)} / ${objCount(v.exam)} ${unit}</h2><ul class="rows">`;
         for (const d of b.domains) { const r = readCount(v.exam, d.id), n = d.objectives.length;
-          h += `<li><button class="rowbtn" data-td="${d.id}"><span class="t"><span class="w">${d.weight}%</span>${esc(d.name)}</span><span class="s">${tr('読んだ {0} / {1}', r, n)}</span><span class="r chev"></span><span class="bar"><i class="${r === n ? 'ok' : ''}" style="width:${pct(r, n)}%"></i></span></button></li>`; }
+          h += `<li><button class="rowbtn${lk ? ' lock' : ''}" data-td="${d.id}"><span class="t"><span class="w">${d.weight}%</span>${esc(d.name)}</span><span class="s">${tr('読んだ {0} / {1}', r, n)}</span><span class="r chev"></span><span class="bar"><i class="${r === n ? 'ok' : ''}" style="width:${pct(r, n)}%"></i></span></button></li>`; }
         h += '</ul>';
       }
-      if (b.next) h += `<details class="change"><summary>${tr('{0} の受験から出題範囲が変わる', esc(b.next.from))}</summary>
-        <p class="small">${tr('予約した受験日が {0} 以降なら新しいガイドの範囲、それより前なら今の範囲（このアプリの問題とテキスト）です。本番は {1}。', esc(b.next.from), esc(b.next.items))}</p>
-        <p class="small">${esc(b.next.summary)}</p><ul>${b.next.domains.map(d => `<li>${esc(d)}</li>`).join('')}</ul>
-        ${b.guide.nextEn ? `<p class="small">${guideLinks(b.guide.nextJa, b.guide.nextEn, tr('新しいガイド'))}</p>` : ''}</details>`;
-      h += `<p class="foot">${esc(b.who)}<br>${guideLinks(b.guide.ja, b.guide.en, tr('公式ガイド'))}</p>`;
+      if (b.next) h += `<details class="change"><summary>${tr('v1.1（{0} から）で変わること', esc(b.next.from))}</summary>
+        <p class="small">${tr('予約した受験日が {0} 以降なら新しいガイド v1.1、それより前なら v1.0 の範囲です。上の「受験日」で切りかえると、問題・テキスト・模試がその範囲になります。本番は {1}。', esc(b.next.from), esc(b.next.items))}</p>
+        <p class="small">${esc(b.next.summary)}</p><ul>${b.next.domains.map(d => `<li>${esc(d)}</li>`).join('')}</ul></details>`;
+      h += `<p class="foot">${esc(b.who)}<br>${b.isV11 && b.guide.nextEn ? guideLinks(b.guide.nextJa, b.guide.nextEn, tr('公式ガイド v1.1')) : guideLinks(b.guide.ja, b.guide.en, tr('公式ガイド'))}</p>`;
+    } else if (tab === 'solve' && lk) {
+      const sq = sampleOf(v.exam), done = sq.filter(q => stat(q.id).n).length;
+      h += `<button class="btn primary wide" id="sample">${tr('お試しの {0} 問を解く（解いた {1}）', sq.length, done)}</button>
+        <p class="note">${tr('出題範囲のあちこちから選んだ {0} 問です。何回でも解けます。', SAMPLE)}</p>` + paywall();
+    } else if (tab === 'mock' && lk) {
+      h += paywall();
     } else if (tab === 'solve') {
       h += `<button class="btn primary wide" id="drillAll">${tr('全ドメインから解く（{0} 問）', qs.length)}</button>
         <div class="row" style="margin:8px 0 4px"><button class="btn grow" id="drillWrong" ${wrong.length ? '' : 'disabled'}>${tr('前回まちがえた {0}', wrong.length)}</button><button class="btn grow" id="drillUnseen" ${unseen.length ? '' : 'disabled'}>${tr('まだ解いていない {0}', unseen.length)}</button></div>
@@ -130,7 +219,7 @@
         h += `<li><button class="rowbtn" data-dd="${d.id}"><span class="t"><span class="w">${d.weight}%</span>${esc(d.name)}</span><span class="s">${tr('{0} 問', x.dq.length)}</span><span class="r">${x.p === null ? '<small>' + tr('まだ') + '</small>' : x.p + '<small>%</small>'}</span></button></li>`; }
       h += `</ul><p class="note">${tr('1 問ずつ、答えるとすぐ解説が出ます。数字は そのドメインの正答率です。')}</p>`;
     } else if (tab === 'mock') {
-      const ms = S.mocks.filter(m => m.exam === v.exam && (m.level || 'std') === level()).slice().reverse();
+      const ms = S.mocks.filter(m => m.exam === v.exam && (m.level || 'std') === level() && (m.ver || '10') === verOf(v.exam)).slice().reverse();
       h += `<div class="sheet"><h2>${tr('本番と同じ {0} 問・{1} 分', b.items, b.minutes)}</h2><p class="muted">${tr('ドメインの配分も本番どおり。終わるまで答えは見えません。')}</p>
         <button class="btn primary wide" id="mock">${tr('模試の準備へ')}</button></div>`;
       if (ms.length) { h += `<h2 class="head">${tr('これまでの模試')}</h2><ul class="rows">${ms.slice(0, 5).map(m => `<li><div class="rowbtn" style="cursor:default"><span class="t">${new Date(m.at).toLocaleString(LOCALE, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span><span class="s">${tr('{0} / {1} 問、{2} 分', m.ok, m.n, Math.floor(m.secs / 60))}</span><span class="r ${m.pct >= PASS_PCT ? '' : 'danger'}">${m.pct}<small>%</small></span></div></li>`).join('')}</ul>
@@ -146,7 +235,11 @@
     const on = (sel, fn) => { const el = $app.querySelector(sel); if (el) el.onclick = fn; };
     const start = (list, label) => go({ name: 'drill', exam: v.exam, list: shuffle(list.slice()), label });
     $app.querySelectorAll('[data-tab]').forEach(el => el.onclick = () => { S.tab[v.exam] = el.dataset.tab; save(); v.tab = el.dataset.tab; render(); });
+    $app.querySelectorAll('button[data-ver]').forEach(el => el.onclick = () => { if (el.dataset.ver !== verOf(v.exam)) { setVer(v.exam, el.dataset.ver); render(); } });
     $app.querySelectorAll('[data-td]').forEach(el => el.onclick = () => go({ name: 'textDomain', exam: v.exam, d: +el.dataset.td }));
+    $app.querySelectorAll('[data-pay]').forEach(el => el.onclick = e => { e.preventDefault(); go({ name: 'locked', exam: v.exam }); });
+    on('#sample', () => go({ name: 'drill', exam: v.exam, list: sampleOf(v.exam), label: tr('お試し') }));
+    wirePay();
     $app.querySelectorAll('[data-dd]').forEach(el => el.onclick = () => { const d = +el.dataset.dd; start(qs.filter(q => q.d === d), domainOf(v.exam, d).name); });
     on('#text', () => go({ name: 'text', exam: v.exam }));
     on('#drillAll', () => start(qs, tr('全ドメイン')));
@@ -178,7 +271,8 @@
 
   // ---------- テキスト ----------
   function objCount(ex) { return B[ex].domains.reduce((s, d) => s + d.objectives.length, 0); }
-  function readCount(ex, d) { return Object.keys(S.read).filter(k => k.startsWith(ex + '-' + (d ? d + '-' : ''))).length; }
+  const rk = ex => isNew(ex) ? ex + '@11' : ex; // 読んだ印は 版ごとに別
+  function readCount(ex, d) { return Object.keys(S.read).filter(k => k.startsWith(rk(ex) + '-' + (d ? d + '-' : ''))).length; }
   // 軽いマークダウン：段落 / "- " 箇条書き / "> " 試験の見方 / "### " 小見出し / **太字** / `code` / [文字](url)
   // 箇条書きは形で描き分ける：「**ことば**：説明」は ことばの表、「A → B」は 対応の表
   function md(src) {
@@ -198,6 +292,7 @@
       if (!line) { flush(); continue; }
       if (line.startsWith('- ')) { if (quote) flush(); (list = list || []).push(line.slice(2)); continue; }
       if (line.startsWith('> ')) { if (list) flush(); endCourse(); (quote = quote || []).push(line.slice(2)); continue; }
+      if (line.startsWith('@from ')) { flush(); endCourse(); out.push(`<div class="from">${inline(line.slice(6))}</div>`); continue; }
       if (line.startsWith('### ')) { flush(); endCourse(); let t = line.slice(4);
         if (t.startsWith('🎓')) { course = true; t = t.replace(/^🎓\s*/, ''); out.push(`<div class="course"><h4><span class="chip">${tr('要点')}</span>${inline(t)}</h4>`); }
         else out.push(`<h4>${inline(t)}</h4>`);
@@ -221,7 +316,7 @@
     const ids = b.domains.map(x => x.id), pos = ids.indexOf(v.d);
     let h = `<div class="cover"><div class="code">${d.weight}%</div><div class="name">${v.d}. ${esc(d.name)}</div><div class="facts">${EN ? '' : esc(d.en)}</div></div>${td.intro ? `<div class="text">${md(td.intro)}</div>` : ''}`;
     d.objectives.forEach((o, i) => {
-      const key = `${v.exam}-${v.d}-${i}`, sec = (td.obj || [])[i], oq = qs.filter(q => q.d === v.d && q.o === i);
+      const key = `${rk(v.exam)}-${v.d}-${i}`, sec = (td.obj || [])[i], oq = qs.filter(q => q.d === v.d && q.o === i);
       const num = `${v.d}.${i + 1}`, title = o.startsWith(num + ' ') ? o.slice(num.length + 1) : o;
       const cut = title.indexOf(EN ? ' (' : '（'), t1 = cut > 0 ? title.slice(0, cut) : title, t2 = cut > 0 ? title.slice(cut + (EN ? 2 : 1)).replace(/[）)]$/, '') : '';
       h += `<div class="sheet text" id="o-${i}"><h3><span class="objno">${num}</span>${esc(t1)}${t2 ? `<small>${esc(t2)}</small>` : ''}</h3>${sec ? md(sec.body) : '<p class="muted">' + tr('（このテキストはまだ書いていません）') + '</p>'}
@@ -367,7 +462,7 @@
     v.onBack = () => go({ name: 'exam', exam: v.exam });
     const n = v.list.length, ok = v.answers.filter(a => a && a.ok).length, p = pct(ok, n);
     const by = b.domains.map(d => { const idx = v.list.map((q, i) => q.d === d.id ? i : -1).filter(i => i >= 0); const o = idx.filter(i => v.answers[i] && v.answers[i].ok).length; return { d, n: idx.length, ok: o }; });
-    if (v.mode === 'mock' && !v.saved) { v.saved = true; S.mocks.push({ exam: v.exam, level: level(), at: Date.now(), n, ok, pct: p, by: by.map(x => [x.d.id, x.n, x.ok]), secs: v.start ? Math.round((Date.now() - v.start) / 1000) : 0 }); save(); }
+    if (v.mode === 'mock' && !v.saved) { v.saved = true; S.mocks.push({ exam: v.exam, level: level(), ver: verOf(v.exam), at: Date.now(), n, ok, pct: p, by: by.map(x => [x.d.id, x.n, x.ok]), secs: v.start ? Math.round((Date.now() - v.start) / 1000) : 0 }); save(); }
     const wrongs = v.list.map((q, i) => ({ q, i })).filter(x => !(v.answers[x.i] && v.answers[x.i].ok));
     const pass = p >= PASS_PCT, mock = v.mode === 'mock';
     $app.innerHTML = `<div class="paper"><div class="score">${p}<small>%</small></div>
@@ -401,7 +496,7 @@
     const b = B[v.exam];
     setTitle(tr('模試の推移') + ' ' + b.code);
     v.onBack = () => go({ name: 'exam', exam: v.exam });
-    const ms = S.mocks.filter(m => m.exam === v.exam && (m.level || 'std') === level()).slice().reverse();
+    const ms = S.mocks.filter(m => m.exam === v.exam && (m.level || 'std') === level() && (m.ver || '10') === verOf(v.exam)).slice().reverse();
     $app.innerHTML = `<div class="sheet"><table><tr><th>${tr('日時')}</th><th class="num">${tr('正解')}</th><th class="num">${tr('率')}</th><th class="num">${tr('時間')}</th></tr>${ms.map(m => `<tr><td>${new Date(m.at).toLocaleString(LOCALE, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td><td class="num">${m.ok}/${m.n}</td><td class="num ${m.pct >= PASS_PCT ? '' : 'danger'}">${m.pct}%</td><td class="num">${tr('{0}分', Math.floor(m.secs / 60))}</td></tr>`).join('')}</table></div>
       <div class="sheet"><h2>${tr('ドメインごとの推移')}</h2><table><tr><th>${tr('ドメイン')}</th>${ms.slice(0, 5).reverse().map((_, i) => `<th class="num">${i + 1}</th>`).join('')}</tr>${b.domains.map(d => `<tr><td>${d.id}. ${esc(d.name)}</td>${ms.slice(0, 5).reverse().map(m => { const x = (m.by || []).find(y => y[0] === d.id); return `<td class="num">${x && x[1] ? pct(x[2], x[1]) + '%' : '–'}</td>`; }).join('')}</tr>`).join('')}</table><p class="note">${tr('直近5回。')}</p></div>`;
   }
