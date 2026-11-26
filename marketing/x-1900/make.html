@@ -37,6 +37,8 @@ const TH={i:{bg:'linear-gradient(#8FE3F0 0%,#C9F4F2 55%,#E9FBF6 70%)',lab:'#1F2A
  m:{bg:'linear-gradient(#A99BEA 0%,#D7B8F0 40%,#F6DDF0 70%)',lab:'#1F2A44',acc:'#FFD23F'},
  x:{bg:'linear-gradient(#0F3D3E 0%,#17564F 45%,#2C7A62 80%)',lab:'#FFD23F',acc:'#FFD23F'},
  o:{bg:'linear-gradient(#E48AA6 0%,#F3B6C6 45%,#FCE3E8 78%)',lab:'#1F2A44',acc:'#FFD23F'},
+ a:{bg:'linear-gradient(#4FC3BE 0%,#9EE3DA 45%,#E2F8F3 78%)',lab:'#1F2A44',acc:'#FFD23F'},
+ g:{bg:'linear-gradient(#FFC98F 0%,#FFE2B8 45%,#FFF6E4 78%)',lab:'#1F2A44',acc:'#FF6B6B'},
  k:{bg:'linear-gradient(#FF9E7A 0%,#FFC49A 40%,#FFE7C4 75%,#FFF4E0 100%)',lab:'#1F2A44',acc:'#FFD23F'}}[L];
 c.style.background=TH.bg;
 const textBlock=(left,top,w,fs)=>add(`<div class="a t" style="left:${left}px;width:${w}px;top:${top}px;display:flex;flex-direction:column;align-items:center">
@@ -50,8 +52,8 @@ else{textBlock(640,100,910,300);add(`<div class="a t" style="left:640px;width:91
 if(L=='z'||L=='s'||L=='t'||L=='b'||L=='y')document.head.insertAdjacentHTML('beforeend','<style>.name{color:#1F2A44!important;text-shadow:none!important}</style>');
 if(L=='o'||L=='x')document.head.insertAdjacentHTML('beforeend','<style>.name{color:#1F2A44!important;text-shadow:none!important}</style>');
 if(L=='f')document.head.insertAdjacentHTML('beforeend','<style>.name{color:#fff!important}</style>');
-if(L=='k')document.head.insertAdjacentHTML('beforeend','<style>.name{color:#1F2A44!important;text-shadow:none!important}</style>');
-if(P)add(`<div class="a name t" style="left:0;right:0;top:${(L=='x'||L=='o'||L=='k'||L=='m'||L=='f'||L=='z'||L=='s'||L=='t'||L=='y')?742:1272}px;text-align:center;font-size:34px;z-index:5">ケセラセラ｜パパが作るゲームとアプリ</div>`);
+if(L=='k'||L=='a'||L=='g')document.head.insertAdjacentHTML('beforeend','<style>.name{color:#1F2A44!important;text-shadow:none!important}</style>');
+if(P)add(`<div class="a name t" style="left:0;right:0;top:${(L=='x'||L=='o'||L=='a'||L=='g'||L=='k'||L=='m'||L=='f'||L=='z'||L=='s'||L=='t'||L=='y')?742:1272}px;text-align:center;font-size:34px;z-index:5">ケセラセラ｜パパが作るゲームとアプリ</div>`);
 // 場面の原点（横：左の 0〜620・縦：下の 740〜1350）
 
 const ox=P?250:0,oy=P?(L=='x'?430:470):0;
@@ -111,5 +113,51 @@ if(L=='o'){ // 雪の温泉：18このブロックの石がき
  add(`<svg class="a" style="left:${sx+515}px;top:${gy-150}px;z-index:5" width="96" height="180" viewBox="0 0 96 180"><rect x="40" y="70" width="14" height="110" fill="#A86F3A" stroke="#1F2A44" stroke-width="5"/><rect x="6" y="6" width="84" height="76" rx="12" fill="#FFFDF6" stroke="#1F2A44" stroke-width="7"/><text x="48" y="64" text-anchor="middle" font-family="Zen Maru Gothic" font-weight="900" font-size="54" fill="#FF6B6B">ゆ</text></svg>`);
  // おけ と なかま
  add(`<svg class="a" style="left:${sx+40}px;top:${gy+200}px" width="70" height="50" viewBox="0 0 70 50"><path d="M6 8 L64 8 L56 46 L14 46Z" fill="#E9B872" stroke="#1F2A44" stroke-width="5" stroke-linejoin="round"/><path d="M10 26 L60 26" stroke="#1F2A44" stroke-width="4"/></svg>`);
+}
+
+const snow=(seed,n)=>{let r=seed;const R=()=>(r=(r*9301+49297)%233280)/233280;for(let i=0;i<n;i++){const s=6+R()*9;add(`<div class="a" style="left:${R()*W}px;top:${R()*H}px;width:${s}px;height:${s}px;border-radius:50%;background:#fff;opacity:${.6+R()*.4};z-index:${i%5==0?11:0}"></div>`);}};
+const ground=(gy)=>add(`<svg class="a" style="left:0;top:${gy-40}px" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="M0 50 Q${W*.25} 0 ${W*.5} 40 T${W} 30 L${W} ${H} L0 ${H}Z" fill="#FFFFFF" stroke="#1F2A44" stroke-width="7"/></svg>`);
+if(L=='a'){ // ブロックの雪だるま：5・5・4（からだ）＋3・2（あたま）＝19
+ snow(29,55);
+ add(`<svg class="a" style="left:0;top:${P?860:330}px" width="${W}" height="520" viewBox="0 0 ${W} 520" preserveAspectRatio="none"><path d="M0 520 L0 170 Q${W*.15} 80 ${W*.3} 150 Q${W*.45} 60 ${W*.62} 140 Q${W*.8} 70 ${W} 130 L${W} 520Z" fill="#BDEDE6" stroke="#1F2A44" stroke-width="6"/></svg>`);
+ const sx=ox,sy=oy,gy=sy+770;ground(gy);
+ const bs=50,cx=sx+300;let k=0;const rows=[5,5,4,3,2];
+ rows.forEach((cnt,row)=>{const x0=cx-cnt*bs/2;for(let j=0;j<cnt;j++)add(blk(x0+j*bs,gy-(row+1)*bs-6,bs,k++));});
+ const hy=gy-6-5*bs; // あたまの上
+ // マフラー（からだと あたまの あいだ）
+ add(`<div class="a" style="left:${cx-2*bs-10}px;top:${gy-6-3*bs-14}px;width:${4*bs+20}px;height:28px;border-radius:14px;background:#4FB8E8;border:5px solid #1F2A44;z-index:3"></div>`);
+ add(`<div class="a" style="left:${cx+bs*1.1}px;top:${gy-6-3*bs+4}px;width:30px;height:70px;border-radius:10px;background:#4FB8E8;border:5px solid #1F2A44;transform:rotate(-12deg);z-index:3"></div>`);
+ // かお（あたまの 3だん目に）
+ const fy=gy-6-5*bs+20;
+ add(`<svg class="a" style="left:${cx-75}px;top:${fy-10}px;z-index:4" width="150" height="70" viewBox="0 0 150 70"><circle cx="48" cy="22" r="9" fill="#1F2A44"/><circle cx="102" cy="22" r="9" fill="#1F2A44"/><path d="M70 34 L112 44 L70 50Z" fill="#FF9F43" stroke="#1F2A44" stroke-width="5" stroke-linejoin="round"/></svg>`);
+ // バケツの ぼうし
+ add(`<svg class="a" style="left:${cx-62}px;top:${hy-74}px;z-index:4" width="124" height="80" viewBox="0 0 124 80"><path d="M22 70 L32 8 L92 8 L102 70Z" fill="#FFFDF6" stroke="#1F2A44" stroke-width="7" stroke-linejoin="round"/><rect x="4" y="64" width="116" height="14" rx="7" fill="#FFFDF6" stroke="#1F2A44" stroke-width="6"/><path d="M30 30 L94 30" stroke="#FF6B6B" stroke-width="8"/></svg>`);
+ // えだの うで
+ add(`<svg class="a" style="left:${cx-2.5*bs-90}px;top:${gy-6-2.6*bs}px;z-index:4" width="100" height="70" viewBox="0 0 100 70"><path d="M98 60 L8 18 M40 33 L30 6 M60 42 L48 20" stroke="#8B5A2B" stroke-width="8" stroke-linecap="round" fill="none"/></svg>`);
+ add(`<svg class="a" style="left:${cx+2.5*bs-8}px;top:${gy-6-2.6*bs}px;z-index:4" width="100" height="70" viewBox="0 0 100 70"><path d="M2 60 L92 18 M60 33 L70 6 M40 42 L52 20" stroke="#8B5A2B" stroke-width="8" stroke-linecap="round" fill="none"/></svg>`);
+ add(`<img class="a" src="sera.svg" style="left:${sx-20}px;top:${gy-130}px;height:180px;z-index:5">`);
+ add(`<img class="a" src="small.svg" style="left:${sx+500}px;top:${gy-60}px;height:104px;z-index:5">`);
+ // ゆきだま
+ [[sx+150,gy+14,30],[sx+460,gy+20,24],[sx+80,gy+40,18]].forEach(([x,y,s])=>add(`<div class="a" style="left:${x}px;top:${y}px;width:${s}px;height:${s}px;border-radius:50%;background:#fff;border:4px solid #1F2A44;z-index:5"></div>`));
+ for(let i=0;i<6;i++)add(fr(sx+22+i*96,gy+46+(i%2)*16,60,FC[i],i%2==0));
+}
+if(L=='g'){ // そりあそび：ブロックの おか 1・2・3・4・5・3・1＝19
+ snow(41,40);
+ add(`<div class="a" style="left:${P?820:470}px;top:${P?40:60}px;width:120px;height:120px;border-radius:50%;background:#FFF1C9;border:6px solid #1F2A44;box-shadow:0 0 0 22px rgba(255,241,201,.45)"></div>`);
+ add(`<svg class="a" style="left:0;top:${P?880:350}px" width="${W}" height="520" viewBox="0 0 ${W} 520" preserveAspectRatio="none"><path d="M0 520 L0 160 L${W*.14} 70 L${W*.28} 150 L${W*.45} 40 L${W*.6} 140 L${W*.78} 60 L${W} 150 L${W} 520Z" fill="#F7C9A8" stroke="#1F2A44" stroke-width="6" stroke-linejoin="round"/><path d="M${W*.45} 40 L${W*.405} 92 L${W*.44} 84 L${W*.47} 96 L${W*.5} 86Z M${W*.78} 60 L${W*.745} 104 L${W*.775} 96 L${W*.8} 106 L${W*.82} 96Z" fill="#fff" stroke="#1F2A44" stroke-width="5" stroke-linejoin="round"/></svg>`);
+ const sx=ox,sy=oy,gy=sy+770;ground(gy);
+ const bs=50,x0=sx+40;let k=0;const hs=[1,2,3,4,5,3,1];
+ hs.forEach((h,c)=>{for(let j=0;j<h;j++)add(blk(x0+c*bs,gy-(j+1)*bs-6,bs,k++));});
+ // おかの 雪の ふた
+ add(`<svg class="a" style="left:${x0-12}px;top:${gy-6-5*bs-16}px;z-index:2" width="${7*bs+24}" height="${5*bs+20}" viewBox="0 0 ${7*bs+24} ${5*bs+20}">${hs.map((h,c)=>`<rect x="${c*bs+6}" y="${(5-h)*bs+4}" width="${bs+12}" height="22" rx="11" fill="#fff" stroke="#1F2A44" stroke-width="5"/>`).join('')}</svg>`);
+ // てっぺんの はた
+ add(`<svg class="a" style="left:${x0+4*bs+16}px;top:${gy-6-5*bs-96}px;z-index:3" width="70" height="90" viewBox="0 0 70 90"><path d="M10 88 L10 6" stroke="#1F2A44" stroke-width="6" stroke-linecap="round"/><path d="M12 8 L62 22 L12 38Z" fill="#FF6B6B" stroke="#1F2A44" stroke-width="5" stroke-linejoin="round"/></svg>`);
+ // そりの セラ（みぎの さかを すべる）
+ const sled=(x,y,src,h,rot)=>add(`<div class="a" style="left:${x}px;top:${y}px;transform:rotate(${rot}deg);z-index:6"><img src="${src}" style="height:${h}px;display:block;margin:0 auto -${h*.18}px"><svg width="${h*1.1}" height="${h*.34}" viewBox="0 0 110 34" style="display:block"><rect x="8" y="2" width="94" height="18" rx="6" fill="#FF6B6B" stroke="#1F2A44" stroke-width="5"/><path d="M4 28 L96 28 Q108 28 106 16" fill="none" stroke="#1F2A44" stroke-width="6" stroke-linecap="round"/></svg></div>`);
+ sled(x0+4*bs+36,gy-6-3*bs-112,'sera.svg',116,30);
+ sled(x0+6*bs+40,gy-118,'small.svg',90,18);
+ // すべった あと
+ add(`<svg class="a" style="left:${x0+5*bs}px;top:${gy-6-3*bs}px;z-index:1" width="260" height="200" viewBox="0 0 260 200"><path d="M10 10 Q90 90 250 190" stroke="#fff" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="4 18" opacity=".9"/></svg>`);
+ for(let i=0;i<6;i++)add(fr(sx+22+i*96,gy+46+(i%2)*16,60,FC[i],i%2==1));
 }
 </script></body></html>
